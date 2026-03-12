@@ -3,8 +3,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 import { 
-  Users, Plus, Search, Mail, Phone, FileText, UserCircle 
+  Users, Plus, Search, Mail, Phone, FileText, UserCircle, ChevronRight
 } from "lucide-react";
 import { 
   useListPatients, 
@@ -55,6 +56,7 @@ const createPatientSchema = z.object({
 
 export default function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [, navigate] = useLocation();
   const { data: patients, isLoading } = useListPatients();
   
   const filteredPatients = patients?.filter(p => 
@@ -106,7 +108,11 @@ export default function Patients() {
             ))
           ) : filteredPatients.length > 0 ? (
             filteredPatients.map((patient) => (
-              <Card key={patient.id} className="overflow-hidden border-border/50 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300 group">
+              <Card
+                key={patient.id}
+                className="overflow-hidden border-border/50 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300 group cursor-pointer"
+                onClick={() => navigate(`/patients/${patient.id}`)}
+              >
                 <CardContent className="p-0">
                   <div className="p-6 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
                     <div className="flex justify-between items-start mb-4">
@@ -144,9 +150,9 @@ export default function Patients() {
                   </div>
                   <div className="px-6 py-3 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
                     <span>Added {format(new Date(patient.createdAt), 'MMM d, yyyy')}</span>
-                    <Button variant="ghost" size="sm" className="h-8 text-primary hover:text-primary hover:bg-primary/5">
-                      View Record
-                    </Button>
+                    <span className="flex items-center gap-1 text-primary font-medium group-hover:gap-2 transition-all">
+                      View Record <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
                   </div>
                 </CardContent>
               </Card>

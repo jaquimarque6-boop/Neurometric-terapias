@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
 import Patients from "@/pages/patients";
+import PatientProfile from "@/pages/patient-profile";
 import Sessions from "@/pages/sessions";
 import Goals from "@/pages/goals";
 import Professionals from "@/pages/professionals";
@@ -24,6 +25,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/patients" component={Patients} />
+      <Route path="/patients/:id" component={PatientProfile} />
       <Route path="/sessions" component={Sessions} />
       <Route path="/goals" component={Goals} />
       <Route path="/professionals" component={Professionals} />
