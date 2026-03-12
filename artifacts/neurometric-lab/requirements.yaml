@@ -1,0 +1,19 @@
+packages:
+  "framer-motion": "For smooth page transitions and micro-interactions"
+  "recharts": "For rendering beautiful clinical data visualizations on the dashboard"
+  "date-fns": "For formatting session dates and therapy goal timelines"
+  "@hookform/resolvers": "For Zod form validation in clinical entry forms"
+  "zod": "For schema validation"
+  "lucide-react": "For clinical icons"
+
+images:
+  - path: "artifacts/neurometric-lab/public/images/auth-bg.png"
+    description: "Abstract soft medical gradient with calming teal and slate blue tones, minimal geometric shapes, very soft and professional"
+    aspect_ratio: "16:9"
+  - path: "artifacts/neurometric-lab/public/images/logo-icon.png"
+    description: "A minimal, modern geometric logo icon representing a brain or neural pathways, composed of soft glowing lines in teal and deep blue on a transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - Using pre-generated API hooks from @workspace/api-client-react
+  - Forms use Zod schemas that closely mirror the OpenAPI schemas for validation
