@@ -19,18 +19,20 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-
-const navItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Patients", url: "/patients", icon: Users },
-  { title: "Sessions", url: "/sessions", icon: CalendarDays },
-  { title: "Goals", url: "/goals", icon: Target },
-  { title: "Goal Library", url: "/goal-library", icon: BookOpen },
-  { title: "Professionals", url: "/professionals", icon: Stethoscope },
-];
+import { useLanguage } from "@/i18n";
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { title: t.nav.dashboard, url: "/", icon: BarChart3 },
+    { title: t.nav.patients, url: "/patients", icon: Users },
+    { title: t.nav.sessions, url: "/sessions", icon: CalendarDays },
+    { title: t.nav.goals, url: "/goals", icon: Target },
+    { title: t.nav.goalLibrary, url: "/goal-library", icon: BookOpen },
+    { title: t.nav.professionals, url: "/professionals", icon: Stethoscope },
+  ];
 
   return (
     <Sidebar className="border-r border-border/50 bg-white">
@@ -52,14 +54,14 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-6 mb-2">
-            CLINICAL PLATFORM
+            {t.nav.clinicalPlatform}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="px-4 gap-1">
               {navItems.map((item) => {
                 const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
