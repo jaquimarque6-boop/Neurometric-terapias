@@ -17,12 +17,15 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AssignGoalBody,
   CreateGoal,
+  CreateGoalLibraryItem,
   CreatePatient,
   CreateProfessional,
   CreateSession,
   DashboardStats,
   Goal,
+  GoalLibraryItem,
   HealthStatus,
   Patient,
   Professional,
@@ -920,6 +923,254 @@ export const useCreateProfessional = <
   TContext
 > => {
   return useMutation(getCreateProfessionalMutationOptions(options));
+};
+
+/**
+ * @summary List all library goals
+ */
+export const getListGoalLibraryUrl = () => {
+  return `/api/goal-library`;
+};
+
+export const listGoalLibrary = async (
+  options?: RequestInit,
+): Promise<GoalLibraryItem[]> => {
+  return customFetch<GoalLibraryItem[]>(getListGoalLibraryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGoalLibraryQueryKey = () => {
+  return [`/api/goal-library`] as const;
+};
+
+export const getListGoalLibraryQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGoalLibrary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGoalLibrary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGoalLibraryQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listGoalLibrary>>> = ({
+    signal,
+  }) => listGoalLibrary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGoalLibrary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGoalLibraryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGoalLibrary>>
+>;
+export type ListGoalLibraryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all library goals
+ */
+
+export function useListGoalLibrary<
+  TData = Awaited<ReturnType<typeof listGoalLibrary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGoalLibrary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGoalLibraryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a library goal
+ */
+export const getCreateGoalLibraryItemUrl = () => {
+  return `/api/goal-library`;
+};
+
+export const createGoalLibraryItem = async (
+  createGoalLibraryItem: CreateGoalLibraryItem,
+  options?: RequestInit,
+): Promise<GoalLibraryItem> => {
+  return customFetch<GoalLibraryItem>(getCreateGoalLibraryItemUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGoalLibraryItem),
+  });
+};
+
+export const getCreateGoalLibraryItemMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoalLibraryItem>>,
+    TError,
+    { data: BodyType<CreateGoalLibraryItem> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGoalLibraryItem>>,
+  TError,
+  { data: BodyType<CreateGoalLibraryItem> },
+  TContext
+> => {
+  const mutationKey = ["createGoalLibraryItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGoalLibraryItem>>,
+    { data: BodyType<CreateGoalLibraryItem> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGoalLibraryItem(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGoalLibraryItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGoalLibraryItem>>
+>;
+export type CreateGoalLibraryItemMutationBody = BodyType<CreateGoalLibraryItem>;
+export type CreateGoalLibraryItemMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a library goal
+ */
+export const useCreateGoalLibraryItem = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoalLibraryItem>>,
+    TError,
+    { data: BodyType<CreateGoalLibraryItem> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGoalLibraryItem>>,
+  TError,
+  { data: BodyType<CreateGoalLibraryItem> },
+  TContext
+> => {
+  return useMutation(getCreateGoalLibraryItemMutationOptions(options));
+};
+
+/**
+ * @summary Assign a library goal to a patient
+ */
+export const getAssignGoalToPatientUrl = (id: number) => {
+  return `/api/goal-library/${id}/assign`;
+};
+
+export const assignGoalToPatient = async (
+  id: number,
+  assignGoalBody: AssignGoalBody,
+  options?: RequestInit,
+): Promise<Goal> => {
+  return customFetch<Goal>(getAssignGoalToPatientUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignGoalBody),
+  });
+};
+
+export const getAssignGoalToPatientMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignGoalToPatient>>,
+    TError,
+    { id: number; data: BodyType<AssignGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignGoalToPatient>>,
+  TError,
+  { id: number; data: BodyType<AssignGoalBody> },
+  TContext
+> => {
+  const mutationKey = ["assignGoalToPatient"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignGoalToPatient>>,
+    { id: number; data: BodyType<AssignGoalBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return assignGoalToPatient(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignGoalToPatientMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignGoalToPatient>>
+>;
+export type AssignGoalToPatientMutationBody = BodyType<AssignGoalBody>;
+export type AssignGoalToPatientMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign a library goal to a patient
+ */
+export const useAssignGoalToPatient = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignGoalToPatient>>,
+    TError,
+    { id: number; data: BodyType<AssignGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignGoalToPatient>>,
+  TError,
+  { id: number; data: BodyType<AssignGoalBody> },
+  TContext
+> => {
+  return useMutation(getAssignGoalToPatientMutationOptions(options));
 };
 
 /**

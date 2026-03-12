@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./assignGoalBody";
 export * from "./createGoal";
 export * from "./createGoalCategory";
+export * from "./createGoalLibraryItem";
 export * from "./createGoalStatus";
 export * from "./createPatient";
 export * from "./createPatientStatus";
@@ -19,6 +21,7 @@ export * from "./createSessionType";
 export * from "./dashboardStats";
 export * from "./goal";
 export * from "./goalCategory";
+export * from "./goalLibraryItem";
 export * from "./goalStatus";
 export * from "./healthStatus";
 export * from "./patient";

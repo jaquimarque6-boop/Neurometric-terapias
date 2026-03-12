@@ -13,6 +13,8 @@ tags:
     description: Patient management
   - name: sessions
     description: Therapy sessions
+  - name: goal-library
+    description: Therapy goal library
   - name: goals
     description: Therapy goals
   - name: professionals
@@ -202,6 +204,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Professional"
+
+  /goal-library:
+    get:
+      operationId: listGoalLibrary
+      tags: [goal-library]
+      summary: List all library goals
+      responses:
+        "200":
+          description: List of library goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalLibraryItem"
+    post:
+      operationId: createGoalLibraryItem
+      tags: [goal-library]
+      summary: Create a library goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalLibraryItem"
+      responses:
+        "201":
+          description: Library goal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalLibraryItem"
+
+  /goal-library/{id}/assign:
+    post:
+      operationId: assignGoalToPatient
+      tags: [goal-library]
+      summary: Assign a library goal to a patient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignGoalBody"
+      responses:
+        "201":
+          description: Goal assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
 
   /dashboard/stats:
     get:
@@ -420,6 +479,69 @@ components:
           type: string
           enum: [active, inactive]
       required: [name, email, specialty, status]
+
+    GoalLibraryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        goalId:
+          type: string
+        module:
+          type: string
+        ageRangeMin:
+          type: integer
+        ageRangeMax:
+          type: integer
+        area:
+          type: string
+        subarea:
+          type: string
+        goalName:
+          type: string
+        clinicalDescription:
+          type: string
+        successIndicator:
+          type: string
+        suggestedActivities:
+          type: string
+        createdAt:
+          type: string
+      required: [id, goalId, module, area, subarea, goalName, clinicalDescription, successIndicator, createdAt]
+
+    CreateGoalLibraryItem:
+      type: object
+      properties:
+        goalId:
+          type: string
+        module:
+          type: string
+        ageRangeMin:
+          type: integer
+        ageRangeMax:
+          type: integer
+        area:
+          type: string
+        subarea:
+          type: string
+        goalName:
+          type: string
+        clinicalDescription:
+          type: string
+        successIndicator:
+          type: string
+        suggestedActivities:
+          type: string
+      required: [goalId, module, area, subarea, goalName, clinicalDescription, successIndicator]
+
+    AssignGoalBody:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        targetDate:
+          type: string
+      required: [patientId]
 
     DashboardStats:
       type: object

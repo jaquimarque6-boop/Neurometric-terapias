@@ -235,6 +235,39 @@ export interface CreateProfessional {
   status: CreateProfessionalStatus;
 }
 
+export interface GoalLibraryItem {
+  id: number;
+  goalId: string;
+  module: string;
+  ageRangeMin?: number;
+  ageRangeMax?: number;
+  area: string;
+  subarea: string;
+  goalName: string;
+  clinicalDescription: string;
+  successIndicator: string;
+  suggestedActivities?: string;
+  createdAt: string;
+}
+
+export interface CreateGoalLibraryItem {
+  goalId: string;
+  module: string;
+  ageRangeMin?: number;
+  ageRangeMax?: number;
+  area: string;
+  subarea: string;
+  goalName: string;
+  clinicalDescription: string;
+  successIndicator: string;
+  suggestedActivities?: string;
+}
+
+export interface AssignGoalBody {
+  patientId: number;
+  targetDate?: string;
+}
+
 export interface DashboardStats {
   totalPatients: number;
   activeSessions: number;

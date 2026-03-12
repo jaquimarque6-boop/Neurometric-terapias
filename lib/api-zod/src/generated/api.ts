@@ -201,6 +201,53 @@ export const CreateProfessionalBody = zod.object({
 });
 
 /**
+ * @summary List all library goals
+ */
+export const ListGoalLibraryResponseItem = zod.object({
+  id: zod.number(),
+  goalId: zod.string(),
+  module: zod.string(),
+  ageRangeMin: zod.number().optional(),
+  ageRangeMax: zod.number().optional(),
+  area: zod.string(),
+  subarea: zod.string(),
+  goalName: zod.string(),
+  clinicalDescription: zod.string(),
+  successIndicator: zod.string(),
+  suggestedActivities: zod.string().optional(),
+  createdAt: zod.string(),
+});
+export const ListGoalLibraryResponse = zod.array(ListGoalLibraryResponseItem);
+
+/**
+ * @summary Create a library goal
+ */
+export const CreateGoalLibraryItemBody = zod.object({
+  goalId: zod.string(),
+  module: zod.string(),
+  ageRangeMin: zod.number().optional(),
+  ageRangeMax: zod.number().optional(),
+  area: zod.string(),
+  subarea: zod.string(),
+  goalName: zod.string(),
+  clinicalDescription: zod.string(),
+  successIndicator: zod.string(),
+  suggestedActivities: zod.string().optional(),
+});
+
+/**
+ * @summary Assign a library goal to a patient
+ */
+export const AssignGoalToPatientParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AssignGoalToPatientBody = zod.object({
+  patientId: zod.number(),
+  targetDate: zod.string().optional(),
+});
+
+/**
  * @summary Get dashboard statistics
  */
 export const GetDashboardStatsResponse = zod.object({

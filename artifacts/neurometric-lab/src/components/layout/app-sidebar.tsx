@@ -5,7 +5,8 @@ import {
   CalendarDays, 
   Target, 
   Stethoscope,
-  BarChart3
+  BarChart3,
+  BookOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,6 +25,7 @@ const navItems = [
   { title: "Patients", url: "/patients", icon: Users },
   { title: "Sessions", url: "/sessions", icon: CalendarDays },
   { title: "Goals", url: "/goals", icon: Target },
+  { title: "Goal Library", url: "/goal-library", icon: BookOpen },
   { title: "Professionals", url: "/professionals", icon: Stethoscope },
 ];
 
