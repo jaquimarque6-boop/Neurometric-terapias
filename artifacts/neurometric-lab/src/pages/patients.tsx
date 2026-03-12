@@ -54,39 +54,76 @@ const createPatientSchema = z.object({
   professionalId: z.coerce.number().optional(),
 });
 
+const STATUS_FILTERS = ["all", "active", "inactive", "discharged"] as const;
+type StatusFilter = typeof STATUS_FILTERS[number];
+
 export default function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [, navigate] = useLocation();
   const { data: patients, isLoading } = useListPatients();
+
+  const counts = {
+    all: patients?.length ?? 0,
+    active: patients?.filter(p => p.status === "active").length ?? 0,
+    inactive: patients?.filter(p => p.status === "inactive").length ?? 0,
+    discharged: patients?.filter(p => p.status === "discharged").length ?? 0,
+  };
   
-  const filteredPatients = patients?.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.email.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredPatients = (patients ?? []).filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
-              <Users className="h-6 w-6 text-primary" />
-              Patient Directory
-            </h1>
-            <p className="text-slate-500 mt-1">Manage and view all registered patients.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Search patients..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 w-full sm:w-64 bg-slate-50 border-slate-200 focus-visible:ring-primary/20"
-              />
+        <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+                <Users className="h-6 w-6 text-primary" />
+                Patient Directory
+              </h1>
+              <p className="text-slate-500 mt-1">Manage and view all registered patients.</p>
             </div>
-            <CreatePatientSheet />
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input 
+                  placeholder="Search patients..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-full sm:w-56 bg-slate-50 border-slate-200 focus-visible:ring-primary/20"
+                />
+              </div>
+              <CreatePatientSheet />
+            </div>
+          </div>
+
+          {/* Status filter tabs */}
+          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-4 overflow-x-auto">
+            {STATUS_FILTERS.map(status => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  statusFilter === status
+                    ? "bg-primary text-white shadow-sm shadow-primary/20"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                }`}
+              >
+                <span className="capitalize">{status === "all" ? "All Patients" : status}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                  statusFilter === status ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                }`}>
+                  {counts[status]}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
