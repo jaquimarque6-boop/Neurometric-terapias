@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "seed-goal-library": "tsx ./src/seed-goal-library.ts",
+    "seed-csv": "tsx ./src/seed-csv.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

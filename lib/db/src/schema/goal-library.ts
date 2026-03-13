@@ -1,22 +1,27 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 
 export const goalLibraryTable = pgTable("goal_library", {
   id: serial("id").primaryKey(),
-  goalId: text("goal_id").notNull().unique(),
-  module: text("module").notNull(),
-  ageRangeMin: integer("age_range_min"),
-  ageRangeMax: integer("age_range_max"),
+  idObjetivo: text("id_objetivo").notNull().unique(),
+  nombreObjetivo: text("nombre_objetivo").notNull(),
+  modulo: text("modulo").notNull(),
   area: text("area").notNull(),
-  subarea: text("subarea").notNull(),
-  goalName: text("goal_name").notNull(),
-  clinicalDescription: text("clinical_description").notNull(),
-  successIndicator: text("success_indicator").notNull(),
-  suggestedActivities: text("suggested_activities"),
+  subarea: text("subarea"),
+  franjaEtaria: text("franja_etaria"),
+  definicionOperativa: text("definicion_operativa"),
+  actividadesClinicas: text("actividades_clinicas"),
+  actividadesFamilia: text("actividades_familia"),
+  metaPorcentaje: text("meta_porcentaje"),
+  indicadorTipo: text("indicador_tipo"),
+  intentosSugeridos: text("intentos_sugeridos"),
+  marcoConceptual: text("marco_conceptual"),
+  nivel1Descripcion: text("nivel_1_descripcion"),
+  nivel2Descripcion: text("nivel_2_descripcion"),
+  nivel3Descripcion: text("nivel_3_descripcion"),
+  recomendacionClinica: text("recomendacion_clinica"),
+  informeTecnico: text("informe_tecnico"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertGoalLibrarySchema = createInsertSchema(goalLibraryTable).omit({ id: true, createdAt: true });
-export type InsertGoalLibrary = z.infer<typeof insertGoalLibrarySchema>;
 export type GoalLibrary = typeof goalLibraryTable.$inferSelect;
+export type InsertGoalLibrary = typeof goalLibraryTable.$inferInsert;

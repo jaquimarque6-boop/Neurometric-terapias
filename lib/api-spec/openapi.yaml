@@ -11,10 +11,10 @@ tags:
     description: Health operations
   - name: patients
     description: Patient management
-  - name: sessions
-    description: Therapy sessions
+  - name: registros
+    description: Session records
   - name: goal-library
-    description: Therapy goal library
+    description: Goal library
   - name: goals
     description: Therapy goals
   - name: professionals
@@ -84,11 +84,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/Patient"
 
+  /registros:
+    get:
+      operationId: listRegistros
+      tags: [registros]
+      summary: List all session records
+      responses:
+        "200":
+          description: List of session records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Registro"
+
+  /registros/{id}:
+    get:
+      operationId: getRegistro
+      tags: [registros]
+      summary: Get session record by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registro"
+
   /sessions:
     get:
       operationId: listSessions
-      tags: [sessions]
-      summary: List all therapy sessions
+      tags: [registros]
+      summary: List all sessions (alias for registros)
       responses:
         "200":
           description: List of sessions
@@ -97,24 +131,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Session"
-    post:
-      operationId: createSession
-      tags: [sessions]
-      summary: Create a therapy session
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateSession"
-      responses:
-        "201":
-          description: Session created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Session"
+                  $ref: "#/components/schemas/Registro"
 
   /goals:
     get:
@@ -219,23 +236,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GoalLibraryItem"
-    post:
-      operationId: createGoalLibraryItem
-      tags: [goal-library]
-      summary: Create a library goal
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateGoalLibraryItem"
-      responses:
-        "201":
-          description: Library goal created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GoalLibraryItem"
 
   /goal-library/{id}/assign:
     post:
@@ -293,20 +293,27 @@ components:
           type: string
         age:
           type: integer
-        email:
-          type: string
-        phone:
-          type: string
         diagnosis:
           type: string
-        status:
+        profesionalNombre:
           type: string
-          enum: [active, inactive, discharged]
-        professionalId:
+        franjaEtaria:
+          type: string
+        fechaInicio:
+          type: string
+        progreso:
+          type: string
+        promedioDesempeno:
+          type: number
+        semaforo:
+          type: string
+        observaciones:
+          type: string
+        totalRegistros:
           type: integer
         createdAt:
           type: string
-      required: [id, name, age, email, status, createdAt]
+      required: [id, name, createdAt]
 
     CreatePatient:
       type: object
@@ -315,18 +322,52 @@ components:
           type: string
         age:
           type: integer
-        email:
-          type: string
-        phone:
-          type: string
         diagnosis:
           type: string
-        status:
+        profesionalNombre:
           type: string
-          enum: [active, inactive, discharged]
-        professionalId:
+        franjaEtaria:
+          type: string
+        fechaInicio:
+          type: string
+      required: [name]
+
+    Registro:
+      type: object
+      properties:
+        id:
           type: integer
-      required: [name, age, email, status]
+        patientId:
+          type: integer
+        patientName:
+          type: string
+        sesionNumero:
+          type: integer
+        objetivoNombre:
+          type: string
+        goalLibraryId:
+          type: integer
+        areaObjetivo:
+          type: string
+        fecha:
+          type: string
+        estado:
+          type: string
+        intentos:
+          type: integer
+        intentosSugeridos:
+          type: integer
+        correctas:
+          type: integer
+        porcentaje:
+          type: string
+        cumpleMeta:
+          type: string
+        recomendacionClinica:
+          type: string
+        createdAt:
+          type: string
+      required: [id, patientId, createdAt]
 
     Session:
       type: object
@@ -337,46 +378,33 @@ components:
           type: integer
         patientName:
           type: string
-        professionalId:
+        sesionNumero:
           type: integer
-        professionalName:
+        objetivoNombre:
           type: string
-        date:
-          type: string
-        duration:
+        goalLibraryId:
           type: integer
-        type:
+        areaObjetivo:
           type: string
-          enum: [individual, group, assessment, follow-up]
-        notes:
+        fecha:
           type: string
-        status:
+        estado:
           type: string
-          enum: [scheduled, completed, cancelled]
+        intentos:
+          type: integer
+        intentosSugeridos:
+          type: integer
+        correctas:
+          type: integer
+        porcentaje:
+          type: string
+        cumpleMeta:
+          type: string
+        recomendacionClinica:
+          type: string
         createdAt:
           type: string
-      required: [id, patientId, date, duration, type, status, createdAt]
-
-    CreateSession:
-      type: object
-      properties:
-        patientId:
-          type: integer
-        professionalId:
-          type: integer
-        date:
-          type: string
-        duration:
-          type: integer
-        type:
-          type: string
-          enum: [individual, group, assessment, follow-up]
-        notes:
-          type: string
-        status:
-          type: string
-          enum: [scheduled, completed, cancelled]
-      required: [patientId, date, duration, type, status]
+      required: [id, patientId, createdAt]
 
     Goal:
       type: object
@@ -485,54 +513,43 @@ components:
       properties:
         id:
           type: integer
-        goalId:
+        idObjetivo:
           type: string
-        module:
+        nombreObjetivo:
           type: string
-        ageRangeMin:
-          type: integer
-        ageRangeMax:
-          type: integer
+        modulo:
+          type: string
         area:
           type: string
         subarea:
           type: string
-        goalName:
+        franjaEtaria:
           type: string
-        clinicalDescription:
+        definicionOperativa:
           type: string
-        successIndicator:
+        actividadesClinicas:
           type: string
-        suggestedActivities:
+        actividadesFamilia:
+          type: string
+        metaPorcentaje:
+          type: string
+        indicadorTipo:
+          type: string
+        intentosSugeridos:
+          type: string
+        marcoConceptual:
+          type: string
+        nivel1Descripcion:
+          type: string
+        nivel2Descripcion:
+          type: string
+        nivel3Descripcion:
+          type: string
+        recomendacionClinica:
           type: string
         createdAt:
           type: string
-      required: [id, goalId, module, area, subarea, goalName, clinicalDescription, successIndicator, createdAt]
-
-    CreateGoalLibraryItem:
-      type: object
-      properties:
-        goalId:
-          type: string
-        module:
-          type: string
-        ageRangeMin:
-          type: integer
-        ageRangeMax:
-          type: integer
-        area:
-          type: string
-        subarea:
-          type: string
-        goalName:
-          type: string
-        clinicalDescription:
-          type: string
-        successIndicator:
-          type: string
-        suggestedActivities:
-          type: string
-      required: [goalId, module, area, subarea, goalName, clinicalDescription, successIndicator]
+      required: [id, idObjetivo, nombreObjetivo, modulo, area, createdAt]
 
     AssignGoalBody:
       type: object

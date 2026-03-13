@@ -19,17 +19,15 @@ import type {
 import type {
   AssignGoalBody,
   CreateGoal,
-  CreateGoalLibraryItem,
   CreatePatient,
   CreateProfessional,
-  CreateSession,
   DashboardStats,
   Goal,
   GoalLibraryItem,
   HealthStatus,
   Patient,
   Professional,
-  Session,
+  Registro,
   UpdateGoal,
 } from "./api.schemas";
 
@@ -366,7 +364,169 @@ export function useGetPatient<
 }
 
 /**
- * @summary List all therapy sessions
+ * @summary List all session records
+ */
+export const getListRegistrosUrl = () => {
+  return `/api/registros`;
+};
+
+export const listRegistros = async (
+  options?: RequestInit,
+): Promise<Registro[]> => {
+  return customFetch<Registro[]>(getListRegistrosUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRegistrosQueryKey = () => {
+  return [`/api/registros`] as const;
+};
+
+export const getListRegistrosQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRegistros>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRegistros>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRegistrosQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRegistros>>> = ({
+    signal,
+  }) => listRegistros({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRegistros>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRegistrosQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRegistros>>
+>;
+export type ListRegistrosQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all session records
+ */
+
+export function useListRegistros<
+  TData = Awaited<ReturnType<typeof listRegistros>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRegistros>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRegistrosQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get session record by ID
+ */
+export const getGetRegistroUrl = (id: number) => {
+  return `/api/registros/${id}`;
+};
+
+export const getRegistro = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Registro> => {
+  return customFetch<Registro>(getGetRegistroUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRegistroQueryKey = (id: number) => {
+  return [`/api/registros/${id}`] as const;
+};
+
+export const getGetRegistroQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRegistro>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistro>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRegistroQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRegistro>>> = ({
+    signal,
+  }) => getRegistro(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRegistro>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRegistroQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRegistro>>
+>;
+export type GetRegistroQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get session record by ID
+ */
+
+export function useGetRegistro<
+  TData = Awaited<ReturnType<typeof getRegistro>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistro>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRegistroQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all sessions (alias for registros)
  */
 export const getListSessionsUrl = () => {
   return `/api/sessions`;
@@ -374,8 +534,8 @@ export const getListSessionsUrl = () => {
 
 export const listSessions = async (
   options?: RequestInit,
-): Promise<Session[]> => {
-  return customFetch<Session[]>(getListSessionsUrl(), {
+): Promise<Registro[]> => {
+  return customFetch<Registro[]>(getListSessionsUrl(), {
     ...options,
     method: "GET",
   });
@@ -417,7 +577,7 @@ export type ListSessionsQueryResult = NonNullable<
 export type ListSessionsQueryError = ErrorType<unknown>;
 
 /**
- * @summary List all therapy sessions
+ * @summary List all sessions (alias for registros)
  */
 
 export function useListSessions<
@@ -439,92 +599,6 @@ export function useListSessions<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * @summary Create a therapy session
- */
-export const getCreateSessionUrl = () => {
-  return `/api/sessions`;
-};
-
-export const createSession = async (
-  createSession: CreateSession,
-  options?: RequestInit,
-): Promise<Session> => {
-  return customFetch<Session>(getCreateSessionUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createSession),
-  });
-};
-
-export const getCreateSessionMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createSession>>,
-    TError,
-    { data: BodyType<CreateSession> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createSession>>,
-  TError,
-  { data: BodyType<CreateSession> },
-  TContext
-> => {
-  const mutationKey = ["createSession"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createSession>>,
-    { data: BodyType<CreateSession> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createSession(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateSessionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createSession>>
->;
-export type CreateSessionMutationBody = BodyType<CreateSession>;
-export type CreateSessionMutationError = ErrorType<unknown>;
-
-/**
- * @summary Create a therapy session
- */
-export const useCreateSession = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createSession>>,
-    TError,
-    { data: BodyType<CreateSession> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createSession>>,
-  TError,
-  { data: BodyType<CreateSession> },
-  TContext
-> => {
-  return useMutation(getCreateSessionMutationOptions(options));
-};
 
 /**
  * @summary List all therapy goals
@@ -999,92 +1073,6 @@ export function useListGoalLibrary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * @summary Create a library goal
- */
-export const getCreateGoalLibraryItemUrl = () => {
-  return `/api/goal-library`;
-};
-
-export const createGoalLibraryItem = async (
-  createGoalLibraryItem: CreateGoalLibraryItem,
-  options?: RequestInit,
-): Promise<GoalLibraryItem> => {
-  return customFetch<GoalLibraryItem>(getCreateGoalLibraryItemUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createGoalLibraryItem),
-  });
-};
-
-export const getCreateGoalLibraryItemMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createGoalLibraryItem>>,
-    TError,
-    { data: BodyType<CreateGoalLibraryItem> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createGoalLibraryItem>>,
-  TError,
-  { data: BodyType<CreateGoalLibraryItem> },
-  TContext
-> => {
-  const mutationKey = ["createGoalLibraryItem"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createGoalLibraryItem>>,
-    { data: BodyType<CreateGoalLibraryItem> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createGoalLibraryItem(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateGoalLibraryItemMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createGoalLibraryItem>>
->;
-export type CreateGoalLibraryItemMutationBody = BodyType<CreateGoalLibraryItem>;
-export type CreateGoalLibraryItemMutationError = ErrorType<unknown>;
-
-/**
- * @summary Create a library goal
- */
-export const useCreateGoalLibraryItem = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createGoalLibraryItem>>,
-    TError,
-    { data: BodyType<CreateGoalLibraryItem> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createGoalLibraryItem>>,
-  TError,
-  { data: BodyType<CreateGoalLibraryItem> },
-  TContext
-> => {
-  return useMutation(getCreateGoalLibraryItemMutationOptions(options));
-};
 
 /**
  * @summary Assign a library goal to a patient

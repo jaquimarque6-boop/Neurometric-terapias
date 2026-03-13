@@ -1,20 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
-import { CreateGoalLibraryItemBody, AssignGoalToPatientBody } from "@workspace/api-zod";
+import { AssignGoalToPatientBody } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.get("/goal-library", async (_req, res) => {
-  const items = await db.select().from(goalLibraryTable).orderBy(goalLibraryTable.module, goalLibraryTable.area);
+  const items = await db.select().from(goalLibraryTable).orderBy(goalLibraryTable.modulo, goalLibraryTable.area);
   res.json(items.map(i => ({ ...i, createdAt: i.createdAt.toISOString() })));
-});
-
-router.post("/goal-library", async (req, res) => {
-  const body = CreateGoalLibraryItemBody.parse(req.body);
-  const [item] = await db.insert(goalLibraryTable).values(body).returning();
-  res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
 router.post("/goal-library/:id/assign", async (req, res) => {
@@ -28,9 +22,9 @@ router.post("/goal-library/:id/assign", async (req, res) => {
 
   const [goal] = await db.insert(goalsTable).values({
     patientId: body.patientId,
-    title: libraryGoal.goalName,
-    description: libraryGoal.clinicalDescription,
-    category: mapAreaToCategory(libraryGoal.area),
+    title: libraryGoal.nombreObjetivo,
+    description: libraryGoal.definicionOperativa ?? "",
+    category: "cognitive",
     status: "pending",
     targetDate: body.targetDate ?? null,
   }).returning();
@@ -41,24 +35,5 @@ router.post("/goal-library/:id/assign", async (req, res) => {
     createdAt: goal.createdAt.toISOString(),
   });
 });
-
-function mapAreaToCategory(area: string): string {
-  const map: Record<string, string> = {
-    "Cognitive": "cognitive",
-    "Behavioral": "behavioral",
-    "Emotional": "emotional",
-    "Social": "social",
-    "Physical": "physical",
-    "Language": "cognitive",
-    "Motor": "physical",
-    "Sensory": "physical",
-    "Executive Function": "cognitive",
-    "Attention": "cognitive",
-    "Memory": "cognitive",
-    "Communication": "social",
-    "Adaptive": "behavioral",
-  };
-  return map[area] ?? "behavioral";
-}
 
 export default router;

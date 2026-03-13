@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Session {
+export interface Registro {
   id: number;
   patientId: number;
   patientName?: string;

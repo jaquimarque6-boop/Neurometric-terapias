@@ -1,19 +1,21 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
 
 export const patientsTable = pgTable("patients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  age: integer("age").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone"),
+  age: integer("age"),
   diagnosis: text("diagnosis"),
-  status: text("status").notNull().default("active"),
-  professionalId: integer("professional_id"),
+  profesionalNombre: text("profesional_nombre"),
+  franjaEtaria: text("franja_etaria"),
+  fechaInicio: text("fecha_inicio"),
+  progreso: text("progreso"),
+  promedioDesempeno: real("promedio_desempeno"),
+  semaforo: text("semaforo"),
+  observaciones: text("observaciones"),
+  informeEvolucion: text("informe_evolucion"),
+  informeMensual: text("informe_mensual"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertPatientSchema = createInsertSchema(patientsTable).omit({ id: true, createdAt: true });
-export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patientsTable.$inferSelect;
+export type InsertPatient = typeof patientsTable.$inferInsert;

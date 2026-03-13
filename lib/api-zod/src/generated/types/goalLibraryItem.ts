@@ -8,15 +8,22 @@
 
 export interface GoalLibraryItem {
   id: number;
-  goalId: string;
-  module: string;
-  ageRangeMin?: number;
-  ageRangeMax?: number;
+  idObjetivo: string;
+  nombreObjetivo: string;
+  modulo: string;
   area: string;
-  subarea: string;
-  goalName: string;
-  clinicalDescription: string;
-  successIndicator: string;
-  suggestedActivities?: string;
+  subarea?: string;
+  franjaEtaria?: string;
+  definicionOperativa?: string;
+  actividadesClinicas?: string;
+  actividadesFamilia?: string;
+  metaPorcentaje?: string;
+  indicadorTipo?: string;
+  intentosSugeridos?: string;
+  marcoConceptual?: string;
+  nivel1Descripcion?: string;
+  nivel2Descripcion?: string;
+  nivel3Descripcion?: string;
+  recomendacionClinica?: string;
   createdAt: string;
 }

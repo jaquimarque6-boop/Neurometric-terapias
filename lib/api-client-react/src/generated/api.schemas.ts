@@ -9,103 +9,67 @@ export interface HealthStatus {
   status: string;
 }
 
-export type PatientStatus = (typeof PatientStatus)[keyof typeof PatientStatus];
-
-export const PatientStatus = {
-  active: "active",
-  inactive: "inactive",
-  discharged: "discharged",
-} as const;
-
 export interface Patient {
   id: number;
   name: string;
-  age: number;
-  email: string;
-  phone?: string;
+  age?: number;
   diagnosis?: string;
-  status: PatientStatus;
-  professionalId?: number;
+  profesionalNombre?: string;
+  franjaEtaria?: string;
+  fechaInicio?: string;
+  progreso?: string;
+  promedioDesempeno?: number;
+  semaforo?: string;
+  observaciones?: string;
+  totalRegistros?: number;
   createdAt: string;
 }
 
-export type CreatePatientStatus =
-  (typeof CreatePatientStatus)[keyof typeof CreatePatientStatus];
-
-export const CreatePatientStatus = {
-  active: "active",
-  inactive: "inactive",
-  discharged: "discharged",
-} as const;
-
 export interface CreatePatient {
   name: string;
-  age: number;
-  email: string;
-  phone?: string;
+  age?: number;
   diagnosis?: string;
-  status: CreatePatientStatus;
-  professionalId?: number;
+  profesionalNombre?: string;
+  franjaEtaria?: string;
+  fechaInicio?: string;
 }
 
-export type SessionType = (typeof SessionType)[keyof typeof SessionType];
-
-export const SessionType = {
-  individual: "individual",
-  group: "group",
-  assessment: "assessment",
-  "follow-up": "follow-up",
-} as const;
-
-export type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus];
-
-export const SessionStatus = {
-  scheduled: "scheduled",
-  completed: "completed",
-  cancelled: "cancelled",
-} as const;
+export interface Registro {
+  id: number;
+  patientId: number;
+  patientName?: string;
+  sesionNumero?: number;
+  objetivoNombre?: string;
+  goalLibraryId?: number;
+  areaObjetivo?: string;
+  fecha?: string;
+  estado?: string;
+  intentos?: number;
+  intentosSugeridos?: number;
+  correctas?: number;
+  porcentaje?: string;
+  cumpleMeta?: string;
+  recomendacionClinica?: string;
+  createdAt: string;
+}
 
 export interface Session {
   id: number;
   patientId: number;
   patientName?: string;
-  professionalId?: number;
-  professionalName?: string;
-  date: string;
-  duration: number;
-  type: SessionType;
-  notes?: string;
-  status: SessionStatus;
+  sesionNumero?: number;
+  objetivoNombre?: string;
+  goalLibraryId?: number;
+  areaObjetivo?: string;
+  fecha?: string;
+  estado?: string;
+  intentos?: number;
+  intentosSugeridos?: number;
+  correctas?: number;
+  porcentaje?: string;
+  cumpleMeta?: string;
+  recomendacionClinica?: string;
   createdAt: string;
-}
-
-export type CreateSessionType =
-  (typeof CreateSessionType)[keyof typeof CreateSessionType];
-
-export const CreateSessionType = {
-  individual: "individual",
-  group: "group",
-  assessment: "assessment",
-  "follow-up": "follow-up",
-} as const;
-
-export type CreateSessionStatus =
-  (typeof CreateSessionStatus)[keyof typeof CreateSessionStatus];
-
-export const CreateSessionStatus = {
-  scheduled: "scheduled",
-  completed: "completed",
-  cancelled: "cancelled",
-} as const;
-
-export interface CreateSession {
-  patientId: number;
-  professionalId?: number;
-  date: string;
-  duration: number;
-  type: CreateSessionType;
-  notes?: string;
-  status: CreateSessionStatus;
 }
 
 export type GoalCategory = (typeof GoalCategory)[keyof typeof GoalCategory];
@@ -237,30 +201,24 @@ export interface CreateProfessional {
 
 export interface GoalLibraryItem {
   id: number;
-  goalId: string;
-  module: string;
-  ageRangeMin?: number;
-  ageRangeMax?: number;
+  idObjetivo: string;
+  nombreObjetivo: string;
+  modulo: string;
   area: string;
-  subarea: string;
-  goalName: string;
-  clinicalDescription: string;
-  successIndicator: string;
-  suggestedActivities?: string;
+  subarea?: string;
+  franjaEtaria?: string;
+  definicionOperativa?: string;
+  actividadesClinicas?: string;
+  actividadesFamilia?: string;
+  metaPorcentaje?: string;
+  indicadorTipo?: string;
+  intentosSugeridos?: string;
+  marcoConceptual?: string;
+  nivel1Descripcion?: string;
+  nivel2Descripcion?: string;
+  nivel3Descripcion?: string;
+  recomendacionClinica?: string;
   createdAt: string;
-}
-
-export interface CreateGoalLibraryItem {
-  goalId: string;
-  module: string;
-  ageRangeMin?: number;
-  ageRangeMax?: number;
-  area: string;
-  subarea: string;
-  goalName: string;
-  clinicalDescription: string;
-  successIndicator: string;
-  suggestedActivities?: string;
 }
 
 export interface AssignGoalBody {

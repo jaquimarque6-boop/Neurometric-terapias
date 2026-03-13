@@ -5,16 +5,19 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
-import type { PatientStatus } from "./patientStatus";
 
 export interface Patient {
   id: number;
   name: string;
-  age: number;
-  email: string;
-  phone?: string;
+  age?: number;
   diagnosis?: string;
-  status: PatientStatus;
-  professionalId?: number;
+  profesionalNombre?: string;
+  franjaEtaria?: string;
+  fechaInicio?: string;
+  progreso?: string;
+  promedioDesempeno?: number;
+  semaforo?: string;
+  observaciones?: string;
+  totalRegistros?: number;
   createdAt: string;
 }
