@@ -9,6 +9,7 @@ import goalLibraryRouter from "./goal-library";
 import registrosClinicosRouter from "./registros-clinicos";
 import actividadesRouter from "./actividades";
 import patientProfessionalsRouter from "./patient-professionals";
+import goalCodesRouter from "./goal-codes";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(goalLibraryRouter);
 router.use(registrosClinicosRouter);
 router.use(actividadesRouter);
 router.use(patientProfessionalsRouter);
+router.use(goalCodesRouter);
 
 export default router;

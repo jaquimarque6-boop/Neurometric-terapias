@@ -11,6 +11,8 @@ import {
   BookOpen, BarChart2, Archive, Clock, MessageSquare,
   ChevronRight, Send, History,
 } from "lucide-react";
+import { GoalCodePreview } from "@/components/ui/goal-code-preview";
+import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import {
   useGetPatient,
   useListRegistrosClinicos,
@@ -1014,48 +1016,83 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
   patientId: number; onSave: (d: any) => void; isSaving: boolean; onClose: () => void;
 }) {
   const [form, setForm] = useState({
-    codigo: "", title: "", description: "",
-    category: "lenguaje", areaClinica: "lenguaje",
-    nivelDificultad: "básico", franjaEtaria: "",
-    status: "activo", targetDate: "",
+    codigo: "",
+    title: "",
+    description: "",
+    areaClinica: "lenguaje",
+    subarea: "",
+    nivelDificultad: "básico",
+    franjaEtariaMin: "" as string,
+    franjaEtariaMax: "" as string,
+    targetDate: "",
   });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const handleAreaChange = (v: string) => setForm(f => ({ ...f, category: v, areaClinica: v }));
+  const handleAreaChange = (v: string) => setForm(f => ({ ...f, areaClinica: v, subarea: "" }));
+
+  const subareaOptions = AREA_SUBAREAS[form.areaClinica] ?? [];
+
+  const codeParams = {
+    areaClinica: form.areaClinica,
+    franjaEtariaMin: form.franjaEtariaMin !== "" ? parseInt(form.franjaEtariaMin) : null,
+    franjaEtariaMax: form.franjaEtariaMax !== "" ? parseInt(form.franjaEtariaMax) : null,
+    subarea: form.subarea || undefined,
+    nivelDificultad: form.nivelDificultad,
+  };
+
+  const handleGenerate = async () => {
+    const res = await fetch("/api/goal-codes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(codeParams),
+    });
+    const data = await res.json();
+    return data.code as string;
+  };
 
   return (
     <div className="space-y-4 py-2">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Código</label>
-          <Input value={form.codigo} onChange={e => set("codigo", e.target.value)} placeholder="NL-001" className="bg-slate-50 font-mono" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Franja etaria</label>
-          <Input value={form.franjaEtaria} onChange={e => set("franjaEtaria", e.target.value)} placeholder="3-5" className="bg-slate-50" />
-        </div>
-      </div>
+      {/* Code generator — shown first so user sees it while filling in fields */}
+      <GoalCodePreview
+        params={codeParams}
+        value={form.codigo}
+        onChange={v => set("codigo", v)}
+        onGenerate={handleGenerate}
+      />
+
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Título *</label>
-        <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo..." className="bg-slate-50" />
+        <label className="text-sm font-medium text-slate-700">Título del objetivo *</label>
+        <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo en contexto funcional..." className="bg-slate-50" />
       </div>
+
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Descripción</label>
-        <Textarea rows={2} value={form.description} onChange={e => set("description", e.target.value)} placeholder="Definición operativa..." className="bg-slate-50 resize-none" />
+        <label className="text-sm font-medium text-slate-700">Descripción / Definición operativa</label>
+        <Textarea rows={2} value={form.description} onChange={e => set("description", e.target.value)} placeholder="Describe el comportamiento observable esperado..." className="bg-slate-50 resize-none" />
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Área clínica</label>
           <Select value={form.areaClinica} onValueChange={handleAreaChange}>
             <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {CATEGORIAS.map(c => (
-                <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-              ))}
+              {CATEGORIAS.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Nivel de dificultad</label>
+          <label className="text-sm font-medium text-slate-700">Subárea</label>
+          <Select value={form.subarea} onValueChange={v => set("subarea", v)} disabled={subareaOptions.length === 0}>
+            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+            <SelectContent>
+              {subareaOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700">Nivel</label>
           <Select value={form.nivelDificultad} onValueChange={v => set("nivelDificultad", v)}>
             <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -1065,21 +1102,41 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700">Edad mín.</label>
+          <Input type="number" min={0} max={18} value={form.franjaEtariaMin} onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-slate-50" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700">Edad máx.</label>
+          <Input type="number" min={0} max={18} value={form.franjaEtariaMax} onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-slate-50" />
+        </div>
       </div>
+
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700">Fecha objetivo</label>
         <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-slate-50" />
       </div>
+
       <div className="flex gap-3 pt-2">
         <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
         <Button className="flex-1 bg-primary hover:bg-primary/90" disabled={!form.title || isSaving}
-          onClick={() => onSave({
-            patientId, codigo: form.codigo || undefined, title: form.title,
-            description: form.description || undefined, category: form.areaClinica,
-            areaClinica: form.areaClinica, nivelDificultad: form.nivelDificultad,
-            franjaEtaria: form.franjaEtaria || undefined, status: form.status,
-            targetDate: form.targetDate || undefined,
-          })}>
+          onClick={() => {
+            const franjaMin = form.franjaEtariaMin !== "" ? parseInt(form.franjaEtariaMin) : undefined;
+            const franjaMax = form.franjaEtariaMax !== "" ? parseInt(form.franjaEtariaMax) : undefined;
+            onSave({
+              patientId,
+              codigo: form.codigo || undefined,
+              title: form.title,
+              description: form.description || undefined,
+              category: form.areaClinica,
+              areaClinica: form.areaClinica,
+              subarea: form.subarea || undefined,
+              nivelDificultad: form.nivelDificultad,
+              franjaEtaria: (franjaMin != null && franjaMax != null) ? `${franjaMin}-${franjaMax}` : undefined,
+              status: "activo",
+              targetDate: form.targetDate || undefined,
+            });
+          }}>
           {isSaving ? "Guardando..." : "Crear objetivo"}
         </Button>
       </div>

@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
   BookOpen, Search, Filter, ChevronDown, ChevronRight,
   Target, CheckCircle2, User, Sparkles, ClipboardList,
   AlertCircle, X, Check, Archive, Plus, Star, Lightbulb,
-  BarChart2, Link2,
+  BarChart2, Link2, SortAsc, Wand2,
 } from "lucide-react";
 import {
   useListGoalLibrary,
@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -27,6 +28,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { GoalCodePreview } from "@/components/ui/goal-code-preview";
+import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const AREAS_CLINICAS = [
@@ -75,15 +78,18 @@ export default function GoalLibrary() {
   const { data: library = [], isLoading } = useListGoalLibrary();
   const { data: patients = [] } = useListPatients();
 
-  const [search, setSearch]           = useState("");
-  const [areaFilter, setAreaFilter]   = useState("all");
+  const [search, setSearch]               = useState("");
+  const [areaFilter, setAreaFilter]       = useState("all");
   const [subareaFilter, setSubareaFilter] = useState("all");
-  const [nivelFilter, setNivelFilter] = useState("all");
-  const [franjaFilter, setFranjaFilter] = useState("all");
-  const [estadoFilter, setEstadoFilter] = useState("activo");
-  const [expandedId, setExpandedId]   = useState<number | null>(null);
-  const [assignGoal, setAssignGoal]   = useState<any | null>(null);
+  const [nivelFilter, setNivelFilter]     = useState("all");
+  const [franjaFilter, setFranjaFilter]   = useState("all");
+  const [estadoFilter, setEstadoFilter]   = useState("activo");
+  const [sortBy, setSortBy]               = useState<"area" | "codigo">("area");
+  const [expandedId, setExpandedId]       = useState<number | null>(null);
+  const [assignGoal, setAssignGoal]       = useState<any | null>(null);
+  const [showNewGoal, setShowNewGoal]     = useState(false);
 
+  const queryClient = useQueryClient();
   const lib = library as any[];
 
   const subareas = useMemo(() => {
@@ -109,13 +115,22 @@ export default function GoalLibrary() {
     return matchSearch && matchArea && matchSubarea && matchNivel && matchFranja && matchEstado;
   }), [lib, search, areaFilter, subareaFilter, nivelFilter, franjaFilter, estadoFilter]);
 
-  // Group by areaClinica
-  const grouped = useMemo(() => filtered.reduce((acc: Record<string, any[]>, g: any) => {
+  // Sort and group
+  const sorted = useMemo(() => {
+    const copy = [...filtered];
+    if (sortBy === "codigo") {
+      copy.sort((a: any, b: any) => (a.idObjetivo ?? "").localeCompare(b.idObjetivo ?? ""));
+    }
+    return copy;
+  }, [filtered, sortBy]);
+
+  // Group by areaClinica (preserves sort order within groups)
+  const grouped = useMemo(() => sorted.reduce((acc: Record<string, any[]>, g: any) => {
     const key = g.areaClinica ?? g.area ?? "Otra área";
     if (!acc[key]) acc[key] = [];
     acc[key].push(g);
     return acc;
-  }, {}), [filtered]);
+  }, {}), [sorted]);
 
   const activeFilters = [areaFilter !== "all", subareaFilter !== "all", nivelFilter !== "all", franjaFilter !== "all", estadoFilter !== "activo"].filter(Boolean).length;
 
@@ -154,6 +169,12 @@ export default function GoalLibrary() {
                 {stats.total} objetivos clínicos en {stats.porArea.length} áreas
               </p>
             </div>
+            <Button
+              onClick={() => setShowNewGoal(true)}
+              className="bg-primary hover:bg-primary/90 text-white shrink-0 gap-1.5"
+            >
+              <Plus className="h-4 w-4" /> Nuevo objetivo
+            </Button>
           </div>
 
           {/* Area summary chips */}
@@ -243,12 +264,27 @@ export default function GoalLibrary() {
               </SelectContent>
             </Select>
 
-            {activeFilters > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-slate-500 hover:text-slate-700 whitespace-nowrap">
-                Limpiar
-                <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-200 text-xs">{activeFilters}</Badge>
-              </Button>
-            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => setSortBy(s => s === "area" ? "codigo" : "area")}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                  sortBy === "codigo"
+                    ? "bg-primary/10 text-primary border-primary/20"
+                    : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300"
+                }`}
+                title="Ordenar por código"
+              >
+                <SortAsc className="h-3.5 w-3.5" />
+                Por {sortBy === "codigo" ? "código" : "área"}
+              </button>
+
+              {activeFilters > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                  Limpiar
+                  <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-200 text-xs">{activeFilters}</Badge>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -443,6 +479,16 @@ export default function GoalLibrary() {
           onClose={() => setAssignGoal(null)}
         />
       )}
+
+      {showNewGoal && (
+        <NewLibraryGoalDialog
+          onClose={() => setShowNewGoal(false)}
+          onCreated={() => {
+            queryClient.invalidateQueries({ queryKey: getListGoalLibraryQueryKey() });
+            setShowNewGoal(false);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
@@ -597,6 +643,261 @@ function AssignGoalDialog({
             </div>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── New Library Goal Dialog ───────────────────────────────────────────────────
+function NewLibraryGoalDialog({ onClose, onCreated }: {
+  onClose: () => void; onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    codigo: "",
+    nombreObjetivo: "",
+    definicionOperativa: "",
+    areaClinica: "lenguaje",
+    subarea: "",
+    nivelDificultad: "básico",
+    franjaEtariaMin: "" as string,
+    franjaEtariaMax: "" as string,
+    actividadesClinicas: "",
+    actividadesFamilia: "",
+    habilidadesRelacionadas: "",
+    prerequisitos: "",
+    metaPorcentaje: "",
+    intentosSugeridos: "",
+    indicadorTipo: "",
+  });
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const handleAreaChange = (v: string) => setForm(f => ({ ...f, areaClinica: v, subarea: "", codigo: "" }));
+
+  useEffect(() => {
+    fetch("/api/goal-codes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ areaClinica: "lenguaje", nivelDificultad: "básico" }),
+    }).then(r => r.json()).then(d => { if (d.code) set("codigo", d.code); }).catch(() => {});
+  }, []);
+
+  const subareaOptions = AREA_SUBAREAS[form.areaClinica] ?? [];
+  const franjaMin = form.franjaEtariaMin !== "" ? parseInt(form.franjaEtariaMin) : null;
+  const franjaMax = form.franjaEtariaMax !== "" ? parseInt(form.franjaEtariaMax) : null;
+
+  const codeParams = {
+    areaClinica: form.areaClinica,
+    franjaEtariaMin: franjaMin,
+    franjaEtariaMax: franjaMax,
+    subarea: form.subarea || undefined,
+    nivelDificultad: form.nivelDificultad,
+  };
+
+  const handleGenerate = async () => {
+    const res = await fetch("/api/goal-codes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(codeParams),
+    });
+    const data = await res.json();
+    return data.code as string;
+  };
+
+  const handleSave = async () => {
+    if (!form.nombreObjetivo.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/goal-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idObjetivo: form.codigo || undefined,
+          nombreObjetivo: form.nombreObjetivo,
+          modulo: "Neurolengua",
+          area: form.areaClinica,
+          areaClinica: form.areaClinica,
+          subarea: form.subarea || null,
+          franjaEtaria: (franjaMin != null && franjaMax != null) ? `${franjaMin}-${franjaMax}` : null,
+          franjaEtariaMin: franjaMin,
+          franjaEtariaMax: franjaMax,
+          nivelDificultad: form.nivelDificultad,
+          definicionOperativa: form.definicionOperativa || null,
+          actividadesClinicas: form.actividadesClinicas || null,
+          actividadesFamilia: form.actividadesFamilia || null,
+          habilidadesRelacionadas: form.habilidadesRelacionadas || null,
+          prerequisitos: form.prerequisitos || null,
+          metaPorcentaje: form.metaPorcentaje || null,
+          intentosSugeridos: form.intentosSugeridos || null,
+          indicadorTipo: form.indicadorTipo || null,
+          estadoBanco: "activo",
+        }),
+      });
+      if (!res.ok) throw new Error("Error al crear objetivo");
+      toast({ title: "Objetivo creado en el banco", description: `"${form.nombreObjetivo}" fue agregado con el código ${form.codigo || "(sin código)"}` });
+      onCreated();
+    } catch (e: any) {
+      toast({ title: "Error al crear objetivo", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <Wand2 className="h-5 w-5 text-primary" /> Nuevo objetivo en el banco
+          </DialogTitle>
+          <DialogDescription>
+            Crea un nuevo objetivo terapéutico en el banco. El código se genera automáticamente.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* Code generator */}
+          <GoalCodePreview
+            params={codeParams}
+            value={form.codigo}
+            onChange={v => set("codigo", v)}
+            onGenerate={handleGenerate}
+          />
+
+          {/* Nombre */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Nombre del objetivo *</label>
+            <Input
+              value={form.nombreObjetivo}
+              onChange={e => set("nombreObjetivo", e.target.value)}
+              placeholder="Ampliar vocabulario expresivo en contexto funcional"
+              className="bg-slate-50"
+            />
+          </div>
+
+          {/* Definición operativa */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Definición operativa</label>
+            <Textarea
+              rows={3}
+              value={form.definicionOperativa}
+              onChange={e => set("definicionOperativa", e.target.value)}
+              placeholder="Describe el comportamiento observable y medible esperado..."
+              className="bg-slate-50 resize-none"
+            />
+          </div>
+
+          {/* Area + Subarea */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Área clínica</label>
+              <Select value={form.areaClinica} onValueChange={handleAreaChange}>
+                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.keys(AREA_SUBAREAS).map(a => (
+                    <SelectItem key={a} value={a} className="capitalize">{a.charAt(0).toUpperCase() + a.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Subárea</label>
+              <Select value={form.subarea} onValueChange={v => set("subarea", v)} disabled={subareaOptions.length === 0}>
+                <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                <SelectContent>
+                  {subareaOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Nivel + Franja */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Nivel de dificultad</label>
+              <Select value={form.nivelDificultad} onValueChange={v => set("nivelDificultad", v)}>
+                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="básico">Básico</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="avanzado">Avanzado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Edad mínima</label>
+              <Input type="number" min={0} max={18} value={form.franjaEtariaMin}
+                onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-slate-50" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Edad máxima</label>
+              <Input type="number" min={0} max={18} value={form.franjaEtariaMax}
+                onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-slate-50" />
+            </div>
+          </div>
+
+          {/* Habilidades + Prerrequisitos */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Habilidades relacionadas</label>
+              <Textarea rows={2} value={form.habilidadesRelacionadas}
+                onChange={e => set("habilidadesRelacionadas", e.target.value)}
+                placeholder="Ej: Memoria semántica, atención conjunta..." className="bg-slate-50 resize-none text-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Prerrequisitos</label>
+              <Textarea rows={2} value={form.prerequisitos}
+                onChange={e => set("prerequisitos", e.target.value)}
+                placeholder="Ej: Vocabulario de 50+ palabras..." className="bg-slate-50 resize-none text-sm" />
+            </div>
+          </div>
+
+          {/* Actividades clínicas */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Actividades clínicas</label>
+            <Textarea rows={2} value={form.actividadesClinicas}
+              onChange={e => set("actividadesClinicas", e.target.value)}
+              placeholder="Actividades para trabajar en sesión..." className="bg-slate-50 resize-none text-sm" />
+          </div>
+
+          {/* Actividades familia */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Actividades para el hogar</label>
+            <Textarea rows={2} value={form.actividadesFamilia}
+              onChange={e => set("actividadesFamilia", e.target.value)}
+              placeholder="Actividades para la familia en casa..." className="bg-slate-50 resize-none text-sm" />
+          </div>
+
+          {/* Meta + intentos + indicador */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Meta (%)</label>
+              <Input value={form.metaPorcentaje} onChange={e => set("metaPorcentaje", e.target.value)}
+                placeholder="80% en 4/5 intentos" className="bg-slate-50 text-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Intentos sugeridos</label>
+              <Input value={form.intentosSugeridos} onChange={e => set("intentosSugeridos", e.target.value)}
+                placeholder="10 por sesión" className="bg-slate-50 text-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Tipo de indicador</label>
+              <Input value={form.indicadorTipo} onChange={e => set("indicadorTipo", e.target.value)}
+                placeholder="Denominación espontánea" className="bg-slate-50 text-sm" />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+            <Button
+              className="flex-1 bg-primary hover:bg-primary/90"
+              disabled={!form.nombreObjetivo.trim() || saving}
+              onClick={handleSave}
+            >
+              {saving ? "Guardando..." : "Crear en el banco"}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

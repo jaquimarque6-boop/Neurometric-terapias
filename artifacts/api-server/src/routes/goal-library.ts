@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { generateUniqueCode } from "../utils/code-generator";
 
 const router: IRouter = Router();
 
@@ -58,12 +59,28 @@ router.get("/goal-library", async (req, res) => {
 // ─── Create goal in library ───────────────────────────────────────────────────
 router.post("/goal-library", async (req, res) => {
   const body = req.body;
+
+  let idObjetivo = body.idObjetivo || undefined;
+  if (!idObjetivo) {
+    const existing = await db.select({ codigo: goalLibraryTable.idObjetivo }).from(goalLibraryTable);
+    const existingCodes = existing.map(g => g.codigo).filter(Boolean) as string[];
+    const result = generateUniqueCode({
+      areaClinica: body.areaClinica ?? body.area ?? "lenguaje",
+      franjaEtariaMin: body.franjaEtariaMin != null ? parseInt(String(body.franjaEtariaMin)) : null,
+      franjaEtariaMax: body.franjaEtariaMax != null ? parseInt(String(body.franjaEtariaMax)) : null,
+      subarea: body.subarea ?? null,
+      nivelDificultad: body.nivelDificultad ?? "básico",
+    }, existingCodes);
+    idObjetivo = result.code;
+  }
+
+  const resolvedArea = body.area ?? body.areaClinica ?? "lenguaje";
   const [item] = await db.insert(goalLibraryTable).values({
-    idObjetivo: body.idObjetivo,
+    idObjetivo,
     nombreObjetivo: body.nombreObjetivo,
     modulo: body.modulo ?? "Neurolengua",
-    area: body.area,
-    areaClinica: body.areaClinica ?? body.area,
+    area: resolvedArea,
+    areaClinica: body.areaClinica ?? resolvedArea,
     subarea: body.subarea ?? null,
     franjaEtaria: body.franjaEtaria ?? null,
     franjaEtariaMin: body.franjaEtariaMin ?? null,
