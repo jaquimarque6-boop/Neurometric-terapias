@@ -4,7 +4,7 @@ import {
   BookOpen, Search, Filter, ChevronDown, ChevronRight,
   Target, CheckCircle2, User, Sparkles, ClipboardList,
   AlertCircle, X, Check, Archive, Plus, Star, Lightbulb,
-  BarChart2,
+  BarChart2, Link2,
 } from "lucide-react";
 import {
   useListGoalLibrary,
@@ -75,21 +75,21 @@ export default function GoalLibrary() {
   const { data: library = [], isLoading } = useListGoalLibrary();
   const { data: patients = [] } = useListPatients();
 
-  const [search, setSearch]         = useState("");
-  const [areaFilter, setAreaFilter] = useState("all");
+  const [search, setSearch]           = useState("");
+  const [areaFilter, setAreaFilter]   = useState("all");
+  const [subareaFilter, setSubareaFilter] = useState("all");
   const [nivelFilter, setNivelFilter] = useState("all");
   const [franjaFilter, setFranjaFilter] = useState("all");
   const [estadoFilter, setEstadoFilter] = useState("activo");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [assignGoal, setAssignGoal] = useState<any | null>(null);
+  const [expandedId, setExpandedId]   = useState<number | null>(null);
+  const [assignGoal, setAssignGoal]   = useState<any | null>(null);
 
   const lib = library as any[];
 
-  const areas = useMemo(() => AREAS_CLINICAS, []);
-  const franjas = useMemo(() =>
-    ["all", ...Array.from(new Set(lib.map((g: any) => g.franjaEtaria).filter(Boolean))).sort()],
-    [lib]
-  );
+  const subareas = useMemo(() => {
+    const src = areaFilter !== "all" ? lib.filter((g: any) => (g.areaClinica ?? g.area) === areaFilter) : lib;
+    return ["all", ...Array.from(new Set(src.map((g: any) => g.subarea).filter(Boolean))).sort() as string[]];
+  }, [lib, areaFilter]);
 
   const filtered = useMemo(() => lib.filter((g: any) => {
     const q = search.toLowerCase();
@@ -99,13 +99,15 @@ export default function GoalLibrary() {
       (g.area ?? "").toLowerCase().includes(q) ||
       (g.areaClinica ?? "").toLowerCase().includes(q) ||
       (g.subarea ?? "").toLowerCase().includes(q) ||
+      (g.habilidadesRelacionadas ?? "").toLowerCase().includes(q) ||
       (g.definicionOperativa ?? "").toLowerCase().includes(q);
-    const matchArea  = areaFilter === "all"  || (g.areaClinica ?? g.area) === areaFilter;
-    const matchNivel = nivelFilter === "all" || g.nivelDificultad === nivelFilter;
-    const matchFranja = franjaFilter === "all" || g.franjaEtaria === franjaFilter;
-    const matchEstado = estadoFilter === "all" || (g.estadoBanco ?? "activo") === estadoFilter;
-    return matchSearch && matchArea && matchNivel && matchFranja && matchEstado;
-  }), [lib, search, areaFilter, nivelFilter, franjaFilter, estadoFilter]);
+    const matchArea    = areaFilter === "all"    || (g.areaClinica ?? g.area) === areaFilter;
+    const matchSubarea = subareaFilter === "all" || (g.subarea ?? "") === subareaFilter;
+    const matchNivel   = nivelFilter === "all"   || g.nivelDificultad === nivelFilter;
+    const matchFranja  = franjaFilter === "all"  || g.franjaEtaria === franjaFilter;
+    const matchEstado  = estadoFilter === "all"  || (g.estadoBanco ?? "activo") === estadoFilter;
+    return matchSearch && matchArea && matchSubarea && matchNivel && matchFranja && matchEstado;
+  }), [lib, search, areaFilter, subareaFilter, nivelFilter, franjaFilter, estadoFilter]);
 
   // Group by areaClinica
   const grouped = useMemo(() => filtered.reduce((acc: Record<string, any[]>, g: any) => {
@@ -115,7 +117,7 @@ export default function GoalLibrary() {
     return acc;
   }, {}), [filtered]);
 
-  const activeFilters = [areaFilter !== "all", nivelFilter !== "all", franjaFilter !== "all", estadoFilter !== "activo"].filter(Boolean).length;
+  const activeFilters = [areaFilter !== "all", subareaFilter !== "all", nivelFilter !== "all", franjaFilter !== "all", estadoFilter !== "activo"].filter(Boolean).length;
 
   // Stats
   const stats = useMemo(() => {
@@ -129,6 +131,7 @@ export default function GoalLibrary() {
 
   const clearFilters = () => {
     setAreaFilter("all");
+    setSubareaFilter("all");
     setNivelFilter("all");
     setFranjaFilter("all");
     setEstadoFilter("activo");
@@ -161,7 +164,7 @@ export default function GoalLibrary() {
               return (
                 <button
                   key={s.area}
-                  onClick={() => setAreaFilter(isActive ? "all" : s.area)}
+                  onClick={() => { setAreaFilter(isActive ? "all" : s.area); setSubareaFilter("all"); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     isActive ? `${ac.bg} ${ac.text} ${ac.border} ring-2 ring-offset-1 ${ac.border}` : `${ac.bg} ${ac.text} ${ac.border} opacity-70 hover:opacity-100`
                   }`}
@@ -190,6 +193,20 @@ export default function GoalLibrary() {
               )}
             </div>
 
+            {subareas.length > 2 && (
+              <Select value={subareaFilter} onValueChange={setSubareaFilter}>
+                <SelectTrigger className="w-full sm:w-44 bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Subárea" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las subáreas</SelectItem>
+                  {subareas.filter(s => s !== "all").map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <Select value={nivelFilter} onValueChange={setNivelFilter}>
               <SelectTrigger className="w-full sm:w-44 bg-slate-50 border-slate-200">
                 <BarChart2 className="h-4 w-4 mr-2 text-slate-400" />
@@ -209,8 +226,8 @@ export default function GoalLibrary() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las franjas</SelectItem>
-                {franjas.filter(f => f !== "all").map(f => (
-                  <SelectItem key={f!} value={f!}>{f} años</SelectItem>
+                {["0-2","1-3","2-4","2-5","2-6","2-8","3-6","3-7","4-7","4-8","4-10","5-8","5-10","5-12","6-10","6-12","7-12"].map(f => (
+                  <SelectItem key={f} value={f}>{f} años</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -359,6 +376,20 @@ export default function GoalLibrary() {
                                       content={goal.actividadesFamilia}
                                     />
                                   </div>
+                                )}
+                                {goal.habilidadesRelacionadas && (
+                                  <DetailSection
+                                    icon={<Link2 className="h-4 w-4 text-violet-500" />}
+                                    title="Habilidades Relacionadas"
+                                    content={goal.habilidadesRelacionadas}
+                                  />
+                                )}
+                                {goal.prerequisitos && (
+                                  <DetailSection
+                                    icon={<ChevronRight className="h-4 w-4 text-sky-500" />}
+                                    title="Prerrequisitos"
+                                    content={goal.prerequisitos}
+                                  />
                                 )}
                                 {goal.recomendacionClinica && (
                                   <div className="md:col-span-2">

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, User, FileText, CalendarDays, Target,
   CheckCircle2, Circle, Stethoscope, Activity, Home,
   Eye, ClipboardList, Plus, ChevronDown, X,
   TrendingUp, AlertTriangle, Sparkles, Lightbulb, Star,
-  BookOpen, BarChart2, Archive,
+  BookOpen, BarChart2, Archive, Clock, MessageSquare,
+  ChevronRight, Send, History,
 } from "lucide-react";
 import {
   useGetPatient,
@@ -23,7 +24,6 @@ import {
   getListGoalsQueryKey,
   getListRegistrosClinicosQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +53,39 @@ type Goal = {
   codigo?: string | null; title: string; description?: string | null;
   category: string; areaClinica?: string | null; franjaEtaria?: string | null;
   nivelDificultad?: string | null; status: string;
-  targetDate?: string | null; createdAt: string;
+  fechaAsignacion?: string | null; targetDate?: string | null;
+  notas?: string | null; createdAt: string;
+};
+type ProgressEntry = {
+  id: number; goalId: number; nota?: string | null;
+  statusAnterior?: string | null; statusNuevo?: string | null;
+  registroClinicoId?: number | null; createdAt: string;
+};
+
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CYCLE: Record<string, string> = {
+  "activo":      "en progreso",
+  "en progreso": "logrado",
+  "logrado":     "archivado",
+  "archivado":   "activo",
+  // backward compat
+  "suspendido":  "activo",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  "activo":      "Activo",
+  "en progreso": "En progreso",
+  "logrado":     "Logrado",
+  "archivado":   "Archivado",
+  "suspendido":  "Archivado",
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  "activo":      "bg-primary/10 text-primary border-primary/20",
+  "en progreso": "bg-amber-100 text-amber-700 border-amber-200",
+  "logrado":     "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "archivado":   "bg-slate-100 text-slate-500 border-slate-200",
+  "suspendido":  "bg-slate-100 text-slate-500 border-slate-200",
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -91,21 +123,21 @@ function semaforoMeta(s?: string | null) {
   return { label: s, dot: "bg-slate-300", badge: "bg-slate-100 text-slate-600" };
 }
 
-function goalStatusBadge(status: string) {
-  if (status === "logrado")    return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (status === "suspendido") return "bg-slate-100 text-slate-500 border-slate-200";
-  return "bg-primary/10 text-primary border-primary/20";
-}
-
-function GoalIcon({ status }: { status: string }) {
-  if (status === "logrado")    return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />;
-  if (status === "suspendido") return <Archive className="h-4 w-4 text-slate-400 shrink-0" />;
+function GoalStatusIcon({ status }: { status: string }) {
+  if (status === "logrado")     return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />;
+  if (status === "archivado" || status === "suspendido") return <Archive className="h-4 w-4 text-slate-400 shrink-0" />;
+  if (status === "en progreso") return <Clock className="h-4 w-4 text-amber-500 shrink-0" />;
   return <Circle className="h-4 w-4 text-primary shrink-0" />;
 }
 
 function formatFecha(f: string) {
   try { return format(new Date(f + "T00:00:00"), "d MMM yyyy", { locale: es }); }
   catch { return f; }
+}
+
+function formatTs(ts: string) {
+  try { return format(new Date(ts), "d MMM yyyy HH:mm", { locale: es }); }
+  catch { return ts; }
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -125,7 +157,7 @@ export default function PatientProfile() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
-  const [assignSuggested, setAssignSuggested] = useState<any | null>(null);
+  const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
 
   const createRC   = useCreateRegistroClinico();
   const createGoal = useCreateGoal();
@@ -138,15 +170,16 @@ export default function PatientProfile() {
   const sm  = semaforoMeta((patient as any)?.semaforo);
   const pct = (patient as any)?.promedioDesempeno != null ? Math.round((patient as any).promedioDesempeno * 100) : null;
 
-  const activeGoals    = goals.filter(g => g.status === "activo");
-  const achievedGoals  = goals.filter(g => g.status === "logrado");
-  const suspendedGoals = goals.filter(g => g.status === "suspendido");
+  const activeGoals     = goals.filter(g => g.status === "activo");
+  const inProgressGoals = goals.filter(g => g.status === "en progreso");
+  const achievedGoals   = goals.filter(g => g.status === "logrado");
+  const archivedGoals   = goals.filter(g => g.status === "archivado" || g.status === "suspendido");
 
   const invalidateGoals = () => queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   const invalidateRC    = () => queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
 
   const cycleGoalStatus = (goal: Goal) => {
-    const next = goal.status === "activo" ? "logrado" : goal.status === "logrado" ? "suspendido" : "activo";
+    const next = STATUS_CYCLE[goal.status] ?? "activo";
     updateGoal.mutate({ id: goal.id, data: { status: next } as any }, { onSuccess: invalidateGoals });
   };
 
@@ -201,7 +234,6 @@ export default function PatientProfile() {
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-600 mt-2">
                   {patient.age && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-slate-400" />{patient.age} años</span>}
-                  {(patient as any).fechaNacimiento && <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-slate-400" />{(patient as any).fechaNacimiento}</span>}
                   {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-slate-400" />Franja {(patient as any).franjaEtaria}</span>}
                   {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-slate-400" />{(patient as any).profesionalNombre}</span>}
                 </div>
@@ -218,7 +250,6 @@ export default function PatientProfile() {
                 )}
               </div>
             </div>
-
             {patient.diagnosis && (
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
                 <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -244,7 +275,7 @@ export default function PatientProfile() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: "Registros clínicos", value: registros.length,     icon: ClipboardList, color: "text-sky-600 bg-sky-50"       },
-            { label: "Objetivos activos",  value: activeGoals.length,   icon: Target,        color: "text-amber-600 bg-amber-50"   },
+            { label: "Activos + En progreso", value: activeGoals.length + inProgressGoals.length, icon: Target, color: "text-amber-600 bg-amber-50" },
             { label: "Logros",             value: achievedGoals.length, icon: TrendingUp,    color: "text-emerald-600 bg-emerald-50"},
             { label: "Profesionales",      value: profs.length,         icon: Stethoscope,   color: "text-primary bg-primary/10"   },
           ].map(s => (
@@ -264,7 +295,7 @@ export default function PatientProfile() {
             <TabsTrigger value="ficha" className="rounded-lg text-sm">Ficha</TabsTrigger>
             <TabsTrigger value="registros" className="rounded-lg text-sm">Registros ({registros.length})</TabsTrigger>
             <TabsTrigger value="objetivos" className="rounded-lg text-sm">
-              Objetivos ({activeGoals.length})
+              Objetivos ({activeGoals.length + inProgressGoals.length})
               {achievedGoals.length > 0 && <span className="ml-1 text-emerald-600">+{achievedGoals.length} logrados</span>}
             </TabsTrigger>
             <TabsTrigger value="sugerencias" className="rounded-lg text-sm flex items-center gap-1">
@@ -314,27 +345,25 @@ export default function PatientProfile() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {activeGoals.slice(0, 4).length > 0 ? (
+                {[...activeGoals, ...inProgressGoals].slice(0, 4).length > 0 ? (
                   <div className="divide-y divide-border/40">
-                    {activeGoals.slice(0, 4).map(g => {
+                    {[...activeGoals, ...inProgressGoals].slice(0, 4).map(g => {
                       const ac = getAreaColor(g.areaClinica ?? g.category);
                       return (
                         <div key={g.id} className="px-5 py-3.5 flex items-start gap-3">
-                          <Circle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <GoalStatusIcon status={g.status} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               {g.codigo && <span className="text-xs font-mono text-primary font-bold">{g.codigo}</span>}
                               <p className="text-sm font-medium text-slate-800 leading-snug">{g.title}</p>
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-1">
+                              <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[g.status] ?? ""}`}>
+                                {STATUS_LABELS[g.status] ?? g.status}
+                              </Badge>
                               <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
                                 {g.areaClinica ?? g.category}
                               </Badge>
-                              {g.nivelDificultad && (
-                                <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[g.nivelDificultad] ?? ""}`}>
-                                  {g.nivelDificultad}
-                                </Badge>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -436,12 +465,25 @@ export default function PatientProfile() {
 
           {/* ── Objetivos ───────────────────────────────────────────────── */}
           <TabsContent value="objetivos" className="mt-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                <span className="font-semibold text-primary">{activeGoals.length}</span> activos ·{" "}
-                <span className="font-semibold text-emerald-600">{achievedGoals.length}</span> logrados ·{" "}
-                <span className="font-semibold text-slate-400">{suspendedGoals.length}</span> suspendidos
-              </p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3 text-sm text-slate-500 flex-wrap">
+                <span className="flex items-center gap-1.5">
+                  <Circle className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-semibold text-primary">{activeGoals.length}</span> activos
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="font-semibold text-amber-600">{inProgressGoals.length}</span> en progreso
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="font-semibold text-emerald-600">{achievedGoals.length}</span> logrados
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Archive className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-400">{archivedGoals.length}</span> archivados
+                </span>
+              </div>
               <Button onClick={() => setShowGoalForm(true)} className="bg-primary hover:bg-primary/90 text-white h-9 text-sm">
                 <Plus className="h-4 w-4 mr-1.5" /> Nuevo objetivo
               </Button>
@@ -453,7 +495,21 @@ export default function PatientProfile() {
                 <h3 className="text-sm font-semibold text-slate-600 flex items-center gap-2">
                   <Circle className="h-3.5 w-3.5 text-primary" /> Objetivos activos
                 </h3>
-                {activeGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} />)}
+                {activeGoals.map(goal => (
+                  <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} />
+                ))}
+              </div>
+            )}
+
+            {/* In progress goals */}
+            {inProgressGoals.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-amber-700 flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-amber-500" /> En progreso
+                </h3>
+                {inProgressGoals.map(goal => (
+                  <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} />
+                ))}
               </div>
             )}
 
@@ -463,17 +519,21 @@ export default function PatientProfile() {
                 <h3 className="text-sm font-semibold text-emerald-700 flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Objetivos logrados
                 </h3>
-                {achievedGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} muted />)}
+                {achievedGoals.map(goal => (
+                  <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} muted />
+                ))}
               </div>
             )}
 
-            {/* Suspended goals */}
-            {suspendedGoals.length > 0 && (
+            {/* Archived goals */}
+            {archivedGoals.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-slate-500 flex items-center gap-2">
-                  <Archive className="h-3.5 w-3.5 text-slate-400" /> Objetivos suspendidos
+                  <Archive className="h-3.5 w-3.5 text-slate-400" /> Objetivos archivados
                 </h3>
-                {suspendedGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} muted />)}
+                {archivedGoals.map(goal => (
+                  <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} muted />
+                ))}
               </div>
             )}
 
@@ -482,10 +542,7 @@ export default function PatientProfile() {
                 <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-slate-500 font-medium">Sin objetivos definidos</p>
                 <p className="text-slate-400 text-sm mt-1">Crea un objetivo manualmente o usa las sugerencias inteligentes.</p>
-                <Button
-                  size="sm" variant="outline" className="mt-4"
-                  onClick={() => setShowGoalForm(true)}
-                >
+                <Button size="sm" variant="outline" className="mt-4" onClick={() => setShowGoalForm(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1.5" /> Agregar objetivo
                 </Button>
               </div>
@@ -549,23 +606,35 @@ export default function PatientProfile() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Progress tracking dialog */}
+      {progressGoal && (
+        <GoalProgressDialog
+          goal={progressGoal}
+          onClose={() => setProgressGoal(null)}
+          onUpdated={() => { invalidateGoals(); setProgressGoal(null); }}
+        />
+      )}
     </AppLayout>
   );
 }
 
 // ─── Goal Card ────────────────────────────────────────────────────────────────
-function GoalCard({ goal, onCycle, muted = false }: { goal: Goal; onCycle: (g: Goal) => void; muted?: boolean }) {
+function GoalCard({ goal, onCycle, onProgress, muted = false }: {
+  goal: Goal; onCycle: (g: Goal) => void; onProgress: (g: Goal) => void; muted?: boolean;
+}) {
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
+  const isStruck = goal.status === "logrado" || goal.status === "archivado" || goal.status === "suspendido";
   return (
-    <Card className={`border-border/50 shadow-sm ${muted ? "opacity-65" : ""}`}>
+    <Card className={`border-border/50 shadow-sm ${muted ? "opacity-70" : ""}`}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <button
             onClick={() => onCycle(goal)}
             className="shrink-0 mt-0.5 hover:scale-110 transition-transform"
-            title="Cambiar estado"
+            title={`Pasar a: ${STATUS_LABELS[STATUS_CYCLE[goal.status] ?? "activo"]}`}
           >
-            <GoalIcon status={goal.status} />
+            <GoalStatusIcon status={goal.status} />
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -574,7 +643,7 @@ function GoalCard({ goal, onCycle, muted = false }: { goal: Goal; onCycle: (g: G
                   {goal.codigo}
                 </span>
               )}
-              <p className={`font-semibold text-slate-900 leading-snug ${goal.status === "logrado" ? "line-through text-slate-400" : ""}`}>
+              <p className={`font-semibold text-slate-900 leading-snug ${isStruck ? "line-through text-slate-400" : ""}`}>
                 {goal.title}
               </p>
             </div>
@@ -582,8 +651,8 @@ function GoalCard({ goal, onCycle, muted = false }: { goal: Goal; onCycle: (g: G
               <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
             )}
             <div className="flex flex-wrap gap-1.5 mt-2">
-              <Badge variant="outline" className={`text-xs ${goalStatusBadge(goal.status)}`}>
-                {goal.status === "logrado" ? "Logrado" : goal.status === "suspendido" ? "Suspendido" : "Activo"}
+              <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
+                {STATUS_LABELS[goal.status] ?? goal.status}
               </Badge>
               {(goal.areaClinica || goal.category) && (
                 <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
@@ -596,13 +665,180 @@ function GoalCard({ goal, onCycle, muted = false }: { goal: Goal; onCycle: (g: G
                 </Badge>
               )}
               {goal.franjaEtaria && (
-                <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
+                <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
+              )}
+              {goal.fechaAsignacion && (
+                <span className="text-xs text-slate-400 self-center">Asignado: {formatFecha(goal.fechaAsignacion)}</span>
               )}
             </div>
           </div>
+          <button
+            onClick={() => onProgress(goal)}
+            title="Ver seguimiento"
+            className="shrink-0 p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+          >
+            <History className="h-4 w-4" />
+          </button>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Goal Progress Dialog ─────────────────────────────────────────────────────
+function GoalProgressDialog({ goal, onClose, onUpdated }: {
+  goal: Goal; onClose: () => void; onUpdated: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [nota, setNota] = useState("");
+  const [newStatus, setNewStatus] = useState(goal.status);
+
+  const { data: historyRaw = [], isLoading: loadingHistory, refetch } = useQuery<ProgressEntry[]>({
+    queryKey: ["goal-progress", goal.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/goals/${goal.id}/progress`);
+      if (!res.ok) throw new Error("Error cargando historial");
+      return res.json();
+    },
+  });
+  const history = historyRaw as ProgressEntry[];
+
+  const addProgress = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/goals/${goal.id}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nota: nota.trim() || undefined,
+          statusNuevo: newStatus !== goal.status ? newStatus : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Error guardando seguimiento");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Seguimiento guardado" });
+      queryClient.invalidateQueries({ queryKey: ["goal-progress", goal.id] });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      setNota("");
+      refetch();
+      onUpdated();
+    },
+    onError: () => toast({ title: "Error", variant: "destructive" }),
+  });
+
+  const ac = getAreaColor(goal.areaClinica ?? goal.category);
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Seguimiento del objetivo
+          </DialogTitle>
+          <DialogDescription>
+            Registra notas de progreso y cambios de estado para este objetivo.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Goal info */}
+        <div className={`rounded-xl border ${ac.border} ${ac.bg} p-4 space-y-2`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            {goal.codigo && <span className={`text-xs font-mono font-bold ${ac.text}`}>{goal.codigo}</span>}
+            <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
+              {STATUS_LABELS[goal.status] ?? goal.status}
+            </Badge>
+            {goal.nivelDificultad && (
+              <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                {goal.nivelDificultad}
+              </Badge>
+            )}
+          </div>
+          <p className={`font-semibold text-sm ${ac.text}`}>{goal.title}</p>
+          {goal.fechaAsignacion && (
+            <p className={`text-xs ${ac.text} opacity-70`}>Asignado el {formatFecha(goal.fechaAsignacion)}</p>
+          )}
+        </div>
+
+        {/* New note form */}
+        <div className="space-y-3 border border-slate-200 rounded-xl p-4 bg-slate-50/60">
+          <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" /> Nueva nota de progreso
+          </p>
+          <Textarea
+            value={nota}
+            onChange={e => setNota(e.target.value)}
+            placeholder="Describe el progreso observado, logros, dificultades..."
+            rows={3}
+            className="bg-white resize-none text-sm"
+          />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 mb-1 block">Cambiar estado a:</label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger className="bg-white h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activo">Activo</SelectItem>
+                  <SelectItem value="en progreso">En progreso</SelectItem>
+                  <SelectItem value="logrado">Logrado</SelectItem>
+                  <SelectItem value="archivado">Archivado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => addProgress.mutate()}
+              disabled={(!nota.trim() && newStatus === goal.status) || addProgress.isPending}
+              className="bg-primary hover:bg-primary/90 self-end h-9"
+            >
+              {addProgress.isPending ? (
+                <span className="flex items-center gap-1.5"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Guardando</span>
+              ) : (
+                <><Send className="h-4 w-4 mr-1.5" /> Guardar</>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* History */}
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <History className="h-4 w-4 text-slate-400" /> Historial de seguimiento
+          </p>
+          {loadingHistory ? (
+            <div className="space-y-2">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+          ) : history.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+              Sin notas de seguimiento aún.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map(entry => (
+                <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <div className="flex items-start justify-between gap-3 mb-1.5">
+                    <span className="text-xs text-slate-400">{formatTs(entry.createdAt)}</span>
+                    {entry.statusAnterior !== entry.statusNuevo && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
+                          {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
+                        </Badge>
+                        <ChevronRight className="h-3 w-3 text-slate-400" />
+                        <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
+                          {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  {entry.nota && <p className="text-sm text-slate-700 leading-relaxed">{entry.nota}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -632,16 +868,10 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
         onSuccess: () => {
           onAssigned();
           queryClient.invalidateQueries({ queryKey: ["patient-suggested-goals", patientId] });
-          toast({
-            title: "Objetivo asignado",
-            description: `"${goal.nombreObjetivo}" fue agregado al plan de intervención.`,
-          });
+          toast({ title: "Objetivo asignado", description: `"${goal.nombreObjetivo}" fue agregado al plan de intervención.` });
           setAssigning(null);
         },
-        onError: (e: any) => {
-          toast({ title: "Error al asignar", description: e.message, variant: "destructive" });
-          setAssigning(null);
-        },
+        onError: (e: any) => { toast({ title: "Error al asignar", description: e.message, variant: "destructive" }); setAssigning(null); },
       }
     );
   };
@@ -663,19 +893,13 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
-        </div>
+        <div className="space-y-3">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
       ) : suggestions.length === 0 ? (
         <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
           <Star className="h-12 w-12 text-slate-200 mx-auto mb-3" />
           <p className="font-medium text-slate-600">No hay sugerencias disponibles</p>
-          <p className="text-slate-400 text-sm mt-1">
-            Es posible que todos los objetivos relevantes ya estén asignados, o que falte información de diagnóstico/edad.
-          </p>
-          <Button size="sm" variant="outline" className="mt-4" onClick={() => refetch()}>
-            Actualizar sugerencias
-          </Button>
+          <p className="text-slate-400 text-sm mt-1">Es posible que todos los objetivos relevantes ya estén asignados, o que falte información de diagnóstico/edad.</p>
+          <Button size="sm" variant="outline" className="mt-4" onClick={() => refetch()}>Actualizar sugerencias</Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -698,26 +922,28 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
                         <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
                           {goal.areaClinica ?? goal.area}
                         </Badge>
+                        {goal.subarea && <span className="text-xs text-slate-400 self-center">{goal.subarea}</span>}
                         {goal.nivelDificultad && (
                           <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
                             {goal.nivelDificultad}
                           </Badge>
                         )}
-                        {goal.franjaEtaria && (
-                          <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
-                        )}
+                        {goal.franjaEtaria && <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>}
                       </div>
+                      {goal.habilidadesRelacionadas && (
+                        <p className="text-xs text-slate-400 mt-1.5 italic">Habilidades: {goal.habilidadesRelacionadas}</p>
+                      )}
                     </div>
                     <Button
                       size="sm"
                       onClick={() => handleAssign(goal)}
                       disabled={isAssigning || assign.isPending}
-                      className="shrink-0 h-8 text-xs bg-primary hover:bg-primary/90 text-white shadow-sm"
+                      className="shrink-0 h-8 text-xs bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/20"
                     >
                       {isAssigning ? (
-                        <span className="flex items-center gap-1"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Asignando</span>
+                        <span className="flex items-center gap-1"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Asignando</span>
                       ) : (
-                        <><Plus className="h-3.5 w-3.5 mr-1" /> Asignar</>
+                        <><Plus className="h-3.5 w-3.5 mr-1" />Asignar</>
                       )}
                     </Button>
                   </div>
@@ -725,9 +951,7 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
               </Card>
             );
           })}
-          <p className="text-xs text-slate-400 text-center pt-1">
-            Mostrando los {suggestions.length} objetivos más relevantes para este paciente.
-          </p>
+          <p className="text-xs text-slate-400 text-center pt-1">Mostrando los {suggestions.length} objetivos más relevantes para este paciente.</p>
         </div>
       )}
     </div>
@@ -740,11 +964,8 @@ function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
   onSave: (d: any) => void; isSaving: boolean; onClose: () => void;
 }) {
   const [form, setForm] = useState({
-    professionalId: "",
-    fecha: new Date().toISOString().split("T")[0],
-    resumenSesion: "",
-    observaciones: "",
-    recomendacionesHogar: "",
+    professionalId: "", fecha: new Date().toISOString().split("T")[0],
+    resumenSesion: "", observaciones: "", recomendacionesHogar: "",
   });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
   return (
@@ -778,12 +999,9 @@ function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
         <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
         <Button className="flex-1 bg-primary hover:bg-primary/90" disabled={!form.fecha || isSaving}
           onClick={() => onSave({
-            patientId,
-            professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
-            fecha: form.fecha,
-            resumenSesion: form.resumenSesion || undefined,
-            observaciones: form.observaciones || undefined,
-            recomendacionesHogar: form.recomendacionesHogar || undefined,
+            patientId, professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
+            fecha: form.fecha, resumenSesion: form.resumenSesion || undefined,
+            observaciones: form.observaciones || undefined, recomendacionesHogar: form.recomendacionesHogar || undefined,
           })}>
           {isSaving ? "Guardando..." : "Guardar registro"}
         </Button>

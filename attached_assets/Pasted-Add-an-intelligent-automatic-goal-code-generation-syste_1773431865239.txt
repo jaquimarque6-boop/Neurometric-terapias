@@ -1,0 +1,83 @@
+Add an intelligent automatic goal code generation system to Neurometric.
+
+This system should generate standardized codes for therapeutic goals automatically.
+
+Code format example:
+NL-7-8-META-CF-04
+
+Explain and implement the structure of the code like this:
+- first segment = área clínica
+- second segment = age range minimum
+- third segment = age range maximum
+- fourth segment = category or subarea
+- fifth segment = difficulty or focus
+- sixth segment = sequential number
+
+Create internal rules for automatic code generation based on:
+- área clínica
+- subárea
+- franja etaria mínima
+- franja etaria máxima
+- nivel de dificultad
+- order number inside similar goals
+
+Examples of prefixes by área clínica:
+- NL = lenguaje
+- HB = habla
+- PR = pragmática
+- MO = motricidad orofacial
+- DG = deglución
+- LE = lectoescritura
+- CG = cognición
+- ET = estimulación temprana
+
+Examples of subarea/category codes:
+- META = metalenguaje
+- COMP = comprensión
+- EXPR = expresión
+- ART = articulación
+- FLU = fluidez
+- RESP = respiración
+- FUNC = funciones ejecutivas
+- MEM = memoria
+- AT = atención
+
+Examples of difficulty/focus codes:
+- B = básico
+- I = intermedio
+- A = avanzado
+- CF = conciencia fonológica
+- LS = lenguaje semántico
+- MS = morfosintaxis
+
+Requirements:
+
+1. Automatic code generation
+- when creating a new therapeutic goal, the system should automatically generate a suggested code
+- the professional can accept it or manually edit it
+
+2. Code validation
+- prevent duplicate codes
+- validate code format
+- keep codes unique
+
+3. Goal bank integration
+- every goal in the Banco de Objetivos should display its code
+- allow sorting and searching by code
+
+4. Patient integration
+- when a goal is assigned to a patient, keep the original goal code visible
+
+5. Admin support
+- allow admins to define or edit code prefixes for areas and subareas later
+
+6. UI
+- show a preview of the generated code while creating/editing a goal
+- keep everything in Spanish
+- maintain the clean clinical design
+
+7. Data migration
+- if there are existing goals without code, generate suggested codes for them automatically
+
+Do not break current functionality.
+Make this system scalable and easy to maintain.

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
 
 export const goalLibraryTable = pgTable("goal_library", {
   id: serial("id").primaryKey(),
@@ -9,11 +9,15 @@ export const goalLibraryTable = pgTable("goal_library", {
   areaClinica: text("area_clinica"),
   subarea: text("subarea"),
   franjaEtaria: text("franja_etaria"),
+  franjaEtariaMin: integer("franja_etaria_min"),
+  franjaEtariaMax: integer("franja_etaria_max"),
   nivelDificultad: text("nivel_dificultad").notNull().default("básico"),
   estadoBanco: text("estado_banco").notNull().default("activo"),
   definicionOperativa: text("definicion_operativa"),
   actividadesClinicas: text("actividades_clinicas"),
   actividadesFamilia: text("actividades_familia"),
+  habilidadesRelacionadas: text("habilidades_relacionadas"),
+  prerequisitos: text("prerequisitos"),
   metaPorcentaje: text("meta_porcentaje"),
   indicadorTipo: text("indicador_tipo"),
   intentosSugeridos: text("intentos_sugeridos"),

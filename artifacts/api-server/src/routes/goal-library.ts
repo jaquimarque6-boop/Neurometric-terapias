@@ -1,13 +1,13 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 // ─── List goal library with filters ──────────────────────────────────────────
 router.get("/goal-library", async (req, res) => {
-  const { area, franja, nivel, estado, q } = req.query as Record<string, string>;
+  const { area, subarea, franja, nivel, estado, q, franjaMin, franjaMax } = req.query as Record<string, string>;
 
   let items = await db.select().from(goalLibraryTable)
     .orderBy(goalLibraryTable.areaClinica, goalLibraryTable.nivelDificultad, goalLibraryTable.idObjetivo);
@@ -15,8 +15,23 @@ router.get("/goal-library", async (req, res) => {
   if (area && area !== "all") {
     items = items.filter(i => i.areaClinica === area || i.area === area);
   }
+  if (subarea && subarea !== "all") {
+    items = items.filter(i => (i.subarea ?? "").toLowerCase() === subarea.toLowerCase());
+  }
   if (franja && franja !== "all") {
     items = items.filter(i => i.franjaEtaria === franja);
+  }
+  if (franjaMin) {
+    const min = parseInt(franjaMin);
+    items = items.filter(i =>
+      (i.franjaEtariaMax ?? i.franjaEtariaMin ?? 99) >= min
+    );
+  }
+  if (franjaMax) {
+    const max = parseInt(franjaMax);
+    items = items.filter(i =>
+      (i.franjaEtariaMin ?? 0) <= max
+    );
   }
   if (nivel && nivel !== "all") {
     items = items.filter(i => i.nivelDificultad === nivel);
@@ -32,7 +47,8 @@ router.get("/goal-library", async (req, res) => {
       (i.area ?? "").toLowerCase().includes(lower) ||
       (i.areaClinica ?? "").toLowerCase().includes(lower) ||
       (i.subarea ?? "").toLowerCase().includes(lower) ||
-      (i.definicionOperativa ?? "").toLowerCase().includes(lower)
+      (i.definicionOperativa ?? "").toLowerCase().includes(lower) ||
+      (i.habilidadesRelacionadas ?? "").toLowerCase().includes(lower)
     );
   }
 
@@ -50,11 +66,15 @@ router.post("/goal-library", async (req, res) => {
     areaClinica: body.areaClinica ?? body.area,
     subarea: body.subarea ?? null,
     franjaEtaria: body.franjaEtaria ?? null,
+    franjaEtariaMin: body.franjaEtariaMin ?? null,
+    franjaEtariaMax: body.franjaEtariaMax ?? null,
     nivelDificultad: body.nivelDificultad ?? "básico",
     estadoBanco: "activo",
     definicionOperativa: body.definicionOperativa ?? null,
     actividadesClinicas: body.actividadesClinicas ?? null,
     actividadesFamilia: body.actividadesFamilia ?? null,
+    habilidadesRelacionadas: body.habilidadesRelacionadas ?? null,
+    prerequisitos: body.prerequisitos ?? null,
     metaPorcentaje: body.metaPorcentaje ?? null,
     intentosSugeridos: body.intentosSugeridos ?? null,
     recomendacionClinica: body.recomendacionClinica ?? null,
@@ -63,7 +83,7 @@ router.post("/goal-library", async (req, res) => {
   res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
-// ─── Update goal in library (archive/activate) ────────────────────────────────
+// ─── Update goal in library ───────────────────────────────────────────────────
 router.patch("/goal-library/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const body = req.body;
@@ -72,6 +92,8 @@ router.patch("/goal-library/:id", async (req, res) => {
   if (body.nivelDificultad !== undefined) updates.nivelDificultad = body.nivelDificultad;
   if (body.nombreObjetivo !== undefined) updates.nombreObjetivo = body.nombreObjetivo;
   if (body.definicionOperativa !== undefined) updates.definicionOperativa = body.definicionOperativa;
+  if (body.habilidadesRelacionadas !== undefined) updates.habilidadesRelacionadas = body.habilidadesRelacionadas;
+  if (body.prerequisitos !== undefined) updates.prerequisitos = body.prerequisitos;
   const [item] = await db.update(goalLibraryTable).set(updates).where(eq(goalLibraryTable.id, id)).returning();
   if (!item) return res.status(404).json({ error: "Goal not found" });
   res.json({ ...item, createdAt: item.createdAt.toISOString() });
@@ -89,34 +111,32 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
   const allLibraryGoals = await db.select().from(goalLibraryTable)
     .where(eq(goalLibraryTable.estadoBanco, "activo"));
 
-  // Parse patient franja (e.g. "4-5" or "4-7")
   const patientAge = patient.age ? parseInt(String(patient.age)) : null;
   const franjaRaw = patient.franjaEtaria ?? "";
   const [franjaMin, franjaMax] = franjaRaw.split("-").map(Number);
 
   const diagnosis = (patient.diagnosis ?? "").toLowerCase();
 
-  // Score each goal
   const scored = allLibraryGoals
     .filter(g => !assignedLibraryIds.has(g.id))
     .map(g => {
       let score = 0;
 
-      // Age match
-      if (g.franjaEtaria) {
-        const [gMin, gMax] = g.franjaEtaria.split("-").map(Number);
-        if (!isNaN(gMin) && !isNaN(gMax)) {
-          if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) score += 4;
-          else if (!isNaN(franjaMin) && !isNaN(franjaMax)) {
-            // Overlap between patient franja and goal franja
-            const overlapMin = Math.max(franjaMin, gMin);
-            const overlapMax = Math.min(franjaMax, gMax);
-            if (overlapMax >= overlapMin) score += 3;
-          }
+      // Age match — prefer min/max integers if available, fall back to parsed text
+      const gMin = g.franjaEtariaMin ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[0]) : null);
+      const gMax = g.franjaEtariaMax ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[1]) : null);
+
+      if (gMin !== null && gMax !== null && !isNaN(gMin) && !isNaN(gMax)) {
+        if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) {
+          score += 4;
+        } else if (!isNaN(franjaMin) && !isNaN(franjaMax)) {
+          const overlapMin = Math.max(franjaMin, gMin);
+          const overlapMax = Math.min(franjaMax, gMax);
+          if (overlapMax >= overlapMin) score += 3;
         }
       }
 
-      // Diagnosis keyword match
+      // Diagnosis keyword match per area
       const diagKeywords: Record<string, string[]> = {
         "lenguaje":             ["TEL", "retraso del lenguaje", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
         "habla":                ["trastorno fonológico", "dislalia", "tartamudez", "fluidez", "articulación", "habla"],
@@ -128,12 +148,9 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
       };
 
       for (const [area, keywords] of Object.entries(diagKeywords)) {
-        if (g.areaClinica === area) {
+        if ((g.areaClinica ?? "").toLowerCase() === area) {
           for (const kw of keywords) {
-            if (diagnosis.includes(kw.toLowerCase())) {
-              score += 3;
-              break;
-            }
+            if (diagnosis.includes(kw.toLowerCase())) { score += 3; break; }
           }
         }
       }
@@ -161,6 +178,8 @@ router.post("/goal-library/:id/assign", async (req, res) => {
 
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, body.patientId));
 
+  const today = new Date().toISOString().split("T")[0];
+
   const [goal] = await db.insert(goalsTable).values({
     patientId: body.patientId,
     goalLibraryId: libraryId,
@@ -172,6 +191,7 @@ router.post("/goal-library/:id/assign", async (req, res) => {
     franjaEtaria: libraryGoal.franjaEtaria ?? null,
     nivelDificultad: libraryGoal.nivelDificultad ?? "básico",
     status: "activo",
+    fechaAsignacion: today,
     targetDate: body.targetDate ?? null,
   }).returning();
 
