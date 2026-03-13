@@ -40,7 +40,7 @@ artifacts-monorepo/
 |-------|------|-------------|
 | `/` | `dashboard.tsx` | Panel clínico — stats, latest sessions, patient list |
 | `/patients` | `patients.tsx` | Patient grid with semáforo badges and performance bars |
-| `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Objetivos tabs |
+| `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Plan Terapéutico/Sugerencias tabs |
 | `/registros` | `registros.tsx` | Clinical records CRUD with search/filter |
 | `/objetivos` | `objetivos.tsx` | Therapeutic goals with status toggle (activo/logrado/suspendido) |
 | `/actividades` | `actividades.tsx` | Activity library (70 activities: clínicas + familia) |
@@ -65,19 +65,42 @@ artifacts-monorepo/
 - `GET/POST /patients`, `GET/PUT /patients/:id`
 - `GET /registros`, `GET /sessions` (CSV read-only)
 - `GET/POST /registros-clinicos`, `GET/PUT/DELETE /registros-clinicos/:id`
-- `GET/POST /goals`, `PUT/DELETE /goals/:id`
+- `GET/POST /goals`, `PATCH/DELETE /goals/:id`
+- `GET /goals/:id/progress`, `POST /goals/:id/progress`
+- `GET /goals/:id/activities` — returns structured activities + libraryEntry metadata for a goal
 - `GET /goal-library`, `POST /goal-library/assign`
+- `GET/POST /goal-codes/generate`
 - `GET /actividades`
 - `GET/POST /professionals`
 - `GET /patient-professionals`, `POST /patient-professionals`, `DELETE /patient-professionals/:id`
 - `GET /dashboard/stats`
 
+### Plan Terapéutico (Patient Profile)
+
+The Plan Terapéutico tab in patient profiles is the core clinical workflow:
+
+**Overview Card** — circular SVG progress ring showing % logrado, stat tiles (En trabajo / Logrados / Total), area breakdown bars.
+
+**Goal Cards** (expandable chevron button):
+- Compact view: status badge, area badge, code chip, colored progress bar top edge, inline % bar
+- Expanded view: assignment date + target date with countdown, definition operativa, meta% / indicador / intentos tiles, clinical activities list, family activities list, clinical recommendation, professional notes
+- Activities come from `actividades` table (goalLibraryId link) OR text fields from the library entry
+
+**GoalProgressDialog** (history icon button):
+- Activities checklist: structured activities are checkable, auto-appended to note; text-only library activities show as reference
+- Session selector, estado dropdown, progress bar preview when status changes
+- Full timeline of past notes/status changes with pre-wrap text
+
+**AddFromBankDialog** — search + filter (area/nivel) with all bank goals; hides already-assigned ones; one-click assign.
+
 ### Key Data Rules
 
 - **patients table has NO email/phone/status** fields (removed in new schema)
-- **goals status enum**: `activo | logrado | suspendido` (NOT pending/in-progress/achieved)
+- **goals status enum**: `activo | en progreso | logrado | archivado` (4 states)
+- **goal_progress**: has `goalId, nota, statusAnterior, statusNuevo, registroClinicoId`
 - **GoalLibraryItem** fields use Spanish: `idObjetivo, nombreObjetivo, modulo, area, subarea, franjaEtaria, definicionOperativa, actividadesClinicas, actividadesFamilia, recomendacionClinica, metaPorcentaje, intentosSugeridos`
 - API hooks take params directly: `useListGoals({ patientId })` — NOT `useListGoals({ params: { patientId } })`
+- Activities table (70 records) covers goalLibraryIds 1-22; newer bank goals have text in actividadesClinicas/actividadesFamilia
 
 ## Seed Scripts
 

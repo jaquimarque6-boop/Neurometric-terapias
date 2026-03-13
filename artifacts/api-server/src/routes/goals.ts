@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { goalsTable, patientsTable, goalProgressTable } from "@workspace/db/schema";
+import { goalsTable, patientsTable, goalProgressTable, actividadesTable, goalLibraryTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -118,6 +118,33 @@ router.post("/goals/:id/progress", async (req, res) => {
   res.status(201).json({
     entry: { ...entry, createdAt: entry.createdAt.toISOString() },
     goal: await enrich(updated),
+  });
+});
+
+// ─── Activities for a goal ────────────────────────────────────────────────────
+router.get("/goals/:id/activities", async (req, res) => {
+  const goalId = parseInt(req.params.id);
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) return res.status(404).json({ error: "Goal not found" });
+
+  let activities: any[] = [];
+  let libraryEntry: any = null;
+
+  if (goal.goalLibraryId) {
+    activities = await db.select().from(actividadesTable)
+      .where(eq(actividadesTable.goalLibraryId, goal.goalLibraryId))
+      .orderBy(actividadesTable.tipo);
+
+    const [entry] = await db.select().from(goalLibraryTable)
+      .where(eq(goalLibraryTable.id, goal.goalLibraryId));
+    if (entry) {
+      libraryEntry = { ...entry, createdAt: entry.createdAt.toISOString() };
+    }
+  }
+
+  res.json({
+    activities: activities.map(a => ({ ...a, createdAt: a.createdAt.toISOString() })),
+    libraryEntry,
   });
 });
 

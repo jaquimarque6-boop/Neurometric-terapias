@@ -11,6 +11,7 @@ import {
   BookOpen, BarChart2, Archive, Clock, MessageSquare,
   ChevronRight, Send, History, LayoutDashboard, Library,
   Flag, BarChart3, Layers, Search as SearchIcon,
+  CheckSquare, Square,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
@@ -672,26 +673,43 @@ function goalProgressColor(status: string): string {
 function GoalCard({ goal, onCycle, onProgress, muted = false }: {
   goal: Goal; onCycle: (g: Goal) => void; onProgress: (g: Goal) => void; muted?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
-  const isStruck = goal.status === "logrado" || goal.status === "archivado" || goal.status === "suspendido";
+  const isStruck = goal.status === "archivado" || goal.status === "suspendido";
   const pct = goalProgressPct(goal.status);
   const barColor = goalProgressColor(goal.status);
 
+  const { data: actData } = useQuery<{ activities: any[]; libraryEntry: any | null }>({
+    queryKey: ["goal-activities", goal.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/goals/${goal.id}/activities`);
+      if (!res.ok) throw new Error("Error");
+      return res.json();
+    },
+    enabled: expanded,
+  });
+
+  const clinicActs = (actData?.activities ?? []).filter((a: any) => a.tipo === "clinica");
+  const familyActs  = (actData?.activities ?? []).filter((a: any) => a.tipo !== "clinica");
+  const lib = actData?.libraryEntry;
+
+  const daysRemaining = goal.targetDate
+    ? Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / 86400000)
+    : null;
+
   return (
-    <Card className={`border-border/50 shadow-sm transition-opacity ${muted ? "opacity-75" : ""}`}>
+    <Card className={`border-border/50 shadow-sm transition-all ${muted ? "opacity-75" : ""}`}>
       <CardContent className="p-0">
         {/* Progress bar at top */}
         {goal.status !== "archivado" && goal.status !== "suspendido" && (
           <div className="h-1 w-full bg-slate-100 rounded-t-xl overflow-hidden">
-            <div
-              className={`h-full ${barColor} transition-all duration-500 rounded-t-xl`}
-              style={{ width: `${pct}%` }}
-            />
+            <div className={`h-full ${barColor} transition-all duration-500 rounded-t-xl`} style={{ width: `${pct}%` }} />
           </div>
         )}
 
         <div className="p-4">
           <div className="flex items-start gap-3">
+            {/* Status cycle button */}
             <button
               onClick={() => onCycle(goal)}
               className="shrink-0 mt-0.5 hover:scale-110 transition-transform"
@@ -699,6 +717,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             >
               <GoalStatusIcon status={goal.status} />
             </button>
+
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 {goal.codigo && (
@@ -706,13 +725,15 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                     {goal.codigo}
                   </span>
                 )}
-                <p className={`font-semibold text-slate-900 leading-snug ${isStruck && goal.status !== "logrado" ? "line-through text-slate-400" : ""}`}>
+                <p className={`font-semibold text-slate-900 leading-snug ${isStruck ? "line-through text-slate-400" : ""}`}>
                   {goal.title}
                 </p>
               </div>
-              {goal.description && (
+
+              {!expanded && goal.description && (
                 <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
               )}
+
               <div className="flex flex-wrap gap-1.5 mt-2">
                 <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
                   {STATUS_LABELS[goal.status] ?? goal.status}
@@ -727,18 +748,10 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                     {goal.nivelDificultad}
                   </Badge>
                 )}
-                {goal.franjaEtaria && (
-                  <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
-                )}
-                {goal.fechaAsignacion && (
-                  <span className="text-xs text-slate-400 self-center">
-                    <CalendarDays className="h-3 w-3 inline mr-0.5" />
-                    {formatFecha(goal.fechaAsignacion)}
-                  </span>
-                )}
+                {goal.franjaEtaria && <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>}
               </div>
 
-              {/* Progress indicator text */}
+              {/* Progress indicator */}
               {goal.status !== "archivado" && goal.status !== "suspendido" && (
                 <div className="flex items-center gap-1.5 mt-2.5">
                   <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
@@ -748,15 +761,191 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => onProgress(goal)}
-              title="Registrar seguimiento"
-              className="shrink-0 p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-            >
-              <History className="h-4 w-4" />
-            </button>
+
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={() => onProgress(goal)}
+                title="Registrar seguimiento"
+                className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+              >
+                <History className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setExpanded(e => !e)}
+                title={expanded ? "Colapsar detalle" : "Ver actividades y detalle"}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* ── Expandable detail panel ────────────────────────────────────── */}
+        {expanded && (
+          <div className="border-t border-slate-100 px-4 pb-4 pt-3 space-y-4">
+
+            {/* Dates row */}
+            {(goal.fechaAsignacion || goal.targetDate) && (
+              <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+                {goal.fechaAsignacion && (
+                  <span className="flex items-center gap-1">
+                    <CalendarDays className="h-3 w-3" /> Asignado: {formatFecha(goal.fechaAsignacion)}
+                  </span>
+                )}
+                {goal.targetDate && daysRemaining !== null && (
+                  <span className={`flex items-center gap-1 font-medium ${daysRemaining < 0 ? "text-red-500" : daysRemaining <= 14 ? "text-amber-600" : "text-slate-500"}`}>
+                    <Flag className="h-3 w-3" />
+                    Meta: {formatFecha(goal.targetDate)}
+                    {daysRemaining >= 0
+                      ? ` · ${daysRemaining} día${daysRemaining !== 1 ? "s" : ""} restante${daysRemaining !== 1 ? "s" : ""}`
+                      : ` · Vencido hace ${Math.abs(daysRemaining)} día${Math.abs(daysRemaining) !== 1 ? "s" : ""}`}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Description */}
+            {goal.description && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Descripción</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{goal.description}</p>
+              </div>
+            )}
+
+            {/* Loading skeleton */}
+            {!actData && (
+              <div className="space-y-2 animate-pulse">
+                <div className="h-3 w-32 bg-slate-100 rounded" />
+                <div className="h-9 bg-slate-100 rounded-lg" />
+                <div className="h-9 bg-slate-100 rounded-lg" />
+              </div>
+            )}
+
+            {/* Library: definición operativa */}
+            {lib?.definicionOperativa && (
+              <div className={`${ac.bg} border ${ac.border} rounded-xl p-3`}>
+                <p className={`text-xs font-semibold ${ac.text} uppercase tracking-wide mb-1`}>Definición operativa</p>
+                <p className="text-xs text-slate-700 leading-relaxed">{lib.definicionOperativa}</p>
+              </div>
+            )}
+
+            {/* Library: meta tiles */}
+            {(lib?.metaPorcentaje || lib?.indicadorTipo || lib?.intentosSugeridos) && (
+              <div className="grid grid-cols-3 gap-2">
+                {lib?.metaPorcentaje && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-2.5 text-center">
+                    <p className="text-base font-bold text-emerald-700">{lib.metaPorcentaje}</p>
+                    <p className="text-xs text-emerald-600">Meta</p>
+                  </div>
+                )}
+                {lib?.indicadorTipo && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
+                    <p className="text-xs font-bold text-blue-700 capitalize">{lib.indicadorTipo}</p>
+                    <p className="text-xs text-blue-600">Indicador</p>
+                  </div>
+                )}
+                {lib?.intentosSugeridos && (
+                  <div className="bg-violet-50 border border-violet-100 rounded-xl p-2.5 text-center">
+                    <p className="text-xs font-bold text-violet-700">{lib.intentosSugeridos}</p>
+                    <p className="text-xs text-violet-600">Intentos</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Clinical activities */}
+            {clinicActs.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5 text-primary" /> Actividades clínicas
+                </p>
+                <div className="space-y-1.5">
+                  {clinicActs.map((a: any) => (
+                    <div key={a.id} className="flex items-start gap-2 text-sm text-slate-700 bg-primary/[0.04] border border-primary/10 rounded-lg px-3 py-2 leading-snug">
+                      <Activity className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <span>{a.titulo}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Family/home activities */}
+            {familyActs.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar / familia
+                </p>
+                <div className="space-y-1.5">
+                  {familyActs.map((a: any) => (
+                    <div key={a.id} className="flex items-start gap-2 text-sm text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-snug">
+                      <Home className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{a.titulo}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fallback: library text when no structured activities */}
+            {actData && clinicActs.length === 0 && lib?.actividadesClinicas && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5 text-primary" /> Actividades clínicas
+                </p>
+                <div className="bg-primary/[0.04] border border-primary/10 rounded-xl p-3">
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{lib.actividadesClinicas}</p>
+                </div>
+              </div>
+            )}
+            {actData && familyActs.length === 0 && lib?.actividadesFamilia && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar / familia
+                </p>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{lib.actividadesFamilia}</p>
+                </div>
+              </div>
+            )}
+
+            {/* No activities anywhere */}
+            {actData && clinicActs.length === 0 && familyActs.length === 0 && !lib?.actividadesClinicas && !lib?.actividadesFamilia && !lib?.definicionOperativa && !goal.description && (
+              <p className="text-xs text-slate-400 text-center py-1">Sin actividades vinculadas al banco</p>
+            )}
+
+            {/* Notas del profesional */}
+            {goal.notas && (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Nota del profesional
+                </p>
+                <p className="text-xs text-amber-900 leading-relaxed">{goal.notas}</p>
+              </div>
+            )}
+
+            {/* Clinical recommendation */}
+            {lib?.recomendacionClinica && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5 text-amber-500" /> Recomendación clínica
+                </p>
+                <p className="text-xs text-slate-700 leading-relaxed">{lib.recomendacionClinica}</p>
+              </div>
+            )}
+
+            {/* Quick action */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onProgress(goal)}
+              className="w-full h-8 text-xs border-primary/30 text-primary hover:bg-primary/5"
+            >
+              <History className="h-3.5 w-3.5 mr-1.5" /> Registrar seguimiento de esta sesión
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -771,6 +960,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   const [nota, setNota] = useState("");
   const [newStatus, setNewStatus] = useState(goal.status);
   const [sessionId, setSessionId] = useState<string>("none");
+  const [checkedActs, setCheckedActs] = useState<Set<number>>(new Set());
 
   const { data: historyRaw = [], isLoading: loadingHistory, refetch } = useQuery<ProgressEntry[]>({
     queryKey: ["goal-progress", goal.id],
@@ -782,13 +972,42 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   });
   const history = historyRaw as ProgressEntry[];
 
+  const { data: actData } = useQuery<{ activities: any[]; libraryEntry: any | null }>({
+    queryKey: ["goal-activities", goal.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/goals/${goal.id}/activities`);
+      if (!res.ok) throw new Error("Error");
+      return res.json();
+    },
+  });
+  const allActivities = actData?.activities ?? [];
+
+  const toggleAct = (id: number) => {
+    setCheckedActs(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const buildFinalNota = () => {
+    const parts: string[] = [];
+    if (nota.trim()) parts.push(nota.trim());
+    if (checkedActs.size > 0) {
+      const titles = allActivities.filter(a => checkedActs.has(a.id)).map(a => `• ${a.titulo}`);
+      parts.push(`Actividades realizadas en sesión:\n${titles.join("\n")}`);
+    }
+    return parts.join("\n\n");
+  };
+
   const addProgress = useMutation({
     mutationFn: async () => {
+      const finalNota = buildFinalNota();
       const res = await fetch(`/api/goals/${goal.id}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nota: nota.trim() || undefined,
+          nota: finalNota || undefined,
           statusNuevo: newStatus !== goal.status ? newStatus : undefined,
           registroClinicoId: sessionId !== "none" ? parseInt(sessionId) : undefined,
         }),
@@ -797,140 +1016,256 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Seguimiento guardado" });
+      toast({ title: "Seguimiento guardado", description: "El progreso fue registrado correctamente." });
       queryClient.invalidateQueries({ queryKey: ["goal-progress", goal.id] });
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       setNota("");
+      setCheckedActs(new Set());
       refetch();
       onUpdated();
     },
-    onError: () => toast({ title: "Error", variant: "destructive" }),
+    onError: () => toast({ title: "Error al guardar", variant: "destructive" }),
   });
 
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
+  const pct = goalProgressPct(newStatus);
+  const barColor = goalProgressColor(newStatus);
+  const canSave = nota.trim() || checkedActs.size > 0 || newStatus !== goal.status;
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <History className="h-5 w-5 text-primary" /> Seguimiento del objetivo
           </DialogTitle>
           <DialogDescription>
-            Registra notas de progreso y cambios de estado para este objetivo.
+            Registra el progreso, actividades realizadas y cambio de estado.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Goal info */}
-        <div className={`rounded-xl border ${ac.border} ${ac.bg} p-4 space-y-2`}>
-          <div className="flex items-center gap-2 flex-wrap">
-            {goal.codigo && <span className={`text-xs font-mono font-bold ${ac.text}`}>{goal.codigo}</span>}
-            <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
-              {STATUS_LABELS[goal.status] ?? goal.status}
-            </Badge>
-            {goal.nivelDificultad && (
-              <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
-                {goal.nivelDificultad}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          {/* Goal info header */}
+          <div className={`rounded-xl border ${ac.border} ${ac.bg} p-4`}>
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              {goal.codigo && <span className={`text-xs font-mono font-bold ${ac.text}`}>{goal.codigo}</span>}
+              <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
+                {STATUS_LABELS[goal.status] ?? goal.status}
               </Badge>
-            )}
+              {goal.nivelDificultad && (
+                <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                  {goal.nivelDificultad}
+                </Badge>
+              )}
+            </div>
+            <p className={`font-semibold text-sm ${ac.text}`}>{goal.title}</p>
+            {goal.description && <p className={`text-xs ${ac.text} opacity-70 mt-1 line-clamp-2`}>{goal.description}</p>}
           </div>
-          <p className={`font-semibold text-sm ${ac.text}`}>{goal.title}</p>
-          {goal.fechaAsignacion && (
-            <p className={`text-xs ${ac.text} opacity-70`}>Asignado el {formatFecha(goal.fechaAsignacion)}</p>
-          )}
-        </div>
 
-        {/* New note form */}
-        <div className="space-y-3 border border-slate-200 rounded-xl p-4 bg-slate-50/60">
-          <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary" /> Nueva nota de progreso
-          </p>
-          <Textarea
-            value={nota}
-            onChange={e => setNota(e.target.value)}
-            placeholder="Describe el progreso observado, logros, dificultades..."
-            rows={3}
-            className="bg-white resize-none text-sm"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">Sesión asociada:</label>
-              <Select value={sessionId} onValueChange={setSessionId}>
-                <SelectTrigger className="bg-white h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin sesión</SelectItem>
-                  {registros.map(r => (
-                    <SelectItem key={r.id} value={r.id.toString()}>
-                      {formatFecha(r.fecha)} {r.professionalName ? `— ${r.professionalName}` : ""}
-                    </SelectItem>
+          {/* ── Activities checklist (structured) ───────────────────────── */}
+          {allActivities.length > 0 && (
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+              <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" /> Actividades de esta sesión
+                {checkedActs.size > 0 && (
+                  <span className="ml-auto text-xs font-normal text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {checkedActs.size} marcada{checkedActs.size !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-slate-400">Marca las actividades realizadas — se incluirán en la nota automáticamente.</p>
+
+              {/* Clinical activities */}
+              {allActivities.filter(a => a.tipo === "clinica").length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <Stethoscope className="h-3.5 w-3.5 text-primary" /> Clínicas
+                  </p>
+                  {allActivities.filter(a => a.tipo === "clinica").map((a: any) => (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAct(a.id)}
+                      className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                        checkedActs.has(a.id)
+                          ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                          : "bg-white border-slate-200 text-slate-700 hover:border-primary/30 hover:bg-primary/[0.02]"
+                      }`}
+                    >
+                      {checkedActs.has(a.id)
+                        ? <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-slate-300" />
+                      }
+                      <span className="leading-snug">{a.titulo}</span>
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">Cambiar estado a:</label>
-              <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger className="bg-white h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="activo">Activo</SelectItem>
-                  <SelectItem value="en progreso">En progreso</SelectItem>
-                  <SelectItem value="logrado">Logrado</SelectItem>
-                  <SelectItem value="archivado">Archivado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button
-            onClick={() => addProgress.mutate()}
-            disabled={(!nota.trim() && newStatus === goal.status) || addProgress.isPending}
-            className="w-full bg-primary hover:bg-primary/90 h-9"
-          >
-            {addProgress.isPending ? (
-              <span className="flex items-center gap-1.5"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Guardando</span>
-            ) : (
-              <><Send className="h-4 w-4 mr-1.5" /> Guardar seguimiento</>
-            )}
-          </Button>
-        </div>
-
-        {/* History */}
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-            <History className="h-4 w-4 text-slate-400" /> Historial de seguimiento
-          </p>
-          {loadingHistory ? (
-            <div className="space-y-2">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-          ) : history.length === 0 ? (
-            <div className="py-8 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
-              Sin notas de seguimiento aún.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {history.map(entry => (
-                <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <div className="flex items-start justify-between gap-3 mb-1.5">
-                    <span className="text-xs text-slate-400">{formatTs(entry.createdAt)}</span>
-                    {entry.statusAnterior !== entry.statusNuevo && (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
-                          {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
-                        </Badge>
-                        <ChevronRight className="h-3 w-3 text-slate-400" />
-                        <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
-                          {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                  {entry.nota && <p className="text-sm text-slate-700 leading-relaxed">{entry.nota}</p>}
                 </div>
-              ))}
+              )}
+
+              {/* Family activities */}
+              {allActivities.filter(a => a.tipo !== "clinica").length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar
+                  </p>
+                  {allActivities.filter(a => a.tipo !== "clinica").map((a: any) => (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAct(a.id)}
+                      className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                        checkedActs.has(a.id)
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                          : "bg-white border-slate-200 text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50"
+                      }`}
+                    >
+                      {checkedActs.has(a.id)
+                        ? <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600" />
+                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-slate-300" />
+                      }
+                      <span className="leading-snug">{a.titulo}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          {/* ── Text activities from library (when no structured ones) ─── */}
+          {actData && allActivities.length === 0 && (actData.libraryEntry?.actividadesClinicas || actData.libraryEntry?.actividadesFamilia) && (
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+              <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" /> Actividades sugeridas
+              </p>
+              <p className="text-xs text-slate-400">Referencia del banco clínico para este objetivo.</p>
+              {actData.libraryEntry?.actividadesClinicas && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                    <Stethoscope className="h-3.5 w-3.5 text-primary" /> Clínicas
+                  </p>
+                  <div className="bg-primary/[0.04] border border-primary/10 rounded-lg p-3">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesClinicas}</p>
+                  </div>
+                </div>
+              )}
+              {actData.libraryEntry?.actividadesFamilia && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar
+                  </p>
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesFamilia}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Progress note form ───────────────────────────────────────── */}
+          <div className="space-y-3 border border-slate-200 rounded-xl p-4 bg-white">
+            <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" /> Nota de progreso
+            </p>
+            <Textarea
+              value={nota}
+              onChange={e => setNota(e.target.value)}
+              placeholder="Describe el progreso observado, logros, dificultades..."
+              rows={3}
+              className="bg-slate-50 resize-none text-sm"
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Sesión asociada</label>
+                <Select value={sessionId} onValueChange={setSessionId}>
+                  <SelectTrigger className="bg-slate-50 h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin sesión</SelectItem>
+                    {registros.map(r => (
+                      <SelectItem key={r.id} value={r.id.toString()}>
+                        {formatFecha(r.fecha)}{r.professionalName ? ` — ${r.professionalName}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Estado del objetivo</label>
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger className="bg-slate-50 h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="activo">Activo</SelectItem>
+                    <SelectItem value="en progreso">En progreso</SelectItem>
+                    <SelectItem value="logrado">Logrado ✓</SelectItem>
+                    <SelectItem value="archivado">Archivado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Progress preview */}
+            {newStatus !== goal.status && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="shrink-0">{pct}% — {STATUS_LABELS[newStatus] ?? newStatus}</span>
+              </div>
+            )}
+
+            <Button
+              onClick={() => addProgress.mutate()}
+              disabled={!canSave || addProgress.isPending}
+              className="w-full bg-primary hover:bg-primary/90 h-9"
+            >
+              {addProgress.isPending ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Guardando...
+                </span>
+              ) : (
+                <><Send className="h-4 w-4 mr-1.5" /> Guardar seguimiento</>
+              )}
+            </Button>
+          </div>
+
+          {/* ── History timeline ─────────────────────────────────────────── */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <History className="h-4 w-4 text-slate-400" /> Historial de seguimiento
+            </p>
+            {loadingHistory ? (
+              <div className="space-y-2">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+            ) : history.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+                Sin notas de seguimiento aún.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {history.map(entry => (
+                  <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5">
+                    <div className="flex items-start justify-between gap-3 mb-1.5">
+                      <span className="text-xs text-slate-400">{formatTs(entry.createdAt)}</span>
+                      {entry.statusAnterior !== entry.statusNuevo && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
+                            {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
+                          </Badge>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                          <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
+                            {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                    {entry.nota && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{entry.nota}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
