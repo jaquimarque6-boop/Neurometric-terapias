@@ -1,0 +1,79 @@
+Convert the existing therapeutic goals imported from Notion into a structured intelligent “Banco Clínico de Objetivos”.
+
+This bank will be the central system for all therapeutic goals in Neurometric.
+
+Structure each goal with the following fields:
+
+- código del objetivo
+- área clínica (lenguaje, habla, pragmática, motricidad orofacial, deglución, lectoescritura, cognición, estimulación temprana)
+- subárea
+- franja etaria mínima
+- franja etaria máxima
+- descripción del objetivo
+- nivel de dificultad (básico, intermedio, avanzado)
+- habilidades relacionadas
+- prerequisitos opcionales
+- estado (activo / archivado)
+
+Now implement these systems:
+
+1. Banco de objetivos
+Create a full module called “Banco de Objetivos”.
+
+Features:
+- searchable list
+- filters by área clínica
+- filters by subárea
+- filters by franja etaria
+- filters by nivel de dificultad
+- search by keyword
+- ability to view goal details
+
+2. Goal assignment system
+Allow professionals to assign goals from the bank to patients.
+
+Requirements:
+- one patient can have multiple goals
+- goals should appear in the patient profile
+- goals should have statuses:
+  - activo
+  - en progreso
+  - logrado
+  - archivado
+
+3. Smart suggestions
+Create a “Sugerencias de objetivos” feature.
+
+Based on:
+- patient age
+- clinical area
+- diagnosis
+
+The system should suggest appropriate goals from the goal bank.
+
+Important:
+Suggestions should appear as recommendations that professionals can accept or ignore.
+
+4. Goal progress tracking
+Each assigned goal should track:
+- date assigned
+- progress updates
+- status changes
+- linked session records
+
+5. Patient view
+In the patient profile show:
+
+- objetivos activos
+- objetivos en progreso
+- objetivos logrados
+
+6. Data integration
+Maintain all existing goals that were imported from Notion and structure them correctly in the database.
+
+7. Interface
+Keep everything in Spanish.
+Keep the design clean, simple and professional.
+
+Add this module to the sidebar navigation as:
+“Banco de Objetivos”.

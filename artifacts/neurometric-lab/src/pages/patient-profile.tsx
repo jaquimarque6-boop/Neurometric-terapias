@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, User, FileText, CalendarDays, Target,
   CheckCircle2, Circle, Stethoscope, Activity, Home,
-  Eye, ClipboardList, Plus, ChevronDown, Pencil, X,
-  TrendingUp, AlertTriangle, Sparkles,
+  Eye, ClipboardList, Plus, ChevronDown, X,
+  TrendingUp, AlertTriangle, Sparkles, Lightbulb, Star,
+  BookOpen, BarChart2, Archive,
 } from "lucide-react";
 import {
   useGetPatient,
@@ -17,6 +19,7 @@ import {
   useCreateRegistroClinico,
   useCreateGoal,
   useUpdateGoal,
+  useAssignGoalToPatient,
   getListGoalsQueryKey,
   getListRegistrosClinicosQueryKey,
 } from "@workspace/api-client-react";
@@ -37,6 +40,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type RC = {
   id: number; patientId: number; patientName?: string | null;
   professionalId?: number | null; professionalName?: string | null;
@@ -45,30 +49,57 @@ type RC = {
   createdAt: string;
 };
 type Goal = {
-  id: number; patientId: number; codigo?: string | null; title: string;
-  description?: string | null; category: string; franjaEtaria?: string | null;
-  status: string; targetDate?: string | null; createdAt: string;
+  id: number; patientId: number; goalLibraryId?: number | null;
+  codigo?: string | null; title: string; description?: string | null;
+  category: string; areaClinica?: string | null; franjaEtaria?: string | null;
+  nivelDificultad?: string | null; status: string;
+  targetDate?: string | null; createdAt: string;
 };
 
-const CATEGORIAS = ["lenguaje", "comprensión", "léxico", "narrativo", "pragmática", "fonología", "cognitivo", "conductual", "otro"];
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CATEGORIAS = [
+  "lenguaje", "habla", "pragmática", "motricidad orofacial",
+  "lectoescritura", "cognición", "estimulación temprana", "otro"
+];
 
+const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "lenguaje":              { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
+  "habla":                 { bg: "bg-sky-100",     text: "text-sky-700",     border: "border-sky-200"     },
+  "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
+  "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
+  "cognición":             { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-200"    },
+  "estimulación temprana": { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
+};
+
+const NIVEL_COLORS: Record<string, string> = {
+  "básico":     "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "intermedio": "bg-amber-100 text-amber-700 border-amber-200",
+  "avanzado":   "bg-red-100 text-red-700 border-red-200",
+};
+
+function getAreaColor(area?: string | null) {
+  return AREA_COLORS[(area ?? "").toLowerCase()] ?? { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function semaforoMeta(s?: string | null) {
   if (!s) return { label: "Sin datos", dot: "bg-slate-300", badge: "bg-slate-100 text-slate-600" };
-  if (s.includes("🟢")) return { label: "Buen progreso",       dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700" };
-  if (s.includes("🟡")) return { label: "En progreso",         dot: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-700"  };
-  if (s.includes("🔴")) return { label: "Requiere atención",   dot: "bg-red-400",     badge: "bg-red-100 text-red-700"        };
+  if (s.includes("🟢")) return { label: "Buen progreso",     dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700" };
+  if (s.includes("🟡")) return { label: "En progreso",       dot: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-700"  };
+  if (s.includes("🔴")) return { label: "Requiere atención", dot: "bg-red-400",     badge: "bg-red-100 text-red-700"        };
   return { label: s, dot: "bg-slate-300", badge: "bg-slate-100 text-slate-600" };
 }
 
 function goalStatusBadge(status: string) {
   if (status === "logrado")    return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (status === "suspendido") return "bg-red-100 text-red-700 border-red-200";
-  return "bg-blue-100 text-blue-700 border-blue-200";
+  if (status === "suspendido") return "bg-slate-100 text-slate-500 border-slate-200";
+  return "bg-primary/10 text-primary border-primary/20";
 }
 
 function GoalIcon({ status }: { status: string }) {
   if (status === "logrado")    return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />;
-  if (status === "suspendido") return <X className="h-4 w-4 text-red-400 shrink-0" />;
+  if (status === "suspendido") return <Archive className="h-4 w-4 text-slate-400 shrink-0" />;
   return <Circle className="h-4 w-4 text-primary shrink-0" />;
 }
 
@@ -77,6 +108,7 @@ function formatFecha(f: string) {
   catch { return f; }
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PatientProfile() {
   const params = useParams<{ id: string }>();
   const patientId = parseInt(params.id || "0");
@@ -86,13 +118,14 @@ export default function PatientProfile() {
 
   const { data: patient, isLoading: loadingPatient } = useGetPatient(patientId);
   const { data: allRegistros = [] } = useListRegistrosClinicos({ patientId });
-  const { data: allGoals = [] }   = useListGoals({ patientId });
-  const { data: assignments = [] } = useListPatientProfessionals({ patientId });
+  const { data: allGoals = [] }     = useListGoals({ patientId });
+  const { data: assignments = [] }  = useListPatientProfessionals({ patientId });
   const { data: professionals = [] } = useListProfessionals();
 
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
+  const [assignSuggested, setAssignSuggested] = useState<any | null>(null);
 
   const createRC   = useCreateRegistroClinico();
   const createGoal = useCreateGoal();
@@ -102,13 +135,20 @@ export default function PatientProfile() {
   const goals     = allGoals as Goal[];
   const profs     = assignments as Array<{ id: number; professionalId: number; professionalName?: string | null; professionalSpecialty?: string | null }>;
 
-  const sm = semaforoMeta(patient?.semaforo);
-  const pct = patient?.promedioDesempeno != null ? Math.round(patient.promedioDesempeno * 100) : null;
-  const activeGoals = goals.filter(g => g.status === "activo").length;
-  const achievedGoals = goals.filter(g => g.status === "logrado").length;
+  const sm  = semaforoMeta((patient as any)?.semaforo);
+  const pct = (patient as any)?.promedioDesempeno != null ? Math.round((patient as any).promedioDesempeno * 100) : null;
+
+  const activeGoals    = goals.filter(g => g.status === "activo");
+  const achievedGoals  = goals.filter(g => g.status === "logrado");
+  const suspendedGoals = goals.filter(g => g.status === "suspendido");
 
   const invalidateGoals = () => queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   const invalidateRC    = () => queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
+
+  const cycleGoalStatus = (goal: Goal) => {
+    const next = goal.status === "activo" ? "logrado" : goal.status === "logrado" ? "suspendido" : "activo";
+    updateGoal.mutate({ id: goal.id, data: { status: next } as any }, { onSuccess: invalidateGoals });
+  };
 
   if (loadingPatient) return (
     <AppLayout>
@@ -152,7 +192,7 @@ export default function PatientProfile() {
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3 mb-1">
                   <h1 className="text-2xl font-display font-bold text-slate-900">{patient.name}</h1>
-                  {patient.semaforo && (
+                  {(patient as any).semaforo && (
                     <Badge variant="outline" className={`${sm.badge} border-0 text-xs`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${sm.dot} mr-1.5 inline-block`} />
                       {sm.label}
@@ -161,12 +201,10 @@ export default function PatientProfile() {
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-600 mt-2">
                   {patient.age && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-slate-400" />{patient.age} años</span>}
-                  {patient.fechaNacimiento && <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-slate-400" />{patient.fechaNacimiento}</span>}
-                  {patient.franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-slate-400" />Franja {patient.franjaEtaria}</span>}
-                  {patient.profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-slate-400" />{patient.profesionalNombre}</span>}
+                  {(patient as any).fechaNacimiento && <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-slate-400" />{(patient as any).fechaNacimiento}</span>}
+                  {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-slate-400" />Franja {(patient as any).franjaEtaria}</span>}
+                  {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-slate-400" />{(patient as any).profesionalNombre}</span>}
                 </div>
-
-                {/* Performance bar */}
                 {pct != null && (
                   <div className="mt-4 max-w-xs">
                     <div className="flex justify-between text-xs text-slate-500 mb-1">
@@ -174,14 +212,13 @@ export default function PatientProfile() {
                       <span className="font-semibold text-slate-700">{pct}%</span>
                     </div>
                     <div className="h-2 bg-white/70 rounded-full overflow-hidden border border-white">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Diagnosis */}
             {patient.diagnosis && (
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
                 <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -191,12 +228,12 @@ export default function PatientProfile() {
                 </div>
               </div>
             )}
-            {patient.observaciones && (
+            {(patient as any).observaciones && (
               <div className="mt-2 flex items-start gap-3 bg-amber-50/70 border border-amber-100 rounded-xl p-4">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-0.5">Observaciones</p>
-                  <p className="text-amber-900 text-sm">{patient.observaciones}</p>
+                  <p className="text-amber-900 text-sm">{(patient as any).observaciones}</p>
                 </div>
               </div>
             )}
@@ -206,10 +243,10 @@ export default function PatientProfile() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Registros clínicos", value: registros.length, icon: ClipboardList, color: "text-sky-600 bg-sky-50" },
-            { label: "Objetivos activos",  value: activeGoals,      icon: Target,        color: "text-amber-600 bg-amber-50" },
-            { label: "Logros",             value: achievedGoals,    icon: TrendingUp,    color: "text-emerald-600 bg-emerald-50" },
-            { label: "Profesionales",      value: profs.length,     icon: Stethoscope,   color: "text-primary bg-primary/10" },
+            { label: "Registros clínicos", value: registros.length,     icon: ClipboardList, color: "text-sky-600 bg-sky-50"       },
+            { label: "Objetivos activos",  value: activeGoals.length,   icon: Target,        color: "text-amber-600 bg-amber-50"   },
+            { label: "Logros",             value: achievedGoals.length, icon: TrendingUp,    color: "text-emerald-600 bg-emerald-50"},
+            { label: "Profesionales",      value: profs.length,         icon: Stethoscope,   color: "text-primary bg-primary/10"   },
           ].map(s => (
             <Card key={s.label} className="border-border/50 shadow-sm">
               <CardContent className="p-4">
@@ -223,15 +260,20 @@ export default function PatientProfile() {
 
         {/* Tabs */}
         <Tabs defaultValue="ficha">
-          <TabsList className="bg-white border border-border/50 p-1 rounded-xl shadow-sm">
+          <TabsList className="bg-white border border-border/50 p-1 rounded-xl shadow-sm flex-wrap h-auto gap-1">
             <TabsTrigger value="ficha" className="rounded-lg text-sm">Ficha</TabsTrigger>
             <TabsTrigger value="registros" className="rounded-lg text-sm">Registros ({registros.length})</TabsTrigger>
-            <TabsTrigger value="objetivos" className="rounded-lg text-sm">Objetivos ({goals.length})</TabsTrigger>
+            <TabsTrigger value="objetivos" className="rounded-lg text-sm">
+              Objetivos ({activeGoals.length})
+              {achievedGoals.length > 0 && <span className="ml-1 text-emerald-600">+{achievedGoals.length} logrados</span>}
+            </TabsTrigger>
+            <TabsTrigger value="sugerencias" className="rounded-lg text-sm flex items-center gap-1">
+              <Lightbulb className="h-3.5 w-3.5" /> Sugerencias
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Ficha ───────────────────────────────────────────────────── */}
           <TabsContent value="ficha" className="mt-6 space-y-4">
-            {/* Profesionales asignados */}
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-3 border-b">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -255,6 +297,52 @@ export default function PatientProfile() {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-slate-400 text-sm">Sin profesionales asignados.</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick objectives view */}
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-3 border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" /> Objetivos activos
+                  </CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => setShowGoalForm(true)} className="h-8 text-xs">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {activeGoals.slice(0, 4).length > 0 ? (
+                  <div className="divide-y divide-border/40">
+                    {activeGoals.slice(0, 4).map(g => {
+                      const ac = getAreaColor(g.areaClinica ?? g.category);
+                      return (
+                        <div key={g.id} className="px-5 py-3.5 flex items-start gap-3">
+                          <Circle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {g.codigo && <span className="text-xs font-mono text-primary font-bold">{g.codigo}</span>}
+                              <p className="text-sm font-medium text-slate-800 leading-snug">{g.title}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
+                                {g.areaClinica ?? g.category}
+                              </Badge>
+                              {g.nivelDificultad && (
+                                <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[g.nivelDificultad] ?? ""}`}>
+                                  {g.nivelDificultad}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-slate-400 text-sm">Sin objetivos activos.</div>
                 )}
               </CardContent>
             </Card>
@@ -286,40 +374,6 @@ export default function PatientProfile() {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-slate-400 text-sm">Sin registros clínicos aún.</div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Recent goals */}
-            <Card className="border-border/50 shadow-sm">
-              <CardHeader className="pb-3 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" /> Objetivos activos
-                  </CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => setShowGoalForm(true)} className="h-8 text-xs">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {goals.filter(g => g.status === "activo").slice(0, 4).length > 0 ? (
-                  <div className="divide-y divide-border/40">
-                    {goals.filter(g => g.status === "activo").slice(0, 4).map(g => (
-                      <div key={g.id} className="px-5 py-3.5 flex items-start gap-3">
-                        <GoalIcon status={g.status} />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            {g.codigo && <span className="text-xs font-mono text-primary font-bold">{g.codigo}</span>}
-                            <p className="text-sm font-medium text-slate-800">{g.title}</p>
-                          </div>
-                          <Badge variant="secondary" className="text-xs mt-1 bg-slate-100 text-slate-600 hover:bg-slate-100 capitalize">{g.category}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-slate-400 text-sm">Sin objetivos activos.</div>
                 )}
               </CardContent>
             </Card>
@@ -381,42 +435,70 @@ export default function PatientProfile() {
           </TabsContent>
 
           {/* ── Objetivos ───────────────────────────────────────────────── */}
-          <TabsContent value="objetivos" className="mt-6 space-y-3">
-            <div className="flex justify-end">
+          <TabsContent value="objetivos" className="mt-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-primary">{activeGoals.length}</span> activos ·{" "}
+                <span className="font-semibold text-emerald-600">{achievedGoals.length}</span> logrados ·{" "}
+                <span className="font-semibold text-slate-400">{suspendedGoals.length}</span> suspendidos
+              </p>
               <Button onClick={() => setShowGoalForm(true)} className="bg-primary hover:bg-primary/90 text-white h-9 text-sm">
                 <Plus className="h-4 w-4 mr-1.5" /> Nuevo objetivo
               </Button>
             </div>
-            {goals.length > 0 ? goals.map(goal => (
-              <Card key={goal.id} className={`border-border/50 shadow-sm ${goal.status === "logrado" ? "opacity-70" : ""}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <button onClick={() => updateGoal.mutate({ id: goal.id, data: { status: goal.status === "activo" ? "logrado" : "activo" } as any }, { onSuccess: invalidateGoals })} className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
-                      <GoalIcon status={goal.status} />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        {goal.codigo && <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{goal.codigo}</span>}
-                        <p className={`font-semibold text-slate-900 ${goal.status === "logrado" ? "line-through text-slate-400" : ""}`}>{goal.title}</p>
-                      </div>
-                      {goal.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{goal.description}</p>}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline" className={`text-xs ${goalStatusBadge(goal.status)}`}>
-                          {goal.status === "logrado" ? "Logrado" : goal.status === "suspendido" ? "Suspendido" : "Activo"}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100 capitalize">{goal.category}</Badge>
-                        {goal.franjaEtaria && <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )) : (
-              <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-500">Sin objetivos definidos para este paciente.</p>
+
+            {/* Active goals */}
+            {activeGoals.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-600 flex items-center gap-2">
+                  <Circle className="h-3.5 w-3.5 text-primary" /> Objetivos activos
+                </h3>
+                {activeGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} />)}
               </div>
             )}
+
+            {/* Achieved goals */}
+            {achievedGoals.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-emerald-700 flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Objetivos logrados
+                </h3>
+                {achievedGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} muted />)}
+              </div>
+            )}
+
+            {/* Suspended goals */}
+            {suspendedGoals.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-500 flex items-center gap-2">
+                  <Archive className="h-3.5 w-3.5 text-slate-400" /> Objetivos suspendidos
+                </h3>
+                {suspendedGoals.map(goal => <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} muted />)}
+              </div>
+            )}
+
+            {goals.length === 0 && (
+              <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">Sin objetivos definidos</p>
+                <p className="text-slate-400 text-sm mt-1">Crea un objetivo manualmente o usa las sugerencias inteligentes.</p>
+                <Button
+                  size="sm" variant="outline" className="mt-4"
+                  onClick={() => setShowGoalForm(true)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Agregar objetivo
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ── Sugerencias ─────────────────────────────────────────────── */}
+          <TabsContent value="sugerencias" className="mt-6">
+            <SuggestionsTab
+              patientId={patientId}
+              patientName={patient.name}
+              onAssigned={invalidateGoals}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -426,12 +508,14 @@ export default function PatientProfile() {
         <Dialog open onOpenChange={() => setShowRegForm(false)}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="font-display text-xl flex items-center gap-2"><ClipboardList className="h-5 w-5 text-primary" /> Nuevo registro clínico</DialogTitle>
+              <DialogTitle className="font-display text-xl flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" /> Nuevo registro clínico
+              </DialogTitle>
               <DialogDescription>Registra una sesión clínica para {patient.name}.</DialogDescription>
             </DialogHeader>
             <RegistroForm
               patientId={patientId}
-              professionals={professionals}
+              professionals={professionals as any[]}
               onSave={(data) => createRC.mutate({ data }, {
                 onSuccess: () => { invalidateRC(); setShowRegForm(false); toast({ title: "Registro creado" }); },
                 onError: () => toast({ title: "Error", variant: "destructive" }),
@@ -448,7 +532,9 @@ export default function PatientProfile() {
         <Dialog open onOpenChange={() => setShowGoalForm(false)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-display text-xl flex items-center gap-2"><Target className="h-5 w-5 text-primary" /> Nuevo objetivo</DialogTitle>
+              <DialogTitle className="font-display text-xl flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" /> Nuevo objetivo
+              </DialogTitle>
               <DialogDescription>Define un objetivo terapéutico para {patient.name}.</DialogDescription>
             </DialogHeader>
             <GoalFormInline
@@ -467,11 +553,199 @@ export default function PatientProfile() {
   );
 }
 
+// ─── Goal Card ────────────────────────────────────────────────────────────────
+function GoalCard({ goal, onCycle, muted = false }: { goal: Goal; onCycle: (g: Goal) => void; muted?: boolean }) {
+  const ac = getAreaColor(goal.areaClinica ?? goal.category);
+  return (
+    <Card className={`border-border/50 shadow-sm ${muted ? "opacity-65" : ""}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => onCycle(goal)}
+            className="shrink-0 mt-0.5 hover:scale-110 transition-transform"
+            title="Cambiar estado"
+          >
+            <GoalIcon status={goal.status} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              {goal.codigo && (
+                <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                  {goal.codigo}
+                </span>
+              )}
+              <p className={`font-semibold text-slate-900 leading-snug ${goal.status === "logrado" ? "line-through text-slate-400" : ""}`}>
+                {goal.title}
+              </p>
+            </div>
+            {goal.description && (
+              <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
+            )}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <Badge variant="outline" className={`text-xs ${goalStatusBadge(goal.status)}`}>
+                {goal.status === "logrado" ? "Logrado" : goal.status === "suspendido" ? "Suspendido" : "Activo"}
+              </Badge>
+              {(goal.areaClinica || goal.category) && (
+                <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
+                  {goal.areaClinica ?? goal.category}
+                </Badge>
+              )}
+              {goal.nivelDificultad && (
+                <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                  {goal.nivelDificultad}
+                </Badge>
+              )}
+              {goal.franjaEtaria && (
+                <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Suggestions Tab ──────────────────────────────────────────────────────────
+function SuggestionsTab({ patientId, patientName, onAssigned }: {
+  patientId: number; patientName: string; onAssigned: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const assign = useAssignGoalToPatient();
+  const [assigning, setAssigning] = useState<number | null>(null);
+
+  const { data: suggestions = [], isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["patient-suggested-goals", patientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/patients/${patientId}/suggested-goals`);
+      if (!res.ok) throw new Error("Error cargando sugerencias");
+      return res.json();
+    },
+  });
+
+  const handleAssign = (goal: any) => {
+    setAssigning(goal.id);
+    assign.mutate(
+      { id: goal.id, data: { patientId } },
+      {
+        onSuccess: () => {
+          onAssigned();
+          queryClient.invalidateQueries({ queryKey: ["patient-suggested-goals", patientId] });
+          toast({
+            title: "Objetivo asignado",
+            description: `"${goal.nombreObjetivo}" fue agregado al plan de intervención.`,
+          });
+          setAssigning(null);
+        },
+        onError: (e: any) => {
+          toast({ title: "Error al asignar", description: e.message, variant: "destructive" });
+          setAssigning(null);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 rounded-2xl p-5">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Lightbulb className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-900">Sugerencias inteligentes</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Objetivos seleccionados automáticamente según la edad, diagnóstico y área clínica de <strong>{patientName}</strong>. Los objetivos ya asignados no aparecen aquí.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+        </div>
+      ) : suggestions.length === 0 ? (
+        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+          <Star className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+          <p className="font-medium text-slate-600">No hay sugerencias disponibles</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Es posible que todos los objetivos relevantes ya estén asignados, o que falte información de diagnóstico/edad.
+          </p>
+          <Button size="sm" variant="outline" className="mt-4" onClick={() => refetch()}>
+            Actualizar sugerencias
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {suggestions.map((goal: any) => {
+            const ac = getAreaColor(goal.areaClinica ?? goal.area);
+            const isAssigning = assigning === goal.id;
+            return (
+              <Card key={goal.id} className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`shrink-0 text-xs font-mono font-bold px-2 py-1 rounded-lg ${ac.bg} ${ac.text} border ${ac.border} whitespace-nowrap mt-0.5`}>
+                      {goal.idObjetivo}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 leading-snug">{goal.nombreObjetivo}</p>
+                      {goal.definicionOperativa && (
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.definicionOperativa}</p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
+                          {goal.areaClinica ?? goal.area}
+                        </Badge>
+                        {goal.nivelDificultad && (
+                          <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                            {goal.nivelDificultad}
+                          </Badge>
+                        )}
+                        {goal.franjaEtaria && (
+                          <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAssign(goal)}
+                      disabled={isAssigning || assign.isPending}
+                      className="shrink-0 h-8 text-xs bg-primary hover:bg-primary/90 text-white shadow-sm"
+                    >
+                      {isAssigning ? (
+                        <span className="flex items-center gap-1"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Asignando</span>
+                      ) : (
+                        <><Plus className="h-3.5 w-3.5 mr-1" /> Asignar</>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          <p className="text-xs text-slate-400 text-center pt-1">
+            Mostrando los {suggestions.length} objetivos más relevantes para este paciente.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Forms ────────────────────────────────────────────────────────────────────
 function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
   patientId: number; professionals: Array<{ id: number; name: string; specialty: string }>;
   onSave: (d: any) => void; isSaving: boolean; onClose: () => void;
 }) {
-  const [form, setForm] = useState({ professionalId: "", fecha: new Date().toISOString().split("T")[0], resumenSesion: "", observaciones: "", recomendacionesHogar: "" });
+  const [form, setForm] = useState({
+    professionalId: "",
+    fecha: new Date().toISOString().split("T")[0],
+    resumenSesion: "",
+    observaciones: "",
+    recomendacionesHogar: "",
+  });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div className="space-y-4 py-2">
@@ -503,7 +777,14 @@ function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
       <div className="flex gap-3 pt-2">
         <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
         <Button className="flex-1 bg-primary hover:bg-primary/90" disabled={!form.fecha || isSaving}
-          onClick={() => onSave({ patientId, professionalId: form.professionalId ? parseInt(form.professionalId) : undefined, fecha: form.fecha, resumenSesion: form.resumenSesion || undefined, observaciones: form.observaciones || undefined, recomendacionesHogar: form.recomendacionesHogar || undefined })}>
+          onClick={() => onSave({
+            patientId,
+            professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
+            fecha: form.fecha,
+            resumenSesion: form.resumenSesion || undefined,
+            observaciones: form.observaciones || undefined,
+            recomendacionesHogar: form.recomendacionesHogar || undefined,
+          })}>
           {isSaving ? "Guardando..." : "Guardar registro"}
         </Button>
       </div>
@@ -514,8 +795,15 @@ function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
 function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
   patientId: number; onSave: (d: any) => void; isSaving: boolean; onClose: () => void;
 }) {
-  const [form, setForm] = useState({ codigo: "", title: "", description: "", category: "lenguaje", franjaEtaria: "", status: "activo", targetDate: "" });
+  const [form, setForm] = useState({
+    codigo: "", title: "", description: "",
+    category: "lenguaje", areaClinica: "lenguaje",
+    nivelDificultad: "básico", franjaEtaria: "",
+    status: "activo", targetDate: "",
+  });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const handleAreaChange = (v: string) => setForm(f => ({ ...f, category: v, areaClinica: v }));
+
   return (
     <div className="space-y-4 py-2">
       <div className="grid grid-cols-2 gap-3">
@@ -538,21 +826,42 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Categoría</label>
-          <Select value={form.category} onValueChange={v => set("category", v)}>
+          <label className="text-sm font-medium text-slate-700">Área clínica</label>
+          <Select value={form.areaClinica} onValueChange={handleAreaChange}>
             <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
-            <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              {CATEGORIAS.map(c => (
+                <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Fecha objetivo</label>
-          <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-slate-50" />
+          <label className="text-sm font-medium text-slate-700">Nivel de dificultad</label>
+          <Select value={form.nivelDificultad} onValueChange={v => set("nivelDificultad", v)}>
+            <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="básico">Básico</SelectItem>
+              <SelectItem value="intermedio">Intermedio</SelectItem>
+              <SelectItem value="avanzado">Avanzado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-700">Fecha objetivo</label>
+        <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-slate-50" />
       </div>
       <div className="flex gap-3 pt-2">
         <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
         <Button className="flex-1 bg-primary hover:bg-primary/90" disabled={!form.title || isSaving}
-          onClick={() => onSave({ patientId, codigo: form.codigo || undefined, title: form.title, description: form.description || undefined, category: form.category, franjaEtaria: form.franjaEtaria || undefined, status: form.status, targetDate: form.targetDate || undefined })}>
+          onClick={() => onSave({
+            patientId, codigo: form.codigo || undefined, title: form.title,
+            description: form.description || undefined, category: form.areaClinica,
+            areaClinica: form.areaClinica, nivelDificultad: form.nivelDificultad,
+            franjaEtaria: form.franjaEtaria || undefined, status: form.status,
+            targetDate: form.targetDate || undefined,
+          })}>
           {isSaving ? "Guardando..." : "Crear objetivo"}
         </Button>
       </div>

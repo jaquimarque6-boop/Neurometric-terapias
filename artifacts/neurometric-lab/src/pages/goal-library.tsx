@@ -3,13 +3,15 @@ import { format } from "date-fns";
 import {
   BookOpen, Search, Filter, ChevronDown, ChevronRight,
   Target, CheckCircle2, User, Sparkles, ClipboardList,
-  AlertCircle, X, Check, Brain
+  AlertCircle, X, Check, Archive, Plus, Star, Lightbulb,
+  BarChart2,
 } from "lucide-react";
 import {
   useListGoalLibrary,
   useAssignGoalToPatient,
   useListPatients,
   getListGoalsQueryKey,
+  getListGoalLibraryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -20,45 +22,52 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
-// ─── Colour maps ─────────────────────────────────────────────────────────────
-const AREA_COLORS: Record<string, string> = {
-  "Lenguaje Expresivo":             "bg-violet-100 text-violet-700",
-  "Lenguaje Comprensivo-Expresivo": "bg-purple-100 text-purple-700",
-  "Lenguaje Funcional":             "bg-blue-100 text-blue-700",
-  "Lenguaje Narrativo":             "bg-sky-100 text-sky-700",
-  "Léxico":                         "bg-teal-100 text-teal-700",
-  "Comprensión":                    "bg-cyan-100 text-cyan-700",
-  "Metalingüística":                "bg-indigo-100 text-indigo-700",
-  "Semántica":                      "bg-emerald-100 text-emerald-700",
-  "Pragmática":                     "bg-green-100 text-green-700",
-  "Comunicación":                   "bg-lime-100 text-lime-700",
+// ─── Constants ────────────────────────────────────────────────────────────────
+const AREAS_CLINICAS = [
+  "lenguaje",
+  "habla",
+  "pragmática",
+  "motricidad orofacial",
+  "lectoescritura",
+  "cognición",
+  "estimulación temprana",
+];
+
+const AREA_LABELS: Record<string, string> = {
+  "lenguaje":              "Lenguaje",
+  "habla":                 "Habla",
+  "pragmática":            "Pragmática",
+  "motricidad orofacial":  "Motricidad Orofacial",
+  "lectoescritura":        "Lectoescritura",
+  "cognición":             "Cognición",
+  "estimulación temprana": "Estimulación Temprana",
 };
 
-const MODULE_COLORS = {
-  "Neurolengua": { bg: "bg-primary/5", text: "text-primary", border: "border-primary/20" },
-  default:       { bg: "bg-slate-50",  text: "text-slate-600", border: "border-slate-200" },
+const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "lenguaje":              { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
+  "habla":                 { bg: "bg-sky-100",     text: "text-sky-700",     border: "border-sky-200"     },
+  "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
+  "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
+  "cognición":             { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-200"    },
+  "estimulación temprana": { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
 };
 
-function moduleColor(module: string) {
-  return MODULE_COLORS[module as keyof typeof MODULE_COLORS] ?? MODULE_COLORS.default;
-}
+const NIVEL_COLORS: Record<string, string> = {
+  "básico":      "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "intermedio":  "bg-amber-100 text-amber-700 border-amber-200",
+  "avanzado":    "bg-red-100 text-red-700 border-red-200",
+};
 
-function areaColor(area: string) {
-  return AREA_COLORS[area] ?? "bg-slate-100 text-slate-600";
+function getAreaColor(areaClinica?: string | null, area?: string | null) {
+  const key = (areaClinica ?? area ?? "").toLowerCase();
+  return AREA_COLORS[key] ?? { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -66,37 +75,65 @@ export default function GoalLibrary() {
   const { data: library = [], isLoading } = useListGoalLibrary();
   const { data: patients = [] } = useListPatients();
 
-  const [search, setSearch]           = useState("");
-  const [areaFilter, setAreaFilter]   = useState("all");
+  const [search, setSearch]         = useState("");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [nivelFilter, setNivelFilter] = useState("all");
   const [franjaFilter, setFranjaFilter] = useState("all");
-  const [expandedId, setExpandedId]   = useState<number | null>(null);
-  const [assignGoal, setAssignGoal]   = useState<(typeof library)[0] | null>(null);
+  const [estadoFilter, setEstadoFilter] = useState("activo");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [assignGoal, setAssignGoal] = useState<any | null>(null);
 
-  const areas   = useMemo(() => ["all", ...Array.from(new Set(library.map(g => g.area).filter(Boolean))).sort()], [library]);
-  const franjas = useMemo(() => ["all", ...Array.from(new Set(library.map(g => g.franjaEtaria).filter(Boolean))).sort()], [library]);
-  const modules = useMemo(() => Array.from(new Set(library.map(g => g.modulo))).sort(), [library]);
+  const lib = library as any[];
 
-  const filtered = useMemo(() => library.filter(g => {
+  const areas = useMemo(() => AREAS_CLINICAS, []);
+  const franjas = useMemo(() =>
+    ["all", ...Array.from(new Set(lib.map((g: any) => g.franjaEtaria).filter(Boolean))).sort()],
+    [lib]
+  );
+
+  const filtered = useMemo(() => lib.filter((g: any) => {
     const q = search.toLowerCase();
     const matchSearch = !q ||
       (g.nombreObjetivo ?? "").toLowerCase().includes(q) ||
-      (g.modulo ?? "").toLowerCase().includes(q) ||
+      (g.idObjetivo ?? "").toLowerCase().includes(q) ||
       (g.area ?? "").toLowerCase().includes(q) ||
+      (g.areaClinica ?? "").toLowerCase().includes(q) ||
       (g.subarea ?? "").toLowerCase().includes(q) ||
-      (g.idObjetivo ?? "").toLowerCase().includes(q);
-    const matchArea  = areaFilter === "all"   || g.area === areaFilter;
+      (g.definicionOperativa ?? "").toLowerCase().includes(q);
+    const matchArea  = areaFilter === "all"  || (g.areaClinica ?? g.area) === areaFilter;
+    const matchNivel = nivelFilter === "all" || g.nivelDificultad === nivelFilter;
     const matchFranja = franjaFilter === "all" || g.franjaEtaria === franjaFilter;
-    return matchSearch && matchArea && matchFranja;
-  }), [library, search, areaFilter, franjaFilter]);
+    const matchEstado = estadoFilter === "all" || (g.estadoBanco ?? "activo") === estadoFilter;
+    return matchSearch && matchArea && matchNivel && matchFranja && matchEstado;
+  }), [lib, search, areaFilter, nivelFilter, franjaFilter, estadoFilter]);
 
-  const grouped = useMemo(() => filtered.reduce((acc, g) => {
-    const key = g.modulo ?? "Sin módulo";
+  // Group by areaClinica
+  const grouped = useMemo(() => filtered.reduce((acc: Record<string, any[]>, g: any) => {
+    const key = g.areaClinica ?? g.area ?? "Otra área";
     if (!acc[key]) acc[key] = [];
     acc[key].push(g);
     return acc;
-  }, {} as Record<string, typeof library>), [filtered]);
+  }, {}), [filtered]);
 
-  const activeFilters = (areaFilter !== "all" ? 1 : 0) + (franjaFilter !== "all" ? 1 : 0);
+  const activeFilters = [areaFilter !== "all", nivelFilter !== "all", franjaFilter !== "all", estadoFilter !== "activo"].filter(Boolean).length;
+
+  // Stats
+  const stats = useMemo(() => {
+    const total = lib.length;
+    const porArea = AREAS_CLINICAS.map(a => ({
+      area: a,
+      count: lib.filter((g: any) => (g.areaClinica ?? g.area) === a).length,
+    })).filter(s => s.count > 0);
+    return { total, porArea };
+  }, [lib]);
+
+  const clearFilters = () => {
+    setAreaFilter("all");
+    setNivelFilter("all");
+    setFranjaFilter("all");
+    setEstadoFilter("activo");
+    setSearch("");
+  };
 
   return (
     <AppLayout>
@@ -108,19 +145,40 @@ export default function GoalLibrary() {
             <div>
               <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
                 <BookOpen className="h-6 w-6 text-primary" />
-                Banco de Objetivos
+                Banco de Objetivos Terapéuticos
               </h1>
               <p className="text-slate-500 mt-1 text-sm">
-                {library.length} objetivos clínicos · {modules.join(", ")}
+                {stats.total} objetivos clínicos en {stats.porArea.length} áreas
               </p>
             </div>
           </div>
 
+          {/* Area summary chips */}
+          <div className="flex flex-wrap gap-2 mb-5">
+            {stats.porArea.map(s => {
+              const ac = getAreaColor(s.area);
+              const isActive = areaFilter === s.area;
+              return (
+                <button
+                  key={s.area}
+                  onClick={() => setAreaFilter(isActive ? "all" : s.area)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    isActive ? `${ac.bg} ${ac.text} ${ac.border} ring-2 ring-offset-1 ${ac.border}` : `${ac.bg} ${ac.text} ${ac.border} opacity-70 hover:opacity-100`
+                  }`}
+                >
+                  {AREA_LABELS[s.area] ?? s.area}
+                  <span className={`font-bold ${ac.text}`}>{s.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search + filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Buscar por nombre, área, módulo o ID..."
+                placeholder="Buscar por nombre, área, código o descripción..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9 bg-slate-50 border-slate-200"
@@ -131,18 +189,20 @@ export default function GoalLibrary() {
                 </button>
               )}
             </div>
-            <Select value={areaFilter} onValueChange={setAreaFilter}>
-              <SelectTrigger className="w-full sm:w-56 bg-slate-50 border-slate-200">
-                <Filter className="h-4 w-4 mr-2 text-slate-400" />
-                <SelectValue placeholder="Área" />
+
+            <Select value={nivelFilter} onValueChange={setNivelFilter}>
+              <SelectTrigger className="w-full sm:w-44 bg-slate-50 border-slate-200">
+                <BarChart2 className="h-4 w-4 mr-2 text-slate-400" />
+                <SelectValue placeholder="Dificultad" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las áreas</SelectItem>
-                {areas.filter(a => a !== "all").map(a => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
-                ))}
+                <SelectItem value="all">Todos los niveles</SelectItem>
+                <SelectItem value="básico">Básico</SelectItem>
+                <SelectItem value="intermedio">Intermedio</SelectItem>
+                <SelectItem value="avanzado">Avanzado</SelectItem>
               </SelectContent>
             </Select>
+
             <Select value={franjaFilter} onValueChange={setFranjaFilter}>
               <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200">
                 <SelectValue placeholder="Franja etaria" />
@@ -154,13 +214,21 @@ export default function GoalLibrary() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+              <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="activo">Activos</SelectItem>
+                <SelectItem value="archivado">Archivados</SelectItem>
+              </SelectContent>
+            </Select>
+
             {activeFilters > 0 && (
-              <Button
-                variant="ghost" size="sm"
-                onClick={() => { setAreaFilter("all"); setFranjaFilter("all"); }}
-                className="text-slate-500 hover:text-slate-700 whitespace-nowrap"
-              >
-                Limpiar filtros
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                Limpiar
                 <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-200 text-xs">{activeFilters}</Badge>
               </Button>
             )}
@@ -169,12 +237,12 @@ export default function GoalLibrary() {
 
         {(search || activeFilters > 0) && (
           <p className="text-sm text-slate-500 -mt-2 px-1">
-            Mostrando <span className="font-semibold text-slate-700">{filtered.length}</span> objetivos
+            Mostrando <span className="font-semibold text-slate-700">{filtered.length}</span> objetivo{filtered.length !== 1 ? "s" : ""}
             {search && <> para <span className="italic">"{search}"</span></>}
           </p>
         )}
 
-        {/* Library */}
+        {/* Goal cards grouped by area */}
         {isLoading ? (
           <div className="space-y-4">
             {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
@@ -187,62 +255,75 @@ export default function GoalLibrary() {
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([module, goals]) => {
-              const mc = moduleColor(module);
+            {AREAS_CLINICAS.filter(a => grouped[a]).map(areaKey => {
+              const goals = grouped[areaKey];
+              const ac = getAreaColor(areaKey);
               return (
-                <div key={module} className="space-y-2">
-                  <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${mc.bg} border ${mc.border}`}>
-                    <Brain className={`h-4 w-4 ${mc.text}`} />
-                    <h2 className={`font-semibold text-sm ${mc.text}`}>{module}</h2>
-                    <Badge variant="outline" className={`ml-auto text-xs ${mc.text} ${mc.border} bg-white/50`}>
+                <div key={areaKey} className="space-y-2">
+                  <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${ac.bg} border ${ac.border}`}>
+                    <span className={`text-sm font-bold ${ac.text}`}>{AREA_LABELS[areaKey] ?? areaKey}</span>
+                    <Badge variant="outline" className={`ml-auto text-xs ${ac.text} ${ac.border} bg-white/60`}>
                       {goals.length} objetivo{goals.length !== 1 ? "s" : ""}
                     </Badge>
                   </div>
 
                   <div className="space-y-2 pl-2">
-                    {goals.map(goal => {
+                    {goals.map((goal: any) => {
                       const expanded = expandedId === goal.id;
-                      const ac = areaColor(goal.area ?? "");
+                      const archived = (goal.estadoBanco ?? "activo") === "archivado";
                       return (
                         <Card
                           key={goal.id}
-                          className={`border-border/50 shadow-sm overflow-hidden transition-all duration-200 ${expanded ? "ring-1 ring-primary/20" : "hover:shadow-md"}`}
+                          className={`border-border/50 shadow-sm overflow-hidden transition-all duration-200 ${
+                            expanded ? "ring-1 ring-primary/20" : "hover:shadow-md"
+                          } ${archived ? "opacity-60" : ""}`}
                         >
                           <div
                             className="w-full text-left cursor-pointer"
                             onClick={() => setExpandedId(expanded ? null : goal.id)}
                           >
                             <div className="p-4 flex items-start gap-4">
-                              <div className={`shrink-0 text-xs font-mono font-bold px-2.5 py-1.5 rounded-lg ${mc.bg} ${mc.text} border ${mc.border} mt-0.5 whitespace-nowrap`}>
+                              <div className={`shrink-0 text-xs font-mono font-bold px-2.5 py-1.5 rounded-lg ${ac.bg} ${ac.text} border ${ac.border} mt-0.5 whitespace-nowrap`}>
                                 {goal.idObjetivo}
                               </div>
 
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-3">
-                                  <div>
+                                  <div className="min-w-0">
                                     <p className="font-semibold text-slate-900 leading-snug">{goal.nombreObjetivo}</p>
                                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                      <Badge variant="secondary" className={`text-xs border-0 ${ac}`}>
-                                        {goal.area}
-                                      </Badge>
-                                      {goal.subarea && <span className="text-xs text-slate-400 font-medium">{goal.subarea}</span>}
+                                      {goal.subarea && (
+                                        <span className="text-xs text-slate-400 font-medium">{goal.subarea}</span>
+                                      )}
                                       {goal.franjaEtaria && (
                                         <>
-                                          <span className="text-xs text-slate-400">·</span>
+                                          <span className="text-xs text-slate-300">·</span>
                                           <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
                                         </>
+                                      )}
+                                      {goal.nivelDificultad && (
+                                        <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? "bg-slate-100 text-slate-500"}`}>
+                                          {goal.nivelDificultad.charAt(0).toUpperCase() + goal.nivelDificultad.slice(1)}
+                                        </Badge>
+                                      )}
+                                      {archived && (
+                                        <Badge variant="outline" className="text-xs bg-slate-100 text-slate-500 border-slate-200">
+                                          <Archive className="h-3 w-3 mr-1" /> Archivado
+                                        </Badge>
                                       )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <Button
-                                      size="sm"
-                                      onClick={e => { e.stopPropagation(); setAssignGoal(goal); }}
-                                      className="h-8 text-xs bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/20"
-                                    >
-                                      <User className="h-3.5 w-3.5 mr-1.5" />
-                                      Asignar
-                                    </Button>
+                                    {!archived && (
+                                      <Button
+                                        size="sm"
+                                        onClick={e => { e.stopPropagation(); setAssignGoal(goal); }}
+                                        className="h-8 text-xs bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/20"
+                                      >
+                                        <User className="h-3.5 w-3.5 mr-1.5" />
+                                        Asignar
+                                      </Button>
+                                    )}
                                     {expanded
                                       ? <ChevronDown className="h-4 w-4 text-slate-400" />
                                       : <ChevronRight className="h-4 w-4 text-slate-400" />
@@ -274,7 +355,7 @@ export default function GoalLibrary() {
                                   <div className="md:col-span-2">
                                     <DetailSection
                                       icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                                      title="Actividades para Familia"
+                                      title="Actividades para la Familia"
                                       content={goal.actividadesFamilia}
                                     />
                                   </div>
@@ -298,7 +379,7 @@ export default function GoalLibrary() {
                                     )}
                                     {goal.intentosSugeridos && (
                                       <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs">
-                                        <span className="text-slate-500">Intentos sugeridos: </span>
+                                        <span className="text-slate-500">Intentos: </span>
                                         <span className="font-semibold text-slate-700">{goal.intentosSugeridos}</span>
                                       </div>
                                     )}
@@ -327,7 +408,7 @@ export default function GoalLibrary() {
       {assignGoal && (
         <AssignGoalDialog
           goal={assignGoal}
-          patients={patients}
+          patients={patients as any[]}
           onClose={() => setAssignGoal(null)}
         />
       )}
@@ -352,8 +433,8 @@ function AssignGoalDialog({
   patients,
   onClose,
 }: {
-  goal: { id: number; idObjetivo: string; nombreObjetivo: string; modulo: string };
-  patients: Array<{ id: number; name: string }>;
+  goal: any;
+  patients: any[];
   onClose: () => void;
 }) {
   const [patientId, setPatientId] = useState("");
@@ -363,7 +444,7 @@ function AssignGoalDialog({
   const queryClient = useQueryClient();
   const assign = useAssignGoalToPatient();
 
-  const mc = MODULE_COLORS["Neurolengua"];
+  const ac = getAreaColor(goal.areaClinica, goal.area);
 
   const handleAssign = () => {
     if (!patientId) return;
@@ -386,7 +467,7 @@ function AssignGoalDialog({
           setTimeout(onClose, 1400);
         },
         onError: (e: any) => {
-          toast({ title: "Error", description: e.message, variant: "destructive" });
+          toast({ title: "Error al asignar", description: e.message, variant: "destructive" });
         },
       }
     );
@@ -405,13 +486,19 @@ function AssignGoalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className={`rounded-xl border ${mc.border} ${mc.bg} p-4 space-y-1.5`}>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-mono font-bold ${mc.text}`}>{goal.idObjetivo}</span>
-            <span className={`text-xs ${mc.text} opacity-60`}>·</span>
-            <span className={`text-xs ${mc.text}`}>{goal.modulo}</span>
+        <div className={`rounded-xl border ${ac.border} ${ac.bg} p-4 space-y-2`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs font-mono font-bold ${ac.text}`}>{goal.idObjetivo}</span>
+            {goal.nivelDificultad && (
+              <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                {goal.nivelDificultad}
+              </Badge>
+            )}
+            {goal.franjaEtaria && (
+              <span className={`text-xs ${ac.text} opacity-70`}>{goal.franjaEtaria} años</span>
+            )}
           </div>
-          <p className={`font-semibold text-sm ${mc.text}`}>{goal.nombreObjetivo}</p>
+          <p className={`font-semibold text-sm ${ac.text}`}>{goal.nombreObjetivo}</p>
         </div>
 
         {success ? (
@@ -438,6 +525,7 @@ function AssignGoalDialog({
                             {p.name.charAt(0)}
                           </span>
                           {p.name}
+                          {p.franjaEtaria && <span className="text-xs text-slate-400 ml-1">· {p.franjaEtaria}</span>}
                         </span>
                       </SelectItem>
                     ))
@@ -462,7 +550,7 @@ function AssignGoalDialog({
             {!patientId && (
               <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                Por favor selecciona un paciente para asignar el objetivo.
+                Selecciona un paciente para continuar.
               </div>
             )}
 
