@@ -93,6 +93,13 @@ The Plan Terapéutico tab in patient profiles is the core clinical workflow:
 
 **AddFromBankDialog** — search + filter (area/nivel) with all bank goals; hides already-assigned ones; one-click assign.
 
+**Visual Progress Tracking:**
+- `goals.progressPct` (integer, nullable) — manually set 0-100 by the professional; null falls back to status-derived % (activo=15, en progreso=55, logrado=100, archivado=0)
+- `goal_progress.progressPct` — records the % snapshot at time of each update for full history
+- GoalCard uses `goal.progressPct ?? goalProgressPct(goal.status)` for the progress bar and % label
+- GoalProgressDialog has: numeric input (type=number, aria-label="Porcentaje de progreso") + range slider side-by-side; typing a value auto-updates status (100→logrado, 0→activo, 1-99→en progreso); history entries show a % badge + mini bar for each recorded snapshot
+- Timeline events (nota_progreso, estado_actualizado) show a "Progreso registrado" mini bar when progressPct is set
+
 ### Línea de Tiempo (Clinical Timeline)
 
 A "Línea de tiempo" tab appears in every patient profile. It shows a chronological view (newest first) of all clinical activity for the patient.

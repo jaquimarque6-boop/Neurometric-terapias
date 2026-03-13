@@ -15,6 +15,8 @@ export const goalsTable = pgTable("goals", {
   nivelDificultad: text("nivel_dificultad"),
   // status: activo | en progreso | logrado | archivado
   status: text("status").notNull().default("activo"),
+  // manually set progress 0-100; null means derive from status
+  progressPct: integer("progress_pct"),
   fechaAsignacion: text("fecha_asignacion"),
   targetDate: text("target_date"),
   notas: text("notas"),
@@ -27,6 +29,7 @@ export const goalProgressTable = pgTable("goal_progress", {
   nota: text("nota"),
   statusAnterior: text("status_anterior"),
   statusNuevo: text("status_nuevo"),
+  progressPct: integer("progress_pct"),
   registroClinicoId: integer("registro_clinico_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

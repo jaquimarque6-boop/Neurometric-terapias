@@ -58,18 +58,21 @@ type Goal = {
   codigo?: string | null; title: string; description?: string | null;
   category: string; areaClinica?: string | null; franjaEtaria?: string | null;
   nivelDificultad?: string | null; status: string;
+  progressPct?: number | null;
   fechaAsignacion?: string | null; targetDate?: string | null;
   notas?: string | null; createdAt: string;
 };
 type ProgressEntry = {
   id: number; goalId: number; nota?: string | null;
   statusAnterior?: string | null; statusNuevo?: string | null;
+  progressPct?: number | null;
   registroClinicoId?: number | null; createdAt: string;
 };
 type TimelineEvent = {
   id: string; type: string; date: string; sortKey: string;
   title: string; description: string;
   badge?: string | null; meta?: string | null;
+  progressPct?: number | null;
   extra?: {
     codigo?: string | null; nivel?: string | null;
     goalArea?: string | null;
@@ -695,7 +698,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
   const [expanded, setExpanded] = useState(false);
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
   const isStruck = goal.status === "archivado" || goal.status === "suspendido";
-  const pct = goalProgressPct(goal.status);
+  const pct = goal.progressPct != null ? goal.progressPct : goalProgressPct(goal.status);
   const barColor = goalProgressColor(goal.status);
 
   const { data: actData } = useQuery<{ activities: any[]; libraryEntry: any | null }>({
@@ -980,6 +983,10 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   const [newStatus, setNewStatus] = useState(goal.status);
   const [sessionId, setSessionId] = useState<string>("none");
   const [checkedActs, setCheckedActs] = useState<Set<number>>(new Set());
+  const statusDerived = goalProgressPct(goal.status);
+  const [customPct, setCustomPct] = useState<number>(
+    goal.progressPct != null ? goal.progressPct : statusDerived
+  );
 
   const { data: historyRaw = [], isLoading: loadingHistory, refetch } = useQuery<ProgressEntry[]>({
     queryKey: ["goal-progress", goal.id],
@@ -1019,6 +1026,9 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
     return parts.join("\n\n");
   };
 
+  const originalPct = goal.progressPct != null ? goal.progressPct : statusDerived;
+  const pctChanged = customPct !== originalPct;
+
   const addProgress = useMutation({
     mutationFn: async () => {
       const finalNota = buildFinalNota();
@@ -1028,6 +1038,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
         body: JSON.stringify({
           nota: finalNota || undefined,
           statusNuevo: newStatus !== goal.status ? newStatus : undefined,
+          progressPct: customPct,
           registroClinicoId: sessionId !== "none" ? parseInt(sessionId) : undefined,
         }),
       });
@@ -1037,7 +1048,8 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
     onSuccess: () => {
       toast({ title: "Seguimiento guardado", description: "El progreso fue registrado correctamente." });
       queryClient.invalidateQueries({ queryKey: ["goal-progress", goal.id] });
-      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey({ patientId: goal.patientId }) });
+      queryClient.invalidateQueries({ queryKey: ["patient-timeline"] });
       setNota("");
       setCheckedActs(new Set());
       refetch();
@@ -1047,9 +1059,8 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   });
 
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
-  const pct = goalProgressPct(newStatus);
   const barColor = goalProgressColor(newStatus);
-  const canSave = nota.trim() || checkedActs.size > 0 || newStatus !== goal.status;
+  const canSave = nota.trim() || checkedActs.size > 0 || newStatus !== goal.status || pctChanged;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -1224,15 +1235,68 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
               </div>
             </div>
 
-            {/* Progress preview */}
-            {newStatus !== goal.status && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+            {/* Progress slider */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs text-slate-500 font-medium flex items-center gap-1.5 shrink-0">
+                  <BarChart3 className="h-3.5 w-3.5 text-primary" /> Progreso del objetivo
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={0} max={100} step={5}
+                    value={customPct}
+                    aria-label="Porcentaje de progreso"
+                    onChange={e => {
+                      const v = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                      setCustomPct(v);
+                      if (v === 100 && newStatus !== "logrado") setNewStatus("logrado");
+                      else if (v === 0 && newStatus === "logrado") setNewStatus("activo");
+                      else if (v > 0 && v < 100 && newStatus === "activo") setNewStatus("en progreso");
+                    }}
+                    className={`w-16 text-center text-sm font-bold tabular-nums border rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-primary/30 ${
+                      customPct >= 100 ? "text-emerald-600 border-emerald-300 bg-emerald-50" :
+                      customPct >= 60  ? "text-amber-600 border-amber-300 bg-amber-50"   :
+                      "text-primary border-primary/30 bg-primary/5"
+                    }`}
+                  />
+                  <span className="text-xs text-slate-400">%</span>
                 </div>
-                <span className="shrink-0">{pct}% — {STATUS_LABELS[newStatus] ?? newStatus}</span>
               </div>
-            )}
+              <input
+                type="range"
+                min={0} max={100} step={5}
+                value={customPct}
+                aria-label="Barra de progreso deslizable"
+                onChange={e => {
+                  const v = Number(e.target.value);
+                  setCustomPct(v);
+                  if (v === 100 && newStatus !== "logrado") setNewStatus("logrado");
+                  else if (v === 0 && newStatus === "logrado") setNewStatus("activo");
+                  else if (v > 0 && v < 100 && newStatus === "activo") setNewStatus("en progreso");
+                }}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, ${
+                    customPct >= 100 ? "#10b981" : customPct >= 60 ? "#f59e0b" : "#0ea5e9"
+                  } ${customPct}%, #e2e8f0 ${customPct}%)`,
+                }}
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 select-none px-0.5">
+                <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${barColor} rounded-full transition-all duration-300`}
+                  style={{ width: `${customPct}%` }}
+                />
+              </div>
+              {customPct === 100 && (
+                <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> El objetivo se marcará como logrado
+                </p>
+              )}
+            </div>
 
             <Button
               onClick={() => addProgress.mutate()}
@@ -1264,21 +1328,36 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
             ) : (
               <div className="space-y-2">
                 {history.map(entry => (
-                  <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5">
-                    <div className="flex items-start justify-between gap-3 mb-1.5">
+                  <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
                       <span className="text-xs text-slate-400">{formatTs(entry.createdAt)}</span>
-                      {entry.statusAnterior !== entry.statusNuevo && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
-                            {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
-                          </Badge>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
-                          <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
-                            {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
-                          </Badge>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+                        {entry.progressPct != null && (
+                          <span className="text-xs font-bold tabular-nums text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
+                            {entry.progressPct}%
+                          </span>
+                        )}
+                        {entry.statusAnterior !== entry.statusNuevo && (
+                          <>
+                            <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
+                              {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
+                            </Badge>
+                            <ChevronRight className="h-3 w-3 text-slate-400" />
+                            <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
+                              {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
+                            </Badge>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {entry.progressPct != null && (
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${goalProgressColor(entry.statusNuevo ?? "activo")}`}
+                          style={{ width: `${entry.progressPct}%` }}
+                        />
+                      </div>
+                    )}
                     {entry.nota && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{entry.nota}</p>}
                   </div>
                 ))}
@@ -1959,6 +2038,28 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
             <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusNuevo!] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
               {STATUS_LABELS[event.extra!.statusNuevo!] ?? event.extra!.statusNuevo}
             </span>
+          </div>
+        )}
+
+        {/* Progress bar from recorded pct */}
+        {event.progressPct != null && (
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Progreso registrado</span>
+              <span className={`font-bold tabular-nums ${
+                event.progressPct >= 100 ? "text-emerald-600" :
+                event.progressPct >= 60  ? "text-amber-600"   : "text-primary"
+              }`}>{event.progressPct}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-200/70 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${
+                  event.progressPct >= 100 ? "bg-emerald-500" :
+                  event.progressPct >= 60  ? "bg-amber-400"   : "bg-primary"
+                }`}
+                style={{ width: `${event.progressPct}%` }}
+              />
+            </div>
           </div>
         )}
 

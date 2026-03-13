@@ -42,7 +42,7 @@ router.post("/goals", async (req, res) => {
 
 router.patch("/goals/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const { codigo, title, description, category, areaClinica, franjaEtaria, nivelDificultad, status, targetDate, notas } = req.body;
+  const { codigo, title, description, category, areaClinica, franjaEtaria, nivelDificultad, status, targetDate, notas, progressPct } = req.body;
 
   const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
   if (!existing) return res.status(404).json({ error: "Goal not found" });
@@ -58,6 +58,7 @@ router.patch("/goals/:id", async (req, res) => {
   if (status !== undefined) updates.status = status;
   if (targetDate !== undefined) updates.targetDate = targetDate;
   if (notas !== undefined) updates.notas = notas;
+  if (progressPct !== undefined) updates.progressPct = progressPct;
 
   const [goal] = await db.update(goalsTable).set(updates).where(eq(goalsTable.id, id)).returning();
 
@@ -68,6 +69,7 @@ router.patch("/goals/:id", async (req, res) => {
       nota: `Estado cambiado a "${status}"`,
       statusAnterior: existing.status,
       statusNuevo: status,
+      progressPct: progressPct ?? null,
     });
   }
 
@@ -92,7 +94,7 @@ router.get("/goals/:id/progress", async (req, res) => {
 
 router.post("/goals/:id/progress", async (req, res) => {
   const goalId = parseInt(req.params.id);
-  const { nota, statusNuevo, registroClinicoId } = req.body;
+  const { nota, statusNuevo, registroClinicoId, progressPct } = req.body;
 
   const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!existing) return res.status(404).json({ error: "Goal not found" });
@@ -100,6 +102,7 @@ router.post("/goals/:id/progress", async (req, res) => {
   const updates: Record<string, any> = {};
   if (statusNuevo && statusNuevo !== existing.status) updates.status = statusNuevo;
   if (nota) updates.notas = nota;
+  if (progressPct !== undefined && progressPct !== null) updates.progressPct = progressPct;
 
   let updated = existing;
   if (Object.keys(updates).length > 0) {
@@ -112,6 +115,7 @@ router.post("/goals/:id/progress", async (req, res) => {
     nota: nota ?? null,
     statusAnterior: existing.status,
     statusNuevo: statusNuevo ?? existing.status,
+    progressPct: progressPct !== undefined ? progressPct : null,
     registroClinicoId: registroClinicoId ? parseInt(registroClinicoId) : null,
   }).returning();
 

@@ -121,6 +121,7 @@ router.get("/patients/:id/timeline", async (req, res) => {
         description: g.title,
         badge: isLogrado ? "logrado" : (isStatusChg ? (p.statusNuevo ?? null) : null),
         meta: p.nota ?? null,
+        progressPct: p.progressPct ?? null,
         extra: {
           goalArea: g.areaClinica ?? g.category,
           statusAnterior: p.statusAnterior,
