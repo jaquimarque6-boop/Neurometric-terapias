@@ -8,6 +8,8 @@ import {
   Stethoscope,
   BarChart3,
   LayoutDashboard,
+  BookOpen,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,13 +24,15 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Panel",          url: "/",             icon: LayoutDashboard },
-  { title: "Pacientes",      url: "/patients",      icon: Users           },
-  { title: "Registros",      url: "/registros",     icon: ClipboardList   },
-  { title: "Objetivos",      url: "/objetivos",     icon: Target          },
-  { title: "Actividades",    url: "/actividades",   icon: Sparkles        },
-  { title: "Profesionales",  url: "/professionals", icon: Stethoscope     },
-  { title: "Reportes",       url: "/reportes",      icon: BarChart3       },
+  { title: "Panel",              url: "/",              icon: LayoutDashboard },
+  { title: "Pacientes",          url: "/patients",      icon: Users           },
+  { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList   },
+  { title: "Objetivos",          url: "/objetivos",     icon: Target          },
+  { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen        },
+  { title: "Actividades",        url: "/actividades",   icon: Sparkles        },
+  { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays    },
+  { title: "Profesionales",      url: "/professionals", icon: Stethoscope     },
+  { title: "Reportes",           url: "/reportes",      icon: BarChart3       },
 ];
 
 export function AppSidebar() {
@@ -69,7 +73,7 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       className={`
-                        rounded-xl transition-all duration-200 h-11
+                        rounded-xl transition-all duration-200 h-10
                         ${isActive
                           ? "bg-primary/10 text-primary font-semibold hover:bg-primary/15"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}
@@ -77,7 +81,7 @@ export function AppSidebar() {
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3">
                         <item.icon
-                          className={`h-5 w-5 shrink-0 ${isActive ? "text-primary" : "text-slate-400"}`}
+                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-slate-400"}`}
                         />
                         <span className="text-sm">{item.title}</span>
                         {isActive && (

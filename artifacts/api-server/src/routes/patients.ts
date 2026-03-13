@@ -35,4 +35,21 @@ router.get("/patients/:id", async (req, res) => {
   res.json({ ...patient, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
 });
 
+router.put("/patients/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
+  if (!existing) return res.status(404).json({ error: "Patient not found" });
+  const body = req.body;
+  const [updated] = await db.update(patientsTable).set({
+    name: body.name ?? existing.name,
+    age: body.age ?? existing.age,
+    diagnosis: body.diagnosis ?? existing.diagnosis,
+    profesionalNombre: body.profesionalNombre ?? existing.profesionalNombre,
+    franjaEtaria: body.franjaEtaria ?? existing.franjaEtaria,
+    fechaInicio: body.fechaInicio ?? existing.fechaInicio,
+  }).where(eq(patientsTable.id, id)).returning();
+  const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
+  res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
+});
+
 export default router;

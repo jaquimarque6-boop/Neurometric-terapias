@@ -9,6 +9,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Link } from "wouter";
 import {
   useGetDashboardStats,
   useListSessions,
@@ -110,9 +111,9 @@ export default function Dashboard() {
                   <Activity className="h-5 w-5 text-primary" />
                   Últimas sesiones registradas
                 </CardTitle>
-                <button className="text-sm text-primary font-medium hover:underline flex items-center">
+                <Link href="/sessions" className="text-sm text-primary font-medium hover:underline flex items-center">
                   Ver todas <ArrowUpRight className="h-4 w-4 ml-1" />
-                </button>
+                </Link>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -190,14 +191,9 @@ export default function Dashboard() {
                   <Users className="h-5 w-5 text-primary" />
                   Pacientes
                 </CardTitle>
-                <button className="text-sm text-primary font-medium hover:underline flex items-center">
-                  <a
-                    href="/patients"
-                    className="flex items-center text-sm text-primary"
-                  >
-                    Ver todos <ArrowUpRight className="h-4 w-4 ml-1" />
-                  </a>
-                </button>
+                <Link href="/patients" className="text-sm text-primary font-medium hover:underline flex items-center">
+                  Ver todos <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Link>
               </div>
             </CardHeader>
             <CardContent className="p-0">
