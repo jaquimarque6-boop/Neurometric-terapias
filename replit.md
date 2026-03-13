@@ -93,6 +93,24 @@ The Plan Terapéutico tab in patient profiles is the core clinical workflow:
 
 **AddFromBankDialog** — search + filter (area/nivel) with all bank goals; hides already-assigned ones; one-click assign.
 
+### Línea de Tiempo (Clinical Timeline)
+
+A "Línea de tiempo" tab appears in every patient profile. It shows a chronological view (newest first) of all clinical activity for the patient.
+
+**Backend:** `GET /api/patients/:id/timeline` in `patients.ts` — aggregates events from:
+- `registros_clinicos` → event type `sesion` ("Sesión realizada")
+- `goals.fechaAsignacion` → event type `objetivo_asignado` ("Objetivo asignado")
+- `goal_progress` with status change → `estado_actualizado` or `objetivo_logrado`
+- `goal_progress` with only a nota → `nota_progreso`
+
+**Frontend:** `ClinicalTimeline` + `TimelineCard` components at bottom of `patient-profile.tsx`.
+
+Each event card shows: colored dot (by event type) + vertical connector line, event title + icon, date, description, optional badge, and for status-change events: old→new status pill transition.
+
+Filters: Todo / Sesiones / Objetivos / Logros / Estados / Notas — clicking narrows displayed events. Events are grouped by month-year with a section header.
+
+Color coding: sesion=sky, objetivo_asignado=primary, objetivo_logrado=emerald, estado_actualizado=amber, nota_progreso=slate.
+
 ### Key Data Rules
 
 - **patients table has NO email/phone/status** fields (removed in new schema)

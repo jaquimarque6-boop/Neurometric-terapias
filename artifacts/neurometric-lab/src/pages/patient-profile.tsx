@@ -11,7 +11,8 @@ import {
   BookOpen, BarChart2, Archive, Clock, MessageSquare,
   ChevronRight, Send, History, LayoutDashboard, Library,
   Flag, BarChart3, Layers, Search as SearchIcon,
-  CheckSquare, Square,
+  CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
+  GitCommitVertical, Filter,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
@@ -64,6 +65,16 @@ type ProgressEntry = {
   id: number; goalId: number; nota?: string | null;
   statusAnterior?: string | null; statusNuevo?: string | null;
   registroClinicoId?: number | null; createdAt: string;
+};
+type TimelineEvent = {
+  id: string; type: string; date: string; sortKey: string;
+  title: string; description: string;
+  badge?: string | null; meta?: string | null;
+  extra?: {
+    codigo?: string | null; nivel?: string | null;
+    goalArea?: string | null;
+    statusAnterior?: string | null; statusNuevo?: string | null;
+  };
 };
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -306,6 +317,9 @@ export default function PatientProfile() {
                   {goals.filter(g => g.status !== "archivado").length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="rounded-lg text-sm flex items-center gap-1.5">
+              <Milestone className="h-3.5 w-3.5" /> Línea de tiempo
             </TabsTrigger>
             <TabsTrigger value="sugerencias" className="rounded-lg text-sm flex items-center gap-1">
               <Lightbulb className="h-3.5 w-3.5" /> Sugerencias
@@ -570,6 +584,11 @@ export default function PatientProfile() {
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          {/* ── Línea de tiempo ──────────────────────────────────────── */}
+          <TabsContent value="timeline" className="mt-6">
+            <ClinicalTimeline patientId={patientId} />
           </TabsContent>
 
           {/* ── Sugerencias ─────────────────────────────────────────────── */}
@@ -1834,5 +1853,221 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Clinical Timeline ─────────────────────────────────────────────────────────
+
+const EVENT_CFG: Record<string, {
+  dot: string; border: string; bg: string; text: string;
+  Icon: React.ElementType; label: string;
+}> = {
+  sesion: {
+    dot: "bg-sky-500", border: "border-sky-200", bg: "bg-sky-50/60", text: "text-sky-700",
+    Icon: CalendarCheck2, label: "Sesión realizada",
+  },
+  objetivo_asignado: {
+    dot: "bg-primary", border: "border-primary/25", bg: "bg-primary/5", text: "text-primary",
+    Icon: Target, label: "Objetivo asignado",
+  },
+  objetivo_logrado: {
+    dot: "bg-emerald-500", border: "border-emerald-200", bg: "bg-emerald-50/60", text: "text-emerald-700",
+    Icon: CheckCircle2, label: "Objetivo logrado",
+  },
+  estado_actualizado: {
+    dot: "bg-amber-400", border: "border-amber-200", bg: "bg-amber-50/60", text: "text-amber-700",
+    Icon: TrendingUp, label: "Estado actualizado",
+  },
+  nota_progreso: {
+    dot: "bg-slate-400", border: "border-slate-200", bg: "bg-slate-50", text: "text-slate-600",
+    Icon: MessageSquare, label: "Nota de progreso",
+  },
+};
+
+const FILTER_OPTS = [
+  { value: "all",               label: "Todo" },
+  { value: "sesion",            label: "Sesiones" },
+  { value: "objetivo_asignado", label: "Objetivos" },
+  { value: "objetivo_logrado",  label: "Logros" },
+  { value: "estado_actualizado",label: "Estados" },
+  { value: "nota_progreso",     label: "Notas" },
+];
+
+function fmtEventDate(raw: string) {
+  try {
+    const d = raw.includes("T") ? new Date(raw) : new Date(raw + "T00:00:00");
+    return format(d, "d MMM yyyy", { locale: es });
+  } catch { return raw; }
+}
+
+function fmtMonthYear(raw: string) {
+  try {
+    const d = raw.includes("T") ? new Date(raw) : new Date(raw + "T00:00:00");
+    return format(d, "MMMM yyyy", { locale: es });
+  } catch { return raw; }
+}
+
+function tlBadgeStyle(badge: string) {
+  const b = badge.toLowerCase();
+  if (b === "logrado") return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+  if (b === "activo") return "bg-primary/10 text-primary border border-primary/20";
+  if (b === "en progreso") return "bg-amber-100 text-amber-700 border border-amber-200";
+  if (b === "archivado" || b === "suspendido") return "bg-slate-100 text-slate-500 border border-slate-200";
+  const c = getAreaColor(badge);
+  return `${c.bg} ${c.text} border ${c.border}`;
+}
+
+function TimelineCard({ event }: { event: TimelineEvent }) {
+  const cfg = EVENT_CFG[event.type] ?? EVENT_CFG.nota_progreso;
+  const hasTrans = event.extra?.statusAnterior && event.extra?.statusNuevo
+    && event.extra.statusAnterior !== event.extra.statusNuevo;
+
+  return (
+    <div className="relative flex gap-0 pb-7 group">
+      {/* Dot + connector */}
+      <div className="relative flex flex-col items-center mr-4">
+        <div className={`z-10 mt-0.5 h-5 w-5 rounded-full ${cfg.dot} ring-2 ring-white shadow-sm flex items-center justify-center shrink-0`}>
+          <cfg.Icon className="h-2.5 w-2.5 text-white" />
+        </div>
+        <div className="flex-1 w-0.5 bg-slate-200 mt-1 group-last:hidden" />
+      </div>
+
+      {/* Card */}
+      <div className={`flex-1 rounded-xl border ${cfg.border} ${cfg.bg} p-3.5 shadow-sm mb-0.5`}>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <span className={`text-xs font-bold ${cfg.text} flex items-center gap-1`}>
+            <cfg.Icon className="h-3.5 w-3.5" />
+            {event.title}
+          </span>
+          <time className="text-xs text-slate-400 shrink-0 tabular-nums">{fmtEventDate(event.date ?? event.sortKey)}</time>
+        </div>
+
+        <p className="text-sm text-slate-800 font-medium leading-snug">{event.description}</p>
+
+        {event.badge && (
+          <span className={`inline-block mt-1.5 text-xs px-1.5 py-0.5 rounded-md font-medium ${tlBadgeStyle(event.badge)}`}>
+            {event.badge}
+          </span>
+        )}
+
+        {hasTrans && (
+          <div className="flex items-center gap-1.5 mt-2 text-xs flex-wrap">
+            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusAnterior!] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+              {STATUS_LABELS[event.extra!.statusAnterior!] ?? event.extra!.statusAnterior}
+            </span>
+            <ArrowRight className="h-3 w-3 text-slate-400" />
+            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusNuevo!] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+              {STATUS_LABELS[event.extra!.statusNuevo!] ?? event.extra!.statusNuevo}
+            </span>
+          </div>
+        )}
+
+        {event.meta && (
+          <p className="text-xs text-slate-500 mt-2 leading-relaxed border-t border-slate-200/70 pt-2 whitespace-pre-wrap line-clamp-4">
+            {event.meta}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClinicalTimeline({ patientId }: { patientId: number }) {
+  const [activeFilter, setActiveFilter] = useState("all");
+
+  const { data: events = [], isLoading, isError } = useQuery<TimelineEvent[]>({
+    queryKey: ["patient-timeline", patientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/patients/${patientId}/timeline`);
+      if (!res.ok) throw new Error("Error al cargar timeline");
+      return res.json();
+    },
+  });
+
+  const filtered = activeFilter === "all"
+    ? events
+    : events.filter(e => e.type === activeFilter);
+
+  const groups: { label: string; events: TimelineEvent[] }[] = [];
+  for (const ev of filtered) {
+    const label = fmtMonthYear(ev.date ?? ev.sortKey);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.events.push(ev);
+    else groups.push({ label, events: [ev] });
+  }
+
+  if (isLoading) return (
+    <div className="space-y-4 pt-2">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="flex gap-4 animate-pulse">
+          <div className="h-5 w-5 rounded-full bg-slate-200 mt-0.5 shrink-0" />
+          <div className="flex-1 h-16 bg-slate-100 rounded-xl" />
+        </div>
+      ))}
+    </div>
+  );
+
+  if (isError) return (
+    <div className="text-center py-12 text-slate-500 text-sm">
+      Error al cargar la línea de tiempo.
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+        {FILTER_OPTS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setActiveFilter(opt.value)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              activeFilter === opt.value
+                ? "bg-primary text-white border-primary shadow-sm"
+                : "bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {filtered.length > 0 && (
+          <span className="ml-auto text-xs text-slate-400">
+            {filtered.length} evento{filtered.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div className="text-center py-16">
+          <GitCommitVertical className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+          <p className="text-slate-400 text-sm font-medium">Sin eventos registrados</p>
+          <p className="text-slate-400 text-xs mt-1">
+            {activeFilter === "all"
+              ? "Los eventos aparecerán aquí al registrar sesiones, objetivos o notas."
+              : "No hay eventos de este tipo. Prueba otro filtro."}
+          </p>
+        </div>
+      )}
+
+      {/* Grouped timeline */}
+      {groups.map(group => (
+        <div key={group.label}>
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest capitalize">
+              {group.label}
+            </span>
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 tabular-nums">{group.events.length}</span>
+          </div>
+          <div>
+            {group.events.map(ev => (
+              <TimelineCard key={ev.id} event={ev} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
