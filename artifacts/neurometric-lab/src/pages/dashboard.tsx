@@ -1,11 +1,18 @@
 import {
-  Users, Activity, Target, BookOpen, ArrowUpRight, Clock, BarChart2, CheckCircle2
+  Users,
+  Activity,
+  Target,
+  BookOpen,
+  ArrowUpRight,
+  Clock,
+  BarChart2,
+  CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
   useGetDashboardStats,
   useListSessions,
-  useListPatients
+  useListPatients,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,16 +48,19 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Panel Clínico</h1>
-            <p className="text-slate-500 mt-1">Resumen de actividad de la plataforma Neurometric Lab.</p>
+            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">
+              Panel Clínico
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Resumen de actividad de la plataforma Neurometric Lab.
+            </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-500 bg-white px-4 py-2 rounded-xl border shadow-sm">
             <Clock className="h-4 w-4 text-primary" />
-            Actualizado: {format(new Date(), 'HH:mm')}
+            Actualizado: {format(new Date(), "HH:mm")}
           </div>
         </div>
 
@@ -108,17 +118,23 @@ export default function Dashboard() {
             <CardContent className="p-0">
               {sessionsLoading ? (
                 <div className="p-6 space-y-4">
-                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                  ))}
                 </div>
               ) : recentSessions.length > 0 ? (
                 <div className="divide-y divide-border/50">
-                  {recentSessions.map(session => {
+                  {recentSessions.map((session) => {
                     const pct = parsePercent(session.porcentaje);
                     return (
-                      <div key={session.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 group">
+                      <div
+                        key={session.id}
+                        className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 group"
+                      >
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-slate-900 group-hover:text-primary transition-colors">
-                            {session.patientName || `Paciente #${session.patientId}`}
+                            {session.patientName ||
+                              `Paciente #${session.patientId}`}
                           </p>
                           <p className="text-sm text-slate-500 mt-0.5 truncate">
                             {session.objetivoNombre || "Objetivo no registrado"}
@@ -133,15 +149,23 @@ export default function Dashboard() {
                                   style={{ width: `${Math.min(pct, 100)}%` }}
                                 />
                               </div>
-                              <span className="text-xs font-semibold text-slate-600">{session.porcentaje}</span>
+                              <span className="text-xs font-semibold text-slate-600">
+                                {session.porcentaje}
+                              </span>
                             </div>
                           )}
                           {session.estado && (
-                            <Badge variant="outline" className={`mt-1 text-xs ${
-                              session.estado.includes("proceso") ? "bg-blue-50 text-blue-700 border-blue-200" :
-                              session.estado.includes("logrado") || session.estado.includes("cumplido") ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                              "bg-slate-50 text-slate-600"
-                            }`}>
+                            <Badge
+                              variant="outline"
+                              className={`mt-1 text-xs ${
+                                session.estado.includes("proceso")
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : session.estado.includes("logrado") ||
+                                      session.estado.includes("cumplido")
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-slate-50 text-slate-600"
+                              }`}
+                            >
                               {session.estado}
                             </Badge>
                           )}
@@ -151,7 +175,9 @@ export default function Dashboard() {
                   })}
                 </div>
               ) : (
-                <div className="p-8 text-center text-slate-500">No hay registros de sesión aún.</div>
+                <div className="p-8 text-center text-slate-500">
+                  No hay registros de sesión aún.
+                </div>
               )}
             </CardContent>
           </Card>
@@ -165,42 +191,65 @@ export default function Dashboard() {
                   Pacientes
                 </CardTitle>
                 <button className="text-sm text-primary font-medium hover:underline flex items-center">
-                  Ver todos <ArrowUpRight className="h-4 w-4 ml-1" />
+                  <a
+                    href="/patients"
+                    className="flex items-center text-sm text-primary"
+                  >
+                    Ver todos <ArrowUpRight className="h-4 w-4 ml-1" />
+                  </a>
                 </button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {patientsLoading ? (
                 <div className="p-6 space-y-4">
-                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                  ))}
                 </div>
               ) : recentPatients.length > 0 ? (
                 <div className="divide-y divide-border/50">
-                  {recentPatients.map(patient => {
-                    const pct = patient.promedioDesempeno != null ? Math.round(patient.promedioDesempeno * 100) : null;
+                  {recentPatients.map((patient) => {
+                    const pct =
+                      patient.promedioDesempeno != null
+                        ? Math.round(patient.promedioDesempeno * 100)
+                        : null;
                     return (
-                      <div key={patient.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between">
+                      <div
+                        key={patient.id}
+                        className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between"
+                      >
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold font-display">
                             {patient.name.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{patient.name}</p>
+                            <p className="font-semibold text-slate-900">
+                              {patient.name}
+                            </p>
                             <p className="text-sm text-slate-500 mt-0.5">
                               {patient.age ? `${patient.age} años` : ""}
-                              {patient.franjaEtaria ? ` · Franja ${patient.franjaEtaria}` : ""}
+                              {patient.franjaEtaria
+                                ? ` · Franja ${patient.franjaEtaria}`
+                                : ""}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           {pct != null && (
-                            <p className="text-sm font-bold text-slate-700">{pct}%</p>
+                            <p className="text-sm font-bold text-slate-700">
+                              {pct}%
+                            </p>
                           )}
                           {patient.semaforo && (
                             <p className="text-xs text-slate-400 mt-0.5">
-                              {patient.semaforo.includes("🟢") ? "Buen progreso" :
-                               patient.semaforo.includes("🟡") ? "En progreso" :
-                               patient.semaforo.includes("🔴") ? "Requiere atención" : ""}
+                              {patient.semaforo.includes("🟢")
+                                ? "Buen progreso"
+                                : patient.semaforo.includes("🟡")
+                                  ? "En progreso"
+                                  : patient.semaforo.includes("🔴")
+                                    ? "Requiere atención"
+                                    : ""}
                             </p>
                           )}
                         </div>
@@ -209,7 +258,9 @@ export default function Dashboard() {
                   })}
                 </div>
               ) : (
-                <div className="p-8 text-center text-slate-500">No hay pacientes registrados.</div>
+                <div className="p-8 text-center text-slate-500">
+                  No hay pacientes registrados.
+                </div>
               )}
             </CardContent>
           </Card>
@@ -220,20 +271,25 @@ export default function Dashboard() {
 }
 
 function StatCard({
-  title, value, loading, icon: Icon, trend, color
+  title,
+  value,
+  loading,
+  icon: Icon,
+  trend,
+  color,
 }: {
   title: string;
   value?: number;
   loading: boolean;
   icon: any;
   trend: string;
-  color: 'primary' | 'accent' | 'emerald' | 'violet';
+  color: "primary" | "accent" | "emerald" | "violet";
 }) {
   const colorMap = {
     primary: "text-primary bg-primary/10 border-primary/20",
-    accent:  "text-accent bg-accent/10 border-accent/20",
+    accent: "text-accent bg-accent/10 border-accent/20",
     emerald: "text-emerald-600 bg-emerald-50 border-emerald-200",
-    violet:  "text-violet-600 bg-violet-50 border-violet-200",
+    violet: "text-violet-600 bg-violet-50 border-violet-200",
   };
 
   return (
@@ -251,7 +307,9 @@ function StatCard({
         {loading ? (
           <Skeleton className="h-9 w-20" />
         ) : (
-          <p className="text-4xl font-display font-bold text-slate-900">{value ?? 0}</p>
+          <p className="text-4xl font-display font-bold text-slate-900">
+            {value ?? 0}
+          </p>
         )}
         <div className="mt-3 flex items-center text-xs font-medium text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-100">
           <ArrowUpRight className="h-3 w-3 mr-1" /> {trend}

@@ -1,0 +1,133 @@
+Build a complete web app called “Consultorio Admin” for the administrative management of an interdisciplinary clinic.
+
+Important: this platform is administrative only, not clinical.
+
+Do NOT include:
+- clinical history
+- session notes
+- progress reports
+- therapeutic goals
+- clinical follow-up
+
+That clinical part belongs to another platform called “Neurometric”.
+
+The app should be modern, clean, simple, and easy to use for non-technical staff.
+
+Use a full-stack architecture with database, authentication, responsive design, and a clear dashboard.
+
+Main requirements:
+
+1. Authentication and roles
+- Secure login
+- Admin role
+- Professional role
+- Admin can view and manage everything
+- Professionals can only view their own schedule and assigned patients
+
+2. Dashboard
+- Simple visual dashboard
+- Summary cards:
+  - total professionals
+  - total patients
+  - upcoming meetings
+  - monthly income
+  - monthly expenses
+- Recent activity section
+
+3. Professionals module
+Fields:
+- first name
+- last name
+- profession / specialty
+- phone
+- email
+- working days and hours
+- health insurance providers accepted
+- percentage paid to the clinic
+- status: active / inactive
+
+Functions:
+- create, edit, delete professionals
+- filter by active/inactive
+- search by name or profession
+- professional detail page
+
+4. Schedule module
+- Weekly schedule by professional
+- Time slots
+- Availability status
+- General clinic view
+- Filters by professional
+- Clean calendar-like layout
+- Ability to assign and edit schedule blocks
+
+5. Patients by professional module
+Fields for patient:
+- first name
+- last name
+- phone
+- notes (administrative only)
+
+Functions:
+- assign one patient to one or multiple professionals
+- see patients grouped by professional
+- search patient by name
+- filter by professional
+- patient detail page showing assigned professionals
+- no clinical records
+
+6. Meetings module
+Fields:
+- date
+- time
+- participants
+- reason
+- optional notes
+
+Functions:
+- create, edit, delete meetings
+- calendar/list view
+- upcoming meetings section
+
+7. Health insurance providers
+- List of health insurance providers used in the clinic
+- Relate them to professionals
+- Easy selection from forms
+
+8. Finance / admin module
+- Clinic expenses
+- Income by professional
+- Monthly summary
+- Fields for expenses:
+  - date
+  - category
+  - description
+  - amount
+- Simple financial overview page
+
+9. UI/UX
+- Minimal, elegant interface
+- White/light professional style
+- Responsive for desktop and mobile
+- Sidebar navigation
+- Tables with search and filters
+- Use modals or forms for create/edit actions
+
+10. Technical requirements
+- Use a real database
+- Seed with example data
+- Include authentication
+- Include clean data models
+- Include basic validations
+- Make the project easy to extend later
+
+11. Output
+- Generate the complete app structure
+- Create all pages
+- Create database schema
+- Add sample data
+- Make it runnable immediately
+
+Name of the platform: Consultorio Admin
+
+Also make sure the codebase is organized and scalable because this project may grow in the future.
