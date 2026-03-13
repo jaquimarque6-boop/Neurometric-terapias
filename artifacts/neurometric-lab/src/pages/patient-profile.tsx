@@ -9,7 +9,8 @@ import {
   Eye, ClipboardList, Plus, ChevronDown, X,
   TrendingUp, AlertTriangle, Sparkles, Lightbulb, Star,
   BookOpen, BarChart2, Archive, Clock, MessageSquare,
-  ChevronRight, Send, History,
+  ChevronRight, Send, History, LayoutDashboard, Library,
+  Flag, BarChart3, Layers, Search as SearchIcon,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
@@ -160,6 +161,7 @@ export default function PatientProfile() {
   const [showRegForm, setShowRegForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
+  const [showBankDialog, setShowBankDialog] = useState(false);
 
   const createRC   = useCreateRegistroClinico();
   const createGoal = useCreateGoal();
@@ -296,9 +298,13 @@ export default function PatientProfile() {
           <TabsList className="bg-white border border-border/50 p-1 rounded-xl shadow-sm flex-wrap h-auto gap-1">
             <TabsTrigger value="ficha" className="rounded-lg text-sm">Ficha</TabsTrigger>
             <TabsTrigger value="registros" className="rounded-lg text-sm">Registros ({registros.length})</TabsTrigger>
-            <TabsTrigger value="objetivos" className="rounded-lg text-sm">
-              Objetivos ({activeGoals.length + inProgressGoals.length})
-              {achievedGoals.length > 0 && <span className="ml-1 text-emerald-600">+{achievedGoals.length} logrados</span>}
+            <TabsTrigger value="objetivos" className="rounded-lg text-sm flex items-center gap-1.5">
+              <LayoutDashboard className="h-3.5 w-3.5" /> Plan Terapéutico
+              {goals.length > 0 && (
+                <span className="ml-0.5 bg-primary/10 text-primary text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {goals.filter(g => g.status !== "archivado").length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="sugerencias" className="rounded-lg text-sm flex items-center gap-1">
               <Lightbulb className="h-3.5 w-3.5" /> Sugerencias
@@ -465,37 +471,46 @@ export default function PatientProfile() {
             </Card>
           </TabsContent>
 
-          {/* ── Objetivos ───────────────────────────────────────────────── */}
+          {/* ── Plan Terapéutico ─────────────────────────────────────── */}
           <TabsContent value="objetivos" className="mt-6 space-y-5">
+
+            {/* Plan overview card */}
+            <PlanOverviewCard
+              activeGoals={activeGoals}
+              inProgressGoals={inProgressGoals}
+              achievedGoals={achievedGoals}
+              archivedGoals={archivedGoals}
+            />
+
+            {/* Action bar */}
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3 text-sm text-slate-500 flex-wrap">
-                <span className="flex items-center gap-1.5">
-                  <Circle className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-semibold text-primary">{activeGoals.length}</span> activos
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="font-semibold text-amber-600">{inProgressGoals.length}</span> en progreso
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="font-semibold text-emerald-600">{achievedGoals.length}</span> logrados
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Archive className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-400">{archivedGoals.length}</span> archivados
-                </span>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" /> Objetivos del plan
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBankDialog(true)}
+                  className="h-9 text-sm border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  <Library className="h-4 w-4 mr-1.5" /> Desde el banco
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowGoalForm(true)}
+                  className="h-9 text-sm bg-primary hover:bg-primary/90 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" /> Nuevo objetivo
+                </Button>
               </div>
-              <Button onClick={() => setShowGoalForm(true)} className="bg-primary hover:bg-primary/90 text-white h-9 text-sm">
-                <Plus className="h-4 w-4 mr-1.5" /> Nuevo objetivo
-              </Button>
             </div>
 
             {/* Active goals */}
             {activeGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-600 flex items-center gap-2">
-                  <Circle className="h-3.5 w-3.5 text-primary" /> Objetivos activos
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary inline-block" /> Activos ({activeGoals.length})
                 </h3>
                 {activeGoals.map(goal => (
                   <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} />
@@ -506,8 +521,8 @@ export default function PatientProfile() {
             {/* In progress goals */}
             {inProgressGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-amber-700 flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" /> En progreso
+                <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 inline-block" /> En progreso ({inProgressGoals.length})
                 </h3>
                 {inProgressGoals.map(goal => (
                   <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} />
@@ -518,8 +533,8 @@ export default function PatientProfile() {
             {/* Achieved goals */}
             {achievedGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-emerald-700 flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Objetivos logrados
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Logrados ({achievedGoals.length})
                 </h3>
                 {achievedGoals.map(goal => (
                   <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} muted />
@@ -530,8 +545,8 @@ export default function PatientProfile() {
             {/* Archived goals */}
             {archivedGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-500 flex items-center gap-2">
-                  <Archive className="h-3.5 w-3.5 text-slate-400" /> Objetivos archivados
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-300 inline-block" /> Archivados ({archivedGoals.length})
                 </h3>
                 {archivedGoals.map(goal => (
                   <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} muted />
@@ -543,10 +558,15 @@ export default function PatientProfile() {
               <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
                 <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-slate-500 font-medium">Sin objetivos definidos</p>
-                <p className="text-slate-400 text-sm mt-1">Crea un objetivo manualmente o usa las sugerencias inteligentes.</p>
-                <Button size="sm" variant="outline" className="mt-4" onClick={() => setShowGoalForm(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Agregar objetivo
-                </Button>
+                <p className="text-slate-400 text-sm mt-1">Agrega objetivos desde el banco clínico o crea uno personalizado.</p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <Button size="sm" variant="outline" onClick={() => setShowBankDialog(true)}>
+                    <Library className="h-3.5 w-3.5 mr-1.5" /> Desde el banco
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowGoalForm(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Objetivo personalizado
+                  </Button>
+                </div>
               </div>
             )}
           </TabsContent>
@@ -613,12 +633,39 @@ export default function PatientProfile() {
       {progressGoal && (
         <GoalProgressDialog
           goal={progressGoal}
+          registros={registros}
           onClose={() => setProgressGoal(null)}
           onUpdated={() => { invalidateGoals(); setProgressGoal(null); }}
         />
       )}
+
+      {/* Add from bank dialog */}
+      {showBankDialog && (
+        <AddFromBankDialog
+          patientId={patientId}
+          existingGoalLibraryIds={goals.map(g => g.goalLibraryId).filter(Boolean) as number[]}
+          onClose={() => setShowBankDialog(false)}
+          onAssigned={() => {
+            invalidateGoals();
+            setShowBankDialog(false);
+          }}
+        />
+      )}
     </AppLayout>
   );
+}
+
+// ─── Goal Progress Bar ────────────────────────────────────────────────────────
+function goalProgressPct(status: string): number {
+  if (status === "logrado")     return 100;
+  if (status === "en progreso") return 55;
+  if (status === "activo")      return 15;
+  return 0;
+}
+function goalProgressColor(status: string): string {
+  if (status === "logrado")     return "bg-emerald-500";
+  if (status === "en progreso") return "bg-amber-400";
+  return "bg-primary";
 }
 
 // ─── Goal Card ────────────────────────────────────────────────────────────────
@@ -627,60 +674,88 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
 }) {
   const ac = getAreaColor(goal.areaClinica ?? goal.category);
   const isStruck = goal.status === "logrado" || goal.status === "archivado" || goal.status === "suspendido";
+  const pct = goalProgressPct(goal.status);
+  const barColor = goalProgressColor(goal.status);
+
   return (
-    <Card className={`border-border/50 shadow-sm ${muted ? "opacity-70" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <button
-            onClick={() => onCycle(goal)}
-            className="shrink-0 mt-0.5 hover:scale-110 transition-transform"
-            title={`Pasar a: ${STATUS_LABELS[STATUS_CYCLE[goal.status] ?? "activo"]}`}
-          >
-            <GoalStatusIcon status={goal.status} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              {goal.codigo && (
-                <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                  {goal.codigo}
-                </span>
-              )}
-              <p className={`font-semibold text-slate-900 leading-snug ${isStruck ? "line-through text-slate-400" : ""}`}>
-                {goal.title}
-              </p>
-            </div>
-            {goal.description && (
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
-            )}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
-                {STATUS_LABELS[goal.status] ?? goal.status}
-              </Badge>
-              {(goal.areaClinica || goal.category) && (
-                <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
-                  {goal.areaClinica ?? goal.category}
-                </Badge>
-              )}
-              {goal.nivelDificultad && (
-                <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
-                  {goal.nivelDificultad}
-                </Badge>
-              )}
-              {goal.franjaEtaria && (
-                <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
-              )}
-              {goal.fechaAsignacion && (
-                <span className="text-xs text-slate-400 self-center">Asignado: {formatFecha(goal.fechaAsignacion)}</span>
-              )}
-            </div>
+    <Card className={`border-border/50 shadow-sm transition-opacity ${muted ? "opacity-75" : ""}`}>
+      <CardContent className="p-0">
+        {/* Progress bar at top */}
+        {goal.status !== "archivado" && goal.status !== "suspendido" && (
+          <div className="h-1 w-full bg-slate-100 rounded-t-xl overflow-hidden">
+            <div
+              className={`h-full ${barColor} transition-all duration-500 rounded-t-xl`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
-          <button
-            onClick={() => onProgress(goal)}
-            title="Ver seguimiento"
-            className="shrink-0 p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-          >
-            <History className="h-4 w-4" />
-          </button>
+        )}
+
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <button
+              onClick={() => onCycle(goal)}
+              className="shrink-0 mt-0.5 hover:scale-110 transition-transform"
+              title={`Pasar a: ${STATUS_LABELS[STATUS_CYCLE[goal.status] ?? "activo"]}`}
+            >
+              <GoalStatusIcon status={goal.status} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                {goal.codigo && (
+                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                    {goal.codigo}
+                  </span>
+                )}
+                <p className={`font-semibold text-slate-900 leading-snug ${isStruck && goal.status !== "logrado" ? "line-through text-slate-400" : ""}`}>
+                  {goal.title}
+                </p>
+              </div>
+              {goal.description && (
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
+              )}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[goal.status] ?? ""}`}>
+                  {STATUS_LABELS[goal.status] ?? goal.status}
+                </Badge>
+                {(goal.areaClinica || goal.category) && (
+                  <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
+                    {goal.areaClinica ?? goal.category}
+                  </Badge>
+                )}
+                {goal.nivelDificultad && (
+                  <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                    {goal.nivelDificultad}
+                  </Badge>
+                )}
+                {goal.franjaEtaria && (
+                  <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>
+                )}
+                {goal.fechaAsignacion && (
+                  <span className="text-xs text-slate-400 self-center">
+                    <CalendarDays className="h-3 w-3 inline mr-0.5" />
+                    {formatFecha(goal.fechaAsignacion)}
+                  </span>
+                )}
+              </div>
+
+              {/* Progress indicator text */}
+              {goal.status !== "archivado" && goal.status !== "suspendido" && (
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${barColor} rounded-full`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs text-slate-400 shrink-0">{pct}%</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => onProgress(goal)}
+              title="Registrar seguimiento"
+              className="shrink-0 p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+            >
+              <History className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -688,13 +763,14 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
 }
 
 // ─── Goal Progress Dialog ─────────────────────────────────────────────────────
-function GoalProgressDialog({ goal, onClose, onUpdated }: {
-  goal: Goal; onClose: () => void; onUpdated: () => void;
+function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
+  goal: Goal; registros: RC[]; onClose: () => void; onUpdated: () => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [nota, setNota] = useState("");
   const [newStatus, setNewStatus] = useState(goal.status);
+  const [sessionId, setSessionId] = useState<string>("none");
 
   const { data: historyRaw = [], isLoading: loadingHistory, refetch } = useQuery<ProgressEntry[]>({
     queryKey: ["goal-progress", goal.id],
@@ -714,6 +790,7 @@ function GoalProgressDialog({ goal, onClose, onUpdated }: {
         body: JSON.stringify({
           nota: nota.trim() || undefined,
           statusNuevo: newStatus !== goal.status ? newStatus : undefined,
+          registroClinicoId: sessionId !== "none" ? parseInt(sessionId) : undefined,
         }),
       });
       if (!res.ok) throw new Error("Error guardando seguimiento");
@@ -775,8 +852,24 @@ function GoalProgressDialog({ goal, onClose, onUpdated }: {
             rows={3}
             className="bg-white resize-none text-sm"
           />
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">Sesión asociada:</label>
+              <Select value={sessionId} onValueChange={setSessionId}>
+                <SelectTrigger className="bg-white h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin sesión</SelectItem>
+                  {registros.map(r => (
+                    <SelectItem key={r.id} value={r.id.toString()}>
+                      {formatFecha(r.fecha)} {r.professionalName ? `— ${r.professionalName}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <label className="text-xs text-slate-500 mb-1 block">Cambiar estado a:</label>
               <Select value={newStatus} onValueChange={setNewStatus}>
                 <SelectTrigger className="bg-white h-9 text-sm">
@@ -790,18 +883,18 @@ function GoalProgressDialog({ goal, onClose, onUpdated }: {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              onClick={() => addProgress.mutate()}
-              disabled={(!nota.trim() && newStatus === goal.status) || addProgress.isPending}
-              className="bg-primary hover:bg-primary/90 self-end h-9"
-            >
-              {addProgress.isPending ? (
-                <span className="flex items-center gap-1.5"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Guardando</span>
-              ) : (
-                <><Send className="h-4 w-4 mr-1.5" /> Guardar</>
-              )}
-            </Button>
           </div>
+          <Button
+            onClick={() => addProgress.mutate()}
+            disabled={(!nota.trim() && newStatus === goal.status) || addProgress.isPending}
+            className="w-full bg-primary hover:bg-primary/90 h-9"
+          >
+            {addProgress.isPending ? (
+              <span className="flex items-center gap-1.5"><span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Guardando</span>
+            ) : (
+              <><Send className="h-4 w-4 mr-1.5" /> Guardar seguimiento</>
+            )}
+          </Button>
         </div>
 
         {/* History */}
@@ -1141,5 +1234,270 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
         </Button>
       </div>
     </div>
+  );
+}
+
+// ─── Plan Overview Card ────────────────────────────────────────────────────────
+function PlanOverviewCard({ activeGoals, inProgressGoals, achievedGoals, archivedGoals }: {
+  activeGoals: Goal[]; inProgressGoals: Goal[]; achievedGoals: Goal[]; archivedGoals: Goal[];
+}) {
+  const allGoals = [...activeGoals, ...inProgressGoals, ...achievedGoals, ...archivedGoals];
+  const planGoals = [...activeGoals, ...inProgressGoals, ...achievedGoals]; // non-archived
+  const total = planGoals.length;
+  const logradoCount = achievedGoals.length;
+  const completionPct = total > 0 ? Math.round((logradoCount / total) * 100) : 0;
+
+  // Group by area
+  const areaBreakdown = planGoals.reduce((acc: Record<string, { total: number; logrado: number }>, g) => {
+    const key = g.areaClinica ?? g.category ?? "otro";
+    if (!acc[key]) acc[key] = { total: 0, logrado: 0 };
+    acc[key].total++;
+    if (g.status === "logrado") acc[key].logrado++;
+    return acc;
+  }, {});
+  const areas = Object.entries(areaBreakdown).sort((a, b) => b[1].total - a[1].total);
+
+  if (allGoals.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-primary/5 via-white to-emerald-50/50 border border-primary/10 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-4">
+
+        {/* Circular-style progress */}
+        <div className="shrink-0 flex flex-col items-center">
+          <div className="relative h-20 w-20">
+            <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-100" />
+              <circle
+                cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5"
+                strokeDasharray={`${completionPct} ${100 - completionPct}`}
+                strokeLinecap="round"
+                className="text-emerald-500 transition-all duration-700"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-lg font-display font-bold text-slate-900 leading-none">{completionPct}%</span>
+            </div>
+          </div>
+          <span className="text-xs text-slate-400 mt-1 text-center leading-tight">completado</span>
+        </div>
+
+        {/* Stats */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-3">
+            <BarChart3 className="h-4 w-4 text-primary" /> Resumen del plan terapéutico
+          </h3>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
+              <p className="text-2xl font-display font-bold text-primary">{activeGoals.length + inProgressGoals.length}</p>
+              <p className="text-xs text-slate-500 leading-tight">En trabajo</p>
+            </div>
+            <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
+              <p className="text-2xl font-display font-bold text-emerald-600">{logradoCount}</p>
+              <p className="text-xs text-slate-500 leading-tight">Logrados</p>
+            </div>
+            <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
+              <p className="text-2xl font-display font-bold text-slate-700">{total}</p>
+              <p className="text-xs text-slate-500 leading-tight">Total plan</p>
+            </div>
+          </div>
+
+          {/* Area breakdown */}
+          {areas.length > 0 && (
+            <div className="space-y-1.5">
+              {areas.slice(0, 4).map(([area, data]) => {
+                const ac = getAreaColor(area);
+                const pct = data.total > 0 ? Math.round((data.logrado / data.total) * 100) : 0;
+                return (
+                  <div key={area} className="flex items-center gap-2">
+                    <span className={`text-xs font-medium ${ac.text} w-28 truncate capitalize`}>{area}</span>
+                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${ac.bg.replace("bg-", "bg-").replace("100", "500")} rounded-full transition-all duration-500`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 w-14 text-right">{data.logrado}/{data.total}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Add From Bank Dialog ─────────────────────────────────────────────────────
+function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssigned }: {
+  patientId: number; existingGoalLibraryIds: number[];
+  onClose: () => void; onAssigned: () => void;
+}) {
+  const { toast } = useToast();
+  const assign = useAssignGoalToPatient();
+  const [search, setSearch] = useState("");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [nivelFilter, setNivelFilter] = useState("all");
+  const [assigning, setAssigning] = useState<number | null>(null);
+
+  const { data: libraryRaw = [], isLoading } = useQuery<any[]>({
+    queryKey: ["goal-library-bank"],
+    queryFn: async () => {
+      const res = await fetch("/api/goal-library?estado=activo");
+      if (!res.ok) throw new Error("Error cargando banco");
+      return res.json();
+    },
+  });
+
+  const library = libraryRaw as any[];
+
+  const available = library.filter(g => !existingGoalLibraryIds.includes(g.id));
+
+  const filtered = available.filter(g => {
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      (g.nombreObjetivo ?? "").toLowerCase().includes(q) ||
+      (g.idObjetivo ?? "").toLowerCase().includes(q) ||
+      (g.areaClinica ?? "").toLowerCase().includes(q) ||
+      (g.subarea ?? "").toLowerCase().includes(q);
+    const matchArea  = areaFilter === "all"  || g.areaClinica === areaFilter;
+    const matchNivel = nivelFilter === "all" || g.nivelDificultad === nivelFilter;
+    return matchSearch && matchArea && matchNivel;
+  });
+
+  const areas = ["all", ...Array.from(new Set(library.map(g => g.areaClinica).filter(Boolean))).sort() as string[]];
+
+  const handleAssign = (goal: any) => {
+    setAssigning(goal.id);
+    assign.mutate(
+      { id: goal.id, data: { patientId } },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Objetivo asignado al plan",
+            description: `"${goal.nombreObjetivo}" fue agregado al plan terapéutico.`,
+          });
+          setAssigning(null);
+          onAssigned();
+        },
+        onError: (e: any) => {
+          toast({ title: "Error al asignar", description: e.message, variant: "destructive" });
+          setAssigning(null);
+        },
+      }
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <Library className="h-5 w-5 text-primary" /> Agregar desde el banco
+          </DialogTitle>
+          <DialogDescription>
+            Selecciona objetivos del banco clínico para agregar al plan terapéutico de este paciente.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Filters */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Buscar objetivos..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-8 h-8 text-sm bg-slate-50"
+            />
+          </div>
+          <Select value={areaFilter} onValueChange={setAreaFilter}>
+            <SelectTrigger className="w-36 h-8 text-sm bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las áreas</SelectItem>
+              {areas.filter(a => a !== "all").map(a => (
+                <SelectItem key={a} value={a} className="capitalize">{a}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={nivelFilter} onValueChange={setNivelFilter}>
+            <SelectTrigger className="w-32 h-8 text-sm bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los niveles</SelectItem>
+              <SelectItem value="básico">Básico</SelectItem>
+              <SelectItem value="intermedio">Intermedio</SelectItem>
+              <SelectItem value="avanzado">Avanzado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Counter */}
+        <p className="text-xs text-slate-400">
+          {filtered.length} objetivo{filtered.length !== 1 ? "s" : ""} disponible{filtered.length !== 1 ? "s" : ""}
+          {existingGoalLibraryIds.length > 0 && ` · ${existingGoalLibraryIds.length} ya asignado${existingGoalLibraryIds.length !== 1 ? "s" : ""}`}
+        </p>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[50vh] pr-1">
+          {isLoading ? (
+            <div className="space-y-2">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+              {search || areaFilter !== "all" || nivelFilter !== "all"
+                ? "Sin resultados para esta búsqueda."
+                : "Todos los objetivos del banco ya están en el plan."}
+            </div>
+          ) : (
+            filtered.map((goal: any) => {
+              const ac = getAreaColor(goal.areaClinica);
+              const isAssigning = assigning === goal.id;
+              return (
+                <div key={goal.id} className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-primary/30 hover:bg-primary/2 transition-colors">
+                  <div className={`shrink-0 text-xs font-mono font-bold px-2 py-1 rounded-lg ${ac.bg} ${ac.text} border ${ac.border} whitespace-nowrap mt-0.5`}>
+                    {goal.idObjetivo}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 text-sm leading-snug">{goal.nombreObjetivo}</p>
+                    {goal.definicionOperativa && (
+                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{goal.definicionOperativa}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {goal.areaClinica && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${ac.bg} ${ac.text}`}>
+                          {goal.areaClinica}
+                        </span>
+                      )}
+                      {goal.subarea && <span className="text-xs text-slate-400">{goal.subarea}</span>}
+                      {goal.nivelDificultad && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-md border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
+                          {goal.nivelDificultad}
+                        </span>
+                      )}
+                      {goal.franjaEtaria && <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAssign(goal)}
+                    disabled={isAssigning || assign.isPending}
+                    className="shrink-0 h-7 text-xs bg-primary hover:bg-primary/90 text-white"
+                  >
+                    {isAssigning
+                      ? <span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <><Plus className="h-3 w-3 mr-1" /> Agregar</>
+                    }
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="pt-2 border-t">
+          <Button variant="outline" className="w-full" onClick={onClose}>Cerrar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
