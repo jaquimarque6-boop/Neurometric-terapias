@@ -10,8 +10,7 @@ export type UpdateGoalStatus =
   (typeof UpdateGoalStatus)[keyof typeof UpdateGoalStatus];
 
 export const UpdateGoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;

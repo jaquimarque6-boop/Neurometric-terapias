@@ -9,8 +9,7 @@
 export type GoalStatus = (typeof GoalStatus)[keyof typeof GoalStatus];
 
 export const GoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;

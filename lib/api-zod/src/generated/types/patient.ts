@@ -10,6 +10,7 @@ export interface Patient {
   id: number;
   name: string;
   age?: number;
+  fechaNacimiento?: string;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;

@@ -17,18 +17,29 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Actividad,
   AssignGoalBody,
   CreateGoal,
   CreatePatient,
+  CreatePatientProfessional,
   CreateProfessional,
+  CreateRegistroClinico,
   DashboardStats,
   Goal,
   GoalLibraryItem,
   HealthStatus,
+  ListActividadesParams,
+  ListGoalsParams,
+  ListPatientProfessionalsParams,
+  ListRegistrosClinicosParams,
   Patient,
+  PatientProfessional,
   Professional,
   Registro,
+  RegistroClinico,
   UpdateGoal,
+  UpdatePatient,
+  UpdateRegistroClinico,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -364,6 +375,93 @@ export function useGetPatient<
 }
 
 /**
+ * @summary Update a patient
+ */
+export const getUpdatePatientUrl = (id: number) => {
+  return `/api/patients/${id}`;
+};
+
+export const updatePatient = async (
+  id: number,
+  updatePatient: UpdatePatient,
+  options?: RequestInit,
+): Promise<Patient> => {
+  return customFetch<Patient>(getUpdatePatientUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updatePatient),
+  });
+};
+
+export const getUpdatePatientMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePatient>>,
+    TError,
+    { id: number; data: BodyType<UpdatePatient> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePatient>>,
+  TError,
+  { id: number; data: BodyType<UpdatePatient> },
+  TContext
+> => {
+  const mutationKey = ["updatePatient"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePatient>>,
+    { id: number; data: BodyType<UpdatePatient> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updatePatient(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePatientMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePatient>>
+>;
+export type UpdatePatientMutationBody = BodyType<UpdatePatient>;
+export type UpdatePatientMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a patient
+ */
+export const useUpdatePatient = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePatient>>,
+    TError,
+    { id: number; data: BodyType<UpdatePatient> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePatient>>,
+  TError,
+  { id: number; data: BodyType<UpdatePatient> },
+  TContext
+> => {
+  return useMutation(getUpdatePatientMutationOptions(options));
+};
+
+/**
  * @summary List all session records
  */
 export const getListRegistrosUrl = () => {
@@ -601,37 +699,503 @@ export function useListSessions<
 }
 
 /**
- * @summary List all therapy goals
+ * @summary List all clinical session records
  */
-export const getListGoalsUrl = () => {
-  return `/api/goals`;
+export const getListRegistrosClinicosUrl = (
+  params?: ListRegistrosClinicosParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/registros-clinicos?${stringifiedParams}`
+    : `/api/registros-clinicos`;
 };
 
-export const listGoals = async (options?: RequestInit): Promise<Goal[]> => {
-  return customFetch<Goal[]>(getListGoalsUrl(), {
+export const listRegistrosClinicos = async (
+  params?: ListRegistrosClinicosParams,
+  options?: RequestInit,
+): Promise<RegistroClinico[]> => {
+  return customFetch<RegistroClinico[]>(getListRegistrosClinicosUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListGoalsQueryKey = () => {
-  return [`/api/goals`] as const;
+export const getListRegistrosClinicosQueryKey = (
+  params?: ListRegistrosClinicosParams,
+) => {
+  return [`/api/registros-clinicos`, ...(params ? [params] : [])] as const;
+};
+
+export const getListRegistrosClinicosQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRegistrosClinicos>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRegistrosClinicosParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRegistrosClinicos>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListRegistrosClinicosQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRegistrosClinicos>>
+  > = ({ signal }) =>
+    listRegistrosClinicos(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRegistrosClinicos>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRegistrosClinicosQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRegistrosClinicos>>
+>;
+export type ListRegistrosClinicosQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all clinical session records
+ */
+
+export function useListRegistrosClinicos<
+  TData = Awaited<ReturnType<typeof listRegistrosClinicos>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRegistrosClinicosParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRegistrosClinicos>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRegistrosClinicosQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a clinical record
+ */
+export const getCreateRegistroClinicoUrl = () => {
+  return `/api/registros-clinicos`;
+};
+
+export const createRegistroClinico = async (
+  createRegistroClinico: CreateRegistroClinico,
+  options?: RequestInit,
+): Promise<RegistroClinico> => {
+  return customFetch<RegistroClinico>(getCreateRegistroClinicoUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRegistroClinico),
+  });
+};
+
+export const getCreateRegistroClinicoMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRegistroClinico>>,
+    TError,
+    { data: BodyType<CreateRegistroClinico> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRegistroClinico>>,
+  TError,
+  { data: BodyType<CreateRegistroClinico> },
+  TContext
+> => {
+  const mutationKey = ["createRegistroClinico"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRegistroClinico>>,
+    { data: BodyType<CreateRegistroClinico> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRegistroClinico(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRegistroClinicoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRegistroClinico>>
+>;
+export type CreateRegistroClinicoMutationBody = BodyType<CreateRegistroClinico>;
+export type CreateRegistroClinicoMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a clinical record
+ */
+export const useCreateRegistroClinico = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRegistroClinico>>,
+    TError,
+    { data: BodyType<CreateRegistroClinico> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRegistroClinico>>,
+  TError,
+  { data: BodyType<CreateRegistroClinico> },
+  TContext
+> => {
+  return useMutation(getCreateRegistroClinicoMutationOptions(options));
+};
+
+/**
+ * @summary Get clinical record by ID
+ */
+export const getGetRegistroClinicoUrl = (id: number) => {
+  return `/api/registros-clinicos/${id}`;
+};
+
+export const getRegistroClinico = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RegistroClinico> => {
+  return customFetch<RegistroClinico>(getGetRegistroClinicoUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRegistroClinicoQueryKey = (id: number) => {
+  return [`/api/registros-clinicos/${id}`] as const;
+};
+
+export const getGetRegistroClinicoQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRegistroClinico>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistroClinico>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRegistroClinicoQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRegistroClinico>>
+  > = ({ signal }) => getRegistroClinico(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRegistroClinico>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRegistroClinicoQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRegistroClinico>>
+>;
+export type GetRegistroClinicoQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get clinical record by ID
+ */
+
+export function useGetRegistroClinico<
+  TData = Awaited<ReturnType<typeof getRegistroClinico>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistroClinico>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRegistroClinicoQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a clinical record
+ */
+export const getUpdateRegistroClinicoUrl = (id: number) => {
+  return `/api/registros-clinicos/${id}`;
+};
+
+export const updateRegistroClinico = async (
+  id: number,
+  updateRegistroClinico: UpdateRegistroClinico,
+  options?: RequestInit,
+): Promise<RegistroClinico> => {
+  return customFetch<RegistroClinico>(getUpdateRegistroClinicoUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateRegistroClinico),
+  });
+};
+
+export const getUpdateRegistroClinicoMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRegistroClinico>>,
+    TError,
+    { id: number; data: BodyType<UpdateRegistroClinico> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRegistroClinico>>,
+  TError,
+  { id: number; data: BodyType<UpdateRegistroClinico> },
+  TContext
+> => {
+  const mutationKey = ["updateRegistroClinico"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRegistroClinico>>,
+    { id: number; data: BodyType<UpdateRegistroClinico> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRegistroClinico(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRegistroClinicoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRegistroClinico>>
+>;
+export type UpdateRegistroClinicoMutationBody = BodyType<UpdateRegistroClinico>;
+export type UpdateRegistroClinicoMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a clinical record
+ */
+export const useUpdateRegistroClinico = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRegistroClinico>>,
+    TError,
+    { id: number; data: BodyType<UpdateRegistroClinico> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRegistroClinico>>,
+  TError,
+  { id: number; data: BodyType<UpdateRegistroClinico> },
+  TContext
+> => {
+  return useMutation(getUpdateRegistroClinicoMutationOptions(options));
+};
+
+/**
+ * @summary Delete a clinical record
+ */
+export const getDeleteRegistroClinicoUrl = (id: number) => {
+  return `/api/registros-clinicos/${id}`;
+};
+
+export const deleteRegistroClinico = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRegistroClinicoUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRegistroClinicoMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRegistroClinico>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRegistroClinico>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteRegistroClinico"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRegistroClinico>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRegistroClinico(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRegistroClinicoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRegistroClinico>>
+>;
+
+export type DeleteRegistroClinicoMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a clinical record
+ */
+export const useDeleteRegistroClinico = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRegistroClinico>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRegistroClinico>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteRegistroClinicoMutationOptions(options));
+};
+
+/**
+ * @summary List all therapy goals
+ */
+export const getListGoalsUrl = (params?: ListGoalsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/goals?${stringifiedParams}`
+    : `/api/goals`;
+};
+
+export const listGoals = async (
+  params?: ListGoalsParams,
+  options?: RequestInit,
+): Promise<Goal[]> => {
+  return customFetch<Goal[]>(getListGoalsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGoalsQueryKey = (params?: ListGoalsParams) => {
+  return [`/api/goals`, ...(params ? [params] : [])] as const;
 };
 
 export const getListGoalsQueryOptions = <
   TData = Awaited<ReturnType<typeof listGoals>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof listGoals>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListGoalsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGoals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListGoalsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListGoalsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listGoals>>> = ({
     signal,
-  }) => listGoals({ signal, ...requestOptions });
+  }) => listGoals(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listGoals>>,
@@ -652,11 +1216,18 @@ export type ListGoalsQueryError = ErrorType<unknown>;
 export function useListGoals<
   TData = Awaited<ReturnType<typeof listGoals>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof listGoals>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListGoalsQueryOptions(options);
+>(
+  params?: ListGoalsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGoals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGoalsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -836,6 +1407,458 @@ export const useUpdateGoal = <
   TContext
 > => {
   return useMutation(getUpdateGoalMutationOptions(options));
+};
+
+/**
+ * @summary Delete a goal
+ */
+export const getDeleteGoalUrl = (id: number) => {
+  return `/api/goals/${id}`;
+};
+
+export const deleteGoal = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteGoalUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGoal>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteGoal(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteGoal>>
+>;
+
+export type DeleteGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a goal
+ */
+export const useDeleteGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteGoal>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteGoalMutationOptions(options));
+};
+
+/**
+ * @summary List suggested activities
+ */
+export const getListActividadesUrl = (params?: ListActividadesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/actividades?${stringifiedParams}`
+    : `/api/actividades`;
+};
+
+export const listActividades = async (
+  params?: ListActividadesParams,
+  options?: RequestInit,
+): Promise<Actividad[]> => {
+  return customFetch<Actividad[]>(getListActividadesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListActividadesQueryKey = (params?: ListActividadesParams) => {
+  return [`/api/actividades`, ...(params ? [params] : [])] as const;
+};
+
+export const getListActividadesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listActividades>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListActividadesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listActividades>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListActividadesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listActividades>>> = ({
+    signal,
+  }) => listActividades(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listActividades>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListActividadesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listActividades>>
+>;
+export type ListActividadesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List suggested activities
+ */
+
+export function useListActividades<
+  TData = Awaited<ReturnType<typeof listActividades>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListActividadesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listActividades>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListActividadesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List patient-professional assignments
+ */
+export const getListPatientProfessionalsUrl = (
+  params?: ListPatientProfessionalsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/patient-professionals?${stringifiedParams}`
+    : `/api/patient-professionals`;
+};
+
+export const listPatientProfessionals = async (
+  params?: ListPatientProfessionalsParams,
+  options?: RequestInit,
+): Promise<PatientProfessional[]> => {
+  return customFetch<PatientProfessional[]>(
+    getListPatientProfessionalsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListPatientProfessionalsQueryKey = (
+  params?: ListPatientProfessionalsParams,
+) => {
+  return [`/api/patient-professionals`, ...(params ? [params] : [])] as const;
+};
+
+export const getListPatientProfessionalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPatientProfessionals>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListPatientProfessionalsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPatientProfessionals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListPatientProfessionalsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPatientProfessionals>>
+  > = ({ signal }) =>
+    listPatientProfessionals(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPatientProfessionals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPatientProfessionalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPatientProfessionals>>
+>;
+export type ListPatientProfessionalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List patient-professional assignments
+ */
+
+export function useListPatientProfessionals<
+  TData = Awaited<ReturnType<typeof listPatientProfessionals>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListPatientProfessionalsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPatientProfessionals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPatientProfessionalsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Assign a professional to a patient
+ */
+export const getAssignPatientProfessionalUrl = () => {
+  return `/api/patient-professionals`;
+};
+
+export const assignPatientProfessional = async (
+  createPatientProfessional: CreatePatientProfessional,
+  options?: RequestInit,
+): Promise<PatientProfessional> => {
+  return customFetch<PatientProfessional>(getAssignPatientProfessionalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPatientProfessional),
+  });
+};
+
+export const getAssignPatientProfessionalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignPatientProfessional>>,
+    TError,
+    { data: BodyType<CreatePatientProfessional> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignPatientProfessional>>,
+  TError,
+  { data: BodyType<CreatePatientProfessional> },
+  TContext
+> => {
+  const mutationKey = ["assignPatientProfessional"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignPatientProfessional>>,
+    { data: BodyType<CreatePatientProfessional> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return assignPatientProfessional(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignPatientProfessionalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignPatientProfessional>>
+>;
+export type AssignPatientProfessionalMutationBody =
+  BodyType<CreatePatientProfessional>;
+export type AssignPatientProfessionalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign a professional to a patient
+ */
+export const useAssignPatientProfessional = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignPatientProfessional>>,
+    TError,
+    { data: BodyType<CreatePatientProfessional> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignPatientProfessional>>,
+  TError,
+  { data: BodyType<CreatePatientProfessional> },
+  TContext
+> => {
+  return useMutation(getAssignPatientProfessionalMutationOptions(options));
+};
+
+/**
+ * @summary Remove a patient-professional assignment
+ */
+export const getRemovePatientProfessionalUrl = (id: number) => {
+  return `/api/patient-professionals/${id}`;
+};
+
+export const removePatientProfessional = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRemovePatientProfessionalUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemovePatientProfessionalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removePatientProfessional>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removePatientProfessional>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["removePatientProfessional"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removePatientProfessional>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return removePatientProfessional(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemovePatientProfessionalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removePatientProfessional>>
+>;
+
+export type RemovePatientProfessionalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a patient-professional assignment
+ */
+export const useRemovePatientProfessional = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removePatientProfessional>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removePatientProfessional>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRemovePatientProfessionalMutationOptions(options));
 };
 
 /**

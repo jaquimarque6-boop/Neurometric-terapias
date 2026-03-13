@@ -1,15 +1,15 @@
-# Workspace
+# Workspace — Neurometric Lab
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Full-stack clinical therapy platform (Neurometric Lab) built as a pnpm workspace monorepo. Spanish-default bilingual interface for managing patients, clinical records, therapeutic objectives, activities, and professionals.
 
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
 - **Node.js version**: 24
 - **Package manager**: pnpm
-- **TypeScript version**: 5.9
+- **Frontend**: React + Vite, Tailwind CSS, shadcn/ui, react-query, wouter, recharts
 - **API framework**: Express 5
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
@@ -20,77 +20,110 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server
+│   └── neurometric-lab/    # React+Vite frontend
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/                # Utility scripts
+└── pnpm-workspace.yaml
+```
+
+## Neurometric Lab — Application
+
+### Frontend Pages (`artifacts/neurometric-lab/src/pages/`)
+
+| Route | File | Description |
+|-------|------|-------------|
+| `/` | `dashboard.tsx` | Panel clínico — stats, latest sessions, patient list |
+| `/patients` | `patients.tsx` | Patient grid with semáforo badges and performance bars |
+| `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Objetivos tabs |
+| `/registros` | `registros.tsx` | Clinical records CRUD with search/filter |
+| `/objetivos` | `objetivos.tsx` | Therapeutic goals with status toggle (activo/logrado/suspendido) |
+| `/actividades` | `actividades.tsx` | Activity library (70 activities: clínicas + familia) |
+| `/profesionales` | `professionals.tsx` | Professional management |
+| `/reportes` | `reportes.tsx` | Stats charts (recharts) |
+| `/sessions` | `sessions.tsx` | Read-only CSV session data table |
+| `/goal-library` | `goal-library.tsx` | Goal bank browser |
+
+### Database Schema
+
+- **patients** — `id, name, age, fechaNacimiento, franjaEtaria, diagnosis, observaciones, semaforo, promedioDesempeno, profesionalId, profesionalNombre, createdAt`
+- **registros** — CSV session data (read-only)
+- **registros_clinicos** — Clinical records CRUD (new table)
+- **goals** — Therapeutic goals per patient (activo/logrado/suspendido)
+- **goal_library** — 70+ goal templates seeded from Neurometric CSV
+- **actividades** — Activity suggestions (clínicas + familia)
+- **professionals** — Clinical professionals
+- **patient_professionals** — Junction table (M:M patients ↔ professionals)
+
+### API Routes (all prefixed `/api`)
+
+- `GET/POST /patients`, `GET/PUT /patients/:id`
+- `GET /registros`, `GET /sessions` (CSV read-only)
+- `GET/POST /registros-clinicos`, `GET/PUT/DELETE /registros-clinicos/:id`
+- `GET/POST /goals`, `PUT/DELETE /goals/:id`
+- `GET /goal-library`, `POST /goal-library/assign`
+- `GET /actividades`
+- `GET/POST /professionals`
+- `GET /patient-professionals`, `POST /patient-professionals`, `DELETE /patient-professionals/:id`
+- `GET /dashboard/stats`
+
+### Key Data Rules
+
+- **patients table has NO email/phone/status** fields (removed in new schema)
+- **goals status enum**: `activo | logrado | suspendido` (NOT pending/in-progress/achieved)
+- **GoalLibraryItem** fields use Spanish: `idObjetivo, nombreObjetivo, modulo, area, subarea, franjaEtaria, definicionOperativa, actividadesClinicas, actividadesFamilia, recomendacionClinica, metaPorcentaje, intentosSugeridos`
+- API hooks take params directly: `useListGoals({ patientId })` — NOT `useListGoals({ params: { patientId } })`
+
+## Seed Scripts
+
+```bash
+pnpm --filter @workspace/scripts run seed-csv       # Seed patients from CSV
+pnpm --filter @workspace/scripts run seed-modules   # Seed professionals, assignments, clinical records, goals, activities
+```
+
+## Common Commands
+
+```bash
+pnpm --filter @workspace/db run push          # Push DB schema
+pnpm --filter @workspace/api-spec run codegen # Regenerate API client hooks
+pnpm run typecheck                             # Full TS type check
 ```
 
 ## TypeScript & Composite Projects
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
-
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
-
-## Root Scripts
-
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+Every package extends `tsconfig.base.json` which sets `composite: true`. Always typecheck from the root — run `pnpm run typecheck`. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
 
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for validation.
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+- App setup: `src/app.ts` — mounts CORS, JSON parsing, routes at `/api`
+- Routes: `src/routes/index.ts` mounts all sub-routers
+
+### `artifacts/neurometric-lab` (`@workspace/neurometric-lab`)
+
+React + Vite frontend. Fully in Spanish (with EN toggle). Uses shadcn/ui components and react-query for data fetching.
 
 ### `lib/db` (`@workspace/db`)
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+Database layer using Drizzle ORM with PostgreSQL.
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
 - `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+- `drizzle.config.ts` — requires `DATABASE_URL`
+- `pnpm --filter @workspace/db run push` — sync schema
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
+Owns the OpenAPI 3.1 spec (`openapi.yaml`) and Orval config. Run codegen: `pnpm --filter @workspace/api-spec run codegen`
 
 ### `scripts` (`@workspace/scripts`)
 
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Utility scripts: `seed`, `seed-csv`, `seed-modules`, `seed-goal-library`. Run via `pnpm --filter @workspace/scripts run <script>`.

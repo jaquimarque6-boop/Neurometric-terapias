@@ -10,8 +10,7 @@ export type CreateGoalStatus =
   (typeof CreateGoalStatus)[keyof typeof CreateGoalStatus];
 
 export const CreateGoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;

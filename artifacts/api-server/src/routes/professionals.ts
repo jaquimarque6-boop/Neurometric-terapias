@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { professionalsTable, patientsTable } from "@workspace/db/schema";
+import { professionalsTable, patientProfessionalsTable } from "@workspace/db/schema";
 import { CreateProfessionalBody } from "@workspace/api-zod";
 import { eq, count } from "drizzle-orm";
 
@@ -8,15 +8,15 @@ const router: IRouter = Router();
 
 router.get("/professionals", async (_req, res) => {
   const professionals = await db.select().from(professionalsTable).orderBy(professionalsTable.createdAt);
-  
+
   const withCounts = await Promise.all(professionals.map(async (pro) => {
     const [{ value }] = await db
       .select({ value: count() })
-      .from(patientsTable)
-      .where(eq(patientsTable.professionalId, pro.id));
+      .from(patientProfessionalsTable)
+      .where(eq(patientProfessionalsTable.professionalId, pro.id));
     return { ...pro, patientCount: Number(value), createdAt: pro.createdAt.toISOString() };
   }));
-  
+
   res.json(withCounts);
 });
 

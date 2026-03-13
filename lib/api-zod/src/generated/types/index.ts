@@ -6,24 +6,31 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./actividad";
 export * from "./assignGoalBody";
 export * from "./createGoal";
-export * from "./createGoalCategory";
 export * from "./createGoalStatus";
 export * from "./createPatient";
+export * from "./createPatientProfessional";
 export * from "./createProfessional";
 export * from "./createProfessionalStatus";
+export * from "./createRegistroClinico";
 export * from "./dashboardStats";
 export * from "./goal";
-export * from "./goalCategory";
 export * from "./goalLibraryItem";
 export * from "./goalStatus";
 export * from "./healthStatus";
+export * from "./listActividadesParams";
+export * from "./listGoalsParams";
+export * from "./listPatientProfessionalsParams";
+export * from "./listRegistrosClinicosParams";
 export * from "./patient";
+export * from "./patientProfessional";
 export * from "./professional";
 export * from "./professionalStatus";
 export * from "./registro";
-export * from "./session";
+export * from "./registroClinico";
 export * from "./updateGoal";
-export * from "./updateGoalCategory";
 export * from "./updateGoalStatus";
+export * from "./updatePatient";
+export * from "./updateRegistroClinico";

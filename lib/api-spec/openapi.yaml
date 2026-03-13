@@ -12,13 +12,19 @@ tags:
   - name: patients
     description: Patient management
   - name: registros
-    description: Session records
+    description: Session records (CSV data)
+  - name: registros-clinicos
+    description: Clinical session records
   - name: goal-library
     description: Goal library
   - name: goals
     description: Therapy goals
   - name: professionals
     description: Professional staff
+  - name: actividades
+    description: Suggested activities
+  - name: patient-professionals
+    description: Patient-professional assignments
 paths:
   /healthz:
     get:
@@ -83,6 +89,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Patient"
+    patch:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update a patient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePatient"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
 
   /registros:
     get:
@@ -133,11 +162,110 @@ paths:
                 items:
                   $ref: "#/components/schemas/Registro"
 
+  /registros-clinicos:
+    get:
+      operationId: listRegistrosClinicos
+      tags: [registros-clinicos]
+      summary: List all clinical session records
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of clinical records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegistroClinico"
+    post:
+      operationId: createRegistroClinico
+      tags: [registros-clinicos]
+      summary: Create a clinical record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRegistroClinico"
+      responses:
+        "201":
+          description: Clinical record created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroClinico"
+
+  /registros-clinicos/{id}:
+    get:
+      operationId: getRegistroClinico
+      tags: [registros-clinicos]
+      summary: Get clinical record by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clinical record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroClinico"
+    patch:
+      operationId: updateRegistroClinico
+      tags: [registros-clinicos]
+      summary: Update a clinical record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRegistroClinico"
+      responses:
+        "200":
+          description: Updated clinical record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroClinico"
+    delete:
+      operationId: deleteRegistroClinico
+      tags: [registros-clinicos]
+      summary: Delete a clinical record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /goals:
     get:
       operationId: listGoals
       tags: [goals]
       summary: List all therapy goals
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of goals
@@ -189,6 +317,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Goal"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /actividades:
+    get:
+      operationId: listActividades
+      tags: [actividades]
+      summary: List suggested activities
+      parameters:
+        - name: franjaEtaria
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: area
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Actividad"
+
+  /patient-professionals:
+    get:
+      operationId: listPatientProfessionals
+      tags: [patient-professionals]
+      summary: List patient-professional assignments
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: professionalId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PatientProfessional"
+    post:
+      operationId: assignPatientProfessional
+      tags: [patient-professionals]
+      summary: Assign a professional to a patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientProfessional"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientProfessional"
+
+  /patient-professionals/{id}:
+    delete:
+      operationId: removePatientProfessional
+      tags: [patient-professionals]
+      summary: Remove a patient-professional assignment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
 
   /professionals:
     get:
@@ -293,6 +523,8 @@ components:
           type: string
         age:
           type: integer
+        fechaNacimiento:
+          type: string
         diagnosis:
           type: string
         profesionalNombre:
@@ -322,6 +554,8 @@ components:
           type: string
         age:
           type: integer
+        fechaNacimiento:
+          type: string
         diagnosis:
           type: string
         profesionalNombre:
@@ -330,7 +564,27 @@ components:
           type: string
         fechaInicio:
           type: string
+        observaciones:
+          type: string
       required: [name]
+
+    UpdatePatient:
+      type: object
+      properties:
+        name:
+          type: string
+        age:
+          type: integer
+        fechaNacimiento:
+          type: string
+        diagnosis:
+          type: string
+        profesionalNombre:
+          type: string
+        franjaEtaria:
+          type: string
+        observaciones:
+          type: string
 
     Registro:
       type: object
@@ -369,7 +623,7 @@ components:
           type: string
       required: [id, patientId, createdAt]
 
-    Session:
+    RegistroClinico:
       type: object
       properties:
         id:
@@ -378,33 +632,52 @@ components:
           type: integer
         patientName:
           type: string
-        sesionNumero:
+        professionalId:
           type: integer
-        objetivoNombre:
-          type: string
-        goalLibraryId:
-          type: integer
-        areaObjetivo:
+        professionalName:
           type: string
         fecha:
           type: string
-        estado:
+        resumenSesion:
           type: string
-        intentos:
-          type: integer
-        intentosSugeridos:
-          type: integer
-        correctas:
-          type: integer
-        porcentaje:
+        observaciones:
           type: string
-        cumpleMeta:
-          type: string
-        recomendacionClinica:
+        recomendacionesHogar:
           type: string
         createdAt:
           type: string
-      required: [id, patientId, createdAt]
+      required: [id, patientId, fecha, createdAt]
+
+    CreateRegistroClinico:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        professionalId:
+          type: integer
+        fecha:
+          type: string
+        resumenSesion:
+          type: string
+        observaciones:
+          type: string
+        recomendacionesHogar:
+          type: string
+      required: [patientId, fecha]
+
+    UpdateRegistroClinico:
+      type: object
+      properties:
+        professionalId:
+          type: integer
+        fecha:
+          type: string
+        resumenSesion:
+          type: string
+        observaciones:
+          type: string
+        recomendacionesHogar:
+          type: string
 
     Goal:
       type: object
@@ -415,16 +688,19 @@ components:
           type: integer
         patientName:
           type: string
+        codigo:
+          type: string
         title:
           type: string
         description:
           type: string
         category:
           type: string
-          enum: [cognitive, behavioral, emotional, social, physical]
+        franjaEtaria:
+          type: string
         status:
           type: string
-          enum: [pending, in-progress, achieved, discontinued]
+          enum: [activo, logrado, suspendido]
         targetDate:
           type: string
         createdAt:
@@ -436,35 +712,96 @@ components:
       properties:
         patientId:
           type: integer
+        codigo:
+          type: string
         title:
           type: string
         description:
           type: string
         category:
           type: string
-          enum: [cognitive, behavioral, emotional, social, physical]
+        franjaEtaria:
+          type: string
         status:
           type: string
-          enum: [pending, in-progress, achieved, discontinued]
+          enum: [activo, logrado, suspendido]
         targetDate:
           type: string
-      required: [patientId, title, category, status]
+      required: [patientId, title, category]
 
     UpdateGoal:
       type: object
       properties:
+        codigo:
+          type: string
         title:
           type: string
         description:
           type: string
         category:
           type: string
-          enum: [cognitive, behavioral, emotional, social, physical]
+        franjaEtaria:
+          type: string
         status:
           type: string
-          enum: [pending, in-progress, achieved, discontinued]
+          enum: [activo, logrado, suspendido]
         targetDate:
           type: string
+
+    Actividad:
+      type: object
+      properties:
+        id:
+          type: integer
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        tipo:
+          type: string
+        area:
+          type: string
+        subarea:
+          type: string
+        franjaEtaria:
+          type: string
+        recursos:
+          type: string
+        goalLibraryId:
+          type: integer
+        objetivoNombre:
+          type: string
+        createdAt:
+          type: string
+      required: [id, titulo, tipo, createdAt]
+
+    PatientProfessional:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        patientName:
+          type: string
+        professionalId:
+          type: integer
+        professionalName:
+          type: string
+        professionalSpecialty:
+          type: string
+        createdAt:
+          type: string
+      required: [id, patientId, professionalId, createdAt]
+
+    CreatePatientProfessional:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        professionalId:
+          type: integer
+      required: [patientId, professionalId]
 
     Professional:
       type: object

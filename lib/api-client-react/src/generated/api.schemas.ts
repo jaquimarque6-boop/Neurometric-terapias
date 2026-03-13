@@ -13,6 +13,7 @@ export interface Patient {
   id: number;
   name: string;
   age?: number;
+  fechaNacimiento?: string;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;
@@ -28,10 +29,22 @@ export interface Patient {
 export interface CreatePatient {
   name: string;
   age?: number;
+  fechaNacimiento?: string;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;
   fechaInicio?: string;
+  observaciones?: string;
+}
+
+export interface UpdatePatient {
+  name?: string;
+  age?: number;
+  fechaNacimiento?: string;
+  diagnosis?: string;
+  profesionalNombre?: string;
+  franjaEtaria?: string;
+  observaciones?: string;
 }
 
 export interface Registro {
@@ -53,113 +66,124 @@ export interface Registro {
   createdAt: string;
 }
 
-export interface Session {
+export interface RegistroClinico {
   id: number;
   patientId: number;
   patientName?: string;
-  sesionNumero?: number;
-  objetivoNombre?: string;
-  goalLibraryId?: number;
-  areaObjetivo?: string;
-  fecha?: string;
-  estado?: string;
-  intentos?: number;
-  intentosSugeridos?: number;
-  correctas?: number;
-  porcentaje?: string;
-  cumpleMeta?: string;
-  recomendacionClinica?: string;
+  professionalId?: number;
+  professionalName?: string;
+  fecha: string;
+  resumenSesion?: string;
+  observaciones?: string;
+  recomendacionesHogar?: string;
   createdAt: string;
 }
 
-export type GoalCategory = (typeof GoalCategory)[keyof typeof GoalCategory];
+export interface CreateRegistroClinico {
+  patientId: number;
+  professionalId?: number;
+  fecha: string;
+  resumenSesion?: string;
+  observaciones?: string;
+  recomendacionesHogar?: string;
+}
 
-export const GoalCategory = {
-  cognitive: "cognitive",
-  behavioral: "behavioral",
-  emotional: "emotional",
-  social: "social",
-  physical: "physical",
-} as const;
+export interface UpdateRegistroClinico {
+  professionalId?: number;
+  fecha?: string;
+  resumenSesion?: string;
+  observaciones?: string;
+  recomendacionesHogar?: string;
+}
 
 export type GoalStatus = (typeof GoalStatus)[keyof typeof GoalStatus];
 
 export const GoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;
 
 export interface Goal {
   id: number;
   patientId: number;
   patientName?: string;
+  codigo?: string;
   title: string;
   description?: string;
-  category: GoalCategory;
+  category: string;
+  franjaEtaria?: string;
   status: GoalStatus;
   targetDate?: string;
   createdAt: string;
 }
 
-export type CreateGoalCategory =
-  (typeof CreateGoalCategory)[keyof typeof CreateGoalCategory];
-
-export const CreateGoalCategory = {
-  cognitive: "cognitive",
-  behavioral: "behavioral",
-  emotional: "emotional",
-  social: "social",
-  physical: "physical",
-} as const;
-
 export type CreateGoalStatus =
   (typeof CreateGoalStatus)[keyof typeof CreateGoalStatus];
 
 export const CreateGoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;
 
 export interface CreateGoal {
   patientId: number;
+  codigo?: string;
   title: string;
   description?: string;
-  category: CreateGoalCategory;
-  status: CreateGoalStatus;
+  category: string;
+  franjaEtaria?: string;
+  status?: CreateGoalStatus;
   targetDate?: string;
 }
-
-export type UpdateGoalCategory =
-  (typeof UpdateGoalCategory)[keyof typeof UpdateGoalCategory];
-
-export const UpdateGoalCategory = {
-  cognitive: "cognitive",
-  behavioral: "behavioral",
-  emotional: "emotional",
-  social: "social",
-  physical: "physical",
-} as const;
 
 export type UpdateGoalStatus =
   (typeof UpdateGoalStatus)[keyof typeof UpdateGoalStatus];
 
 export const UpdateGoalStatus = {
-  pending: "pending",
-  "in-progress": "in-progress",
-  achieved: "achieved",
-  discontinued: "discontinued",
+  activo: "activo",
+  logrado: "logrado",
+  suspendido: "suspendido",
 } as const;
 
 export interface UpdateGoal {
+  codigo?: string;
   title?: string;
   description?: string;
-  category?: UpdateGoalCategory;
+  category?: string;
+  franjaEtaria?: string;
   status?: UpdateGoalStatus;
   targetDate?: string;
+}
+
+export interface Actividad {
+  id: number;
+  titulo: string;
+  descripcion?: string;
+  tipo: string;
+  area?: string;
+  subarea?: string;
+  franjaEtaria?: string;
+  recursos?: string;
+  goalLibraryId?: number;
+  objetivoNombre?: string;
+  createdAt: string;
+}
+
+export interface PatientProfessional {
+  id: number;
+  patientId: number;
+  patientName?: string;
+  professionalId: number;
+  professionalName?: string;
+  professionalSpecialty?: string;
+  createdAt: string;
+}
+
+export interface CreatePatientProfessional {
+  patientId: number;
+  professionalId: number;
 }
 
 export type ProfessionalStatus =
@@ -234,3 +258,22 @@ export interface DashboardStats {
   sessionsThisWeek: number;
   newPatientsThisMonth: number;
 }
+
+export type ListRegistrosClinicosParams = {
+  patientId?: number;
+};
+
+export type ListGoalsParams = {
+  patientId?: number;
+};
+
+export type ListActividadesParams = {
+  franjaEtaria?: string;
+  area?: string;
+  tipo?: string;
+};
+
+export type ListPatientProfessionalsParams = {
+  patientId?: number;
+  professionalId?: number;
+};

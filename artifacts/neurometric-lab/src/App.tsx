@@ -9,7 +9,10 @@ import Dashboard from "@/pages/dashboard";
 import Patients from "@/pages/patients";
 import PatientProfile from "@/pages/patient-profile";
 import Sessions from "@/pages/sessions";
-import Goals from "@/pages/goals";
+import Registros from "@/pages/registros";
+import Objetivos from "@/pages/objetivos";
+import Actividades from "@/pages/actividades";
+import Reportes from "@/pages/reportes";
 import Professionals from "@/pages/professionals";
 import GoalLibrary from "@/pages/goal-library";
 
@@ -17,7 +20,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     },
   },
 });
@@ -29,7 +32,10 @@ function Router() {
       <Route path="/patients" component={Patients} />
       <Route path="/patients/:id" component={PatientProfile} />
       <Route path="/sessions" component={Sessions} />
-      <Route path="/goals" component={Goals} />
+      <Route path="/registros" component={Registros} />
+      <Route path="/objetivos" component={Objetivos} />
+      <Route path="/actividades" component={Actividades} />
+      <Route path="/reportes" component={Reportes} />
       <Route path="/professionals" component={Professionals} />
       <Route path="/goal-library" component={GoalLibrary} />
       <Route component={NotFound} />

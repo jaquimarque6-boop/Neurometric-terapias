@@ -5,16 +5,17 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
-import type { GoalCategory } from "./goalCategory";
 import type { GoalStatus } from "./goalStatus";
 
 export interface Goal {
   id: number;
   patientId: number;
   patientName?: string;
+  codigo?: string;
   title: string;
   description?: string;
-  category: GoalCategory;
+  category: string;
+  franjaEtaria?: string;
   status: GoalStatus;
   targetDate?: string;
   createdAt: string;

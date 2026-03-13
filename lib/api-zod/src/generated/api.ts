@@ -21,6 +21,7 @@ export const ListPatientsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   age: zod.number().optional(),
+  fechaNacimiento: zod.string().optional(),
   diagnosis: zod.string().optional(),
   profesionalNombre: zod.string().optional(),
   franjaEtaria: zod.string().optional(),
@@ -40,10 +41,12 @@ export const ListPatientsResponse = zod.array(ListPatientsResponseItem);
 export const CreatePatientBody = zod.object({
   name: zod.string(),
   age: zod.number().optional(),
+  fechaNacimiento: zod.string().optional(),
   diagnosis: zod.string().optional(),
   profesionalNombre: zod.string().optional(),
   franjaEtaria: zod.string().optional(),
   fechaInicio: zod.string().optional(),
+  observaciones: zod.string().optional(),
 });
 
 /**
@@ -57,6 +60,41 @@ export const GetPatientResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   age: zod.number().optional(),
+  fechaNacimiento: zod.string().optional(),
+  diagnosis: zod.string().optional(),
+  profesionalNombre: zod.string().optional(),
+  franjaEtaria: zod.string().optional(),
+  fechaInicio: zod.string().optional(),
+  progreso: zod.string().optional(),
+  promedioDesempeno: zod.number().optional(),
+  semaforo: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  totalRegistros: zod.number().optional(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Update a patient
+ */
+export const UpdatePatientParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePatientBody = zod.object({
+  name: zod.string().optional(),
+  age: zod.number().optional(),
+  fechaNacimiento: zod.string().optional(),
+  diagnosis: zod.string().optional(),
+  profesionalNombre: zod.string().optional(),
+  franjaEtaria: zod.string().optional(),
+  observaciones: zod.string().optional(),
+});
+
+export const UpdatePatientResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  age: zod.number().optional(),
+  fechaNacimiento: zod.string().optional(),
   diagnosis: zod.string().optional(),
   profesionalNombre: zod.string().optional(),
   franjaEtaria: zod.string().optional(),
@@ -142,22 +180,112 @@ export const ListSessionsResponseItem = zod.object({
 export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
 
 /**
+ * @summary List all clinical session records
+ */
+export const ListRegistrosClinicosQueryParams = zod.object({
+  patientId: zod.coerce.number().optional(),
+});
+
+export const ListRegistrosClinicosResponseItem = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  patientName: zod.string().optional(),
+  professionalId: zod.number().optional(),
+  professionalName: zod.string().optional(),
+  fecha: zod.string(),
+  resumenSesion: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  recomendacionesHogar: zod.string().optional(),
+  createdAt: zod.string(),
+});
+export const ListRegistrosClinicosResponse = zod.array(
+  ListRegistrosClinicosResponseItem,
+);
+
+/**
+ * @summary Create a clinical record
+ */
+export const CreateRegistroClinicoBody = zod.object({
+  patientId: zod.number(),
+  professionalId: zod.number().optional(),
+  fecha: zod.string(),
+  resumenSesion: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  recomendacionesHogar: zod.string().optional(),
+});
+
+/**
+ * @summary Get clinical record by ID
+ */
+export const GetRegistroClinicoParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetRegistroClinicoResponse = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  patientName: zod.string().optional(),
+  professionalId: zod.number().optional(),
+  professionalName: zod.string().optional(),
+  fecha: zod.string(),
+  resumenSesion: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  recomendacionesHogar: zod.string().optional(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Update a clinical record
+ */
+export const UpdateRegistroClinicoParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRegistroClinicoBody = zod.object({
+  professionalId: zod.number().optional(),
+  fecha: zod.string().optional(),
+  resumenSesion: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  recomendacionesHogar: zod.string().optional(),
+});
+
+export const UpdateRegistroClinicoResponse = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  patientName: zod.string().optional(),
+  professionalId: zod.number().optional(),
+  professionalName: zod.string().optional(),
+  fecha: zod.string(),
+  resumenSesion: zod.string().optional(),
+  observaciones: zod.string().optional(),
+  recomendacionesHogar: zod.string().optional(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a clinical record
+ */
+export const DeleteRegistroClinicoParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all therapy goals
  */
+export const ListGoalsQueryParams = zod.object({
+  patientId: zod.coerce.number().optional(),
+});
+
 export const ListGoalsResponseItem = zod.object({
   id: zod.number(),
   patientId: zod.number(),
   patientName: zod.string().optional(),
+  codigo: zod.string().optional(),
   title: zod.string(),
   description: zod.string().optional(),
-  category: zod.enum([
-    "cognitive",
-    "behavioral",
-    "emotional",
-    "social",
-    "physical",
-  ]),
-  status: zod.enum(["pending", "in-progress", "achieved", "discontinued"]),
+  category: zod.string(),
+  franjaEtaria: zod.string().optional(),
+  status: zod.enum(["activo", "logrado", "suspendido"]),
   targetDate: zod.string().optional(),
   createdAt: zod.string(),
 });
@@ -168,16 +296,12 @@ export const ListGoalsResponse = zod.array(ListGoalsResponseItem);
  */
 export const CreateGoalBody = zod.object({
   patientId: zod.number(),
+  codigo: zod.string().optional(),
   title: zod.string(),
   description: zod.string().optional(),
-  category: zod.enum([
-    "cognitive",
-    "behavioral",
-    "emotional",
-    "social",
-    "physical",
-  ]),
-  status: zod.enum(["pending", "in-progress", "achieved", "discontinued"]),
+  category: zod.string(),
+  franjaEtaria: zod.string().optional(),
+  status: zod.enum(["activo", "logrado", "suspendido"]).optional(),
   targetDate: zod.string().optional(),
 });
 
@@ -189,14 +313,12 @@ export const UpdateGoalParams = zod.object({
 });
 
 export const UpdateGoalBody = zod.object({
+  codigo: zod.string().optional(),
   title: zod.string().optional(),
   description: zod.string().optional(),
-  category: zod
-    .enum(["cognitive", "behavioral", "emotional", "social", "physical"])
-    .optional(),
-  status: zod
-    .enum(["pending", "in-progress", "achieved", "discontinued"])
-    .optional(),
+  category: zod.string().optional(),
+  franjaEtaria: zod.string().optional(),
+  status: zod.enum(["activo", "logrado", "suspendido"]).optional(),
   targetDate: zod.string().optional(),
 });
 
@@ -204,18 +326,81 @@ export const UpdateGoalResponse = zod.object({
   id: zod.number(),
   patientId: zod.number(),
   patientName: zod.string().optional(),
+  codigo: zod.string().optional(),
   title: zod.string(),
   description: zod.string().optional(),
-  category: zod.enum([
-    "cognitive",
-    "behavioral",
-    "emotional",
-    "social",
-    "physical",
-  ]),
-  status: zod.enum(["pending", "in-progress", "achieved", "discontinued"]),
+  category: zod.string(),
+  franjaEtaria: zod.string().optional(),
+  status: zod.enum(["activo", "logrado", "suspendido"]),
   targetDate: zod.string().optional(),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a goal
+ */
+export const DeleteGoalParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List suggested activities
+ */
+export const ListActividadesQueryParams = zod.object({
+  franjaEtaria: zod.coerce.string().optional(),
+  area: zod.coerce.string().optional(),
+  tipo: zod.coerce.string().optional(),
+});
+
+export const ListActividadesResponseItem = zod.object({
+  id: zod.number(),
+  titulo: zod.string(),
+  descripcion: zod.string().optional(),
+  tipo: zod.string(),
+  area: zod.string().optional(),
+  subarea: zod.string().optional(),
+  franjaEtaria: zod.string().optional(),
+  recursos: zod.string().optional(),
+  goalLibraryId: zod.number().optional(),
+  objetivoNombre: zod.string().optional(),
+  createdAt: zod.string(),
+});
+export const ListActividadesResponse = zod.array(ListActividadesResponseItem);
+
+/**
+ * @summary List patient-professional assignments
+ */
+export const ListPatientProfessionalsQueryParams = zod.object({
+  patientId: zod.coerce.number().optional(),
+  professionalId: zod.coerce.number().optional(),
+});
+
+export const ListPatientProfessionalsResponseItem = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  patientName: zod.string().optional(),
+  professionalId: zod.number(),
+  professionalName: zod.string().optional(),
+  professionalSpecialty: zod.string().optional(),
+  createdAt: zod.string(),
+});
+export const ListPatientProfessionalsResponse = zod.array(
+  ListPatientProfessionalsResponseItem,
+);
+
+/**
+ * @summary Assign a professional to a patient
+ */
+export const AssignPatientProfessionalBody = zod.object({
+  patientId: zod.number(),
+  professionalId: zod.number(),
+});
+
+/**
+ * @summary Remove a patient-professional assignment
+ */
+export const RemovePatientProfessionalParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**

@@ -5,10 +5,12 @@ import { z } from "zod/v4";
 export const goalsTable = pgTable("goals", {
   id: serial("id").primaryKey(),
   patientId: integer("patient_id").notNull(),
+  codigo: text("codigo"),
   title: text("title").notNull(),
   description: text("description"),
   category: text("category").notNull(),
-  status: text("status").notNull().default("pending"),
+  franjaEtaria: text("franja_etaria"),
+  status: text("status").notNull().default("activo"),
   targetDate: text("target_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

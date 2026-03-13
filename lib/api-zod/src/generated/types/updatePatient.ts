@@ -6,13 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreatePatient {
-  name: string;
+export interface UpdatePatient {
+  name?: string;
   age?: number;
   fechaNacimiento?: string;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;
-  fechaInicio?: string;
   observaciones?: string;
 }

@@ -4,6 +4,7 @@ export const patientsTable = pgTable("patients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   age: integer("age"),
+  fechaNacimiento: text("fecha_nacimiento"),
   diagnosis: text("diagnosis"),
   profesionalNombre: text("profesional_nombre"),
   franjaEtaria: text("franja_etaria"),

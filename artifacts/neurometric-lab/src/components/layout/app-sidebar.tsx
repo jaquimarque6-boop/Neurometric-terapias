@@ -1,12 +1,13 @@
 import { Link, useLocation } from "wouter";
-import { 
-  Activity, 
-  Users, 
-  CalendarDays, 
-  Target, 
+import {
+  Activity,
+  Users,
+  ClipboardList,
+  Target,
+  Sparkles,
   Stethoscope,
   BarChart3,
-  BookOpen,
+  LayoutDashboard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -19,20 +20,19 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { useLanguage } from "@/i18n";
+
+const navItems = [
+  { title: "Panel",          url: "/",             icon: LayoutDashboard },
+  { title: "Pacientes",      url: "/patients",      icon: Users           },
+  { title: "Registros",      url: "/registros",     icon: ClipboardList   },
+  { title: "Objetivos",      url: "/objetivos",     icon: Target          },
+  { title: "Actividades",    url: "/actividades",   icon: Sparkles        },
+  { title: "Profesionales",  url: "/professionals", icon: Stethoscope     },
+  { title: "Reportes",       url: "/reportes",      icon: BarChart3       },
+];
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { t } = useLanguage();
-
-  const navItems = [
-    { title: t.nav.dashboard, url: "/", icon: BarChart3 },
-    { title: t.nav.patients, url: "/patients", icon: Users },
-    { title: t.nav.sessions, url: "/sessions", icon: CalendarDays },
-    { title: t.nav.goals, url: "/goals", icon: Target },
-    { title: t.nav.goalLibrary, url: "/goal-library", icon: BookOpen },
-    { title: t.nav.professionals, url: "/professionals", icon: Stethoscope },
-  ];
 
   return (
     <Sidebar className="border-r border-border/50 bg-white">
@@ -51,30 +51,38 @@ export function AppSidebar() {
           </div>
         </Link>
       </SidebarHeader>
+
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-6 mb-2">
-            {t.nav.clinicalPlatform}
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-6 mb-2 uppercase tracking-widest">
+            Plataforma Clínica
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="px-4 gap-1">
+            <SidebarMenu className="px-4 gap-0.5">
               {navItems.map((item) => {
-                const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+                const isActive =
+                  location === item.url ||
+                  (item.url !== "/" && location.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive}
                       className={`
                         rounded-xl transition-all duration-200 h-11
-                        ${isActive 
-                          ? "bg-primary/10 text-primary font-semibold hover:bg-primary/15" 
+                        ${isActive
+                          ? "bg-primary/10 text-primary font-semibold hover:bg-primary/15"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}
                       `}
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3">
-                        <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-slate-400"}`} />
+                        <item.icon
+                          className={`h-5 w-5 shrink-0 ${isActive ? "text-primary" : "text-slate-400"}`}
+                        />
                         <span className="text-sm">{item.title}</span>
+                        {isActive && (
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
