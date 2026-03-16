@@ -40,7 +40,7 @@ artifacts-monorepo/
 |-------|------|-------------|
 | `/` | `dashboard.tsx` | Panel clínico — stats, latest sessions, patient list |
 | `/patients` | `patients.tsx` | Patient grid with semáforo badges and performance bars |
-| `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Plan Terapéutico/Sugerencias tabs |
+| `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Plan Terapéutico/Línea de tiempo/Sugerencias/Informe tabs |
 | `/registros` | `registros.tsx` | Clinical records CRUD with search/filter |
 | `/objetivos` | `objetivos.tsx` | Therapeutic goals with status toggle (activo/logrado/suspendido) |
 | `/actividades` | `actividades.tsx` | Activity library (70 activities: clínicas + familia) |
@@ -131,6 +131,37 @@ Color coding: sesion=sky, objetivo_asignado=primary, objetivo_logrado=emerald, e
 - **Inline editing**: `ActivityItem` renders with hover-reveal pencil/trash buttons; `ActivityAddForm` is an inline form (no dialog) with título, descripción, recursos fields
 - **Patient profile GoalCard**: when expanded, fetches `/api/goals/:id/activities` which looks up goalLibraryId and returns structured activities; shows "Actividades clínicas" section if clinicActs.length > 0, "Para el hogar / familia" if familyActs.length > 0; falls back to text blobs (actividadesClinicas/actividadesFamilia) if no structured activities exist
 - **GoalProgressDialog**: also shows activities as a checklist for marking usage in session
+
+### Authentication System
+
+Session-based auth using `express-session` + `bcryptjs`.
+
+**Backend** (`artifacts/api-server/src/routes/auth.ts`):
+- `POST /api/auth/login` — validates email/password, creates session
+- `GET /api/auth/me` — returns current user from session (401 if not logged in)
+- `POST /api/auth/logout` — destroys session
+- `POST /api/auth/register` — creates a new user (admin only)
+- `GET /api/auth/users` — lists all users (admin only)
+- `seedAdminIfNeeded()` — called on startup; seeds `admin@neurometric.cl / admin1234` if no users exist
+
+**DB Table** (`lib/db/src/schema/users.ts`): `users` table with `id, email, passwordHash, role, professionalId, name, createdAt`.
+
+**Frontend**:
+- `AuthProvider` + `useAuth()` hook in `artifacts/neurometric-lab/src/contexts/auth-context.tsx`
+- `LoginPage` at `/login` with branded design + demo credentials hint
+- All routes wrapped in `ProtectedRoute` which redirects to `/login` if not authenticated
+- App header shows user name + role + logout dropdown menu
+
+### Informe Tab (Clinical Report / PDF Export)
+
+The `InformeTab` component in `patient-profile.tsx` (tab value `"informe"`) generates a formatted clinical report:
+- Stats boxes: registros, active goals, achieved goals, average progress %
+- Professional team badges
+- Goals grouped by status (en progreso → activo → logrado) with progress bars
+- Last 5 clinical sessions with date, professional, and notes
+- Patient observations and evolution report (if filled)
+
+**PDF Export**: "Exportar PDF" button opens a new window with print-ready HTML (self-contained styles), then triggers `window.print()`.
 
 ## Seed Scripts
 

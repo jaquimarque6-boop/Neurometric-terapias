@@ -10,9 +10,11 @@ import registrosClinicosRouter from "./registros-clinicos";
 import actividadesRouter from "./actividades";
 import patientProfessionalsRouter from "./patient-professionals";
 import goalCodesRouter from "./goal-codes";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(patientsRouter);
 router.use(professionalsRouter);

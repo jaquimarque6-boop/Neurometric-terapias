@@ -1,12 +1,33 @@
 import { ReactNode } from "react";
+import { useLocation } from "wouter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
-import { Bell } from "lucide-react";
+import { Bell, LogOut, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const initials = user?.name
+    ? user.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
+    : "?";
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
 
   const style = {
     "--sidebar-width": "18rem",
@@ -59,9 +80,38 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-white"></span>
               </button>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-md cursor-pointer border-2 border-white">
-                DR
-              </div>
+
+              {/* User menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 hover:bg-slate-50 rounded-xl px-2 py-1 transition-colors">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-md border-2 border-white">
+                      {initials}
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <p className="text-xs font-semibold text-slate-700 leading-tight">{user?.name ?? "Usuario"}</p>
+                      <p className="text-xs text-slate-400 leading-tight capitalize">{user?.role === "admin" ? "Administrador" : "Profesional"}</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
+                      <p className="text-xs text-slate-500">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">

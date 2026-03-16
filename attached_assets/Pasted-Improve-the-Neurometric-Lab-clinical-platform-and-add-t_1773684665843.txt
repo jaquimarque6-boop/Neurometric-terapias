@@ -1,0 +1,129 @@
+Improve the Neurometric Lab clinical platform and add the missing core features to make it closer to a production MVP. Do not break existing functionality.
+
+1. Clinical Report System
+
+Add an automatic clinical report generator inside each patient profile.
+
+Create a new tab called "Informe".
+
+The report should automatically compile information from:
+- patient profile
+- active therapeutic goals
+- recent clinical records
+- progress percentage
+- professional assigned
+
+Generate a structured report like:
+
+Patient name
+Age
+Clinical area
+Assigned professional
+Therapeutic goals in progress
+Recent session summaries
+Progress analysis
+
+Add a button:
+
+"Generar informe"
+
+The system should auto-generate a clear clinical summary in Spanish based on the patient records.
+
+Add another button:
+
+"Exportar PDF"
+
+The report should be exportable as a PDF file.
+
+Keep the report clean and professional for sharing with families or institutions.
+
+2. Improve Goal Library Structure
+
+Ensure each goal has structured fields:
+
+- id_codigo
+- titulo
+- descripcion
+- area_clinica
+- subarea
+- edad_min
+- edad_max
+- nivel_dificultad
+- habilidades_trabajadas
+- actividades_clinicas
+- actividades_casa
+
+Make sure goal codes are auto-generated if not provided.
+
+Format example:
+
+NL-4-5-EXP-01
+
+3. Smart Suggestions Improvements
+
+Improve the "Sugerencias" tab so it selects up to 8 suggested goals based on:
+
+- patient age
+- clinical area
+- difficulty level
+- already assigned goals (exclude them)
+
+Display each suggestion with:
+
+goal code
+title
+short description
+difficulty badge
+Assign button
+
+4. Activity Support
+
+Inside each goal card in "Plan Terapéutico", display structured activities:
+
+Actividades clínicas
+Actividades para casa
+
+If activities exist in the goal library, show them automatically.
+
+5. Professional Login System (basic)
+
+Add a simple authentication system.
+
+Create login page:
+
+email
+password
+
+Roles:
+
+admin
+professional
+
+Professionals should only see their assigned patients.
+
+Admin can see all patients.
+
+6. UI Improvements
+
+Keep the interface clean and in Spanish.
+
+Improve patient profile layout so it clearly shows:
+
+Ficha
+Registros
+Plan Terapéutico
+Línea de tiempo
+Sugerencias
+Informe
+
+Ensure navigation between these tabs is smooth.
+
+7. Data Safety
+
+Do not delete existing patients, records or goals.
+
+Maintain compatibility with current database structure.
+
+Ensure all new features integrate with the current patient and goal system.
+
+Focus on stability and clean structure.
