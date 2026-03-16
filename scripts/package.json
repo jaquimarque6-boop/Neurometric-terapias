@@ -10,6 +10,7 @@
     "seed-csv": "tsx ./src/seed-csv.ts",
     "seed-modules": "tsx ./src/seed-modules.ts",
     "seed-goal-library-extended": "tsx ./src/seed-goal-library-extended.ts",
+    "seed-goal-library-200": "tsx ./src/seed-goal-library-200.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
