@@ -4,7 +4,8 @@ import {
   BookOpen, Search, Filter, ChevronDown, ChevronRight,
   Target, CheckCircle2, User, Sparkles, ClipboardList,
   AlertCircle, X, Check, Archive, Plus, Star, Lightbulb,
-  BarChart2, Link2, SortAsc, Wand2,
+  BarChart2, Link2, SortAsc, Wand2, Stethoscope, Home,
+  Trash2, Pencil, Loader2,
 } from "lucide-react";
 import {
   useListGoalLibrary,
@@ -13,7 +14,7 @@ import {
   getListGoalsQueryKey,
   getListGoalLibraryQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -458,6 +459,13 @@ export default function GoalLibrary() {
                                     )}
                                   </div>
                                 )}
+                                <div className="md:col-span-2">
+                                  <GoalActivitiesPanel
+                                    goalLibraryId={goal.id}
+                                    goalArea={goal.area}
+                                    goalNombre={goal.nombreObjetivo}
+                                  />
+                                </div>
                               </div>
                             </div>
                           )}
@@ -501,6 +509,349 @@ function DetailSection({ icon, title, content }: { icon: React.ReactNode; title:
         <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{title}</p>
       </div>
       <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{content}</p>
+    </div>
+  );
+}
+
+// ─── Goal Activities Panel ─────────────────────────────────────────────────────
+
+type Actividad = {
+  id: number;
+  titulo: string;
+  descripcion: string | null;
+  tipo: string;
+  area: string | null;
+  recursos: string | null;
+  goalLibraryId: number | null;
+  createdAt: string;
+};
+
+type ActForm = { titulo: string; descripcion: string; recursos: string };
+const emptyForm = (): ActForm => ({ titulo: "", descripcion: "", recursos: "" });
+
+function GoalActivitiesPanel({
+  goalLibraryId,
+  goalArea,
+  goalNombre,
+}: {
+  goalLibraryId: number;
+  goalArea: string;
+  goalNombre: string;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [addingType, setAddingType] = useState<"clinica" | "familia" | null>(null);
+  const [addForm, setAddForm] = useState<ActForm>(emptyForm());
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<ActForm>(emptyForm());
+
+  const qKey = ["goal-activities", goalLibraryId];
+
+  const { data: activities = [], isLoading } = useQuery<Actividad[]>({
+    queryKey: qKey,
+    queryFn: async () => {
+      const res = await fetch(`/api/actividades?goalLibraryId=${goalLibraryId}`);
+      if (!res.ok) throw new Error("Error al cargar actividades");
+      return res.json();
+    },
+  });
+
+  const clinicActs = activities.filter(a => a.tipo === "clinica");
+  const familyActs  = activities.filter(a => a.tipo === "familia");
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
+
+  const createMut = useMutation({
+    mutationFn: async (tipo: "clinica" | "familia") => {
+      const res = await fetch("/api/actividades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: addForm.titulo.trim(),
+          descripcion: addForm.descripcion.trim() || null,
+          recursos: addForm.recursos.trim() || null,
+          tipo,
+          area: goalArea,
+          goalLibraryId,
+          objetivoNombre: goalNombre,
+        }),
+      });
+      if (!res.ok) throw new Error("Error al crear actividad");
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidate();
+      setAddingType(null);
+      setAddForm(emptyForm());
+      toast({ title: "Actividad agregada" });
+    },
+    onError: () => toast({ title: "Error al agregar actividad", variant: "destructive" }),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/actividades/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: editForm.titulo.trim(),
+          descripcion: editForm.descripcion.trim() || null,
+          recursos: editForm.recursos.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Error al actualizar");
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidate();
+      setEditingId(null);
+      toast({ title: "Actividad actualizada" });
+    },
+    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/actividades/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Error al eliminar");
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Actividad eliminada" });
+    },
+    onError: () => toast({ title: "Error al eliminar", variant: "destructive" }),
+  });
+
+  const startEdit = (act: Actividad) => {
+    setEditingId(act.id);
+    setEditForm({ titulo: act.titulo, descripcion: act.descripcion ?? "", recursos: act.recursos ?? "" });
+    setAddingType(null);
+  };
+
+  const startAdd = (tipo: "clinica" | "familia") => {
+    setAddingType(tipo);
+    setAddForm(emptyForm());
+    setEditingId(null);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-5">
+      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-amber-500" />
+        Actividades terapéuticas
+      </p>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-3/4" />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* ─── Clínicas ─────────────────────────────────────── */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Stethoscope className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold text-primary uppercase tracking-wide">Sesión clínica</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 px-2 text-xs text-primary hover:bg-primary/10"
+                onClick={() => addingType === "clinica" ? setAddingType(null) : startAdd("clinica")}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Agregar
+              </Button>
+            </div>
+
+            {clinicActs.length === 0 && addingType !== "clinica" && (
+              <p className="text-xs text-slate-400 italic py-2 pl-1">Sin actividades clínicas aún.</p>
+            )}
+
+            {clinicActs.map(act => (
+              <ActivityItem
+                key={act.id}
+                act={act}
+                editing={editingId === act.id}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onEdit={() => startEdit(act)}
+                onSave={() => updateMut.mutate(act.id)}
+                onCancel={() => setEditingId(null)}
+                onDelete={() => deleteMut.mutate(act.id)}
+                saving={updateMut.isPending}
+                deleting={deleteMut.isPending}
+              />
+            ))}
+
+            {addingType === "clinica" && (
+              <ActivityAddForm
+                form={addForm}
+                setForm={setAddForm}
+                onSave={() => createMut.mutate("clinica")}
+                onCancel={() => setAddingType(null)}
+                saving={createMut.isPending}
+              />
+            )}
+          </div>
+
+          {/* ─── Familia ──────────────────────────────────────── */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Home className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Práctica en casa</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 px-2 text-xs text-emerald-700 hover:bg-emerald-50"
+                onClick={() => addingType === "familia" ? setAddingType(null) : startAdd("familia")}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Agregar
+              </Button>
+            </div>
+
+            {familyActs.length === 0 && addingType !== "familia" && (
+              <p className="text-xs text-slate-400 italic py-2 pl-1">Sin actividades para el hogar aún.</p>
+            )}
+
+            {familyActs.map(act => (
+              <ActivityItem
+                key={act.id}
+                act={act}
+                editing={editingId === act.id}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onEdit={() => startEdit(act)}
+                onSave={() => updateMut.mutate(act.id)}
+                onCancel={() => setEditingId(null)}
+                onDelete={() => deleteMut.mutate(act.id)}
+                saving={updateMut.isPending}
+                deleting={deleteMut.isPending}
+              />
+            ))}
+
+            {addingType === "familia" && (
+              <ActivityAddForm
+                form={addForm}
+                setForm={setAddForm}
+                onSave={() => createMut.mutate("familia")}
+                onCancel={() => setAddingType(null)}
+                saving={createMut.isPending}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityItem({
+  act, editing, editForm, setEditForm, onEdit, onSave, onCancel, onDelete, saving, deleting,
+}: {
+  act: Actividad;
+  editing: boolean;
+  editForm: ActForm;
+  setEditForm: (f: ActForm) => void;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
+  saving: boolean;
+  deleting: boolean;
+}) {
+  if (editing) {
+    return (
+      <ActivityAddForm
+        form={editForm}
+        setForm={setEditForm}
+        onSave={onSave}
+        onCancel={onCancel}
+        saving={saving}
+        isEdit
+      />
+    );
+  }
+  return (
+    <div className="group flex items-start gap-2 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-800 leading-snug">{act.titulo}</p>
+        {act.descripcion && (
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{act.descripcion}</p>
+        )}
+        {act.recursos && (
+          <p className="text-xs text-slate-400 mt-0.5 italic">Recursos: {act.recursos}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+        <button
+          onClick={onEdit}
+          className="p-1 rounded text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Editar"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={deleting}
+          className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+          title="Eliminar"
+        >
+          {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActivityAddForm({
+  form, setForm, onSave, onCancel, saving, isEdit = false,
+}: {
+  form: ActForm;
+  setForm: (f: ActForm) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+  isEdit?: boolean;
+}) {
+  const canSave = form.titulo.trim().length > 0;
+  return (
+    <div className="bg-white border border-primary/30 rounded-lg p-3 space-y-2 shadow-sm">
+      <Input
+        value={form.titulo}
+        onChange={e => setForm({ ...form, titulo: e.target.value })}
+        placeholder="Título de la actividad"
+        className="h-8 text-sm border-slate-200 focus-visible:ring-primary/30"
+        autoFocus
+      />
+      <Textarea
+        value={form.descripcion}
+        onChange={e => setForm({ ...form, descripcion: e.target.value })}
+        placeholder="Descripción (opcional)"
+        rows={2}
+        className="text-sm resize-none border-slate-200 focus-visible:ring-primary/30"
+      />
+      <Input
+        value={form.recursos}
+        onChange={e => setForm({ ...form, recursos: e.target.value })}
+        placeholder="Recursos necesarios (opcional)"
+        className="h-8 text-sm border-slate-200 focus-visible:ring-primary/30"
+      />
+      <div className="flex gap-2 justify-end pt-1">
+        <Button variant="ghost" size="sm" onClick={onCancel} className="h-7 text-xs">
+          Cancelar
+        </Button>
+        <Button
+          size="sm"
+          onClick={onSave}
+          disabled={!canSave || saving}
+          className="h-7 text-xs bg-primary hover:bg-primary/90 text-white"
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+          {isEdit ? "Guardar cambios" : "Agregar"}
+        </Button>
+      </div>
     </div>
   );
 }

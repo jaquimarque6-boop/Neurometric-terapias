@@ -126,6 +126,11 @@ Color coding: sesion=sky, objetivo_asignado=primary, objetivo_logrado=emerald, e
 - **GoalLibraryItem** fields use Spanish: `idObjetivo, nombreObjetivo, modulo, area, subarea, franjaEtaria, definicionOperativa, actividadesClinicas, actividadesFamilia, recomendacionClinica, metaPorcentaje, intentosSugeridos`
 - API hooks take params directly: `useListGoals({ patientId })` — NOT `useListGoals({ params: { patientId } })`
 - Activities table (70 records) covers goalLibraryIds 1-22; newer bank goals have text in actividadesClinicas/actividadesFamilia
+- **Banco de Objetivos activities management**: `GoalActivitiesPanel` component in `goal-library.tsx` — renders inside each expanded goal card; fetches `GET /api/actividades?goalLibraryId=X`; full CRUD via `POST /actividades`, `PATCH /actividades/:id`, `DELETE /actividades/:id`
+- **Activity types**: `tipo = "clinica"` (Sesión clínica, blue) or `tipo = "familia"` (Práctica en casa, green) — each shown in its own column inside `GoalActivitiesPanel`
+- **Inline editing**: `ActivityItem` renders with hover-reveal pencil/trash buttons; `ActivityAddForm` is an inline form (no dialog) with título, descripción, recursos fields
+- **Patient profile GoalCard**: when expanded, fetches `/api/goals/:id/activities` which looks up goalLibraryId and returns structured activities; shows "Actividades clínicas" section if clinicActs.length > 0, "Para el hogar / familia" if familyActs.length > 0; falls back to text blobs (actividadesClinicas/actividadesFamilia) if no structured activities exist
+- **GoalProgressDialog**: also shows activities as a checklist for marking usage in session
 
 ## Seed Scripts
 
