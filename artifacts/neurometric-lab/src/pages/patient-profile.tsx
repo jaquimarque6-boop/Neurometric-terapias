@@ -98,6 +98,13 @@ const STATUS_LABELS: Record<string, string> = {
   "suspendido":  "Archivado",
 };
 
+const PERFORMANCE_MAP: Record<string, { label: string; statusNuevo: string; pct: number }> = {
+  "logrado":      { label: "Logrado",    statusNuevo: "logrado",      pct: 100 },
+  "en progreso":  { label: "En progreso",statusNuevo: "en progreso",  pct: 65  },
+  "con ayuda":    { label: "Con ayuda",  statusNuevo: "en progreso",  pct: 40  },
+  "no logrado":   { label: "No logrado", statusNuevo: "activo",       pct: 15  },
+};
+
 const STATUS_STYLE: Record<string, string> = {
   "activo":      "bg-primary/10 text-primary border-primary/20",
   "en progreso": "bg-amber-100 text-amber-700 border-amber-200",
@@ -411,6 +418,7 @@ export default function PatientProfile() {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
   const [showBankDialog, setShowBankDialog] = useState(false);
+  const [isSavingRC, setIsSavingRC] = useState(false);
 
   const createRC   = useCreateRegistroClinico();
   const createGoal = useCreateGoal();
@@ -427,6 +435,46 @@ export default function PatientProfile() {
   const inProgressGoals = goals.filter(g => g.status === "en progreso");
   const achievedGoals   = goals.filter(g => g.status === "logrado");
   const archivedGoals   = goals.filter(g => g.status === "archivado" || g.status === "suspendido");
+
+  const handleSaveRegistro = async (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => {
+    setIsSavingRC(true);
+    try {
+      const rcRes = await fetch("/api/registros-clinicos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(d.registro),
+      });
+      if (!rcRes.ok) throw new Error("Error al crear registro");
+      const createdRC = await rcRes.json();
+
+      if (d.goalUpdates.length > 0) {
+        await Promise.all(d.goalUpdates.map(({ goalId, performance }) => {
+          const map = PERFORMANCE_MAP[performance];
+          if (!map) return Promise.resolve();
+          return fetch(`/api/goals/${goalId}/progress`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              statusNuevo: map.statusNuevo,
+              progressPct: map.pct,
+              registroClinicoId: createdRC.id,
+              nota: `Sesión ${createdRC.fecha}: ${map.label}`,
+            }),
+          });
+        }));
+      }
+
+      queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      setShowRegForm(false);
+      const n = d.goalUpdates.length;
+      toast({ title: n > 0 ? `Registro guardado · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Registro creado" });
+    } catch {
+      toast({ title: "Error al guardar", variant: "destructive" });
+    } finally {
+      setIsSavingRC(false);
+    }
+  };
 
   const invalidateGoals = () => queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
   const invalidateRC    = () => queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
@@ -854,22 +902,20 @@ export default function PatientProfile() {
 
       {/* Create clinical record dialog */}
       {showRegForm && (
-        <Dialog open onOpenChange={() => setShowRegForm(false)}>
-          <DialogContent className="sm:max-w-lg">
+        <Dialog open onOpenChange={() => !isSavingRC && setShowRegForm(false)}>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="font-display text-xl flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-primary" /> Nuevo registro clínico
               </DialogTitle>
-              <DialogDescription>Registra una sesión clínica para {patient.name}.</DialogDescription>
+              <DialogDescription>Sesión clínica para <strong>{patient.name}</strong>. Marca los objetivos trabajados hoy.</DialogDescription>
             </DialogHeader>
             <RegistroForm
               patientId={patientId}
               professionals={professionals as any[]}
-              onSave={(data) => createRC.mutate({ data }, {
-                onSuccess: () => { invalidateRC(); setShowRegForm(false); toast({ title: "Registro creado" }); },
-                onError: () => toast({ title: "Error", variant: "destructive" }),
-              })}
-              isSaving={createRC.isPending}
+              workingGoals={[...activeGoals, ...inProgressGoals]}
+              onSave={handleSaveRegistro}
+              isSaving={isSavingRC}
               onClose={() => setShowRegForm(false)}
             />
           </DialogContent>
@@ -1734,51 +1780,191 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
 }
 
 // ─── Forms ────────────────────────────────────────────────────────────────────
-function RegistroForm({ patientId, professionals, onSave, isSaving, onClose }: {
-  patientId: number; professionals: Array<{ id: number; name: string; specialty: string }>;
-  onSave: (d: any) => void; isSaving: boolean; onClose: () => void;
+function RegistroForm({ patientId, professionals, workingGoals, onSave, isSaving, onClose }: {
+  patientId: number;
+  professionals: Array<{ id: number; name: string; specialty: string }>;
+  workingGoals: Goal[];
+  onSave: (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => void;
+  isSaving: boolean;
+  onClose: () => void;
 }) {
   const [form, setForm] = useState({
     professionalId: "", fecha: new Date().toISOString().split("T")[0],
     resumenSesion: "", observaciones: "", recomendacionesHogar: "",
   });
+  const [selectedGoals, setSelectedGoals] = useState<Record<number, string>>({});
+  const [showNotes, setShowNotes] = useState(false);
+
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const toggleGoal = (goalId: number) => {
+    setSelectedGoals(prev => {
+      if (prev[goalId] !== undefined) {
+        const next = { ...prev };
+        delete next[goalId];
+        return next;
+      }
+      return { ...prev, [goalId]: "en progreso" };
+    });
+  };
+
+  const setPerformance = (goalId: number, perf: string) => {
+    setSelectedGoals(prev => ({ ...prev, [goalId]: perf }));
+  };
+
+  const goalUpdates = Object.entries(selectedGoals).map(([id, performance]) => ({
+    goalId: parseInt(id), performance,
+  }));
+
+  const canSave = form.fecha && (goalUpdates.length > 0 || form.resumenSesion.trim());
+
+  const perfBadgeColor: Record<string, string> = {
+    "logrado":     "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "en progreso": "bg-blue-50 text-blue-700 border-blue-200",
+    "con ayuda":   "bg-amber-50 text-amber-700 border-amber-200",
+    "no logrado":  "bg-red-50 text-red-700 border-red-200",
+  };
+
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-5 py-2">
+      {/* Header fields */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium text-slate-700">Profesional</label>
           <Select value={form.professionalId} onValueChange={v => set("professionalId", v)}>
             <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
             <SelectContent>{professionals.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium text-slate-700">Fecha *</label>
           <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-slate-50" />
         </div>
       </div>
+
+      {/* Objectives section */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Resumen de sesión</label>
-        <Textarea rows={3} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)} placeholder="Describe lo trabajado..." className="bg-slate-50 resize-none" />
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+            <Target className="h-4 w-4 text-primary" />
+            Objetivos trabajados hoy
+            {goalUpdates.length > 0 && (
+              <span className="ml-1 inline-flex items-center rounded-full bg-primary/10 text-primary border border-primary/20 text-xs px-2 py-0.5 font-medium">
+                {goalUpdates.length} seleccionados
+              </span>
+            )}
+          </label>
+          <span className="text-xs text-slate-400">{workingGoals.length} activos</span>
+        </div>
+
+        {workingGoals.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-400">
+            No hay objetivos activos asignados a este paciente.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-64 overflow-y-auto shadow-sm">
+            {workingGoals.map(goal => {
+              const checked = selectedGoals[goal.id] !== undefined;
+              const perf = selectedGoals[goal.id];
+              return (
+                <div
+                  key={goal.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 transition-colors cursor-pointer ${checked ? "bg-primary/5" : "hover:bg-slate-50"}`}
+                  onClick={() => toggleGoal(goal.id)}
+                >
+                  <div className="flex-shrink-0 text-primary" onClick={e => { e.stopPropagation(); toggleGoal(goal.id); }}>
+                    {checked
+                      ? <CheckSquare className="h-5 w-5" />
+                      : <Square className="h-5 w-5 text-slate-300" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${checked ? "text-slate-900" : "text-slate-500"}`}>
+                      {goal.title}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {goal.areaClinica ?? goal.category}{goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}
+                      {goal.status === "en progreso" && <span className="ml-1 text-blue-400">· En progreso</span>}
+                    </p>
+                  </div>
+                  {checked && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <Select value={perf} onValueChange={v => setPerformance(goal.id, v)}>
+                        <SelectTrigger className={`w-36 h-7 text-xs border ${perfBadgeColor[perf] ?? ""}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="logrado">✅ Logrado</SelectItem>
+                          <SelectItem value="en progreso">🔵 En progreso</SelectItem>
+                          <SelectItem value="con ayuda">🟡 Con ayuda</SelectItem>
+                          <SelectItem value="no logrado">🔴 No logrado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Observaciones</label>
-        <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)} placeholder="Observaciones clínicas..." className="bg-slate-50 resize-none" />
+
+      {/* Optional text notes – collapsible */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowNotes(n => !n)}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${showNotes ? "rotate-180" : ""}`} />
+          Notas adicionales
+          <span className="text-xs text-slate-400">(opcional)</span>
+        </button>
+
+        {showNotes && (
+          <div className="space-y-3 pt-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Resumen de sesión</label>
+              <Textarea rows={2} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)}
+                placeholder="Describe lo trabajado en sesión..." className="bg-slate-50 resize-none text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Observaciones clínicas</label>
+              <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)}
+                placeholder="Observaciones relevantes..." className="bg-slate-50 resize-none text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Recomendaciones para el hogar</label>
+              <Textarea rows={2} value={form.recomendacionesHogar} onChange={e => set("recomendacionesHogar", e.target.value)}
+                placeholder="Actividades para la familia..." className="bg-slate-50 resize-none text-sm" />
+            </div>
+          </div>
+        )}
       </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Recomendaciones para el hogar</label>
-        <Textarea rows={2} value={form.recomendacionesHogar} onChange={e => set("recomendacionesHogar", e.target.value)} placeholder="Actividades para la familia..." className="bg-slate-50 resize-none" />
-      </div>
-      <div className="flex gap-3 pt-2">
+
+      <div className="flex gap-3 pt-1 border-t border-slate-100">
         <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-        <Button className="flex-1 bg-primary hover:bg-primary/90" disabled={!form.fecha || isSaving}
+        <Button
+          className="flex-1 bg-primary hover:bg-primary/90"
+          disabled={!canSave || isSaving}
           onClick={() => onSave({
-            patientId, professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
-            fecha: form.fecha, resumenSesion: form.resumenSesion || undefined,
-            observaciones: form.observaciones || undefined, recomendacionesHogar: form.recomendacionesHogar || undefined,
-          })}>
-          {isSaving ? "Guardando..." : "Guardar registro"}
+            registro: {
+              patientId,
+              professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
+              fecha: form.fecha,
+              resumenSesion: form.resumenSesion || undefined,
+              observaciones: form.observaciones || undefined,
+              recomendacionesHogar: form.recomendacionesHogar || undefined,
+            },
+            goalUpdates,
+          })}
+        >
+          {isSaving
+            ? "Guardando..."
+            : goalUpdates.length > 0
+              ? `Guardar · ${goalUpdates.length} objetivo${goalUpdates.length !== 1 ? "s" : ""}`
+              : "Guardar registro"
+          }
         </Button>
       </div>
     </div>
