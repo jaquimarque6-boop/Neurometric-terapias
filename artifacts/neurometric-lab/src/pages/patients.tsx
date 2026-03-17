@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Users, Search, UserCircle, ChevronRight, Calendar, User, Activity
+  Users, Search, UserCircle, ChevronRight, Calendar, User, Activity, ArrowLeft
 } from "lucide-react";
 import { useListPatients } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -39,9 +39,25 @@ export default function Patients() {
       (p.franjaEtaria ?? "").includes(q);
   });
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors w-fit group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Volver
+        </button>
 
         <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
