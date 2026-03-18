@@ -1,22 +1,15 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Users, Search, UserCircle, ChevronRight, Calendar, User, Activity, ArrowLeft, Plus, X
+  Users, Search, UserCircle, ChevronRight, Calendar, User, Activity, ArrowLeft, Plus,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  useListPatients, useCreatePatient, useListProfessionals,
-  getListPatientsQueryKey,
-} from "@workspace/api-client-react";
+import { useListPatients } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
@@ -35,131 +28,6 @@ function progressLabel(semaforo?: string | null) {
   if (semaforo.includes("🟡")) return "En progreso";
   if (semaforo.includes("🔴")) return "Requiere atención";
   return semaforo;
-}
-
-function NuevoPacienteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const createPatient = useCreatePatient();
-  const { data: professionals = [] } = useListProfessionals();
-
-  const [form, setForm] = useState({
-    name: "", age: "", diagnosis: "", profesionalNombre: "",
-  });
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  const canSave = form.name.trim().length > 0;
-
-  const handleSave = () => {
-    if (!canSave) return;
-    createPatient.mutate(
-      {
-        data: {
-          name: form.name.trim(),
-          age: form.age ? parseInt(form.age) : undefined,
-          diagnosis: form.diagnosis.trim() || undefined,
-          profesionalNombre: form.profesionalNombre || undefined,
-        } as any,
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
-          toast({ title: "Paciente registrado correctamente" });
-          setForm({ name: "", age: "", diagnosis: "", profesionalNombre: "" });
-          onClose();
-        },
-        onError: () => toast({ title: "Error al guardar", variant: "destructive" }),
-      }
-    );
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl flex items-center gap-2" style={{ color: BRAND_BLUE }}>
-            <Plus className="h-5 w-5" style={{ color: BRAND_TEAL }} />
-            Nuevo paciente
-          </DialogTitle>
-          <DialogDescription>Completa los datos básicos del paciente.</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Nombre */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
-              Nombre <span className="text-red-400">*</span>
-            </label>
-            <Input
-              placeholder="Nombre completo"
-              value={form.name}
-              onChange={e => set("name", e.target.value)}
-              className="bg-slate-50"
-              autoFocus
-            />
-          </div>
-
-          {/* Edad */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Edad</label>
-            <Input
-              type="number"
-              placeholder="Años"
-              min={0}
-              max={120}
-              value={form.age}
-              onChange={e => set("age", e.target.value)}
-              className="bg-slate-50"
-            />
-          </div>
-
-          {/* Diagnóstico */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Diagnóstico <span className="text-slate-400 font-normal">(opcional)</span></label>
-            <Input
-              placeholder="Diagnóstico o motivo de consulta"
-              value={form.diagnosis}
-              onChange={e => set("diagnosis", e.target.value)}
-              className="bg-slate-50"
-            />
-          </div>
-
-          {/* Profesional */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Profesional asignado <span className="text-slate-400 font-normal">(opcional)</span></label>
-            <Select
-              value={form.profesionalNombre}
-              onValueChange={v => set("profesionalNombre", v === "__none__" ? "" : v)}
-            >
-              <SelectTrigger className="bg-slate-50">
-                <SelectValue placeholder="Sin asignar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sin asignar</SelectItem>
-                {(professionals as any[]).map((p: any) => (
-                  <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex gap-3 pt-2 border-t border-slate-100">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={createPatient.isPending}>
-            Cancelar
-          </Button>
-          <Button
-            className="flex-1 text-white font-semibold"
-            style={{ background: canSave ? BRAND_TEAL : undefined }}
-            disabled={!canSave || createPatient.isPending}
-            onClick={handleSave}
-          >
-            {createPatient.isPending ? "Guardando..." : "Guardar paciente"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 export default function Patients() {

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
@@ -109,7 +110,7 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2" style={{ color: BRAND_BLUE }}>
             <ClipboardList className="h-5 w-5" style={{ color: BRAND_TEAL }} />
-            {step === 1 ? "Nueva sesión" : patient?.name}
+            {step === 1 ? "Nuevo registro clínico" : patient?.name}
           </DialogTitle>
           <DialogDescription>
             {step === 1
@@ -229,10 +230,11 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [, navigate]        = useLocation();
-  const { user }            = useAuth();
-  const queryClient         = useQueryClient();
-  const [showSession, setShowSession] = useState(false);
+  const [, navigate]               = useLocation();
+  const { user }                   = useAuth();
+  const queryClient                = useQueryClient();
+  const [showSession, setShowSession]         = useState(false);
+  const [showNewPatient, setShowNewPatient]   = useState(false);
 
   const { data: patients = [] }  = useListPatients();
   const { data: registros = [] } = useListRegistrosClinicos({});
@@ -283,7 +285,7 @@ export default function Dashboard() {
           </button>
 
           <button
-            onClick={() => navigate("/patients")}
+            onClick={() => setShowNewPatient(true)}
             className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
             style={{ background: `linear-gradient(90deg, ${BRAND_BLUE} 0%, #1a5296 100%)` }}
           >
@@ -390,6 +392,11 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: ["registros-clinicos"] });
           queryClient.invalidateQueries({ queryKey: ["goals"] });
         }}
+      />
+
+      <NuevoPacienteModal
+        open={showNewPatient}
+        onClose={() => setShowNewPatient(false)}
       />
     </AppLayout>
   );
