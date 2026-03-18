@@ -94,7 +94,7 @@ router.get("/goals/:id/progress", async (req, res) => {
 
 router.post("/goals/:id/progress", async (req, res) => {
   const goalId = parseInt(req.params.id);
-  const { nota, statusNuevo, registroClinicoId, progressPct } = req.body;
+  const { nota, statusNuevo, registroClinicoId, progressPct, intentos, correctas } = req.body;
 
   const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!existing) return res.status(404).json({ error: "Goal not found" });
@@ -116,6 +116,8 @@ router.post("/goals/:id/progress", async (req, res) => {
     statusAnterior: existing.status,
     statusNuevo: statusNuevo ?? existing.status,
     progressPct: progressPct !== undefined ? progressPct : null,
+    intentos: intentos !== undefined ? parseInt(intentos) : null,
+    correctas: correctas !== undefined ? parseInt(correctas) : null,
     registroClinicoId: registroClinicoId ? parseInt(registroClinicoId) : null,
   }).returning();
 

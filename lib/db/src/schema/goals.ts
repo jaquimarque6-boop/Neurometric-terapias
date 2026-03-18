@@ -30,6 +30,8 @@ export const goalProgressTable = pgTable("goal_progress", {
   statusAnterior: text("status_anterior"),
   statusNuevo: text("status_nuevo"),
   progressPct: integer("progress_pct"),
+  intentos: integer("intentos"),
+  correctas: integer("correctas"),
   registroClinicoId: integer("registro_clinico_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

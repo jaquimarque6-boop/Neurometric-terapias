@@ -1,186 +1,21 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users, ClipboardList, Target, BarChart2,
-  ChevronRight, UserPlus, BookOpen, Stethoscope, Search,
+  ChevronRight, UserPlus, BookOpen, Stethoscope,
 } from "lucide-react";
-import {
-  useListPatients, useListRegistrosClinicos, useListGoals,
-  getListGoalsQueryKey, getListRegistrosClinicosQueryKey,
-} from "@workspace/api-client-react";
+import { useListPatients, useListRegistrosClinicos, useListGoals } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
-import { RegistroForm, PERFORMANCE_MAP } from "@/components/registro-clinico-form";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
 
-// ─── Session modal: step 1 = patient picker, step 2 = real RegistroForm ────────
-function SesionModal({ patients, open, onClose, onSaved }: {
-  patients: any[];
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { toast }                   = useToast();
-  const queryClient                 = useQueryClient();
-  const [step, setStep]             = useState<1 | 2>(1);
-  const [search, setSearch]         = useState("");
-  const [patient, setPatient]       = useState<any>(null);
-  const [isSaving, setIsSaving]     = useState(false);
-
-  const { data: goalsRaw = [] } = useQuery({
-    queryKey: ["session-goals", patient?.id],
-    queryFn: async () => {
-      const res = await fetch(`/api/goals?patientId=${patient.id}`);
-      if (!res.ok) throw new Error();
-      return res.json();
-    },
-    enabled: !!patient,
-  });
-
-  const workingGoals = (goalsRaw as any[]).filter(
-    g => g.status === "activo" || g.status === "en progreso"
-  );
-
-  const handleClose = () => {
-    setStep(1); setSearch(""); setPatient(null);
-    onClose();
-  };
-
-  const handleSave = async (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => {
-    setIsSaving(true);
-    try {
-      const rcRes = await fetch("/api/registros-clinicos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(d.registro),
-      });
-      if (!rcRes.ok) throw new Error();
-      const rc = await rcRes.json();
-
-      if (d.goalUpdates.length > 0) {
-        await Promise.all(d.goalUpdates.map(({ goalId, performance }) => {
-          const map = PERFORMANCE_MAP[performance];
-          if (!map) return Promise.resolve();
-          return fetch(`/api/goals/${goalId}/progress`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              statusNuevo: map.statusNuevo,
-              progressPct: map.pct,
-              registroClinicoId: rc.id,
-              nota: `Sesión ${rc.fecha}: ${map.label}`,
-            }),
-          });
-        }));
-      }
-
-      queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-      const n = d.goalUpdates.length;
-      toast({ title: n > 0 ? `Registro guardado · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Registro creado" });
-      onSaved();
-      handleClose();
-    } catch {
-      toast({ title: "Error al guardar", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const filtered = patients.filter(p =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl flex items-center gap-2" style={{ color: BRAND_BLUE }}>
-            <ClipboardList className="h-5 w-5" style={{ color: BRAND_TEAL }} />
-            Nuevo registro clínico
-          </DialogTitle>
-          <DialogDescription>
-            {step === 1
-              ? "Selecciona el paciente para registrar la sesión de hoy."
-              : `Sesión con ${patient?.name}`}
-          </DialogDescription>
-        </DialogHeader>
-
-        {step === 1 ? (
-          /* ── PASO 1: selector de paciente ─────────────────────────── */
-          <div className="space-y-3 py-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar paciente..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-slate-50"
-                autoFocus
-              />
-            </div>
-
-            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-72 overflow-y-auto">
-              {filtered.length === 0 ? (
-                <p className="text-center text-sm text-slate-400 py-8">Sin resultados</p>
-              ) : filtered.map((p: any) => (
-                <button
-                  key={p.id}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors"
-                  onClick={() => { setPatient(p); setStep(2); }}
-                >
-                  <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: BRAND_TEAL }}
-                  >
-                    {p.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
-                    {p.age && <p className="text-xs text-slate-500">{p.age} años</p>}
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300" />
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          /* ── PASO 2: formulario real ──────────────────────────────── */
-          <div>
-            <button
-              className="mb-3 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-              onClick={() => setStep(1)}
-            >
-              ← Cambiar paciente
-            </button>
-            <RegistroForm
-              patientId={patient.id}
-              workingGoals={workingGoals}
-              onSave={handleSave}
-              isSaving={isSaving}
-              onClose={handleClose}
-            />
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [, navigate]                               = useLocation();
-  const { user }                                   = useAuth();
-  const queryClient                                = useQueryClient();
-  const [showSession, setShowSession]              = useState(false);
-  const [showNewPatient, setShowNewPatient]         = useState(false);
+  const [, navigate]                           = useLocation();
+  const { user }                               = useAuth();
+  const [showNewPatient, setShowNewPatient]     = useState(false);
 
   const { data: patients = [] }  = useListPatients();
   const { data: registros = [] } = useListRegistrosClinicos({});
@@ -222,7 +57,7 @@ export default function Dashboard() {
         {/* Primary CTAs */}
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => setShowSession(true)}
+            onClick={() => navigate("/nueva-sesion")}
             className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
             style={{ background: `linear-gradient(90deg, ${BRAND_TEAL} 0%, #18b3b3 100%)` }}
           >
@@ -256,7 +91,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Quick actions — untouched */}
+          {/* Quick actions */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-border/50 shadow-sm p-6">
             <h2 className="text-base font-semibold text-slate-800 mb-4">Acceso rápido</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -329,13 +164,6 @@ export default function Dashboard() {
         </div>
 
       </div>
-
-      <SesionModal
-        patients={patients as any[]}
-        open={showSession}
-        onClose={() => setShowSession(false)}
-        onSaved={() => queryClient.invalidateQueries()}
-      />
 
       <NuevoPacienteModal
         open={showNewPatient}
