@@ -5,43 +5,40 @@ import {
   Users, ClipboardList, Target, BarChart2,
   ChevronRight, UserPlus, BookOpen, Stethoscope, Search,
 } from "lucide-react";
-import { useListPatients, useListRegistrosClinicos, useListGoals } from "@workspace/api-client-react";
+import {
+  useListPatients, useListRegistrosClinicos, useListGoals,
+  getListGoalsQueryKey, getListRegistrosClinicosQueryKey,
+} from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
+import { RegistroForm, PERFORMANCE_MAP } from "@/components/registro-clinico-form";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
 
-// ─── Quick session modal (2-step) ─────────────────────────────────────────────
-const PERF_MAP = {
-  trabajado: { statusNuevo: "en progreso", pct: 65,  nota: "Trabajado en sesión"  },
-  logrado:   { statusNuevo: "logrado",     pct: 100, nota: "Logrado en sesión"    },
-};
-
-function SesionRapidaModal({ patients, open, onClose, onSaved }: {
+// ─── Session modal: step 1 = patient picker, step 2 = real RegistroForm ────────
+function SesionModal({ patients, open, onClose, onSaved }: {
   patients: any[];
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { toast } = useToast();
-  const [step, setStep]                 = useState<1 | 2>(1);
-  const [search, setSearch]             = useState("");
-  const [patient, setPatient]           = useState<any>(null);
-  const [selections, setSelections]     = useState<Record<number, "trabajado" | "logrado">>({});
-  const [isSaving, setIsSaving]         = useState(false);
-  const fecha = new Date().toISOString().split("T")[0];
+  const { toast }                   = useToast();
+  const queryClient                 = useQueryClient();
+  const [step, setStep]             = useState<1 | 2>(1);
+  const [search, setSearch]         = useState("");
+  const [patient, setPatient]       = useState<any>(null);
+  const [isSaving, setIsSaving]     = useState(false);
 
-  const { data: goalsRaw = [], isLoading: loadingGoals } = useQuery({
+  const { data: goalsRaw = [] } = useQuery({
     queryKey: ["session-goals", patient?.id],
     queryFn: async () => {
       const res = await fetch(`/api/goals?patientId=${patient.id}`);
-      if (!res.ok) throw new Error("Error");
+      if (!res.ok) throw new Error();
       return res.json();
     },
     enabled: !!patient,
@@ -51,45 +48,43 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
     g => g.status === "activo" || g.status === "en progreso"
   );
 
-  const toggle = (goalId: number, type: "trabajado" | "logrado") =>
-    setSelections(prev => {
-      if (prev[goalId] === type) { const n = { ...prev }; delete n[goalId]; return n; }
-      return { ...prev, [goalId]: type };
-    });
-
   const handleClose = () => {
-    setStep(1); setSearch(""); setPatient(null); setSelections({});
+    setStep(1); setSearch(""); setPatient(null);
     onClose();
   };
 
-  const handleSave = async () => {
+  const handleSave = async (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => {
     setIsSaving(true);
     try {
       const rcRes = await fetch("/api/registros-clinicos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patientId: patient.id, fecha }),
+        body: JSON.stringify(d.registro),
       });
       if (!rcRes.ok) throw new Error();
       const rc = await rcRes.json();
 
-      const entries = Object.entries(selections);
-      if (entries.length > 0) {
-        await Promise.all(entries.map(([id, type]) => {
-          const m = PERF_MAP[type];
-          return fetch(`/api/goals/${id}/progress`, {
+      if (d.goalUpdates.length > 0) {
+        await Promise.all(d.goalUpdates.map(({ goalId, performance }) => {
+          const map = PERFORMANCE_MAP[performance];
+          if (!map) return Promise.resolve();
+          return fetch(`/api/goals/${goalId}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              statusNuevo: m.statusNuevo, progressPct: m.pct,
-              registroClinicoId: rc.id, nota: `${m.nota} (${fecha})`,
+              statusNuevo: map.statusNuevo,
+              progressPct: map.pct,
+              registroClinicoId: rc.id,
+              nota: `Sesión ${rc.fecha}: ${map.label}`,
             }),
           });
         }));
       }
 
-      const n = entries.length;
-      toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
+      queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      const n = d.goalUpdates.length;
+      toast({ title: n > 0 ? `Registro guardado · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Registro creado" });
       onSaved();
       handleClose();
     } catch {
@@ -102,20 +97,19 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
   const filtered = patients.filter(p =>
     !search || p.name.toLowerCase().includes(search.toLowerCase())
   );
-  const selCount = Object.keys(selections).length;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2" style={{ color: BRAND_BLUE }}>
             <ClipboardList className="h-5 w-5" style={{ color: BRAND_TEAL }} />
-            {step === 1 ? "Nuevo registro clínico" : patient?.name}
+            Nuevo registro clínico
           </DialogTitle>
           <DialogDescription>
             {step === 1
               ? "Selecciona el paciente para registrar la sesión de hoy."
-              : `Marca los objetivos trabajados hoy · ${fecha}`}
+              : `Sesión con ${patient?.name}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -158,69 +152,21 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
             </div>
           </div>
         ) : (
-          /* ── PASO 2: objetivos del paciente ───────────────────────── */
-          <div className="space-y-4 py-1">
-            {loadingGoals ? (
-              <div className="text-center py-8 text-slate-400 text-sm">Cargando objetivos…</div>
-            ) : workingGoals.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">
-                <Target className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm font-medium">Sin objetivos activos</p>
-                <p className="text-xs mt-1">Asigna objetivos desde el perfil del paciente.</p>
-              </div>
-            ) : (
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                {workingGoals.map((goal: any) => {
-                  const sel = selections[goal.id];
-                  return (
-                    <div key={goal.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800 leading-snug truncate">{goal.title}</p>
-                        <p className="text-xs text-slate-400 truncate mt-0.5">{goal.areaClinica ?? goal.category}</p>
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() => toggle(goal.id, "trabajado")}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all"
-                          style={sel === "trabajado"
-                            ? { background: "#eff6ff", borderColor: "#3b82f6", color: "#1d4ed8" }
-                            : { background: "#f8fafc", borderColor: "#e2e8f0", color: "#64748b" }}
-                        >
-                          Trabajado
-                        </button>
-                        <button
-                          onClick={() => toggle(goal.id, "logrado")}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all"
-                          style={sel === "logrado"
-                            ? { background: "#f0fdf4", borderColor: "#22c55e", color: "#15803d" }
-                            : { background: "#f8fafc", borderColor: "#e2e8f0", color: "#64748b" }}
-                        >
-                          ✓ Logrado
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-1 border-t border-slate-100">
-              <Button variant="outline" onClick={() => { setStep(1); setSelections({}); }}>
-                ← Volver
-              </Button>
-              <Button
-                className="flex-1 text-white font-semibold"
-                style={{ background: BRAND_TEAL }}
-                disabled={isSaving}
-                onClick={handleSave}
-              >
-                {isSaving
-                  ? "Guardando…"
-                  : selCount > 0
-                    ? `Guardar · ${selCount} objetivo${selCount !== 1 ? "s" : ""}`
-                    : "Guardar sesión"}
-              </Button>
-            </div>
+          /* ── PASO 2: formulario real ──────────────────────────────── */
+          <div>
+            <button
+              className="mb-3 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+              onClick={() => setStep(1)}
+            >
+              ← Cambiar paciente
+            </button>
+            <RegistroForm
+              patientId={patient.id}
+              workingGoals={workingGoals}
+              onSave={handleSave}
+              isSaving={isSaving}
+              onClose={handleClose}
+            />
           </div>
         )}
       </DialogContent>
@@ -230,11 +176,11 @@ function SesionRapidaModal({ patients, open, onClose, onSaved }: {
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [, navigate]               = useLocation();
-  const { user }                   = useAuth();
-  const queryClient                = useQueryClient();
-  const [showSession, setShowSession]         = useState(false);
-  const [showNewPatient, setShowNewPatient]   = useState(false);
+  const [, navigate]                               = useLocation();
+  const { user }                                   = useAuth();
+  const queryClient                                = useQueryClient();
+  const [showSession, setShowSession]              = useState(false);
+  const [showNewPatient, setShowNewPatient]         = useState(false);
 
   const { data: patients = [] }  = useListPatients();
   const { data: registros = [] } = useListRegistrosClinicos({});
@@ -384,14 +330,11 @@ export default function Dashboard() {
 
       </div>
 
-      <SesionRapidaModal
+      <SesionModal
         patients={patients as any[]}
         open={showSession}
         onClose={() => setShowSession(false)}
-        onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: ["registros-clinicos"] });
-          queryClient.invalidateQueries({ queryKey: ["goals"] });
-        }}
+        onSaved={() => queryClient.invalidateQueries()}
       />
 
       <NuevoPacienteModal
