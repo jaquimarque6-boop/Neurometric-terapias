@@ -550,6 +550,14 @@ export default function PatientProfile() {
                   </div>
                 )}
               </div>
+              <button
+                onClick={() => setShowRegForm(true)}
+                className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
+                style={{ background: "linear-gradient(90deg,#20C7C7 0%,#18b3b3 100%)" }}
+              >
+                <Plus className="h-4 w-4" />
+                Nueva sesión
+              </button>
             </div>
             {patient.diagnosis && (
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
@@ -912,7 +920,6 @@ export default function PatientProfile() {
             </DialogHeader>
             <RegistroForm
               patientId={patientId}
-              professionals={professionals as any[]}
               workingGoals={[...activeGoals, ...inProgressGoals]}
               onSave={handleSaveRegistro}
               isSaving={isSavingRC}
@@ -1780,16 +1787,15 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
 }
 
 // ─── Forms ────────────────────────────────────────────────────────────────────
-function RegistroForm({ patientId, professionals, workingGoals, onSave, isSaving, onClose }: {
+function RegistroForm({ patientId, workingGoals, onSave, isSaving, onClose }: {
   patientId: number;
-  professionals: Array<{ id: number; name: string; specialty: string }>;
   workingGoals: Goal[];
   onSave: (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => void;
   isSaving: boolean;
   onClose: () => void;
 }) {
   const [form, setForm] = useState({
-    professionalId: "", fecha: new Date().toISOString().split("T")[0],
+    fecha: new Date().toISOString().split("T")[0],
     resumenSesion: "", observaciones: "", recomendacionesHogar: "",
   });
   const [selectedGoals, setSelectedGoals] = useState<Record<number, string>>({});
@@ -1827,19 +1833,10 @@ function RegistroForm({ patientId, professionals, workingGoals, onSave, isSaving
 
   return (
     <div className="space-y-5 py-2">
-      {/* Header fields */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700">Profesional</label>
-          <Select value={form.professionalId} onValueChange={v => set("professionalId", v)}>
-            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-            <SelectContent>{professionals.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700">Fecha *</label>
-          <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-slate-50" />
-        </div>
+      {/* Date */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-slate-700">Fecha de sesión</label>
+        <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-slate-50" />
       </div>
 
       {/* Objectives section */}
@@ -1950,7 +1947,6 @@ function RegistroForm({ patientId, professionals, workingGoals, onSave, isSaving
           onClick={() => onSave({
             registro: {
               patientId,
-              professionalId: form.professionalId ? parseInt(form.professionalId) : undefined,
               fecha: form.fecha,
               resumenSesion: form.resumenSesion || undefined,
               observaciones: form.observaciones || undefined,

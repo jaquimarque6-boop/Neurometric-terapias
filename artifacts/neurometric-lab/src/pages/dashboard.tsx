@@ -27,12 +27,11 @@ export default function Dashboard() {
   ];
 
   const quickActions = [
-    { label: "Ver pacientes",      icon: Users,         path: "/patients",     desc: "Listado completo"          },
-    { label: "Registros clínicos", icon: ClipboardList, path: "/registros",    desc: "Sesiones y evolución"      },
-    { label: "Banco de objetivos", icon: BookOpen,      path: "/goal-library", desc: "Biblioteca terapéutica"    },
-    { label: "Profesionales",      icon: Stethoscope,   path: "/professionals",desc: "Equipo clínico"            },
-    { label: "Reportes",           icon: BarChart2,     path: "/reportes",     desc: "Estadísticas y avances"    },
-    { label: "Nuevo paciente",     icon: UserPlus,      path: "/patients",     desc: "Registrar paciente",       cta: true },
+    { label: "Ver pacientes",      icon: Users,         path: "/patients",     desc: "Listado completo"       },
+    { label: "Registros clínicos", icon: ClipboardList, path: "/registros",    desc: "Sesiones y evolución"   },
+    { label: "Banco de objetivos", icon: BookOpen,      path: "/goal-library", desc: "Biblioteca terapéutica" },
+    { label: "Profesionales",      icon: Stethoscope,   path: "/professionals",desc: "Equipo clínico"         },
+    { label: "Reportes",           icon: BarChart2,     path: "/reportes",     desc: "Estadísticas y avances" },
   ];
 
   const firstName = (user as any)?.name?.split(" ")[0] ?? "Profesional";
@@ -50,6 +49,16 @@ export default function Dashboard() {
           <h1 className="text-2xl sm:text-3xl font-display font-bold mb-1">{firstName}</h1>
           <p className="text-blue-200 text-sm">Plataforma clínica Neurometric Lab</p>
         </div>
+
+        {/* Primary CTA */}
+        <button
+          onClick={() => navigate("/patients")}
+          className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-bold text-base text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+          style={{ background: `linear-gradient(90deg, ${BRAND_TEAL} 0%, #18b3b3 100%)` }}
+        >
+          <UserPlus className="h-5 w-5" />
+          + Nuevo paciente
+        </button>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
