@@ -390,7 +390,9 @@ export default function GoalLibrary() {
 
                           {expanded && (
                             <div className="border-t border-slate-100 bg-slate-50/60">
-                              <div className="p-5 grid md:grid-cols-2 gap-5">
+                              <div className="p-5 space-y-5">
+
+                                {/* ── Definición operativa ────────────────── */}
                                 {goal.definicionOperativa && (
                                   <DetailSection
                                     icon={<ClipboardList className="h-4 w-4 text-primary" />}
@@ -398,74 +400,122 @@ export default function GoalLibrary() {
                                     content={goal.definicionOperativa}
                                   />
                                 )}
-                                {goal.actividadesClinicas && (
-                                  <DetailSection
-                                    icon={<Sparkles className="h-4 w-4 text-amber-500" />}
-                                    title="Actividades Clínicas"
-                                    content={goal.actividadesClinicas}
-                                  />
-                                )}
-                                {goal.actividadesFamilia && (
-                                  <div className="md:col-span-2">
-                                    <DetailSection
-                                      icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                                      title="Actividades para la Familia"
-                                      content={goal.actividadesFamilia}
-                                    />
-                                  </div>
-                                )}
-                                {goal.habilidadesRelacionadas && (
-                                  <DetailSection
-                                    icon={<Link2 className="h-4 w-4 text-violet-500" />}
-                                    title="Habilidades Relacionadas"
-                                    content={goal.habilidadesRelacionadas}
-                                  />
-                                )}
-                                {goal.prerequisitos && (
-                                  <DetailSection
-                                    icon={<ChevronRight className="h-4 w-4 text-sky-500" />}
-                                    title="Prerrequisitos"
-                                    content={goal.prerequisitos}
-                                  />
-                                )}
-                                {goal.recomendacionClinica && (
-                                  <div className="md:col-span-2">
-                                    <DetailSection
-                                      icon={<Target className="h-4 w-4 text-rose-500" />}
-                                      title="Recomendación Clínica"
-                                      content={goal.recomendacionClinica}
-                                    />
-                                  </div>
-                                )}
-                                {(goal.metaPorcentaje || goal.intentosSugeridos || goal.indicadorTipo) && (
-                                  <div className="md:col-span-2 flex flex-wrap gap-3">
-                                    {goal.metaPorcentaje && (
-                                      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs">
-                                        <span className="text-slate-500">Meta: </span>
-                                        <span className="font-semibold text-slate-700">{goal.metaPorcentaje}</span>
-                                      </div>
-                                    )}
-                                    {goal.intentosSugeridos && (
-                                      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs">
-                                        <span className="text-slate-500">Intentos: </span>
-                                        <span className="font-semibold text-slate-700">{goal.intentosSugeridos}</span>
-                                      </div>
-                                    )}
+
+                                {/* ── Indicador de logro + Intentos + Meta ── */}
+                                {(goal.indicadorTipo || goal.intentosSugeridos || goal.metaPorcentaje) && (
+                                  <div className="flex flex-wrap gap-2">
                                     {goal.indicadorTipo && (
-                                      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs">
-                                        <span className="text-slate-500">Indicador: </span>
+                                      <div className="bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                        <Target className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                                        <span className="text-slate-500">Indicador de logro:</span>
                                         <span className="font-semibold text-slate-700">{goal.indicadorTipo}</span>
                                       </div>
                                     )}
+                                    {goal.intentosSugeridos && (
+                                      <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                        <BarChart2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                        <span className="text-slate-500">Intentos sugeridos:</span>
+                                        <span className="font-semibold text-slate-700">{goal.intentosSugeridos}</span>
+                                      </div>
+                                    )}
+                                    {goal.metaPorcentaje && (
+                                      <div className="bg-white border border-emerald-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                        <span className="text-slate-500">Meta:</span>
+                                        <span className="font-semibold text-slate-700">{goal.metaPorcentaje}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
-                                <div className="md:col-span-2">
-                                  <GoalActivitiesPanel
-                                    goalLibraryId={goal.id}
-                                    goalArea={goal.area}
-                                    goalNombre={goal.nombreObjetivo}
-                                  />
+
+                                {/* ── Progresión de niveles ───────────────── */}
+                                {(goal.nivel1Descripcion || goal.nivel2Descripcion || goal.nivel3Descripcion) && (
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <SortAsc className="h-4 w-4 text-slate-500" />
+                                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Progresión de niveles</p>
+                                    </div>
+                                    <div className="grid md:grid-cols-3 gap-3">
+                                      {goal.nivel1Descripcion && (
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                          <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">Nivel 1 · Básico</p>
+                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel1Descripcion}</p>
+                                        </div>
+                                      )}
+                                      {goal.nivel2Descripcion && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Nivel 2 · Intermedio</p>
+                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel2Descripcion}</p>
+                                        </div>
+                                      )}
+                                      {goal.nivel3Descripcion && (
+                                        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                                          <p className="text-xs font-bold text-violet-700 uppercase tracking-wider mb-2">Nivel 3 · Generalización</p>
+                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel3Descripcion}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* ── Marco conceptual ────────────────────── */}
+                                {goal.marcoConceptual && (
+                                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <BookOpen className="h-4 w-4 text-sky-600" />
+                                      <p className="text-xs font-semibold text-sky-700 uppercase tracking-widest">Marco Conceptual</p>
+                                    </div>
+                                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.marcoConceptual}</p>
+                                  </div>
+                                )}
+
+                                {/* ── Actividades + prerrequisitos ────────── */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  {goal.actividadesClinicas && (
+                                    <DetailSection
+                                      icon={<Stethoscope className="h-4 w-4 text-amber-500" />}
+                                      title="Actividades Clínicas"
+                                      content={goal.actividadesClinicas}
+                                    />
+                                  )}
+                                  {goal.actividadesFamilia && (
+                                    <DetailSection
+                                      icon={<Home className="h-4 w-4 text-emerald-500" />}
+                                      title="Actividades para el Hogar"
+                                      content={goal.actividadesFamilia}
+                                    />
+                                  )}
+                                  {goal.habilidadesRelacionadas && (
+                                    <DetailSection
+                                      icon={<Link2 className="h-4 w-4 text-violet-500" />}
+                                      title="Habilidades Relacionadas"
+                                      content={goal.habilidadesRelacionadas}
+                                    />
+                                  )}
+                                  {goal.prerequisitos && (
+                                    <DetailSection
+                                      icon={<ChevronRight className="h-4 w-4 text-sky-500" />}
+                                      title="Prerrequisitos"
+                                      content={goal.prerequisitos}
+                                    />
+                                  )}
+                                  {goal.recomendacionClinica && (
+                                    <div className="md:col-span-2">
+                                      <DetailSection
+                                        icon={<Target className="h-4 w-4 text-rose-500" />}
+                                        title="Recomendación Clínica"
+                                        content={goal.recomendacionClinica}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
+
+                                {/* ── Panel de actividades adicionales ────── */}
+                                <GoalActivitiesPanel
+                                  goalLibraryId={goal.id}
+                                  goalArea={goal.area}
+                                  goalNombre={goal.nombreObjetivo}
+                                />
                               </div>
                             </div>
                           )}
@@ -1009,6 +1059,13 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
     codigo: "",
     nombreObjetivo: "",
     definicionOperativa: "",
+    indicadorTipo: "",
+    intentosSugeridos: "",
+    metaPorcentaje: "",
+    marcoConceptual: "",
+    nivel1Descripcion: "",
+    nivel2Descripcion: "",
+    nivel3Descripcion: "",
     areaClinica: "lenguaje",
     subarea: "",
     nivelDificultad: "básico",
@@ -1018,9 +1075,6 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
     actividadesFamilia: "",
     habilidadesRelacionadas: "",
     prerequisitos: "",
-    metaPorcentaje: "",
-    intentosSugeridos: "",
-    indicadorTipo: "",
   });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
   const handleAreaChange = (v: string) => setForm(f => ({ ...f, areaClinica: v, subarea: "", codigo: "" }));
@@ -1074,13 +1128,17 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
           franjaEtariaMax: franjaMax,
           nivelDificultad: form.nivelDificultad,
           definicionOperativa: form.definicionOperativa || null,
+          indicadorTipo: form.indicadorTipo || null,
+          intentosSugeridos: form.intentosSugeridos || null,
+          metaPorcentaje: form.metaPorcentaje || null,
+          marcoConceptual: form.marcoConceptual || null,
+          nivel1Descripcion: form.nivel1Descripcion || null,
+          nivel2Descripcion: form.nivel2Descripcion || null,
+          nivel3Descripcion: form.nivel3Descripcion || null,
           actividadesClinicas: form.actividadesClinicas || null,
           actividadesFamilia: form.actividadesFamilia || null,
           habilidadesRelacionadas: form.habilidadesRelacionadas || null,
           prerequisitos: form.prerequisitos || null,
-          metaPorcentaje: form.metaPorcentaje || null,
-          intentosSugeridos: form.intentosSugeridos || null,
-          indicadorTipo: form.indicadorTipo || null,
           estadoBanco: "activo",
         }),
       });
@@ -1136,6 +1194,77 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
               placeholder="Describe el comportamiento observable y medible esperado..."
               className="bg-slate-50 resize-none"
             />
+          </div>
+
+          {/* Indicador de logro + Intentos + Meta */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Indicador de logro</label>
+              <Input value={form.indicadorTipo} onChange={e => set("indicadorTipo", e.target.value)}
+                placeholder="Ej: Denominación espontánea" className="bg-slate-50 text-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Intentos sugeridos</label>
+              <Input value={form.intentosSugeridos} onChange={e => set("intentosSugeridos", e.target.value)}
+                placeholder="Ej: 10 por sesión" className="bg-slate-50 text-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Meta (%)</label>
+              <Input value={form.metaPorcentaje} onChange={e => set("metaPorcentaje", e.target.value)}
+                placeholder="Ej: 80% en 4/5 intentos" className="bg-slate-50 text-sm" />
+            </div>
+          </div>
+
+          {/* Marco conceptual */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <BookOpen className="h-4 w-4 text-sky-500" />
+              Marco conceptual
+            </label>
+            <Textarea
+              rows={3}
+              value={form.marcoConceptual}
+              onChange={e => set("marcoConceptual", e.target.value)}
+              placeholder="Fundamento teórico del objetivo (enfoque clínico, modelo de intervención...)"
+              className="bg-slate-50 resize-none text-sm"
+            />
+          </div>
+
+          {/* Progresión de niveles */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <SortAsc className="h-4 w-4 text-slate-500" />
+              Progresión de niveles
+            </label>
+            <div className="grid gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-0.5">Nivel 1 · Básico</span>
+                </div>
+                <Textarea rows={2} value={form.nivel1Descripcion}
+                  onChange={e => set("nivel1Descripcion", e.target.value)}
+                  placeholder="Cómo se trabaja este objetivo en nivel inicial..."
+                  className="bg-slate-50 resize-none text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-0.5">Nivel 2 · Intermedio</span>
+                </div>
+                <Textarea rows={2} value={form.nivel2Descripcion}
+                  onChange={e => set("nivel2Descripcion", e.target.value)}
+                  placeholder="Cómo se trabaja este objetivo en nivel intermedio..."
+                  className="bg-slate-50 resize-none text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-md px-2 py-0.5">Nivel 3 · Generalización</span>
+                </div>
+                <Textarea rows={2} value={form.nivel3Descripcion}
+                  onChange={e => set("nivel3Descripcion", e.target.value)}
+                  placeholder="Cómo se generaliza en contextos cotidianos..."
+                  className="bg-slate-50 resize-none text-sm" />
+              </div>
+            </div>
           </div>
 
           {/* Area + Subarea */}
@@ -1217,25 +1346,6 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
             <Textarea rows={2} value={form.actividadesFamilia}
               onChange={e => set("actividadesFamilia", e.target.value)}
               placeholder="Actividades para la familia en casa..." className="bg-slate-50 resize-none text-sm" />
-          </div>
-
-          {/* Meta + intentos + indicador */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Meta (%)</label>
-              <Input value={form.metaPorcentaje} onChange={e => set("metaPorcentaje", e.target.value)}
-                placeholder="80% en 4/5 intentos" className="bg-slate-50 text-sm" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Intentos sugeridos</label>
-              <Input value={form.intentosSugeridos} onChange={e => set("intentosSugeridos", e.target.value)}
-                placeholder="10 por sesión" className="bg-slate-50 text-sm" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Tipo de indicador</label>
-              <Input value={form.indicadorTipo} onChange={e => set("indicadorTipo", e.target.value)}
-                placeholder="Denominación espontánea" className="bg-slate-50 text-sm" />
-            </div>
           </div>
 
           <div className="flex gap-3 pt-2">

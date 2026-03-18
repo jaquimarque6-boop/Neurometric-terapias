@@ -96,6 +96,10 @@ router.post("/goal-library", async (req, res) => {
     intentosSugeridos: body.intentosSugeridos ?? null,
     recomendacionClinica: body.recomendacionClinica ?? null,
     indicadorTipo: body.indicadorTipo ?? null,
+    marcoConceptual: body.marcoConceptual ?? null,
+    nivel1Descripcion: body.nivel1Descripcion ?? null,
+    nivel2Descripcion: body.nivel2Descripcion ?? null,
+    nivel3Descripcion: body.nivel3Descripcion ?? null,
   }).returning();
   res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
@@ -111,6 +115,16 @@ router.patch("/goal-library/:id", async (req, res) => {
   if (body.definicionOperativa !== undefined) updates.definicionOperativa = body.definicionOperativa;
   if (body.habilidadesRelacionadas !== undefined) updates.habilidadesRelacionadas = body.habilidadesRelacionadas;
   if (body.prerequisitos !== undefined) updates.prerequisitos = body.prerequisitos;
+  if (body.actividadesClinicas !== undefined) updates.actividadesClinicas = body.actividadesClinicas;
+  if (body.actividadesFamilia !== undefined) updates.actividadesFamilia = body.actividadesFamilia;
+  if (body.metaPorcentaje !== undefined) updates.metaPorcentaje = body.metaPorcentaje;
+  if (body.intentosSugeridos !== undefined) updates.intentosSugeridos = body.intentosSugeridos;
+  if (body.indicadorTipo !== undefined) updates.indicadorTipo = body.indicadorTipo;
+  if (body.recomendacionClinica !== undefined) updates.recomendacionClinica = body.recomendacionClinica;
+  if (body.marcoConceptual !== undefined) updates.marcoConceptual = body.marcoConceptual;
+  if (body.nivel1Descripcion !== undefined) updates.nivel1Descripcion = body.nivel1Descripcion;
+  if (body.nivel2Descripcion !== undefined) updates.nivel2Descripcion = body.nivel2Descripcion;
+  if (body.nivel3Descripcion !== undefined) updates.nivel3Descripcion = body.nivel3Descripcion;
   const [item] = await db.update(goalLibraryTable).set(updates).where(eq(goalLibraryTable.id, id)).returning();
   if (!item) return res.status(404).json({ error: "Goal not found" });
   res.json({ ...item, createdAt: item.createdAt.toISOString() });
