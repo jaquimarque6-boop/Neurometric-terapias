@@ -351,26 +351,26 @@ export default function GoalLibrary() {
 
         {/* ── Breadcrumb ────────────────────────────────────────────── */}
         {(areaFilter !== "all") && (
-          <div className="flex items-center gap-1.5 text-sm -mt-2 px-1 flex-wrap">
+          <div className="flex items-center gap-1 text-sm flex-wrap bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
             <button
               onClick={clearFilters}
-              className="text-slate-400 hover:text-primary transition-colors font-medium"
+              className="text-primary/70 hover:text-primary transition-colors font-medium"
             >
               Banco
             </button>
-            <span className="text-slate-300">/</span>
+            <span className="text-slate-300 mx-0.5">/</span>
             <button
               onClick={() => { setDrillGrupo(null); setDrillSubarea(null); setSubareaFilter("all"); }}
-              className={`font-medium transition-colors ${!drillGrupo ? "text-slate-800" : "text-slate-400 hover:text-primary"}`}
+              className={`font-medium transition-colors ${!drillGrupo ? "text-slate-800" : "text-primary/70 hover:text-primary"}`}
             >
               {AREA_LABELS[areaFilter] ?? areaFilter}
             </button>
             {drillGrupo && (
               <>
-                <span className="text-slate-300">/</span>
+                <span className="text-slate-300 mx-0.5">/</span>
                 <button
                   onClick={() => { setDrillSubarea(null); setSubareaFilter("all"); }}
-                  className={`font-medium transition-colors ${!drillSubarea ? "text-slate-800" : "text-slate-400 hover:text-primary"}`}
+                  className={`font-medium transition-colors ${!drillSubarea ? "text-slate-800" : "text-primary/70 hover:text-primary"}`}
                 >
                   {drillGrupo}
                 </button>
@@ -378,8 +378,8 @@ export default function GoalLibrary() {
             )}
             {drillSubarea && (
               <>
-                <span className="text-slate-300">/</span>
-                <span className="font-medium text-slate-800">{drillSubarea}</span>
+                <span className="text-slate-300 mx-0.5">/</span>
+                <span className="font-semibold text-slate-800">{drillSubarea}</span>
               </>
             )}
           </div>
@@ -669,30 +669,18 @@ export default function GoalLibrary() {
                   <button
                     key={g.name}
                     onClick={() => setDrillGrupo(g.name)}
-                    className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md group bg-white ${ac.border}`}
+                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all hover:shadow-md active:scale-[0.98] group bg-white ${ac.border}`}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className={`font-bold text-sm mb-1 ${ac.text}`}>{g.name}</p>
-                        <p className="text-xs text-slate-400 font-medium">
-                          {g.count} objetivo{g.count !== 1 ? "s" : ""}
+                        <p className={`font-bold text-base leading-snug ${ac.text}`}>{g.name}</p>
+                        <p className="text-sm text-slate-400 mt-0.5">
+                          {g.count} objetivo{g.count !== 1 ? "s" : ""} · {g.subareas.length > 0 ? g.subareas.length : "?"} subcategoría{g.subareas.length !== 1 ? "s" : ""}
                         </p>
-                        {g.subareas.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {g.subareas.slice(0, 4).map(s => (
-                              <span key={s} className={`text-[10px] px-1.5 py-0.5 rounded-full ${ac.bg} ${ac.text} font-medium`}>
-                                {s}
-                              </span>
-                            ))}
-                            {g.subareas.length > 4 && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium">
-                                +{g.subareas.length - 4} más
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
-                      <ChevronRight className={`h-4 w-4 ${ac.text} opacity-50 group-hover:opacity-100 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-all`} />
+                      <div className={`shrink-0 w-9 h-9 rounded-full ${ac.bg} flex items-center justify-center`}>
+                        <ChevronRight className={`h-4 w-4 ${ac.text} group-hover:translate-x-0.5 transition-transform`} />
+                      </div>
                     </div>
                   </button>
                 );
@@ -701,30 +689,28 @@ export default function GoalLibrary() {
           )
 
         ) : (
-          /* ── Browse Level 2: Subarea cards for selected grupo ── */
+          /* ── Browse Level 2: Subcategoría cards for selected grupo ── */
           subareaCards.length === 0 ? (
             <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
               <BookOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
               <p className="text-slate-500 font-medium">No hay objetivos en este grupo</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="space-y-2">
               {subareaCards.map(sc => {
                 const ac = getAreaColor(areaFilter);
                 return (
                   <button
                     key={sc.name}
                     onClick={() => { setDrillSubarea(sc.name); setSubareaFilter(sc.name); }}
-                    className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md group bg-white ${ac.border}`}
+                    className={`w-full flex items-center justify-between gap-4 px-5 py-4 rounded-xl border-2 bg-white transition-all hover:shadow-md active:scale-[0.99] group ${ac.border}`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm mb-1 ${ac.text}`}>{sc.name}</p>
-                        <p className="text-xs text-slate-400 font-medium">
-                          {sc.count} objetivo{sc.count !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <ChevronRight className={`h-4 w-4 ${ac.text} opacity-50 group-hover:opacity-100 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-all`} />
+                    <span className={`font-semibold text-base ${ac.text}`}>{sc.name}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className={`text-sm font-bold px-3 py-1 rounded-full ${ac.bg} ${ac.text}`}>
+                        {sc.count}
+                      </span>
+                      <ChevronRight className={`h-5 w-5 ${ac.text} opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all`} />
                     </div>
                   </button>
                 );
