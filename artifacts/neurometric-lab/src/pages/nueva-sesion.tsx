@@ -94,6 +94,11 @@ export default function NuevaSesion() {
   // Which goals have their clinical detail panel open
   const [detailOpenFor, setDetailOpenFor]     = useState<Set<string>>(new Set());
 
+  // AI-generated guidance cache: detailKey → { marcoConceptual, sugerenciaFamilia }
+  const [aiGuidanceCache, setAiGuidanceCache] = useState<Record<string, { marcoConceptual: string; sugerenciaFamilia: string }>>({});
+  const [generatingFor, setGeneratingFor]     = useState<Set<string>>(new Set());
+  const aiGuidanceFetching                    = useRef(new Set<string>());
+
   // Track auto-check to avoid resetting after manual changes
   const hasAutoChecked = useRef<number | null>(null);
 
@@ -187,6 +192,9 @@ export default function NuevaSesion() {
     setAdHocRows({});
     setDetailCache({});
     setDetailOpenFor(new Set());
+    setAiGuidanceCache({});
+    setGeneratingFor(new Set());
+    aiGuidanceFetching.current.clear();
     hasAutoChecked.current = null;
   };
 
@@ -202,7 +210,31 @@ export default function NuevaSesion() {
     } catch {}
   };
 
-  const toggleDetailFor = (key: string, goalId?: number) => {
+  // ── Generate AI guidance (marco conceptual + sugerencia familia) ───────────
+  type GoalMeta = { title: string; area?: string; subarea?: string; franjaEtaria?: string; definicionOperativa?: string };
+
+  const generateGuidance = async (key: string, meta: GoalMeta) => {
+    if (aiGuidanceFetching.current.has(key) || aiGuidanceCache[key]) return;
+    aiGuidanceFetching.current.add(key);
+    setGeneratingFor(prev => new Set([...prev, key]));
+    try {
+      const res = await fetch("/api/goal-guidance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(meta),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiGuidanceCache(prev => ({ ...prev, [key]: data }));
+      }
+    } catch {}
+    finally {
+      aiGuidanceFetching.current.delete(key);
+      setGeneratingFor(prev => { const next = new Set(prev); next.delete(key); return next; });
+    }
+  };
+
+  const toggleDetailFor = (key: string, goalId?: number, goalMeta?: GoalMeta) => {
     setDetailOpenFor(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -210,6 +242,7 @@ export default function NuevaSesion() {
       } else {
         next.add(key);
         if (goalId) fetchDetail(goalId);
+        if (goalMeta) generateGuidance(key, goalMeta);
       }
       return next;
     });
@@ -353,8 +386,9 @@ export default function NuevaSesion() {
     isAdHoc,
     isSuggested,
     onRemove,
-    libraryData,   // for ad-hoc: the libGoal object; for assigned: detailCache[goalId]?.libraryEntry
+    libraryData,
     goalIdForDetail,
+    goalMeta,
   }: {
     goalId: number;
     title: string;
@@ -367,16 +401,22 @@ export default function NuevaSesion() {
     onRemove?: () => void;
     libraryData?: any;
     goalIdForDetail?: number;
+    goalMeta?: GoalMeta;
   }) {
     const estadoStyle = ESTADO_STYLE[row.estado] ?? "";
     const pct = calcPct(row.intentos, row.correctas);
     const autoEstado = calcAutoEstado(row.intentos, row.correctas);
     const detailKey = isAdHoc ? `adhoc-${goalId}` : `${goalId}`;
     const showDetail = detailOpenFor.has(detailKey);
+    const aiGuidance = aiGuidanceCache[detailKey];
+    const isGeneratingGuidance = generatingFor.has(detailKey);
 
     // For assigned goals: libraryEntry from cache; for ad-hoc: the libGoal itself
     const entry = isAdHoc ? libraryData : (detailCache[goalIdForDetail ?? goalId]?.libraryEntry ?? null);
-    const canShowDetail = !!(entry?.marcoConceptual || entry?.definicionOperativa || entry?.actividadesClinicas || entry?.actividadesFamilia);
+    // Structured activities from DB (for assigned goals only)
+    const dbActivities: any[] = isAdHoc
+      ? []
+      : (detailCache[goalIdForDetail ?? goalId]?.activities ?? []);
 
     return (
       <div className={`transition-colors ${row.checked ? "bg-slate-50/60" : ""}`}>
@@ -481,60 +521,114 @@ export default function NuevaSesion() {
               </div>
             )}
 
-            {/* Clinical detail toggle */}
-            {(isAdHoc ? canShowDetail : (entry !== null || goalIdForDetail)) && (
-              <button
-                className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-primary transition-colors"
-                onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId)}
-              >
-                <Info className="h-3.5 w-3.5" />
-                {showDetail ? "Ocultar descripción clínica" : "Ver descripción clínica"}
-                <ChevronRight className={`h-3 w-3 transition-transform ${showDetail ? "rotate-90" : ""}`} />
-              </button>
-            )}
+            {/* Clinical detail toggle — always available when row is checked */}
+            <button
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-primary transition-colors"
+              onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId, goalMeta)}
+            >
+              <Info className="h-3.5 w-3.5" />
+              {showDetail ? "Ocultar guía clínica" : "Ver guía clínica"}
+              <ChevronRight className={`h-3 w-3 transition-transform ${showDetail ? "rotate-90" : ""}`} />
+            </button>
 
             {/* Clinical detail panel */}
-            {showDetail && entry && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 text-xs">
-                {entry.marcoConceptual && (
-                  <div className="flex gap-2">
-                    <Brain className="h-3.5 w-3.5 text-violet-400 shrink-0 mt-0.5" />
+            {showDetail && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+
+                {/* Definición operativa */}
+                {(entry?.definicionOperativa) && (
+                  <div className="flex gap-2.5 px-3.5 py-3 bg-white border-b border-slate-100">
+                    <ClipboardList className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-slate-600 mb-0.5">Marco conceptual</p>
-                      <p className="text-slate-500 leading-relaxed line-clamp-3">{entry.marcoConceptual}</p>
+                      <p className="font-semibold text-slate-600 mb-0.5">Definición operativa</p>
+                      <p className="text-slate-500 leading-relaxed">{entry.definicionOperativa}</p>
                     </div>
                   </div>
                 )}
-                {entry.actividadesClinicas && (
-                  <div className="flex gap-2">
-                    <ClipboardList className="h-3.5 w-3.5 text-teal-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-slate-600 mb-0.5">Actividades clínicas</p>
-                      <ul className="text-slate-500 leading-relaxed space-y-0.5">
-                        {entry.actividadesClinicas
-                          .split(/[·•\n]+/)
+
+                {/* Marco conceptual — AI generated */}
+                <div className="flex gap-2.5 px-3.5 py-3 bg-violet-50/60 border-b border-violet-100/60">
+                  <Brain className="h-3.5 w-3.5 text-violet-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="font-semibold text-violet-700">Marco conceptual</p>
+                      {(aiGuidance?.marcoConceptual || isGeneratingGuidance) && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 shrink-0">IA</span>
+                      )}
+                    </div>
+                    {isGeneratingGuidance && !aiGuidance?.marcoConceptual ? (
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-violet-200/60 rounded-full animate-pulse w-full" />
+                        <div className="h-3 bg-violet-200/60 rounded-full animate-pulse w-4/5" />
+                      </div>
+                    ) : aiGuidance?.marcoConceptual ? (
+                      <p className="text-violet-800/80 leading-relaxed">{aiGuidance.marcoConceptual}</p>
+                    ) : entry?.marcoConceptual ? (
+                      <p className="text-slate-500 leading-relaxed">{entry.marcoConceptual}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Actividades clínicas — from DB */}
+                {(() => {
+                  const structured = dbActivities.filter((a: any) => a.tipo !== "familia" && (a.descripcion || a.actividad)).slice(0, 3);
+                  const textual = entry?.actividadesClinicas
+                    ? entry.actividadesClinicas.split(/[·•\n]+/).map((s: string) => s.trim()).filter(Boolean).slice(0, 3)
+                    : [];
+                  const items = structured.length > 0 ? structured.map((a: any) => a.descripcion || a.actividad) : textual;
+                  if (items.length === 0) return null;
+                  return (
+                    <div className="flex gap-2.5 px-3.5 py-3 bg-teal-50/40 border-b border-teal-100/60">
+                      <Sparkles className="h-3.5 w-3.5 text-teal-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-teal-700 mb-1">Actividades clínicas</p>
+                        <ul className="space-y-1">
+                          {items.map((act: string, i: number) => (
+                            <li key={i} className="flex gap-1.5 text-teal-800/80">
+                              <span className="text-teal-400 shrink-0 mt-0.5">·</span>
+                              <span className="leading-snug">{act}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Sugerencia para familia — AI generated */}
+                <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60">
+                  <Home className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="font-semibold text-amber-700">Para la familia</p>
+                      {(aiGuidance?.sugerenciaFamilia || isGeneratingGuidance) && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">IA</span>
+                      )}
+                    </div>
+                    {isGeneratingGuidance && !aiGuidance?.sugerenciaFamilia ? (
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-full" />
+                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-3/4" />
+                      </div>
+                    ) : aiGuidance?.sugerenciaFamilia ? (
+                      <ul className="space-y-1">
+                        {aiGuidance.sugerenciaFamilia
+                          .split(/[•\n]+/)
                           .map((s: string) => s.trim())
                           .filter(Boolean)
-                          .slice(0, 3)
-                          .map((act: string, i: number) => (
-                            <li key={i} className="flex gap-1.5">
-                              <span className="text-teal-400 shrink-0">·</span>
-                              <span>{act}</span>
+                          .map((sug, i) => (
+                            <li key={i} className="flex gap-1.5 text-amber-800/80">
+                              <span className="text-amber-400 shrink-0 mt-0.5">·</span>
+                              <span className="leading-snug">{sug}</span>
                             </li>
                           ))}
                       </ul>
-                    </div>
+                    ) : entry?.actividadesFamilia ? (
+                      <p className="text-slate-500 leading-relaxed">{entry.actividadesFamilia}</p>
+                    ) : null}
                   </div>
-                )}
-                {entry.actividadesFamilia && (
-                  <div className="flex gap-2">
-                    <Home className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-slate-600 mb-0.5">Para la familia</p>
-                      <p className="text-slate-500 leading-relaxed line-clamp-2">{entry.actividadesFamilia}</p>
-                    </div>
-                  </div>
-                )}
+                </div>
+
               </div>
             )}
           </div>
@@ -746,6 +840,7 @@ export default function NuevaSesion() {
                     onSetRow={patch => setRow(goal.id, patch)}
                     isSuggested
                     goalIdForDetail={goal.id}
+                    goalMeta={{ title: goal.title, area: goal.areaClinica ?? goal.category, franjaEtaria: goal.franjaEtaria, definicionOperativa: goal.description }}
                   />
                 ))}
 
@@ -762,6 +857,7 @@ export default function NuevaSesion() {
                     isAdHoc
                     onRemove={() => removeAdHocGoal(libGoal.id)}
                     libraryData={libGoal}
+                    goalMeta={{ title: libGoal.nombreObjetivo, area: libGoal.areaClinica ?? libGoal.area, subarea: libGoal.subarea, franjaEtaria: libGoal.franjaEtaria, definicionOperativa: libGoal.definicionOperativa }}
                   />
                 ))}
 
@@ -785,6 +881,7 @@ export default function NuevaSesion() {
                         onToggle={() => toggleRow(goal.id)}
                         onSetRow={patch => setRow(goal.id, patch)}
                         goalIdForDetail={goal.id}
+                        goalMeta={{ title: goal.title, area: goal.areaClinica ?? goal.category, franjaEtaria: goal.franjaEtaria, definicionOperativa: goal.description }}
                       />
                     ))}
                   </>
