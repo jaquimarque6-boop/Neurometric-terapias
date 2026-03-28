@@ -475,7 +475,7 @@ export default function PatientProfile() {
       <div className="space-y-6 max-w-5xl mx-auto">
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-48 rounded-2xl" />
-        <div className="grid grid-cols-4 gap-4">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+        <Skeleton className="h-5 w-72 rounded-full" />
         <Skeleton className="h-64 rounded-2xl" />
       </div>
     </AppLayout>
@@ -566,22 +566,35 @@ export default function PatientProfile() {
           </div>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Registros clínicos", value: registros.length,     icon: ClipboardList, color: "text-sky-600 bg-sky-50"       },
-            { label: "Activos + En progreso", value: activeGoals.length + inProgressGoals.length, icon: Target, color: "text-amber-600 bg-amber-50" },
-            { label: "Logros",             value: achievedGoals.length, icon: TrendingUp,    color: "text-emerald-600 bg-emerald-50"},
-            { label: "Profesionales",      value: profs.length,         icon: Stethoscope,   color: "text-primary bg-primary/10"   },
-          ].map(s => (
-            <Card key={s.label} className="border-border/50 shadow-sm">
-              <CardContent className="p-4">
-                <div className={`inline-flex p-2 rounded-lg ${s.color} mb-2`}><s.icon className="h-4 w-4" /></div>
-                <p className="text-2xl font-display font-bold text-slate-900">{s.value}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Stats — compact strip */}
+        <div className="flex items-center gap-3 flex-wrap px-1">
+          <span className="flex items-center gap-1.5 text-sm text-slate-600">
+            <ClipboardList className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-800">{registros.length}</span>
+            <span className="text-slate-500">registros</span>
+          </span>
+          <span className="text-slate-200 select-none">·</span>
+          <span className="flex items-center gap-1.5 text-sm text-slate-600">
+            <Target className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-800">{activeGoals.length + inProgressGoals.length}</span>
+            <span className="text-slate-500">activos</span>
+          </span>
+          <span className="text-slate-200 select-none">·</span>
+          <span className="flex items-center gap-1.5 text-sm text-slate-600">
+            <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-800">{achievedGoals.length}</span>
+            <span className="text-slate-500">logrados</span>
+          </span>
+          {profs.length > 0 && (
+            <>
+              <span className="text-slate-200 select-none">·</span>
+              <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-800">{profs.length}</span>
+                <span className="text-slate-500">profesional{profs.length !== 1 ? "es" : ""}</span>
+              </span>
+            </>
+          )}
         </div>
 
         {/* Tabs */}
