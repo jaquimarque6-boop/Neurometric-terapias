@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
-  Plus, X, BookOpen, Sparkles,
+  Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
 } from "lucide-react";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -22,7 +22,6 @@ type RowState = {
   intentos: string;
   correctas: string;
   estado: string;
-  notas: string;
 };
 
 const ESTADO_OPTIONS = [
@@ -39,6 +38,31 @@ const ESTADO_STYLE: Record<string, string> = {
   "no logrado":  "bg-red-50 border-red-300 text-red-800",
 };
 
+const ESTADO_BADGE: Record<string, string> = {
+  "logrado":     "bg-emerald-100 text-emerald-700",
+  "en progreso": "bg-blue-100 text-blue-700",
+  "con ayuda":   "bg-amber-100 text-amber-700",
+  "no logrado":  "bg-red-100 text-red-700",
+};
+
+function calcAutoEstado(intentos: string, correctas: string): string | null {
+  const i = parseInt(intentos);
+  const c = parseInt(correctas);
+  if (isNaN(i) || isNaN(c) || i === 0) return null;
+  const pct = Math.min(c, i) / i;
+  if (pct >= 0.8) return "logrado";
+  if (pct >= 0.6) return "en progreso";
+  if (pct >= 0.4) return "con ayuda";
+  return "no logrado";
+}
+
+function calcPct(intentos: string, correctas: string): number | null {
+  const i = parseInt(intentos);
+  const c = parseInt(correctas);
+  if (isNaN(i) || isNaN(c) || i === 0) return null;
+  return Math.round((Math.min(c, i) / i) * 100);
+}
+
 export default function NuevaSesion() {
   const [, navigate]               = useLocation();
   const { toast }                  = useToast();
@@ -51,22 +75,27 @@ export default function NuevaSesion() {
   const [patient, setPatient]                 = useState<any>(null);
   const [fecha, setFecha]                     = useState(today);
 
-  // rows for patient's assigned goals (keyed by goal.id)
   const [rows, setRows]                       = useState<Record<number, RowState>>({});
 
-  // ad-hoc goals added from banco (array of goal library items)
   const [adHocGoals, setAdHocGoals]           = useState<any[]>([]);
-  // rows for ad-hoc goals (keyed by goalLibraryId)
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
-  // banco search state
   const [showBanco, setShowBanco]             = useState(false);
   const [bancoSearch, setBancoSearch]         = useState("");
   const bancoInputRef                         = useRef<HTMLInputElement>(null);
 
+  const [showAllGoals, setShowAllGoals]       = useState(false);
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
   const [isSaving, setIsSaving]               = useState(false);
+
+  // Clinical detail cache: goal.id → { libraryEntry, activities }
+  const [detailCache, setDetailCache]         = useState<Record<number, any>>({});
+  // Which goals have their clinical detail panel open
+  const [detailOpenFor, setDetailOpenFor]     = useState<Set<string>>(new Set());
+
+  // Track auto-check to avoid resetting after manual changes
+  const hasAutoChecked = useRef<number | null>(null);
 
   const { data: patients = [] } = useListPatients();
 
@@ -80,7 +109,6 @@ export default function NuevaSesion() {
     enabled: !!patient,
   });
 
-  // banco de objetivos search
   const { data: bancoRaw = [] } = useQuery({
     queryKey: ["banco-search", bancoSearch],
     queryFn: async () => {
@@ -97,7 +125,6 @@ export default function NuevaSesion() {
     g => g.status === "activo" || g.status === "en progreso"
   );
 
-  // Filter banco results: exclude already-assigned patient goals and already-added ad-hoc goals
   const assignedLibraryIds = new Set([
     ...(goalsRaw as any[]).map((g: any) => g.goalLibraryId).filter(Boolean),
     ...adHocGoals.map(g => g.id),
@@ -108,6 +135,49 @@ export default function NuevaSesion() {
     !patientSearch || p.name.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
+  // ── Suggested goals (priority: en progreso → age match → activos) ──────────
+  const suggestedGoals = useMemo(() => {
+    if (goals.length === 0) return [];
+    const patientAge = patient?.age ? parseInt(patient.age) : null;
+
+    const score = (g: any) => {
+      let s = 0;
+      if (g.status === "en progreso") s += 10;
+      if (patientAge && g.franjaEtaria) {
+        const [min, max] = g.franjaEtaria.split("-").map(Number);
+        if (patientAge >= min && patientAge <= max) s += 5;
+      }
+      if (g.progressPct !== null && g.progressPct !== undefined) s += 1;
+      return s;
+    };
+
+    return [...goals].sort((a, b) => score(b) - score(a)).slice(0, 3);
+  }, [goals, patient]);
+
+  const lastWorkedGoal = useMemo(
+    () => goals.find(g => g.status === "en progreso") ?? goals[0] ?? null,
+    [goals],
+  );
+
+  // Remaining goals not in suggestions
+  const otherGoals = useMemo(
+    () => goals.filter(g => !suggestedGoals.some(s => s.id === g.id)),
+    [goals, suggestedGoals],
+  );
+
+  // Auto-check suggested goals once goals load for this patient
+  useEffect(() => {
+    if (!patient || loadingGoals || goals.length === 0) return;
+    if (hasAutoChecked.current === patient.id) return;
+    hasAutoChecked.current = patient.id;
+
+    const initial: Record<number, RowState> = {};
+    suggestedGoals.forEach(g => {
+      initial[g.id] = { checked: true, intentos: "", correctas: "", estado: g.status === "en progreso" ? "en progreso" : "en progreso" };
+    });
+    setRows(initial);
+  }, [patient, loadingGoals, suggestedGoals]);
+
   const selectPatient = (p: any) => {
     setPatient(p);
     setPatientSearch(p.name);
@@ -115,28 +185,53 @@ export default function NuevaSesion() {
     setRows({});
     setAdHocGoals([]);
     setAdHocRows({});
+    setDetailCache({});
+    setDetailOpenFor(new Set());
+    hasAutoChecked.current = null;
   };
 
-  // ── Row helpers — patient goals ──────────────────────────────────────────
+  // ── Fetch clinical detail (libraryEntry + activities) for a goal ───────────
+  const fetchDetail = async (goalId: number) => {
+    if (detailCache[goalId]) return;
+    try {
+      const res = await fetch(`/api/goals/${goalId}/activities`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetailCache(prev => ({ ...prev, [goalId]: data }));
+      }
+    } catch {}
+  };
+
+  const toggleDetailFor = (key: string, goalId?: number) => {
+    setDetailOpenFor(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        if (goalId) fetchDetail(goalId);
+      }
+      return next;
+    });
+  };
+
+  // ── Row helpers ───────────────────────────────────────────────────────────
+  const defaultRow = (status = "en progreso"): RowState => ({ checked: false, intentos: "", correctas: "", estado: status });
+
   const setRow = (goalId: number, patch: Partial<RowState>) =>
-    setRows(prev => ({ ...prev, [goalId]: { ...(prev[goalId] ?? { checked: false, intentos: "", correctas: "", estado: "en progreso", notas: "" }), ...patch } }));
+    setRows(prev => ({ ...prev, [goalId]: { ...(prev[goalId] ?? defaultRow()), ...patch } }));
 
   const toggleRow = (goalId: number) => {
     const cur = rows[goalId];
-    if (!cur || !cur.checked) {
-      setRow(goalId, { checked: true, intentos: cur?.intentos ?? "", correctas: cur?.correctas ?? "", estado: cur?.estado ?? "en progreso", notas: cur?.notas ?? "" });
-    } else {
-      setRow(goalId, { checked: false });
-    }
+    setRow(goalId, { checked: !cur?.checked });
   };
 
-  // ── Row helpers — ad-hoc goals ───────────────────────────────────────────
   const setAdHocRow = (libId: number, patch: Partial<RowState>) =>
-    setAdHocRows(prev => ({ ...prev, [libId]: { ...(prev[libId] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso", notas: "" }), ...patch } }));
+    setAdHocRows(prev => ({ ...prev, [libId]: { ...(prev[libId] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso" }), ...patch } }));
 
   const addAdHocGoal = (libGoal: any) => {
     setAdHocGoals(prev => [...prev, libGoal]);
-    setAdHocRows(prev => ({ ...prev, [libGoal.id]: { checked: true, intentos: "", correctas: "", estado: "en progreso", notas: "" } }));
+    setAdHocRows(prev => ({ ...prev, [libGoal.id]: { checked: true, intentos: "", correctas: "", estado: "en progreso" } }));
     setBancoSearch("");
     setShowBanco(false);
   };
@@ -146,17 +241,16 @@ export default function NuevaSesion() {
     setAdHocRows(prev => { const n = { ...prev }; delete n[libId]; return n; });
   };
 
-  const checkedGoals    = goals.filter(g => rows[g.id]?.checked);
-  const checkedAdHoc    = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
-  const totalSelected   = checkedGoals.length + checkedAdHoc.length;
-  const canSave         = !!patient && (totalSelected > 0 || resumen.trim().length > 0);
+  const checkedGoals  = goals.filter(g => rows[g.id]?.checked);
+  const checkedAdHoc  = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
+  const totalSelected = checkedGoals.length + checkedAdHoc.length;
+  const canSave       = !!patient && (totalSelected > 0 || resumen.trim().length > 0);
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!canSave) return;
     setIsSaving(true);
     try {
-      // 1. Create registro clínico
       const rcRes = await fetch("/api/registros-clinicos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,7 +264,6 @@ export default function NuevaSesion() {
       if (!rcRes.ok) throw new Error("Error al crear el registro");
       const rc = await rcRes.json();
 
-      // 2. Save progress for patient's assigned goals
       if (checkedGoals.length > 0) {
         await Promise.all(checkedGoals.map(goal => {
           const row = rows[goal.id];
@@ -182,7 +275,7 @@ export default function NuevaSesion() {
               statusNuevo: map.statusNuevo,
               progressPct: map.pct,
               registroClinicoId: rc.id,
-              nota: row.notas || `Sesión ${fecha}: ${map.label}`,
+              nota: `Sesión ${fecha}: ${map.label}`,
               intentos: row.intentos ? parseInt(row.intentos) : undefined,
               correctas: row.correctas ? parseInt(row.correctas) : undefined,
             }),
@@ -190,20 +283,17 @@ export default function NuevaSesion() {
         }));
       }
 
-      // 3. Save ad-hoc goals: assign first (if not already assigned), then progress
       if (checkedAdHoc.length > 0) {
         await Promise.all(checkedAdHoc.map(async (libGoal) => {
           const row = adHocRows[libGoal.id];
           const map = PERFORMANCE_MAP[row.estado] ?? PERFORMANCE_MAP["en progreso"];
 
-          // Check if already assigned to patient
           const alreadyAssigned = (goalsRaw as any[]).find((g: any) => g.goalLibraryId === libGoal.id);
           let goalId: number;
 
           if (alreadyAssigned) {
             goalId = alreadyAssigned.id;
           } else {
-            // Assign from banco
             const assignRes = await fetch("/api/goals", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -225,7 +315,6 @@ export default function NuevaSesion() {
             goalId = newGoal.id;
           }
 
-          // Save progress
           await fetch(`/api/goals/${goalId}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -233,7 +322,7 @@ export default function NuevaSesion() {
               statusNuevo: map.statusNuevo,
               progressPct: map.pct,
               registroClinicoId: rc.id,
-              nota: row.notas || `Sesión ${fecha} (objetivo del día): ${map.label}`,
+              nota: `Sesión ${fecha} (objetivo del día): ${map.label}`,
               intentos: row.intentos ? parseInt(row.intentos) : undefined,
               correctas: row.correctas ? parseInt(row.correctas) : undefined,
             }),
@@ -253,7 +342,7 @@ export default function NuevaSesion() {
     }
   };
 
-  // ── Goal row component (shared for assigned + ad-hoc) ────────────────────
+  // ── GoalRow component ─────────────────────────────────────────────────────
   function GoalRow({
     goalId,
     title,
@@ -262,7 +351,10 @@ export default function NuevaSesion() {
     onToggle,
     onSetRow,
     isAdHoc,
+    isSuggested,
     onRemove,
+    libraryData,   // for ad-hoc: the libGoal object; for assigned: detailCache[goalId]?.libraryEntry
+    goalIdForDetail,
   }: {
     goalId: number;
     title: string;
@@ -271,14 +363,26 @@ export default function NuevaSesion() {
     onToggle: () => void;
     onSetRow: (patch: Partial<RowState>) => void;
     isAdHoc?: boolean;
+    isSuggested?: boolean;
     onRemove?: () => void;
+    libraryData?: any;
+    goalIdForDetail?: number;
   }) {
     const estadoStyle = ESTADO_STYLE[row.estado] ?? "";
+    const pct = calcPct(row.intentos, row.correctas);
+    const autoEstado = calcAutoEstado(row.intentos, row.correctas);
+    const detailKey = isAdHoc ? `adhoc-${goalId}` : `${goalId}`;
+    const showDetail = detailOpenFor.has(detailKey);
+
+    // For assigned goals: libraryEntry from cache; for ad-hoc: the libGoal itself
+    const entry = isAdHoc ? libraryData : (detailCache[goalIdForDetail ?? goalId]?.libraryEntry ?? null);
+    const canShowDetail = !!(entry?.marcoConceptual || entry?.definicionOperativa || entry?.actividadesClinicas || entry?.actividadesFamilia);
+
     return (
-      <div className={`transition-colors ${row.checked ? "bg-slate-50/80" : ""}`}>
+      <div className={`transition-colors ${row.checked ? "bg-slate-50/60" : ""}`}>
         {/* Header row */}
         <div
-          className="flex items-start gap-3 px-6 py-3.5 cursor-pointer hover:bg-slate-50"
+          className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50/80"
           onClick={onToggle}
         >
           <div className="mt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle(); }}>
@@ -287,17 +391,20 @@ export default function NuevaSesion() {
               : <Square className="h-5 w-5 text-slate-300" />}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className={`text-sm font-medium ${row.checked ? "text-slate-900" : "text-slate-500"}`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className={`text-sm font-medium leading-snug ${row.checked ? "text-slate-900" : "text-slate-500"}`}>
                 {title}
               </p>
+              {isSuggested && (
+                <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-semibold shrink-0"
+                  style={{ background: `${BRAND_TEAL}18`, color: BRAND_TEAL }}>
+                  <Sparkles className="h-2.5 w-2.5" /> Sugerido
+                </span>
+              )}
               {isAdHoc && (
-                <span
-                  className="inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 font-medium shrink-0"
-                  style={{ background: `${BRAND_TEAL}18`, color: BRAND_TEAL }}
-                >
-                  <Sparkles className="h-2.5 w-2.5" />
-                  Del banco
+                <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-semibold shrink-0"
+                  style={{ background: `${BRAND_TEAL}18`, color: BRAND_TEAL }}>
+                  <BookOpen className="h-2.5 w-2.5" /> Del banco
                 </span>
               )}
             </div>
@@ -305,61 +412,131 @@ export default function NuevaSesion() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {isAdHoc && onRemove && (
-              <button
-                className="text-slate-300 hover:text-slate-500 transition-colors"
-                onClick={e => { e.stopPropagation(); onRemove(); }}
-                title="Quitar objetivo del día"
-              >
+              <button className="text-slate-300 hover:text-slate-500 transition-colors"
+                onClick={e => { e.stopPropagation(); onRemove(); }}>
                 <X className="h-4 w-4" />
               </button>
             )}
-            <ChevronDown className={`h-4 w-4 text-slate-300 mt-0.5 transition-transform ${row.checked ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-4 w-4 text-slate-300 transition-transform ${row.checked ? "rotate-180" : ""}`} />
           </div>
         </div>
 
-        {/* Expanded inline fields */}
+        {/* Expanded: performance inputs + clinical detail */}
         {row.checked && (
-          <div
-            className="px-6 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-100"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-500">Intentos</label>
-              <Input type="number" min={0} placeholder="0"
-                value={row.intentos}
-                onChange={e => onSetRow({ intentos: e.target.value })}
-                className="bg-white h-8 text-sm text-center" />
+          <div className="px-5 pb-4 border-t border-slate-100 space-y-3" onClick={e => e.stopPropagation()}>
+
+            {/* Performance grid: Intentos · Correctas · Estado */}
+            <div className="grid grid-cols-3 gap-2 pt-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500">Intentos</label>
+                <Input type="number" min={0} placeholder="0"
+                  value={row.intentos}
+                  onChange={e => onSetRow({ intentos: e.target.value })}
+                  className="bg-white h-9 text-sm text-center" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500">Correctas</label>
+                <Input type="number" min={0} placeholder="0"
+                  value={row.correctas}
+                  onChange={e => onSetRow({ correctas: e.target.value })}
+                  className="bg-white h-9 text-sm text-center" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-slate-500">Estado</label>
+                  {autoEstado && autoEstado !== row.estado && (
+                    <button
+                      onClick={() => onSetRow({ estado: autoEstado })}
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all hover:opacity-80"
+                      style={{ background: `${BRAND_TEAL}15`, color: BRAND_TEAL }}
+                      title="Aplicar estado sugerido"
+                    >
+                      → {autoEstado}
+                    </button>
+                  )}
+                </div>
+                <Select value={row.estado} onValueChange={v => onSetRow({ estado: v })}>
+                  <SelectTrigger className={`h-9 text-xs border ${estadoStyle}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADO_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-500">Correctas</label>
-              <Input type="number" min={0} placeholder="0"
-                value={row.correctas}
-                onChange={e => onSetRow({ correctas: e.target.value })}
-                className="bg-white h-8 text-sm text-center" />
-            </div>
-            <div className="space-y-1 sm:col-span-2">
-              <label className="text-xs font-medium text-slate-500">Estado</label>
-              <Select value={row.estado} onValueChange={v => onSetRow({ estado: v })}>
-                <SelectTrigger className={`h-8 text-xs border ${estadoStyle}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ESTADO_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1 col-span-2 sm:col-span-4">
-              <label className="text-xs font-medium text-slate-500">
-                Notas del objetivo <span className="font-normal text-slate-400">(opcional)</span>
-              </label>
-              <Input
-                placeholder="Observaciones específicas de este objetivo…"
-                value={row.notas}
-                onChange={e => onSetRow({ notas: e.target.value })}
-                className="bg-white text-sm" />
-            </div>
+
+            {/* Performance bar */}
+            {pct !== null && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${pct >= 80 ? "bg-emerald-400" : pct >= 60 ? "bg-blue-400" : pct >= 40 ? "bg-amber-400" : "bg-red-400"}`}
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-500 w-9 text-right">{pct}%</span>
+              </div>
+            )}
+
+            {/* Clinical detail toggle */}
+            {(isAdHoc ? canShowDetail : (entry !== null || goalIdForDetail)) && (
+              <button
+                className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-primary transition-colors"
+                onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId)}
+              >
+                <Info className="h-3.5 w-3.5" />
+                {showDetail ? "Ocultar descripción clínica" : "Ver descripción clínica"}
+                <ChevronRight className={`h-3 w-3 transition-transform ${showDetail ? "rotate-90" : ""}`} />
+              </button>
+            )}
+
+            {/* Clinical detail panel */}
+            {showDetail && entry && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 text-xs">
+                {entry.marcoConceptual && (
+                  <div className="flex gap-2">
+                    <Brain className="h-3.5 w-3.5 text-violet-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-600 mb-0.5">Marco conceptual</p>
+                      <p className="text-slate-500 leading-relaxed line-clamp-3">{entry.marcoConceptual}</p>
+                    </div>
+                  </div>
+                )}
+                {entry.actividadesClinicas && (
+                  <div className="flex gap-2">
+                    <ClipboardList className="h-3.5 w-3.5 text-teal-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-600 mb-0.5">Actividades clínicas</p>
+                      <ul className="text-slate-500 leading-relaxed space-y-0.5">
+                        {entry.actividadesClinicas
+                          .split(/[·•\n]+/)
+                          .map((s: string) => s.trim())
+                          .filter(Boolean)
+                          .slice(0, 3)
+                          .map((act: string, i: number) => (
+                            <li key={i} className="flex gap-1.5">
+                              <span className="text-teal-400 shrink-0">·</span>
+                              <span>{act}</span>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                {entry.actividadesFamilia && (
+                  <div className="flex gap-2">
+                    <Home className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-600 mb-0.5">Para la familia</p>
+                      <p className="text-slate-500 leading-relaxed line-clamp-2">{entry.actividadesFamilia}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -368,7 +545,7 @@ export default function NuevaSesion() {
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto flex flex-col gap-6 animate-in fade-in duration-300">
+      <div className="max-w-3xl mx-auto flex flex-col gap-5 animate-in fade-in duration-300">
 
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -389,71 +566,150 @@ export default function NuevaSesion() {
           <p className="text-slate-500 text-sm mt-1">Completa los datos de la sesión de hoy.</p>
         </div>
 
-        {/* ── Card: paciente + fecha ─────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-6 space-y-4">
-
-          {/* Paciente */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-              <User className="h-4 w-4" style={{ color: BRAND_TEAL }} />
-              Paciente <span className="text-red-400">*</span>
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <Input
-                placeholder="Buscar paciente..."
-                value={patientSearch}
-                autoComplete="off"
-                onChange={e => { setPatientSearch(e.target.value); setShowPatientList(true); setPatient(null); }}
-                onFocus={() => setShowPatientList(true)}
-                onBlur={() => setTimeout(() => setShowPatientList(false), 150)}
-                className="pl-9 bg-slate-50"
-              />
-              {showPatientList && filteredPatients.length > 0 && (
-                <div className="absolute z-20 top-full mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                  {filteredPatients.map((p: any) => (
-                    <button
-                      key={p.id}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-left transition-colors"
-                      onMouseDown={e => { e.preventDefault(); selectPatient(p); }}
-                    >
-                      <div
-                        className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                        style={{ background: BRAND_TEAL }}
+        {/* ── Card: paciente + fecha ────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Paciente */}
+            <div className="space-y-1.5 flex-1">
+              <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <User className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+                Paciente <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Input
+                  placeholder="Buscar paciente..."
+                  value={patientSearch}
+                  autoComplete="off"
+                  onChange={e => { setPatientSearch(e.target.value); setShowPatientList(true); setPatient(null); }}
+                  onFocus={() => setShowPatientList(true)}
+                  onBlur={() => setTimeout(() => setShowPatientList(false), 150)}
+                  className="pl-9 bg-slate-50"
+                />
+                {showPatientList && filteredPatients.length > 0 && (
+                  <div className="absolute z-20 top-full mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    {filteredPatients.map((p: any) => (
+                      <button
+                        key={p.id}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-left transition-colors"
+                        onMouseDown={e => { e.preventDefault(); selectPatient(p); }}
                       >
-                        {p.name.charAt(0)}
-                      </div>
-                      <span className="text-sm font-medium text-slate-800">{p.name}</span>
-                      {p.age && <span className="text-xs text-slate-400 ml-1">{p.age} años</span>}
-                    </button>
-                  ))}
-                </div>
+                        <div
+                          className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                          style={{ background: BRAND_TEAL }}
+                        >
+                          {p.name.charAt(0)}
+                        </div>
+                        <span className="text-sm font-medium text-slate-800">{p.name}</span>
+                        {p.age && <span className="text-xs text-slate-400 ml-1">{p.age} años</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {patient && (
+                <p className="text-xs text-slate-500 pl-1">
+                  <strong className="text-slate-700">{patient.name}</strong>
+                  {patient.age && ` · ${patient.age} años`}
+                  {patient.diagnosis && ` · ${patient.diagnosis}`}
+                </p>
               )}
             </div>
-            {patient && (
-              <p className="text-xs text-slate-500 pl-1">
-                Paciente seleccionado: <strong className="text-slate-700">{patient.name}</strong>
-              </p>
-            )}
-          </div>
 
-          {/* Fecha */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">Fecha de sesión</label>
-            <Input
-              type="date"
-              value={fecha}
-              onChange={e => setFecha(e.target.value)}
-              className="bg-slate-50 max-w-xs"
-            />
+            {/* Fecha */}
+            <div className="space-y-1.5 sm:w-44">
+              <label className="text-sm font-semibold text-slate-700">Fecha</label>
+              <Input
+                type="date"
+                value={fecha}
+                onChange={e => setFecha(e.target.value)}
+                className="bg-slate-50"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── Card: objetivos ───────────────────────────────────────── */}
+        {/* ── Guía de la sesión ─────────────────────────────────────────── */}
+        {patient && !loadingGoals && goals.length > 0 && (
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}30`, background: `linear-gradient(135deg, ${BRAND_TEAL}06 0%, #f0f9ff 100%)` }}>
+            {/* Header */}
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
+              <Sparkles className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+              <h2 className="text-sm font-bold text-slate-800">Guía de la sesión</h2>
+            </div>
+
+            <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
+              {/* Last session summary */}
+              {lastWorkedGoal && (
+                <div className="px-5 py-3.5">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Sesión anterior</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-700 truncate">{lastWorkedGoal.title}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ESTADO_BADGE[lastWorkedGoal.status] ?? "bg-slate-100 text-slate-500"}`}>
+                          {lastWorkedGoal.status}
+                        </span>
+                        {lastWorkedGoal.progressPct != null && (
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {lastWorkedGoal.progressPct}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Suggested objectives */}
+              <div className="px-5 py-3.5">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+                  Objetivos sugeridos para hoy
+                </p>
+                <div className="space-y-2">
+                  {suggestedGoals.map(goal => {
+                    const row = rows[goal.id] ?? defaultRow(goal.status);
+                    return (
+                      <button
+                        key={goal.id}
+                        className="w-full flex items-center gap-3 text-left rounded-xl px-3.5 py-2.5 transition-all hover:shadow-sm"
+                        style={{
+                          background: row.checked ? `${BRAND_TEAL}12` : "white",
+                          border: `1.5px solid ${row.checked ? BRAND_TEAL + "40" : "#e2e8f0"}`,
+                        }}
+                        onClick={() => toggleRow(goal.id)}
+                      >
+                        <div className="shrink-0">
+                          {row.checked
+                            ? <CheckSquare className="h-4.5 w-4.5" style={{ color: BRAND_TEAL }} />
+                            : <Square className="h-4.5 w-4.5 text-slate-300" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium leading-snug ${row.checked ? "text-slate-900" : "text-slate-500"}`}>
+                            {goal.title}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {goal.areaClinica ?? goal.category}
+                          </p>
+                        </div>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${ESTADO_BADGE[goal.status] ?? "bg-slate-100 text-slate-500"}`}>
+                          {goal.status}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Card: objetivos ───────────────────────────────────────────── */}
         {patient && (
           <div className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
             {/* Card header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-800">
                 Objetivos trabajados
                 {totalSelected > 0 && (
@@ -465,79 +721,100 @@ export default function NuevaSesion() {
                   </span>
                 )}
               </h2>
-              {!loadingGoals && (
-                <span className="text-xs text-slate-400">{goals.length} activos</span>
-              )}
             </div>
 
-            {/* Patient's assigned goals */}
             {loadingGoals ? (
-              <div className="px-6 py-10 text-center text-sm text-slate-400 animate-pulse">
+              <div className="px-5 py-10 text-center text-sm text-slate-400 animate-pulse">
                 Cargando objetivos…
               </div>
             ) : goals.length === 0 && adHocGoals.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-slate-400">
+              <div className="px-5 py-8 text-center text-sm text-slate-400">
                 Este paciente no tiene objetivos activos.
+                <br /><span className="text-slate-300 text-xs mt-1 block">Usa "+ Agregar objetivo" para añadir uno del banco.</span>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {goals.map((goal: any) => (
+                {/* Suggested goals (first) */}
+                {suggestedGoals.map((goal: any) => (
                   <GoalRow
                     key={goal.id}
                     goalId={goal.id}
                     title={goal.title}
-                    subtitle={`${goal.areaClinica ?? goal.category}${goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}`}
-                    row={rows[goal.id] ?? { checked: false, intentos: "", correctas: "", estado: "en progreso", notas: "" }}
+                    subtitle={`${goal.areaClinica ?? goal.category}${goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}${goal.franjaEtaria ? ` · ${goal.franjaEtaria} años` : ""}`}
+                    row={rows[goal.id] ?? defaultRow(goal.status)}
                     onToggle={() => toggleRow(goal.id)}
                     onSetRow={patch => setRow(goal.id, patch)}
+                    isSuggested
+                    goalIdForDetail={goal.id}
                   />
                 ))}
 
-                {/* Ad-hoc goals */}
+                {/* Ad-hoc goals from banco */}
                 {adHocGoals.map((libGoal: any) => (
                   <GoalRow
                     key={`adhoc-${libGoal.id}`}
                     goalId={libGoal.id}
                     title={libGoal.nombreObjetivo}
-                    subtitle={`${libGoal.areaClinica ?? libGoal.area ?? ""}${libGoal.nivelDificultad ? ` · ${libGoal.nivelDificultad}` : ""}`}
-                    row={adHocRows[libGoal.id] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso", notas: "" }}
+                    subtitle={`${libGoal.areaClinica ?? libGoal.area ?? ""}${libGoal.nivelDificultad ? ` · ${libGoal.nivelDificultad}` : ""}${libGoal.franjaEtaria ? ` · ${libGoal.franjaEtaria} años` : ""}`}
+                    row={adHocRows[libGoal.id] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso" }}
                     onToggle={() => setAdHocRow(libGoal.id, { checked: !(adHocRows[libGoal.id]?.checked ?? true) })}
                     onSetRow={patch => setAdHocRow(libGoal.id, patch)}
                     isAdHoc
                     onRemove={() => removeAdHocGoal(libGoal.id)}
+                    libraryData={libGoal}
                   />
                 ))}
+
+                {/* Other (non-suggested) goals — collapsed by default */}
+                {otherGoals.length > 0 && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-2 px-5 py-3 text-xs font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+                      onClick={() => setShowAllGoals(v => !v)}
+                    >
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllGoals ? "rotate-180" : ""}`} />
+                      {showAllGoals ? "Ocultar" : `${otherGoals.length} objetivo${otherGoals.length !== 1 ? "s" : ""} adicional${otherGoals.length !== 1 ? "es" : ""}`}
+                    </button>
+                    {showAllGoals && otherGoals.map((goal: any) => (
+                      <GoalRow
+                        key={goal.id}
+                        goalId={goal.id}
+                        title={goal.title}
+                        subtitle={`${goal.areaClinica ?? goal.category}${goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}${goal.franjaEtaria ? ` · ${goal.franjaEtaria} años` : ""}`}
+                        row={rows[goal.id] ?? defaultRow(goal.status)}
+                        onToggle={() => toggleRow(goal.id)}
+                        onSetRow={patch => setRow(goal.id, patch)}
+                        goalIdForDetail={goal.id}
+                      />
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
-            {/* ── "+ Agregar objetivo del día" ───────────────────────── */}
+            {/* "+ Agregar objetivo del día" */}
             <div className="border-t border-slate-100">
               {!showBanco ? (
                 <button
-                  className="w-full flex items-center gap-2 px-6 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors group"
+                  className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors group"
                   onClick={() => { setShowBanco(true); setTimeout(() => bancoInputRef.current?.focus(), 50); }}
                 >
                   <Plus className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                  Agregar objetivo del día
+                  Agregar objetivo del banco
                   <BookOpen className="h-3.5 w-3.5 ml-auto text-slate-300 group-hover:text-slate-400" />
                 </button>
               ) : (
-                <div className="px-6 py-4 space-y-3">
-                  {/* Search header */}
+                <div className="px-5 py-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
                       <BookOpen className="h-3.5 w-3.5" style={{ color: BRAND_TEAL }} />
                       Buscar en el banco de objetivos
                     </p>
-                    <button
-                      onClick={() => { setShowBanco(false); setBancoSearch(""); }}
-                      className="text-slate-400 hover:text-slate-600 transition-colors"
-                    >
+                    <button onClick={() => { setShowBanco(false); setBancoSearch(""); }}
+                      className="text-slate-400 hover:text-slate-600 transition-colors">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-
-                  {/* Search input */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     <Input
@@ -548,22 +825,16 @@ export default function NuevaSesion() {
                       className="pl-9 bg-slate-50 text-sm h-9"
                     />
                   </div>
-
-                  {/* Results */}
-                  <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                  <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                     {bancoFiltered.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm text-slate-400">
-                        {bancoSearch.trim()
-                          ? "Sin resultados. Prueba con otras palabras."
-                          : "Escribe para buscar objetivos en el banco."}
+                        {bancoSearch.trim() ? "Sin resultados. Prueba con otras palabras." : "Escribe para buscar objetivos en el banco."}
                       </div>
                     ) : (
                       bancoFiltered.slice(0, 30).map((g: any) => (
-                        <button
-                          key={g.id}
+                        <button key={g.id}
                           className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors group"
-                          onClick={() => addAdHocGoal(g)}
-                        >
+                          onClick={() => addAdHocGoal(g)}>
                           <Plus className="h-4 w-4 mt-0.5 text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 leading-snug">{g.nombreObjetivo}</p>
@@ -573,9 +844,7 @@ export default function NuevaSesion() {
                               {g.franjaEtaria ? ` · ${g.franjaEtaria} años` : ""}
                             </p>
                           </div>
-                          <span
-                            className="text-xs font-mono shrink-0 mt-0.5 text-slate-300 group-hover:text-slate-500"
-                          >
+                          <span className="text-xs font-mono shrink-0 mt-0.5 text-slate-300 group-hover:text-slate-500">
                             {g.idObjetivo}
                           </span>
                         </button>
@@ -588,11 +857,10 @@ export default function NuevaSesion() {
           </div>
         )}
 
-        {/* ── Card: notas generales de sesión ───────────────────────── */}
+        {/* ── Card: notas generales ─────────────────────────────────────── */}
         {patient && (
-          <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-slate-800">Notas de sesión <span className="text-slate-400 font-normal">(opcional)</span></h2>
-
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Resumen</label>
               <Textarea
@@ -603,7 +871,6 @@ export default function NuevaSesion() {
                 className="bg-slate-50 resize-none text-sm"
               />
             </div>
-
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Observaciones</label>
               <Textarea
@@ -617,10 +884,10 @@ export default function NuevaSesion() {
           </div>
         )}
 
-        {/* ── Save bar ──────────────────────────────────────────────── */}
+        {/* ── Save bar ──────────────────────────────────────────────────── */}
         {patient && (
           <div className="flex gap-3 pb-8">
-            <Button variant="outline" className="w-32" onClick={() => navigate("/")}>
+            <Button variant="outline" className="w-28" onClick={() => navigate("/")}>
               Cancelar
             </Button>
             <Button
