@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
+import { getGrupo, getGrupos, getSubareas } from "@/config/goal-taxonomy";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const AREAS_CLINICAS = [
@@ -90,6 +91,10 @@ export default function GoalLibrary() {
   const [assignGoal, setAssignGoal]       = useState<any | null>(null);
   const [showNewGoal, setShowNewGoal]     = useState(false);
 
+  // ── Drill-down navigation state ────────────────────────────────────────────
+  const [drillGrupo, setDrillGrupo]       = useState<string | null>(null);
+  const [drillSubarea, setDrillSubarea]   = useState<string | null>(null);
+
   const queryClient = useQueryClient();
   const lib = library as any[];
 
@@ -135,6 +140,52 @@ export default function GoalLibrary() {
 
   const activeFilters = [areaFilter !== "all", subareaFilter !== "all", nivelFilter !== "all", franjaFilter !== "all", estadoFilter !== "activo"].filter(Boolean).length;
 
+  // Search mode: show flat results when search or non-default filters are active
+  const isSearchMode = !!(search.trim() || subareaFilter !== "all" || nivelFilter !== "all" || franjaFilter !== "all" || estadoFilter !== "activo");
+
+  // ── Browse-mode derived data ───────────────────────────────────────────────
+  // Goals for current area (used to count by grupo/subarea)
+  const areaGoals = useMemo(
+    () => areaFilter === "all" ? [] : lib.filter((g: any) => (g.areaClinica ?? g.area) === areaFilter && (g.estadoBanco ?? "activo") === "activo"),
+    [lib, areaFilter],
+  );
+
+  // Grupo cards for selected area
+  const grupoCards = useMemo(() => {
+    if (areaFilter === "all") return [];
+    const grupos = getGrupos(areaFilter);
+    const otrasGoals = areaGoals.filter((g: any) => getGrupo(areaFilter, g.subarea) === "Otras");
+    const cards = grupos
+      .map(g => ({
+        name: g,
+        count: areaGoals.filter((gl: any) => getGrupo(areaFilter, gl.subarea) === g).length,
+        subareas: getSubareas(areaFilter, g).filter(s =>
+          areaGoals.some((gl: any) => gl.subarea === s)
+        ),
+      }))
+      .filter(c => c.count > 0);
+    if (otrasGoals.length > 0) cards.push({ name: "Otras", count: otrasGoals.length, subareas: [] });
+    return cards;
+  }, [areaGoals, areaFilter]);
+
+  // Subarea cards for selected grupo
+  const subareaCards = useMemo(() => {
+    if (!drillGrupo) return [];
+    const subs = drillGrupo === "Otras"
+      ? [...new Set(areaGoals.filter((g: any) => getGrupo(areaFilter, g.subarea) === "Otras").map((g: any) => g.subarea ?? "(sin subárea)"))]
+      : getSubareas(areaFilter, drillGrupo).filter(s => areaGoals.some((g: any) => g.subarea === s));
+    return subs.map(s => ({
+      name: s,
+      count: areaGoals.filter((g: any) => (g.subarea ?? "(sin subárea)") === s).length,
+    })).filter(c => c.count > 0);
+  }, [areaGoals, areaFilter, drillGrupo]);
+
+  // Goals at drill-down leaf level
+  const drillGoals = useMemo(() => {
+    if (!drillSubarea) return [];
+    return areaGoals.filter((g: any) => (g.subarea ?? "(sin subárea)") === drillSubarea);
+  }, [areaGoals, drillSubarea]);
+
   // Stats
   const stats = useMemo(() => {
     const total = lib.length;
@@ -152,6 +203,15 @@ export default function GoalLibrary() {
     setFranjaFilter("all");
     setEstadoFilter("activo");
     setSearch("");
+    setDrillGrupo(null);
+    setDrillSubarea(null);
+  };
+
+  const selectArea = (area: string) => {
+    setAreaFilter(area);
+    setDrillGrupo(null);
+    setDrillSubarea(null);
+    setSubareaFilter("all");
   };
 
   return (
@@ -186,7 +246,7 @@ export default function GoalLibrary() {
               return (
                 <button
                   key={s.area}
-                  onClick={() => { setAreaFilter(isActive ? "all" : s.area); setSubareaFilter("all"); }}
+                  onClick={() => isActive ? clearFilters() : selectArea(s.area)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     isActive ? `${ac.bg} ${ac.text} ${ac.border} ring-2 ring-offset-1 ${ac.border}` : `${ac.bg} ${ac.text} ${ac.border} opacity-70 hover:opacity-100`
                   }`}
@@ -289,25 +349,65 @@ export default function GoalLibrary() {
           </div>
         </div>
 
-        {(search || activeFilters > 0) && (
+        {/* ── Breadcrumb ────────────────────────────────────────────── */}
+        {(areaFilter !== "all") && (
+          <div className="flex items-center gap-1.5 text-sm -mt-2 px-1 flex-wrap">
+            <button
+              onClick={clearFilters}
+              className="text-slate-400 hover:text-primary transition-colors font-medium"
+            >
+              Banco
+            </button>
+            <span className="text-slate-300">/</span>
+            <button
+              onClick={() => { setDrillGrupo(null); setDrillSubarea(null); setSubareaFilter("all"); }}
+              className={`font-medium transition-colors ${!drillGrupo ? "text-slate-800" : "text-slate-400 hover:text-primary"}`}
+            >
+              {AREA_LABELS[areaFilter] ?? areaFilter}
+            </button>
+            {drillGrupo && (
+              <>
+                <span className="text-slate-300">/</span>
+                <button
+                  onClick={() => { setDrillSubarea(null); setSubareaFilter("all"); }}
+                  className={`font-medium transition-colors ${!drillSubarea ? "text-slate-800" : "text-slate-400 hover:text-primary"}`}
+                >
+                  {drillGrupo}
+                </button>
+              </>
+            )}
+            {drillSubarea && (
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="font-medium text-slate-800">{drillSubarea}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Result count (search mode) ────────────────────────────── */}
+        {isSearchMode && (
           <p className="text-sm text-slate-500 -mt-2 px-1">
             Mostrando <span className="font-semibold text-slate-700">{filtered.length}</span> objetivo{filtered.length !== 1 ? "s" : ""}
             {search && <> para <span className="italic">"{search}"</span></>}
           </p>
         )}
 
-        {/* Goal cards grouped by area */}
+        {/* ── Main display ──────────────────────────────────────────── */}
         {isLoading ? (
           <div className="space-y-4">
             {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
           </div>
-        ) : Object.keys(grouped).length === 0 ? (
-          <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-            <BookOpen className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-            <p className="font-medium text-slate-600">No se encontraron objetivos</p>
-            <p className="text-slate-400 text-sm mt-1">Intenta ajustar los filtros de búsqueda.</p>
-          </div>
-        ) : (
+
+        ) : isSearchMode ? (
+          /* ── Search/filter mode: flat grouped results ── */
+          Object.keys(grouped).length === 0 ? (
+            <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+              <BookOpen className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+              <p className="font-medium text-slate-600">No se encontraron objetivos</p>
+              <p className="text-slate-400 text-sm mt-1">Intenta ajustar los filtros de búsqueda.</p>
+            </div>
+          ) : (
           <div className="space-y-6">
             {AREAS_CLINICAS.filter(a => grouped[a]).map(areaKey => {
               const goals = grouped[areaKey];
@@ -527,6 +627,110 @@ export default function GoalLibrary() {
               );
             })}
           </div>
+          )
+
+        ) : (areaFilter === "all") ? (
+          /* ── Browse Level 0: Area selector cards ── */
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {stats.porArea.map(s => {
+              const ac = getAreaColor(s.area);
+              return (
+                <button
+                  key={s.area}
+                  onClick={() => selectArea(s.area)}
+                  className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md group ${ac.bg} ${ac.border}`}
+                >
+                  <p className={`font-bold text-sm leading-tight mb-1 ${ac.text}`}>
+                    {AREA_LABELS[s.area] ?? s.area}
+                  </p>
+                  <p className={`text-xs font-medium opacity-70 ${ac.text}`}>
+                    {s.count} objetivo{s.count !== 1 ? "s" : ""}
+                  </p>
+                  <div className="flex justify-end mt-3">
+                    <ChevronRight className={`h-4 w-4 ${ac.text} opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all`} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+        ) : (!drillGrupo) ? (
+          /* ── Browse Level 1: Grupo cards for selected area ── */
+          grupoCards.length === 0 ? (
+            <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+              <BookOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-500 font-medium">No hay objetivos en esta área</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {grupoCards.map(g => {
+                const ac = getAreaColor(areaFilter);
+                return (
+                  <button
+                    key={g.name}
+                    onClick={() => setDrillGrupo(g.name)}
+                    className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md group bg-white ${ac.border}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-bold text-sm mb-1 ${ac.text}`}>{g.name}</p>
+                        <p className="text-xs text-slate-400 font-medium">
+                          {g.count} objetivo{g.count !== 1 ? "s" : ""}
+                        </p>
+                        {g.subareas.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {g.subareas.slice(0, 4).map(s => (
+                              <span key={s} className={`text-[10px] px-1.5 py-0.5 rounded-full ${ac.bg} ${ac.text} font-medium`}>
+                                {s}
+                              </span>
+                            ))}
+                            {g.subareas.length > 4 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400 font-medium">
+                                +{g.subareas.length - 4} más
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <ChevronRight className={`h-4 w-4 ${ac.text} opacity-50 group-hover:opacity-100 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-all`} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
+
+        ) : (
+          /* ── Browse Level 2: Subarea cards for selected grupo ── */
+          subareaCards.length === 0 ? (
+            <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+              <BookOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-500 font-medium">No hay objetivos en este grupo</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {subareaCards.map(sc => {
+                const ac = getAreaColor(areaFilter);
+                return (
+                  <button
+                    key={sc.name}
+                    onClick={() => { setDrillSubarea(sc.name); setSubareaFilter(sc.name); }}
+                    className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md group bg-white ${ac.border}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-sm mb-1 ${ac.text}`}>{sc.name}</p>
+                        <p className="text-xs text-slate-400 font-medium">
+                          {sc.count} objetivo{sc.count !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <ChevronRight className={`h-4 w-4 ${ac.text} opacity-50 group-hover:opacity-100 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-all`} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
 
