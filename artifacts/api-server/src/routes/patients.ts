@@ -8,11 +8,96 @@ import { eq, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// ─── Clinical insight helpers ─────────────────────────────────────────────────
+
+type PatientGoal = typeof goalsTable.$inferSelect;
+
+type ClinicalStatus = "Buen progreso" | "En progreso" | "Estancado" | "Requiere ajuste";
+
+function computeClinicalStatus(
+  promedioDesempeno: number | null,
+  activeCount: number,
+  achievedCount: number,
+): ClinicalStatus {
+  const pct = promedioDesempeno ?? 0;
+  const totalGoals = activeCount + achievedCount;
+
+  if (totalGoals === 0) return "Requiere ajuste";
+
+  // High performance with achieved goals → buen progreso
+  if (pct >= 0.70) return "Buen progreso";
+
+  // Good trend: decent performance or significant achieved ratio
+  if (pct >= 0.45 || (achievedCount > 0 && achievedCount / totalGoals >= 0.4)) return "En progreso";
+
+  // Has active goals but low performance → stagnated
+  if (activeCount > 0 && pct > 0) return "Estancado";
+
+  // No performance data or all goals but zero progress
+  return "Requiere ajuste";
+}
+
+function computeNextAction(status: ClinicalStatus, activeCount: number, achievedCount: number): string {
+  if (activeCount === 0 && achievedCount === 0) return "Agregar nuevo objetivo";
+  switch (status) {
+    case "Buen progreso":
+      return achievedCount > 0 ? "Aumentar dificultad" : "Continuar objetivo actual";
+    case "En progreso":
+      return "Continuar objetivo actual";
+    case "Estancado":
+      return "Revisar estrategia";
+    case "Requiere ajuste":
+      return activeCount === 0 ? "Agregar nuevo objetivo" : "Revisar estrategia";
+  }
+}
+
+function computeCurrentFocus(goals: PatientGoal[]): { title: string; area: string } | null {
+  // Prefer "en progreso" → then "activo"
+  const inProgress = goals.find(g => g.status === "en progreso");
+  const active = goals.find(g => g.status === "activo");
+  const target = inProgress ?? active;
+  if (!target) return null;
+  const area = target.areaClinica ?? target.category;
+  const shortTitle = target.title.length > 45 ? target.title.slice(0, 42) + "…" : target.title;
+  return { title: shortTitle, area };
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
 router.get("/patients", async (_req, res) => {
   const patients = await db.select().from(patientsTable).orderBy(patientsTable.name);
+
+  // Batch load all goals once
+  const allGoals = await db.select().from(goalsTable);
+
   const withCounts = await Promise.all(patients.map(async p => {
-    const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, p.id));
-    return { ...p, totalRegistros: Number(value), createdAt: p.createdAt.toISOString() };
+    const [{ value }] = await db
+      .select({ value: count() })
+      .from(registrosTable)
+      .where(eq(registrosTable.patientId, p.id));
+
+    const patientGoals = allGoals.filter(g => g.patientId === p.id);
+    const activeGoals  = patientGoals.filter(g => g.status === "activo" || g.status === "en progreso");
+    const achievedGoals = patientGoals.filter(g => g.status === "logrado");
+
+    const clinicalStatus = computeClinicalStatus(
+      p.promedioDesempeno as number | null,
+      activeGoals.length,
+      achievedGoals.length,
+    );
+    const currentFocus = computeCurrentFocus(activeGoals);
+    const nextAction = computeNextAction(clinicalStatus, activeGoals.length, achievedGoals.length);
+
+    return {
+      ...p,
+      totalRegistros: Number(value),
+      createdAt: p.createdAt.toISOString(),
+      clinicalStatus,
+      currentFocus,
+      nextAction,
+      activeGoalsCount: activeGoals.length,
+      achievedGoalsCount: achievedGoals.length,
+    };
   }));
   res.json(withCounts);
 });
