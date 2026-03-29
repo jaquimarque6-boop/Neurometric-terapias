@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PERFORMANCE_MAP } from "@/components/registro-clinico-form";
+import { getClinicalContent } from "@/config/goal-clinical-content";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
@@ -93,11 +94,6 @@ export default function NuevaSesion() {
   const [detailCache, setDetailCache]         = useState<Record<number, any>>({});
   // Which goals have their clinical detail panel open
   const [detailOpenFor, setDetailOpenFor]     = useState<Set<string>>(new Set());
-
-  // AI-generated guidance cache: detailKey → { marcoConceptual, sugerenciaFamilia }
-  const [aiGuidanceCache, setAiGuidanceCache] = useState<Record<string, { marcoConceptual: string; sugerenciaFamilia: string }>>({});
-  const [generatingFor, setGeneratingFor]     = useState<Set<string>>(new Set());
-  const aiGuidanceFetching                    = useRef(new Set<string>());
 
   // Track auto-check to avoid resetting after manual changes
   const hasAutoChecked = useRef<number | null>(null);
@@ -192,9 +188,6 @@ export default function NuevaSesion() {
     setAdHocRows({});
     setDetailCache({});
     setDetailOpenFor(new Set());
-    setAiGuidanceCache({});
-    setGeneratingFor(new Set());
-    aiGuidanceFetching.current.clear();
     hasAutoChecked.current = null;
   };
 
@@ -210,31 +203,9 @@ export default function NuevaSesion() {
     } catch {}
   };
 
-  // ── Generate AI guidance (marco conceptual + sugerencia familia) ───────────
-  type GoalMeta = { title: string; area?: string; subarea?: string; franjaEtaria?: string; definicionOperativa?: string };
+  type GoalMeta = { title?: string; area?: string; subarea?: string; franjaEtaria?: string; definicionOperativa?: string };
 
-  const generateGuidance = async (key: string, meta: GoalMeta) => {
-    if (aiGuidanceFetching.current.has(key) || aiGuidanceCache[key]) return;
-    aiGuidanceFetching.current.add(key);
-    setGeneratingFor(prev => new Set([...prev, key]));
-    try {
-      const res = await fetch("/api/goal-guidance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(meta),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAiGuidanceCache(prev => ({ ...prev, [key]: data }));
-      }
-    } catch {}
-    finally {
-      aiGuidanceFetching.current.delete(key);
-      setGeneratingFor(prev => { const next = new Set(prev); next.delete(key); return next; });
-    }
-  };
-
-  const toggleDetailFor = (key: string, goalId?: number, goalMeta?: GoalMeta) => {
+  const toggleDetailFor = (key: string, goalId?: number) => {
     setDetailOpenFor(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -242,7 +213,6 @@ export default function NuevaSesion() {
       } else {
         next.add(key);
         if (goalId) fetchDetail(goalId);
-        if (goalMeta) generateGuidance(key, goalMeta);
       }
       return next;
     });
@@ -408,8 +378,7 @@ export default function NuevaSesion() {
     const autoEstado = calcAutoEstado(row.intentos, row.correctas);
     const detailKey = isAdHoc ? `adhoc-${goalId}` : `${goalId}`;
     const showDetail = detailOpenFor.has(detailKey);
-    const aiGuidance = aiGuidanceCache[detailKey];
-    const isGeneratingGuidance = generatingFor.has(detailKey);
+    const clinicalContent = getClinicalContent(goalMeta?.area, goalMeta?.subarea);
 
     // For assigned goals: libraryEntry from cache; for ad-hoc: the libGoal itself
     const entry = isAdHoc ? libraryData : (detailCache[goalIdForDetail ?? goalId]?.libraryEntry ?? null);
@@ -524,7 +493,7 @@ export default function NuevaSesion() {
             {/* Clinical detail toggle — always available when row is checked */}
             <button
               className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-primary transition-colors"
-              onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId, goalMeta)}
+              onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId)}
             >
               <Info className="h-3.5 w-3.5" />
               {showDetail ? "Ocultar guía clínica" : "Ver guía clínica"}
@@ -546,28 +515,18 @@ export default function NuevaSesion() {
                   </div>
                 )}
 
-                {/* Marco conceptual — AI generated */}
-                <div className="flex gap-2.5 px-3.5 py-3 bg-violet-50/60 border-b border-violet-100/60">
-                  <Brain className="h-3.5 w-3.5 text-violet-400 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <p className="font-semibold text-violet-700">Marco conceptual</p>
-                      {(aiGuidance?.marcoConceptual || isGeneratingGuidance) && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 shrink-0">IA</span>
-                      )}
+                {/* Marco conceptual — static content */}
+                {(clinicalContent?.marcoConceptual || entry?.marcoConceptual) && (
+                  <div className="flex gap-2.5 px-3.5 py-3 bg-violet-50/60 border-b border-violet-100/60">
+                    <Brain className="h-3.5 w-3.5 text-violet-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-violet-700 mb-1">Marco conceptual</p>
+                      <p className="text-violet-800/80 leading-relaxed">
+                        {clinicalContent?.marcoConceptual ?? entry?.marcoConceptual}
+                      </p>
                     </div>
-                    {isGeneratingGuidance && !aiGuidance?.marcoConceptual ? (
-                      <div className="space-y-1.5">
-                        <div className="h-3 bg-violet-200/60 rounded-full animate-pulse w-full" />
-                        <div className="h-3 bg-violet-200/60 rounded-full animate-pulse w-4/5" />
-                      </div>
-                    ) : aiGuidance?.marcoConceptual ? (
-                      <p className="text-violet-800/80 leading-relaxed">{aiGuidance.marcoConceptual}</p>
-                    ) : entry?.marcoConceptual ? (
-                      <p className="text-slate-500 leading-relaxed">{entry.marcoConceptual}</p>
-                    ) : null}
                   </div>
-                </div>
+                )}
 
                 {/* Actividades clínicas — from DB */}
                 {(() => {
@@ -595,39 +554,32 @@ export default function NuevaSesion() {
                   );
                 })()}
 
-                {/* Sugerencia para familia — AI generated */}
-                <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60">
-                  <Home className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <p className="font-semibold text-amber-700">Para la familia</p>
-                      {(aiGuidance?.sugerenciaFamilia || isGeneratingGuidance) && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">IA</span>
-                      )}
-                    </div>
-                    {isGeneratingGuidance && !aiGuidance?.sugerenciaFamilia ? (
-                      <div className="space-y-1.5">
-                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-full" />
-                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-3/4" />
+                {/* Sugerencia para familia — static content */}
+                {(() => {
+                  const staticItems = clinicalContent?.sugerenciaFamilia ?? [];
+                  const fallbackText = entry?.actividadesFamilia as string | undefined;
+                  if (staticItems.length === 0 && !fallbackText) return null;
+                  return (
+                    <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60">
+                      <Home className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-amber-700 mb-1">Para la familia</p>
+                        {staticItems.length > 0 ? (
+                          <ul className="space-y-1.5">
+                            {staticItems.map((sug, i) => (
+                              <li key={i} className="flex gap-1.5 text-amber-800/80">
+                                <span className="text-amber-400 shrink-0 mt-0.5">·</span>
+                                <span className="leading-snug">{sug}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-slate-500 leading-relaxed">{fallbackText}</p>
+                        )}
                       </div>
-                    ) : aiGuidance?.sugerenciaFamilia ? (
-                      <ul className="space-y-1">
-                        {aiGuidance.sugerenciaFamilia
-                          .split(/[•\n]+/)
-                          .map((s: string) => s.trim())
-                          .filter(Boolean)
-                          .map((sug, i) => (
-                            <li key={i} className="flex gap-1.5 text-amber-800/80">
-                              <span className="text-amber-400 shrink-0 mt-0.5">·</span>
-                              <span className="leading-snug">{sug}</span>
-                            </li>
-                          ))}
-                      </ul>
-                    ) : entry?.actividadesFamilia ? (
-                      <p className="text-slate-500 leading-relaxed">{entry.actividadesFamilia}</p>
-                    ) : null}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })()}
 
               </div>
             )}
