@@ -528,20 +528,28 @@ export default function NuevaSesion() {
                   </div>
                 )}
 
-                {/* Actividades clínicas — from DB */}
+                {/* Actividades clínicas — static + DB */}
                 {(() => {
-                  const structured = dbActivities.filter((a: any) => a.tipo !== "familia" && (a.descripcion || a.actividad)).slice(0, 3);
-                  const textual = entry?.actividadesClinicas
-                    ? entry.actividadesClinicas.split(/[·•\n]+/).map((s: string) => s.trim()).filter(Boolean).slice(0, 3)
+                  const staticItems = clinicalContent?.actividadesClinicas ?? [];
+                  const dbItems = dbActivities
+                    .filter((a: any) => a.tipo !== "familia" && (a.descripcion || a.actividad))
+                    .map((a: any) => a.descripcion || a.actividad);
+                  const textualItems = entry?.actividadesClinicas
+                    ? entry.actividadesClinicas.split(/[·•\n]+/).map((s: string) => s.trim()).filter(Boolean)
                     : [];
-                  const items = structured.length > 0 ? structured.map((a: any) => a.descripcion || a.actividad) : textual;
+                  // Static content is primary; DB items fill gaps; dedupe by text
+                  const seen = new Set(staticItems.map((s: string) => s.toLowerCase()));
+                  const extra = [...dbItems, ...textualItems].filter(
+                    (s: string) => !seen.has(s.toLowerCase())
+                  );
+                  const items = [...staticItems, ...extra].slice(0, 4);
                   if (items.length === 0) return null;
                   return (
                     <div className="flex gap-2.5 px-3.5 py-3 bg-teal-50/40 border-b border-teal-100/60">
                       <Sparkles className="h-3.5 w-3.5 text-teal-500 shrink-0 mt-0.5" />
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-semibold text-teal-700 mb-1">Actividades clínicas</p>
-                        <ul className="space-y-1">
+                        <ul className="space-y-1.5">
                           {items.map((act: string, i: number) => (
                             <li key={i} className="flex gap-1.5 text-teal-800/80">
                               <span className="text-teal-400 shrink-0 mt-0.5">·</span>
@@ -554,16 +562,16 @@ export default function NuevaSesion() {
                   );
                 })()}
 
-                {/* Sugerencia para familia — static content */}
+                {/* Actividades para el hogar — static content */}
                 {(() => {
-                  const staticItems = clinicalContent?.sugerenciaFamilia ?? [];
+                  const staticItems = clinicalContent?.actividadesHogar ?? [];
                   const fallbackText = entry?.actividadesFamilia as string | undefined;
                   if (staticItems.length === 0 && !fallbackText) return null;
                   return (
                     <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60">
                       <Home className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-amber-700 mb-1">Para la familia</p>
+                        <p className="font-semibold text-amber-700 mb-1">Actividades para el hogar</p>
                         {staticItems.length > 0 ? (
                           <ul className="space-y-1.5">
                             {staticItems.map((sug, i) => (
