@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
+  Mic, MicOff,
 } from "lucide-react";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -66,8 +67,15 @@ function calcPct(intentos: string, correctas: string): number | null {
 
 export default function NuevaSesion() {
   const [, navigate]               = useLocation();
+  const search                     = useSearch();
   const { toast }                  = useToast();
   const queryClient                = useQueryClient();
+
+  // Pre-selected patient from URL query: /nueva-sesion?patientId=5
+  const preselectedId = useMemo(() => {
+    const v = new URLSearchParams(search).get("patientId");
+    return v ? parseInt(v, 10) : null;
+  }, [search]);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -89,6 +97,41 @@ export default function NuevaSesion() {
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
   const [isSaving, setIsSaving]               = useState(false);
+
+  // ── Voice recording ───────────────────────────────────────────────────────
+  const [isRecording, setIsRecording]         = useState(false);
+  const recognitionRef                        = useRef<any>(null);
+  const hasSpeechSupport = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const startRecording = () => {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = "es-CL";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const transcript = Array.from(e.results as SpeechRecognitionResultList)
+        .slice(e.resultIndex)
+        .map((r: any) => (r as SpeechRecognitionResult)[0].transcript)
+        .join(" ")
+        .trim();
+      if (transcript) {
+        setObservaciones(prev => prev ? `${prev} ${transcript}` : transcript);
+      }
+    };
+    rec.onerror = () => { setIsRecording(false); };
+    rec.onend   = () => { setIsRecording(false); };
+    recognitionRef.current = rec;
+    rec.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    recognitionRef.current?.stop();
+    setIsRecording(false);
+  };
 
   // Clinical detail cache: goal.id → { libraryEntry, activities }
   const [detailCache, setDetailCache]         = useState<Record<number, any>>({});
@@ -190,6 +233,14 @@ export default function NuevaSesion() {
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
   };
+
+  // Auto-select patient from URL param once patients list is available
+  useEffect(() => {
+    if (!preselectedId || patient || (patients as any[]).length === 0) return;
+    const found = (patients as any[]).find((p: any) => p.id === preselectedId);
+    if (found) selectPatient(found);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedId, patients]);
 
   // ── Fetch clinical detail (libraryEntry + activities) for a goal ───────────
   const fetchDetail = async (goalId: number) => {
@@ -337,7 +388,7 @@ export default function NuevaSesion() {
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       const n = totalSelected;
       toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
-      navigate("/");
+      navigate(preselectedId ? `/patients/${preselectedId}` : "/");
     } catch (err: any) {
       toast({ title: "Error al guardar la sesión", description: err.message, variant: "destructive" });
     } finally {
@@ -604,11 +655,11 @@ export default function NuevaSesion() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(preselectedId ? `/patients/${preselectedId}` : "/")}
             className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            Volver
+            {preselectedId ? "Volver al paciente" : "Volver"}
           </button>
         </div>
 
@@ -929,14 +980,37 @@ export default function NuevaSesion() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Observaciones</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-slate-500">Observaciones</label>
+                {hasSpeechSupport && (
+                  <button
+                    type="button"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all ${
+                      isRecording
+                        ? "bg-red-50 border-red-200 text-red-600 animate-pulse"
+                        : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    }`}
+                  >
+                    {isRecording
+                      ? <><MicOff className="h-3.5 w-3.5" /> Detener</>
+                      : <><Mic className="h-3.5 w-3.5" /> Grabar</>}
+                  </button>
+                )}
+              </div>
               <Textarea
-                placeholder="Observaciones clínicas relevantes…"
-                rows={2}
+                placeholder={isRecording ? "Escuchando… habla ahora" : "Observaciones clínicas relevantes…"}
+                rows={3}
                 value={observaciones}
                 onChange={e => setObservaciones(e.target.value)}
-                className="bg-slate-50 resize-none text-sm"
+                className={`resize-none text-sm transition-colors ${isRecording ? "bg-red-50/40 border-red-200 focus-visible:ring-red-300" : "bg-slate-50"}`}
               />
+              {isRecording && (
+                <p className="text-xs text-red-500 flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-ping" />
+                  Grabando… el texto se insertará automáticamente
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -944,7 +1018,7 @@ export default function NuevaSesion() {
         {/* ── Save bar ──────────────────────────────────────────────────── */}
         {patient && (
           <div className="flex gap-3 pb-8">
-            <Button variant="outline" className="w-28" onClick={() => navigate("/")}>
+            <Button variant="outline" className="w-28" onClick={() => navigate(preselectedId ? `/patients/${preselectedId}` : "/")}>
               Cancelar
             </Button>
             <Button

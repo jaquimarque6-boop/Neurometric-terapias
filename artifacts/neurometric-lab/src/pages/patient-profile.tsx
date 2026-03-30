@@ -537,7 +537,7 @@ export default function PatientProfile() {
                 )}
               </div>
               <button
-                onClick={() => setShowRegForm(true)}
+                onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
                 className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
                 style={{ background: "linear-gradient(90deg,#20C7C7 0%,#18b3b3 100%)" }}
               >
