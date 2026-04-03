@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -12,7 +12,7 @@ import {
   ChevronRight, Send, History, LayoutDashboard, Library,
   Flag, BarChart3, Layers, Search as SearchIcon,
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
-  GitCommitVertical, Filter, Printer,
+  GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -26,9 +26,12 @@ import {
   useCreateRegistroClinico,
   useCreateGoal,
   useUpdateGoal,
+  useUpdatePatient,
+  useUpdateRegistroClinico,
   useAssignGoalToPatient,
   getListGoalsQueryKey,
   getListRegistrosClinicosQueryKey,
+  getGetPatientQueryKey,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -406,9 +409,103 @@ export default function PatientProfile() {
   const [showBankDialog, setShowBankDialog] = useState(false);
   const [isSavingRC, setIsSavingRC] = useState(false);
 
-  const createRC   = useCreateRegistroClinico();
-  const createGoal = useCreateGoal();
-  const updateGoal = useUpdateGoal();
+  // Edit patient
+  const [showEditPatient, setShowEditPatient] = useState(false);
+  const [epName, setEpName]           = useState("");
+  const [epAge, setEpAge]             = useState("");
+  const [epDiagnosis, setEpDiagnosis] = useState("");
+  const [epProf, setEpProf]           = useState("");
+  const [epObs, setEpObs]             = useState("");
+  const [isSavingPatient, setIsSavingPatient] = useState(false);
+
+  // Edit registro
+  const [editingRegistro, setEditingRegistro]     = useState<RC | null>(null);
+  const [erFecha, setErFecha]                     = useState("");
+  const [erResumen, setErResumen]                 = useState("");
+  const [erObs, setErObs]                         = useState("");
+  const [erHogar, setErHogar]                     = useState("");
+  const [isSavingRegistro, setIsSavingRegistro]   = useState(false);
+
+  // Voice recording for edit registro dialog
+  const [isRecordingEr, setIsRecordingEr]   = useState(false);
+  const recognitionErRef                    = useRef<any>(null);
+  const hasSpeechSupport = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const startRecordingEr = () => {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = "es-CL";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const transcript = Array.from(e.results as SpeechRecognitionResultList)
+        .slice(e.resultIndex)
+        .map((r: any) => (r as SpeechRecognitionResult)[0].transcript)
+        .join(" ")
+        .trim();
+      if (transcript) setErObs(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    rec.onerror = () => setIsRecordingEr(false);
+    rec.onend   = () => setIsRecordingEr(false);
+    recognitionErRef.current = rec;
+    rec.start();
+    setIsRecordingEr(true);
+  };
+
+  const stopRecordingEr = () => {
+    recognitionErRef.current?.stop();
+    setIsRecordingEr(false);
+  };
+
+  // Pre-fill edit patient form when dialog opens
+  useEffect(() => {
+    if (showEditPatient && patient) {
+      setEpName(patient.name ?? "");
+      setEpAge(patient.age != null ? String(patient.age) : "");
+      setEpDiagnosis((patient as any).diagnosis ?? "");
+      setEpProf((patient as any).profesionalNombre ?? "");
+      setEpObs((patient as any).observaciones ?? "");
+    }
+  }, [showEditPatient, patient]);
+
+  // Pre-fill edit registro form when editing a registro
+  useEffect(() => {
+    if (editingRegistro) {
+      setErFecha(editingRegistro.fecha ?? "");
+      setErResumen(editingRegistro.resumenSesion ?? "");
+      setErObs(editingRegistro.observaciones ?? "");
+      setErHogar(editingRegistro.recomendacionesHogar ?? "");
+    }
+  }, [editingRegistro]);
+
+  const handleSavePatient = async () => {
+    if (!epName.trim()) return;
+    setIsSavingPatient(true);
+    try {
+      const res = await fetch(`/api/patients/${patientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: epName.trim(),
+          age: epAge ? parseInt(epAge) : null,
+          diagnosis: epDiagnosis || null,
+          profesionalNombre: epProf || null,
+          observaciones: epObs || null,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      queryClient.invalidateQueries({ queryKey: ["listPatients"] });
+      toast({ title: "Paciente actualizado" });
+      setShowEditPatient(false);
+    } catch (err: any) {
+      toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSavingPatient(false);
+    }
+  };
 
   const registros = allRegistros as RC[];
   const goals     = allGoals as Goal[];
@@ -459,6 +556,32 @@ export default function PatientProfile() {
       toast({ title: "Error al guardar", variant: "destructive" });
     } finally {
       setIsSavingRC(false);
+    }
+  };
+
+  const handleSaveEditRegistro = async () => {
+    if (!editingRegistro) return;
+    setIsSavingRegistro(true);
+    stopRecordingEr();
+    try {
+      const res = await fetch(`/api/registros-clinicos/${editingRegistro.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha: erFecha,
+          resumenSesion: erResumen || null,
+          observaciones: erObs || null,
+          recomendacionesHogar: erHogar || null,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
+      toast({ title: "Registro actualizado" });
+      setEditingRegistro(null);
+    } catch (err: any) {
+      toast({ title: "Error al guardar el registro", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSavingRegistro(false);
     }
   };
 
@@ -536,14 +659,23 @@ export default function PatientProfile() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
-                className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-                style={{ background: "linear-gradient(90deg,#20C7C7 0%,#18b3b3 100%)" }}
-              >
-                <Plus className="h-4 w-4" />
-                Nueva sesión
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowEditPatient(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-slate-300 bg-white text-slate-600 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400 active:scale-[0.97]"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar
+                </button>
+                <button
+                  onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
+                  style={{ background: "linear-gradient(90deg,#20C7C7 0%,#18b3b3 100%)" }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nueva sesión
+                </button>
+              </div>
             </div>
             {patient.diagnosis && (
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
@@ -732,48 +864,89 @@ export default function PatientProfile() {
               <CardHeader className="pb-3 border-b">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold">Registros clínicos</CardTitle>
-                  <Button size="sm" onClick={() => setShowRegForm(true)} className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo registro
+                  <Button size="sm" onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)} className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Nueva sesión
                   </Button>
                 </div>
               </CardHeader>
               <div className="divide-y divide-border/40">
                 {registros.length > 0 ? (
-                  registros.sort((a, b) => b.fecha.localeCompare(a.fecha)).map(r => (
-                    <div key={r.id} className="p-5">
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
-                            <ClipboardList className="h-4 w-4" />
+                  [...registros].sort((a, b) => b.fecha.localeCompare(a.fecha)).map(r => {
+                    const isExpanded = expanded === r.id;
+                    // Build a short session title: date + first line of resumen
+                    const shortTitle = r.resumenSesion
+                      ? r.resumenSesion.split(/[\n.]/)[0].slice(0, 60).trim()
+                      : null;
+                    return (
+                      <div key={r.id} className="p-4">
+                        {/* Row: date + title + actions */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="h-8 w-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-0.5">
+                              <ClipboardList className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-slate-900 text-sm">
+                                  {formatFecha(r.fecha)}
+                                </p>
+                                {shortTitle && (
+                                  <>
+                                    <span className="text-slate-300">–</span>
+                                    <p className="text-sm text-slate-600 truncate">{shortTitle}</p>
+                                  </>
+                                )}
+                              </div>
+                              {r.professionalName && (
+                                <p className="text-xs text-slate-400 mt-0.5">{r.professionalName}</p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 text-sm">{formatFecha(r.fecha)}</p>
-                            {r.professionalName && <p className="text-xs text-slate-500">{r.professionalName}</p>}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => setEditingRegistro(r)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-primary border border-slate-200 hover:border-primary/40 rounded-lg transition-all hover:bg-primary/5"
+                            >
+                              <Pencil className="h-3 w-3" /> Editar
+                            </button>
+                            <button
+                              onClick={() => setExpanded(isExpanded ? null : r.id)}
+                              className="p-1.5 text-slate-400 hover:text-primary rounded-lg hover:bg-primary/5 transition-colors"
+                            >
+                              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            </button>
                           </div>
                         </div>
-                        <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg hover:bg-primary/5 transition-colors">
-                          <ChevronDown className={`h-4 w-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
-                        </button>
+
+                        {/* Expanded content */}
+                        {isExpanded && (
+                          <div className="mt-3 ml-11 space-y-2.5">
+                            {r.resumenSesion && (
+                              <p className="text-sm text-slate-700 leading-relaxed">{r.resumenSesion}</p>
+                            )}
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {r.observaciones && (
+                                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                  <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
+                                    <Eye className="h-3.5 w-3.5" /> Observaciones
+                                  </p>
+                                  <p className="text-sm text-amber-900">{r.observaciones}</p>
+                                </div>
+                              )}
+                              {r.recomendacionesHogar && (
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                                  <p className="text-xs font-semibold text-emerald-700 mb-1 flex items-center gap-1">
+                                    <Home className="h-3.5 w-3.5" /> Para el hogar
+                                  </p>
+                                  <p className="text-sm text-emerald-900">{r.recomendacionesHogar}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {r.resumenSesion && <p className={`text-sm text-slate-700 leading-relaxed ${expanded === r.id ? "" : "line-clamp-2"}`}>{r.resumenSesion}</p>}
-                      {expanded === r.id && (
-                        <div className="mt-4 grid sm:grid-cols-2 gap-3">
-                          {r.observaciones && (
-                            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                              <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> Observaciones</p>
-                              <p className="text-sm text-amber-900">{r.observaciones}</p>
-                            </div>
-                          )}
-                          {r.recomendacionesHogar && (
-                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                              <p className="text-xs font-semibold text-emerald-700 mb-1 flex items-center gap-1"><Home className="h-3.5 w-3.5" /> Para el hogar</p>
-                              <p className="text-sm text-emerald-900">{r.recomendacionesHogar}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="py-12 text-center text-slate-400 text-sm">Sin registros clínicos para este paciente.</div>
                 )}
@@ -906,6 +1079,121 @@ export default function PatientProfile() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Edit Patient Dialog ───────────────────────────────────────────── */}
+      {showEditPatient && (
+        <Dialog open onOpenChange={(o) => { if (!o && !isSavingPatient) setShowEditPatient(false); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" /> Editar paciente
+              </DialogTitle>
+              <DialogDescription>Actualiza los datos de {patient?.name}.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Nombre <span className="text-red-400">*</span></label>
+                <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-slate-50" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600">Edad</label>
+                  <Input value={epAge} onChange={e => setEpAge(e.target.value)} placeholder="Ej. 8" type="number" min={0} max={120} className="bg-slate-50" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600">Profesional a cargo</label>
+                  <Input value={epProf} onChange={e => setEpProf(e.target.value)} placeholder="Nombre del profesional" className="bg-slate-50" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Diagnóstico</label>
+                <Input value={epDiagnosis} onChange={e => setEpDiagnosis(e.target.value)} placeholder="Diagnóstico principal" className="bg-slate-50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Notas generales</label>
+                <Textarea value={epObs} onChange={e => setEpObs(e.target.value)} placeholder="Observaciones generales del paciente…" rows={3} className="bg-slate-50 resize-none text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
+                Cancelar
+              </Button>
+              <Button className="flex-1 text-white" style={{ background: "#0E3A6D" }} onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
+                <Save className="h-4 w-4 mr-1.5" /> {isSavingPatient ? "Guardando…" : "Guardar cambios"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Edit Registro Dialog ──────────────────────────────────────────── */}
+      {editingRegistro && (
+        <Dialog open onOpenChange={(o) => { if (!o && !isSavingRegistro) { stopRecordingEr(); setEditingRegistro(null); } }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" /> Editar registro clínico
+              </DialogTitle>
+              <DialogDescription>Sesión del {formatFecha(editingRegistro.fecha)}.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Fecha</label>
+                <Input type="date" value={erFecha} onChange={e => setErFecha(e.target.value)} className="bg-slate-50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Resumen de sesión</label>
+                <Textarea value={erResumen} onChange={e => setErResumen(e.target.value)} placeholder="¿Qué se trabajó en la sesión?" rows={3} className="bg-slate-50 resize-none text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">Observaciones clínicas</label>
+                  {hasSpeechSupport && (
+                    <button
+                      type="button"
+                      onClick={isRecordingEr ? stopRecordingEr : startRecordingEr}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all ${
+                        isRecordingEr
+                          ? "bg-red-50 border-red-200 text-red-600 animate-pulse"
+                          : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      {isRecordingEr
+                        ? <><MicOff className="h-3.5 w-3.5" /> Detener</>
+                        : <><Mic className="h-3.5 w-3.5" /> Grabar</>}
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  value={erObs}
+                  onChange={e => setErObs(e.target.value)}
+                  placeholder={isRecordingEr ? "Escuchando… habla ahora" : "Observaciones clínicas relevantes…"}
+                  rows={3}
+                  className={`resize-none text-sm transition-colors ${isRecordingEr ? "bg-red-50/40 border-red-200" : "bg-slate-50"}`}
+                />
+                {isRecordingEr && (
+                  <p className="text-xs text-red-500 flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-ping" />
+                    Grabando… el texto se insertará automáticamente
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Recomendaciones para el hogar</label>
+                <Textarea value={erHogar} onChange={e => setErHogar(e.target.value)} placeholder="Actividades sugeridas para casa…" rows={2} className="bg-slate-50 resize-none text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => { stopRecordingEr(); setEditingRegistro(null); }} disabled={isSavingRegistro}>
+                Cancelar
+              </Button>
+              <Button className="flex-1 text-white" style={{ background: "#0E3A6D" }} onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
+                <Save className="h-4 w-4 mr-1.5" /> {isSavingRegistro ? "Guardando…" : "Guardar cambios"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Create clinical record dialog */}
       {showRegForm && (
