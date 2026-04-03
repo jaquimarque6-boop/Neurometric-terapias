@@ -3,6 +3,7 @@ import cors from "cors";
 import session from "express-session";
 import router from "./routes";
 import { seedAdminIfNeeded } from "./routes/auth";
+import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 
 const app: Express = express();
 
@@ -24,5 +25,6 @@ app.use(session({
 app.use("/api", router);
 
 seedAdminIfNeeded().catch(console.error);
+seedGoalLibraryIfNeeded().catch(console.error);
 
 export default app;
