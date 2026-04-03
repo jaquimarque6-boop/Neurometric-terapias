@@ -156,234 +156,327 @@ function formatTs(ts: string) {
 
 // ─── InformeTab ───────────────────────────────────────────────────────────────
 type InformeProps = {
-  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; franjaEtaria?: string | null; observaciones?: string | null; informeEvolucion?: string | null; informeMensual?: string | null };
+  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; franjaEtaria?: string | null; observaciones?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null; motivoConsulta?: string | null };
   goals: Goal[];
   registros: RC[];
   profs: Array<{ id: number; professionalId: number; professionalName?: string | null; professionalSpecialty?: string | null }>;
+  onSave: (fields: { informeEvolucion?: string; informeFamilia?: string }) => Promise<void>;
 };
 
-function InformeTab({ patient, goals, registros, profs }: InformeProps) {
+function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) {
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
+  const [view, setView] = useState<"tecnico" | "familia">("tecnico");
+  const [textoClinico, setTextoClinico] = useState(patient.informeEvolucion ?? "");
+  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setTextoClinico(patient.informeEvolucion ?? "");
+    setTextoFamilia((patient as any).informeFamilia ?? "");
+  }, [patient.informeEvolucion, (patient as any).informeFamilia]);
 
   const activeGoals     = goals.filter(g => g.status === "activo");
   const inProgressGoals = goals.filter(g => g.status === "en progreso");
   const achievedGoals   = goals.filter(g => g.status === "logrado");
-  const relevantGoals   = [...inProgressGoals, ...activeGoals, ...achievedGoals];
   const recentRegistros = [...registros]
     .sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())
     .slice(0, 5);
 
-  const avgProgress = relevantGoals.length > 0
-    ? Math.round(relevantGoals.reduce((acc, g) => acc + goalProgressPct(g.status), 0) / relevantGoals.length)
-    : 0;
+  const totalSessions = registros.length;
+  const totalActive   = activeGoals.length + inProgressGoals.length;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try { await onSave({ informeEvolucion: textoClinico, informeFamilia: textoFamilia }); }
+    finally { setIsSaving(false); }
+  };
 
   const handlePrint = () => {
-    const content = document.getElementById("informe-print-content")?.innerHTML;
+    const contentId = view === "familia" ? "informe-familia-content" : "informe-tecnico-content";
+    const content = document.getElementById(contentId)?.innerHTML;
     if (!content) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Informe Clínico — ${patient.name}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1e293b; padding: 40px 48px; font-size: 13px; line-height: 1.6; }
-    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-    h2 { font-size: 14px; font-weight: 700; color: #334155; margin: 20px 0 8px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px; }
-    h3 { font-size: 13px; font-weight: 600; color: #475569; margin: 10px 0 4px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #3b82f6; }
-    .header-left h1 { color: #1d4ed8; }
-    .header-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
-    .date { font-size: 11px; color: #94a3b8; text-align: right; }
-    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
-    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; text-align: center; }
-    .stat-val { font-size: 22px; font-weight: 700; color: #1d4ed8; }
-    .stat-lbl { font-size: 10px; color: #64748b; margin-top: 2px; }
-    .goal-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-    .goal-title { font-weight: 600; color: #1e293b; }
-    .goal-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
-    .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 4px; }
-    .progress-fill { height: 100%; border-radius: 3px; background: #3b82f6; }
-    .badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10px; font-weight: 600; background: #dbeafe; color: #1d4ed8; margin-left: 6px; }
-    .badge.green { background: #dcfce7; color: #15803d; }
-    .badge.amber { background: #fef3c7; color: #b45309; }
-    .registro-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-    .registro-fecha { font-size: 11px; color: #94a3b8; }
-    .registro-notas { color: #475569; margin-top: 2px; }
-    .prof-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .prof-chip { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #1d4ed8; }
-    .observaciones { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; white-space: pre-wrap; color: #475569; font-size: 12px; }
-    .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
-    @media print { body { padding: 20px 28px; } }
-  </style>
-</head>
-<body>
-${content}
-<div class="footer">
-  <span>Neurometric Lab — Plataforma Clínica de Intervención Terapéutica</span>
-  <span>Generado el ${today}</span>
-</div>
-</body>
-</html>`);
+    win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Informe — ${patient.name}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;padding:40px 48px;font-size:13px;line-height:1.6}
+  h1{font-size:20px;font-weight:700;color:#0E3A6D;margin-bottom:4px}
+  h2{font-size:13px;font-weight:700;color:#334155;margin:18px 0 7px;border-bottom:1.5px solid #e2e8f0;padding-bottom:4px}
+  .meta{font-size:11px;color:#64748b;margin-top:3px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #0E3A6D}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+  .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center}
+  .stat-val{font-size:20px;font-weight:700;color:#0E3A6D}
+  .stat-lbl{font-size:10px;color:#64748b;margin-top:2px}
+  .goal{padding:8px 0;border-bottom:1px solid #f1f5f9}
+  .goal-title{font-weight:600;font-size:12px;color:#1e293b}
+  .goal-area{font-size:10px;color:#64748b;margin-top:1px}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#15803d}
+  .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-amber{background:#fef3c7;color:#92400e}
+  .bar{height:5px;background:#e2e8f0;border-radius:3px;margin-top:4px}
+  .bar-fill{height:100%;border-radius:3px}
+  .narrativa{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;white-space:pre-wrap;font-size:12px;color:#475569;margin-top:6px}
+  .session{padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
+  .session-date{font-size:10px;color:#94a3b8}
+  .footer{margin-top:36px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+  @media print{body{padding:20px 28px}}
+</style></head><body>${content}
+<div class="footer"><span>Neurometric Lab</span><span>Generado el ${today}</span></div>
+</body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Actions bar */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      {/* Header + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Informe clínico</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Resumen del proceso terapéutico del paciente</p>
+          <h2 className="text-base font-semibold text-slate-900">Informe</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Resumen clínico y texto editable · exportable como PDF</p>
         </div>
-        <Button onClick={handlePrint} className="gap-2 bg-primary hover:bg-primary/90 shadow-sm">
-          <Printer className="h-4 w-4" />
-          Exportar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
+            <button
+              onClick={() => setView("tecnico")}
+              className={`px-3 py-1.5 transition-colors ${view === "tecnico" ? "text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              style={view === "tecnico" ? { background: "#0E3A6D" } : {}}
+            >Técnico</button>
+            <button
+              onClick={() => setView("familia")}
+              className={`px-3 py-1.5 transition-colors ${view === "familia" ? "text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              style={view === "familia" ? { background: "#20C7C7", color: "#fff" } : {}}
+            >Para familias</button>
+          </div>
+          <Button size="sm" variant="outline" onClick={handlePrint} className="h-8 gap-1.5 text-xs">
+            <Printer className="h-3.5 w-3.5" /> Exportar PDF
+          </Button>
+        </div>
       </div>
 
-      {/* Preview */}
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-6 md:p-8">
-          <div id="informe-print-content">
-            {/* Header */}
-            <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #3b82f6" }}>
-              <div>
-                <h1 className="text-2xl font-bold text-primary font-display">{patient.name}</h1>
-                <div className="text-sm text-slate-500 mt-1 space-y-0.5">
-                  {patient.age && <p>Edad: <span className="font-medium text-slate-700">{patient.age} años</span></p>}
-                  {patient.franjaEtaria && <p>Franja etaria: <span className="font-medium text-slate-700">{patient.franjaEtaria}</span></p>}
-                  {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-slate-700">{patient.diagnosis}</span></p>}
+      {/* ── INFORME TÉCNICO ─────────────────────────────────────────────────── */}
+      {view === "tecnico" && (
+        <div className="space-y-4">
+          {/* Auto-generated summary card */}
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-5" id="informe-tecnico-content">
+              {/* Header block (printed) */}
+              <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-200">
+                <div>
+                  <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
+                  <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                    {patient.age && <p>Edad: <span className="font-medium text-slate-700">{patient.age} años</span></p>}
+                    {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-slate-700">{patient.diagnosis}</span></p>}
+                    {patient.fechaInicio && <p>Inicio de tratamiento: <span className="font-medium text-slate-700">{formatFecha(patient.fechaInicio)}</span></p>}
+                    {profs.length > 0 && <p>Profesional(es): <span className="font-medium text-slate-700">{profs.map(p => p.professionalName).join(", ")}</span></p>}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-slate-400">
+                  <p className="text-xs font-medium text-slate-500">Informe clínico</p>
+                  <p>{today}</p>
                 </div>
               </div>
-              <div className="text-right text-xs text-slate-400">
-                <p className="font-medium text-slate-600 text-sm">Informe clínico</p>
-                <p>{today}</p>
-                <p className="mt-1">Neurometric Lab</p>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                {[
+                  { label: "Sesiones realizadas", val: totalSessions, color: "text-sky-600" },
+                  { label: "Objetivos en proceso", val: totalActive, color: "text-amber-600" },
+                  { label: "Objetivos logrados", val: achievedGoals.length, color: "text-emerald-600" },
+                  { label: "Área(s) trabajada(s)", val: new Set(goals.map(g => g.areaClinica ?? g.category).filter(Boolean)).size, color: "text-violet-600" },
+                ].map(s => (
+                  <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                    <p className={`text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{s.label}</p>
+                  </div>
+                ))}
               </div>
-            </div>
 
-            {/* Stats */}
-            <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3 mt-5">Resumen estadístico</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-              {[
-                { label: "Registros clínicos", val: registros.length, color: "text-sky-600" },
-                { label: "Objetivos activos", val: activeGoals.length + inProgressGoals.length, color: "text-amber-600" },
-                { label: "Objetivos logrados", val: achievedGoals.length, color: "text-emerald-600" },
-                { label: "Progreso promedio", val: `${avgProgress}%`, color: "text-primary" },
-              ].map(s => (
-                <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                  <p className={`text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Professionals */}
-            {profs.length > 0 && (
-              <>
-                <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3">Equipo profesional</h2>
-                <div className="flex flex-wrap gap-2 mb-5">
-                  {profs.map(p => (
-                    <span key={p.id} className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full">
-                      {p.professionalName ?? "Profesional"}{p.professionalSpecialty ? ` — ${p.professionalSpecialty}` : ""}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Active goals */}
-            {relevantGoals.length > 0 && (
-              <>
-                <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3">Objetivos terapéuticos</h2>
-                <div className="space-y-3 mb-5">
-                  {relevantGoals.map(g => {
-                    const pct = goalProgressPct(g.status);
-                    const statusLbl: Record<string, string> = { "activo": "Activo", "en progreso": "En progreso", "logrado": "Logrado" };
-                    const statusColor: Record<string, string> = {
-                      "activo": "bg-primary/10 text-primary",
-                      "en progreso": "bg-amber-100 text-amber-700",
-                      "logrado": "bg-emerald-100 text-emerald-700",
-                    };
-                    return (
-                      <div key={g.id} className="py-2.5 border-b border-slate-100 last:border-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-slate-800 text-sm">{g.title}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor[g.status] ?? "bg-slate-100 text-slate-600"}`}>
-                            {statusLbl[g.status] ?? g.status}
-                          </span>
-                          {g.category && (
-                            <span className="text-xs text-slate-400">{g.category}</span>
-                          )}
+              {/* Goals: Logrados */}
+              {achievedGoals.length > 0 && (
+                <div className="mb-5">
+                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wide border-b border-emerald-100 pb-1.5 mb-3 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Objetivos logrados ({achievedGoals.length})
+                  </h2>
+                  <div className="space-y-1.5">
+                    {achievedGoals.map(g => (
+                      <div key={g.id} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
+                        <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 leading-snug">{g.title}</p>
+                          {g.areaClinica && <p className="text-[10px] text-slate-400 mt-0.5">{g.areaClinica}</p>}
                         </div>
-                        {g.description && <p className="text-xs text-slate-500 mt-1">{g.description}</p>}
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${g.status === "logrado" ? "bg-emerald-500" : g.status === "en progreso" ? "bg-amber-500" : "bg-primary"}`}
-                              style={{ width: `${pct}%` }}
-                            />
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">100%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Goals: En proceso */}
+              {(activeGoals.length > 0 || inProgressGoals.length > 0) && (
+                <div className="mb-5">
+                  <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wide border-b border-amber-100 pb-1.5 mb-3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> En proceso ({totalActive})
+                  </h2>
+                  <div className="space-y-2">
+                    {[...inProgressGoals, ...activeGoals].map(g => {
+                      const pct = goalProgressPct(g.status);
+                      return (
+                        <div key={g.id} className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-800 leading-snug">{g.title}</p>
+                              {g.areaClinica && <p className="text-[10px] text-slate-400 mt-0.5">{g.areaClinica}</p>}
+                            </div>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${g.status === "en progreso" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
+                              {pct}%
+                            </span>
                           </div>
-                          <span className="text-xs font-medium text-slate-500 w-8 text-right">{pct}%</span>
+                          <div className="mt-1.5 h-1 bg-slate-200 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${g.status === "en progreso" ? "bg-amber-400" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </>
-            )}
+              )}
 
-            {/* Recent registros */}
-            {recentRegistros.length > 0 && (
-              <>
-                <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3">Últimas sesiones clínicas</h2>
-                <div className="space-y-3 mb-5">
-                  {recentRegistros.map(r => (
-                    <div key={r.id} className="py-2.5 border-b border-slate-100 last:border-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">{formatFecha(r.fecha || r.createdAt)}</span>
-                        {r.professionalName && (
-                          <span className="text-xs font-medium text-primary">{r.professionalName}</span>
-                        )}
+              {/* Recent sessions */}
+              {recentRegistros.length > 0 && (
+                <div className="mb-5">
+                  <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                    Últimas {recentRegistros.length} sesiones
+                  </h2>
+                  <div className="space-y-2">
+                    {recentRegistros.map(r => (
+                      <div key={r.id} className="py-2 border-b border-slate-100 last:border-0">
+                        <p className="text-[10px] text-slate-400">{formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}</p>
+                        {r.resumenSesion && <p className="text-xs text-slate-700 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
                       </div>
-                      {r.resumenSesion && (
-                        <p className="text-sm text-slate-600 mt-1 line-clamp-3">{r.resumenSesion}</p>
-                      )}
-                      {r.observaciones && (
-                        <p className="text-xs text-slate-500 mt-1">{r.observaciones}</p>
-                      )}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Clinical narrative — editable */}
+              <div>
+                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                  Narrativa clínica
+                </h2>
+                <Textarea
+                  value={textoClinico}
+                  onChange={e => setTextoClinico(e.target.value)}
+                  placeholder="Redacta aquí el informe clínico evolutivo del paciente. Este texto aparecerá en el PDF exportado."
+                  rows={7}
+                  className="resize-none text-sm bg-slate-50 border-slate-200"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save button */}
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2 text-white" style={{ background: "#0E3A6D" }}>
+              <Save className="h-4 w-4" />
+              {isSaving ? "Guardando…" : "Guardar informe"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── VERSIÓN PARA FAMILIAS ──────────────────────────────────────────── */}
+      {view === "familia" && (
+        <div className="space-y-4">
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-5" id="informe-familia-content">
+              <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-200">
+                <div>
+                  <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
+                  {patient.age && <p className="text-xs text-slate-500 mt-0.5">Edad: {patient.age} años</p>}
+                </div>
+                <div className="text-right text-xs text-slate-400">
+                  <p>Informe para la familia</p>
+                  <p>{today}</p>
+                </div>
+              </div>
+
+              {/* Plain-language summary */}
+              <div className="mb-4">
+                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">¿Cómo va el proceso?</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Sesiones realizadas", val: totalSessions, icon: "📅" },
+                    { label: "Objetivos en proceso", val: totalActive, icon: "🎯" },
+                    { label: "Objetivos alcanzados", val: achievedGoals.length, icon: "✅" },
+                  ].map(s => (
+                    <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                      <p className="text-lg">{s.icon}</p>
+                      <p className="text-2xl font-bold font-display text-slate-800 mt-1">{s.val}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{s.label}</p>
                     </div>
                   ))}
                 </div>
-              </>
-            )}
+              </div>
 
-            {/* Observaciones */}
-            {patient.observaciones && (
-              <>
-                <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3">Observaciones generales</h2>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 whitespace-pre-wrap mb-5">
-                  {patient.observaciones}
+              {achievedGoals.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wide border-b border-emerald-100 pb-1.5 mb-3">✅ Lo que ya logró</h2>
+                  <ul className="space-y-1.5">
+                    {achievedGoals.map(g => (
+                      <li key={g.id} className="flex items-center gap-2 text-xs text-slate-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                        {g.title}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </>
-            )}
+              )}
 
-            {/* Informe evolución */}
-            {(patient as any).informeEvolucion && (
-              <>
-                <h2 className="text-sm font-bold text-slate-600 border-b border-slate-200 pb-1 mb-3">Informe de evolución</h2>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 whitespace-pre-wrap mb-5">
-                  {(patient as any).informeEvolucion}
+              {totalActive > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wide border-b border-amber-100 pb-1.5 mb-3">🎯 En lo que estamos trabajando</h2>
+                  <ul className="space-y-1.5">
+                    {[...inProgressGoals, ...activeGoals].map(g => (
+                      <li key={g.id} className="flex items-center gap-2 text-xs text-slate-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                        {g.title}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </>
-            )}
+              )}
+
+              {/* Family narrative — editable */}
+              <div>
+                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                  Mensaje para la familia
+                </h2>
+                <Textarea
+                  value={textoFamilia}
+                  onChange={e => setTextoFamilia(e.target.value)}
+                  placeholder="Escribe aquí un mensaje sencillo y amigable para la familia del paciente, en lenguaje no técnico."
+                  rows={6}
+                  className="resize-none text-sm bg-slate-50 border-slate-200"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2 text-white" style={{ background: "#20C7C7" }}>
+              <Save className="h-4 w-4" />
+              {isSaving ? "Guardando…" : "Guardar versión familias"}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -505,6 +598,62 @@ export default function PatientProfile() {
     } finally {
       setIsSavingPatient(false);
     }
+  };
+
+  // ── Anamnesis state ──────────────────────────────────────────────────────
+  const [anMotivo, setAnMotivo]           = useState("");
+  const [anAntecedentes, setAnAntecedentes] = useState("");
+  const [anFamilia, setAnFamilia]         = useState("");
+  const [anEscolaridad, setAnEscolaridad] = useState("");
+  const [anObs, setAnObs]                 = useState("");
+  const [isSavingAn, setIsSavingAn]       = useState(false);
+  const [anDirty, setAnDirty]             = useState(false);
+
+  useEffect(() => {
+    if (patient) {
+      setAnMotivo((patient as any).motivoConsulta ?? "");
+      setAnAntecedentes((patient as any).antecedentes ?? "");
+      setAnFamilia((patient as any).historiaFamiliar ?? "");
+      setAnEscolaridad((patient as any).escolaridad ?? "");
+      setAnObs((patient as any).observaciones ?? "");
+      setAnDirty(false);
+    }
+  }, [patient?.id]);
+
+  const handleSaveAnamnesis = async () => {
+    setIsSavingAn(true);
+    try {
+      const res = await fetch(`/api/patients/${patientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          motivoConsulta: anMotivo || null,
+          antecedentes: anAntecedentes || null,
+          historiaFamiliar: anFamilia || null,
+          escolaridad: anEscolaridad || null,
+          observaciones: anObs || null,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      toast({ title: "Anamnesis guardada" });
+      setAnDirty(false);
+    } catch (err: any) {
+      toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSavingAn(false);
+    }
+  };
+
+  const handleSaveInforme = async (fields: { informeEvolucion?: string; informeFamilia?: string }) => {
+    const res = await fetch(`/api/patients/${patientId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+    toast({ title: "Informe guardado" });
   };
 
   const registros = allRegistros as RC[];
@@ -730,9 +879,11 @@ export default function PatientProfile() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="ficha">
+        <Tabs defaultValue="anamnesis">
           <TabsList className="bg-white border border-border/50 p-1 rounded-xl shadow-sm flex-wrap h-auto gap-1">
-            <TabsTrigger value="ficha" className="rounded-lg text-sm">Ficha</TabsTrigger>
+            <TabsTrigger value="anamnesis" className="rounded-lg text-sm flex items-center gap-1.5">
+              <ClipboardList className="h-3.5 w-3.5" /> Anamnesis
+            </TabsTrigger>
             <TabsTrigger value="registros" className="rounded-lg text-sm">Registros ({registros.length})</TabsTrigger>
             <TabsTrigger value="objetivos" className="rounded-lg text-sm flex items-center gap-1.5">
               <LayoutDashboard className="h-3.5 w-3.5" /> Plan Terapéutico
@@ -742,9 +893,6 @@ export default function PatientProfile() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="rounded-lg text-sm flex items-center gap-1.5">
-              <Milestone className="h-3.5 w-3.5" /> Línea de tiempo
-            </TabsTrigger>
             <TabsTrigger value="sugerencias" className="rounded-lg text-sm flex items-center gap-1">
               <Lightbulb className="h-3.5 w-3.5" /> Sugerencias
             </TabsTrigger>
@@ -753,107 +901,104 @@ export default function PatientProfile() {
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Ficha ───────────────────────────────────────────────────── */}
-          <TabsContent value="ficha" className="mt-6 space-y-4">
-            <Card className="border-border/50 shadow-sm">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Stethoscope className="h-4 w-4 text-primary" /> Profesionales asignados
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {profs.length > 0 ? (
-                  <div className="divide-y divide-border/40">
-                    {profs.map(pp => (
-                      <div key={pp.id} className="px-5 py-4 flex items-center gap-4">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold font-display shrink-0">
-                          {(pp.professionalName ?? "P").charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900 text-sm">{pp.professionalName}</p>
-                          {pp.professionalSpecialty && <p className="text-xs text-slate-500">{pp.professionalSpecialty}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-slate-400 text-sm">Sin profesionales asignados.</div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick objectives view */}
+          {/* ── Anamnesis ───────────────────────────────────────────────── */}
+          <TabsContent value="anamnesis" className="mt-6">
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-3 border-b">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" /> Objetivos activos
+                    <ClipboardList className="h-4 w-4 text-primary" /> Anamnesis
                   </CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => setShowGoalForm(true)} className="h-8 text-xs">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo
-                  </Button>
+                  {anDirty && (
+                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> Cambios sin guardar
+                    </span>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                {[...activeGoals, ...inProgressGoals].slice(0, 4).length > 0 ? (
-                  <div className="divide-y divide-border/40">
-                    {[...activeGoals, ...inProgressGoals].slice(0, 4).map(g => {
-                      const ac = getAreaColor(g.areaClinica ?? g.category);
-                      return (
-                        <div key={g.id} className="px-5 py-3.5 flex items-start gap-3">
-                          <GoalStatusIcon status={g.status} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {g.codigo && <span className="text-xs font-mono text-primary font-bold">{g.codigo}</span>}
-                              <p className="text-sm font-medium text-slate-800 leading-snug">{g.title}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 mt-1">
-                              <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[g.status] ?? ""}`}>
-                                {STATUS_LABELS[g.status] ?? g.status}
-                              </Badge>
-                              <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
-                                {g.areaClinica ?? g.category}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-slate-400 text-sm">Sin objetivos activos.</div>
-                )}
-              </CardContent>
-            </Card>
+              <CardContent className="p-5 space-y-5">
+                {/* Motivo de consulta */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-slate-400" /> Motivo de consulta
+                  </label>
+                  <Textarea
+                    value={anMotivo}
+                    onChange={e => { setAnMotivo(e.target.value); setAnDirty(true); }}
+                    placeholder="¿Por qué consulta? Describe el motivo principal de consulta y las preocupaciones del paciente o familia…"
+                    rows={3}
+                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
 
-            {/* Recent registros */}
-            <Card className="border-border/50 shadow-sm">
-              <CardHeader className="pb-3 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4 text-primary" /> Registros recientes
-                  </CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => setShowRegForm(true)} className="h-8 text-xs">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo
+                {/* Antecedentes */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-slate-400" /> Antecedentes relevantes
+                  </label>
+                  <Textarea
+                    value={anAntecedentes}
+                    onChange={e => { setAnAntecedentes(e.target.value); setAnDirty(true); }}
+                    placeholder="Antecedentes médicos, psicológicos, del desarrollo, intervenciones anteriores…"
+                    rows={3}
+                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
+
+                {/* Historia familiar */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-slate-400" /> Historia familiar
+                  </label>
+                  <Textarea
+                    value={anFamilia}
+                    onChange={e => { setAnFamilia(e.target.value); setAnDirty(true); }}
+                    placeholder="Composición familiar, dinámica del hogar, factores familiares relevantes…"
+                    rows={3}
+                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
+
+                {/* Escolaridad */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-slate-400" /> Escolaridad
+                  </label>
+                  <Textarea
+                    value={anEscolaridad}
+                    onChange={e => { setAnEscolaridad(e.target.value); setAnDirty(true); }}
+                    placeholder="Nivel educativo, establecimiento, rendimiento escolar, adaptación, apoyos pedagógicos…"
+                    rows={2}
+                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
+
+                {/* Observaciones generales */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5 text-slate-400" /> Observaciones generales
+                  </label>
+                  <Textarea
+                    value={anObs}
+                    onChange={e => { setAnObs(e.target.value); setAnDirty(true); }}
+                    placeholder="Otras observaciones clínicas relevantes, aspectos conductuales, contextuales…"
+                    rows={3}
+                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
+
+                {/* Save */}
+                <div className="flex justify-end pt-2 border-t border-slate-100">
+                  <Button
+                    onClick={handleSaveAnamnesis}
+                    disabled={isSavingAn}
+                    className="gap-2 text-white"
+                    style={{ background: "#0E3A6D" }}
+                  >
+                    <Save className="h-4 w-4" />
+                    {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {registros.slice(0, 3).length > 0 ? (
-                  <div className="divide-y divide-border/40">
-                    {registros.slice(0, 3).map(r => (
-                      <div key={r.id} className="px-5 py-3.5">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-sm font-medium text-slate-800">{formatFecha(r.fecha)}</span>
-                          {r.professionalName && <span className="text-xs text-slate-400">{r.professionalName}</span>}
-                        </div>
-                        {r.resumenSesion && <p className="text-xs text-slate-600 line-clamp-2">{r.resumenSesion}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-slate-400 text-sm">Sin registros clínicos aún.</div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1054,11 +1199,6 @@ export default function PatientProfile() {
             )}
           </TabsContent>
 
-          {/* ── Línea de tiempo ──────────────────────────────────────── */}
-          <TabsContent value="timeline" className="mt-6">
-            <ClinicalTimeline patientId={patientId} />
-          </TabsContent>
-
           {/* ── Sugerencias ─────────────────────────────────────────────── */}
           <TabsContent value="sugerencias" className="mt-6">
             <SuggestionsTab
@@ -1075,6 +1215,7 @@ export default function PatientProfile() {
               goals={goals}
               registros={registros}
               profs={profs}
+              onSave={handleSaveInforme}
             />
           </TabsContent>
         </Tabs>

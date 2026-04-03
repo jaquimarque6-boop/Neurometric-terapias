@@ -13,7 +13,12 @@ export const patientsTable = pgTable("patients", {
   promedioDesempeno: real("promedio_desempeno"),
   semaforo: text("semaforo"),
   observaciones: text("observaciones"),
+  motivoConsulta: text("motivo_consulta"),
+  antecedentes: text("antecedentes"),
+  historiaFamiliar: text("historia_familiar"),
+  escolaridad: text("escolaridad"),
   informeEvolucion: text("informe_evolucion"),
+  informeFamilia: text("informe_familia"),
   informeMensual: text("informe_mensual"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

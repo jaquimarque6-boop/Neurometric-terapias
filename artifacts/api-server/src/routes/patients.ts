@@ -134,6 +134,12 @@ async function updatePatientById(id: number, body: any, res: any) {
     franjaEtaria: body.franjaEtaria ?? existing.franjaEtaria,
     fechaInicio: body.fechaInicio ?? existing.fechaInicio,
     observaciones: body.observaciones !== undefined ? body.observaciones : existing.observaciones,
+    motivoConsulta: body.motivoConsulta !== undefined ? body.motivoConsulta : existing.motivoConsulta,
+    antecedentes: body.antecedentes !== undefined ? body.antecedentes : existing.antecedentes,
+    historiaFamiliar: body.historiaFamiliar !== undefined ? body.historiaFamiliar : existing.historiaFamiliar,
+    escolaridad: body.escolaridad !== undefined ? body.escolaridad : existing.escolaridad,
+    informeEvolucion: body.informeEvolucion !== undefined ? body.informeEvolucion : existing.informeEvolucion,
+    informeFamilia: body.informeFamilia !== undefined ? body.informeFamilia : existing.informeFamilia,
   }).where(eq(patientsTable.id, id)).returning();
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
