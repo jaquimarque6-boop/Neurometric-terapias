@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
-  Mic, MicOff,
+  Mic, MicOff, Check,
 } from "lucide-react";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { PERFORMANCE_MAP } from "@/components/registro-clinico-form";
 import { getClinicalContent } from "@/config/goal-clinical-content";
+import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
@@ -90,8 +91,10 @@ export default function NuevaSesion() {
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
   const [showBanco, setShowBanco]             = useState(false);
+  const [bancoArea, setBancoArea]             = useState("");
+  const [bancoSubarea, setBancoSubarea]       = useState("");
   const [bancoSearch, setBancoSearch]         = useState("");
-  const bancoInputRef                         = useRef<HTMLInputElement>(null);
+  const [bancoSelected, setBancoSelected]     = useState<Set<number>>(new Set());
 
   const [showAllGoals, setShowAllGoals]       = useState(false);
   const [resumen, setResumen]                 = useState("");
@@ -153,16 +156,18 @@ export default function NuevaSesion() {
     enabled: !!patient,
   });
 
-  const { data: bancoRaw = [] } = useQuery({
-    queryKey: ["banco-search", bancoSearch],
+  const { data: bancoRaw = [], isLoading: loadingBanco } = useQuery({
+    queryKey: ["banco-filter", bancoArea, bancoSubarea, bancoSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ estado: "activo" });
+      if (bancoArea) params.append("area", bancoArea);
+      if (bancoSubarea) params.append("subarea", bancoSubarea);
       if (bancoSearch.trim()) params.append("q", bancoSearch.trim());
       const res = await fetch(`/api/goal-library?${params}`);
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: showBanco,
+    enabled: showBanco && !!bancoArea,
   });
 
   const goals = (goalsRaw as any[]).filter(
@@ -283,11 +288,35 @@ export default function NuevaSesion() {
   const setAdHocRow = (libId: number, patch: Partial<RowState>) =>
     setAdHocRows(prev => ({ ...prev, [libId]: { ...(prev[libId] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso" }), ...patch } }));
 
-  const addAdHocGoal = (libGoal: any) => {
-    setAdHocGoals(prev => [...prev, libGoal]);
-    setAdHocRows(prev => ({ ...prev, [libGoal.id]: { checked: true, intentos: "", correctas: "", estado: "en progreso" } }));
-    setBancoSearch("");
-    setShowBanco(false);
+  const toggleBancoGoal = (id: number) => {
+    setBancoSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllBanco = () => {
+    setBancoSelected(new Set(bancoFiltered.map((g: any) => g.id)));
+  };
+
+  const clearBancoSelection = () => setBancoSelected(new Set());
+
+  const addSelectedGoals = () => {
+    const toAdd = bancoFiltered.filter((g: any) => bancoSelected.has(g.id));
+    if (toAdd.length === 0) return;
+    setAdHocGoals(prev => {
+      const existing = new Set(prev.map((g: any) => g.id));
+      return [...prev, ...toAdd.filter((g: any) => !existing.has(g.id))];
+    });
+    setAdHocRows(prev => {
+      const next = { ...prev };
+      toAdd.forEach((g: any) => {
+        next[g.id] = { checked: true, intentos: "", correctas: "", estado: "en progreso" };
+      });
+      return next;
+    });
+    setBancoSelected(new Set());
   };
 
   const removeAdHocGoal = (libId: number) => {
@@ -900,65 +929,173 @@ export default function NuevaSesion() {
               </div>
             )}
 
-            {/* "+ Agregar objetivo del día" */}
+            {/* ── Banco de objetivos ───────────────────────────────────── */}
             <div className="border-t border-slate-100">
               {!showBanco ? (
                 <button
                   className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors group"
-                  onClick={() => { setShowBanco(true); setTimeout(() => bancoInputRef.current?.focus(), 50); }}
+                  onClick={() => setShowBanco(true)}
                 >
                   <Plus className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                  Agregar objetivo del banco
+                  Agregar objetivos del banco
                   <BookOpen className="h-3.5 w-3.5 ml-auto text-slate-300 group-hover:text-slate-400" />
                 </button>
               ) : (
                 <div className="px-5 py-4 space-y-3">
+                  {/* Header */}
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                       <BookOpen className="h-3.5 w-3.5" style={{ color: BRAND_TEAL }} />
-                      Buscar en el banco de objetivos
+                      Banco de objetivos
                     </p>
-                    <button onClick={() => { setShowBanco(false); setBancoSearch(""); }}
-                      className="text-slate-400 hover:text-slate-600 transition-colors">
+                    <button
+                      onClick={() => { setShowBanco(false); setBancoArea(""); setBancoSubarea(""); setBancoSearch(""); setBancoSelected(new Set()); }}
+                      className="text-slate-400 hover:text-slate-600 transition-colors"
+                    >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <Input
-                      ref={bancoInputRef}
-                      placeholder="Ej: vocabulario expresivo, conciencia fonológica…"
-                      value={bancoSearch}
-                      onChange={e => setBancoSearch(e.target.value)}
-                      className="pl-9 bg-slate-50 text-sm h-9"
-                    />
+
+                  {/* Area + Subarea selectors */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Área clínica</label>
+                      <Select
+                        value={bancoArea}
+                        onValueChange={(v) => { setBancoArea(v); setBancoSubarea(""); setBancoSelected(new Set()); }}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-slate-50 border-slate-200">
+                          <SelectValue placeholder="Seleccionar área" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(AREA_SUBAREAS).map(a => (
+                            <SelectItem key={a} value={a} className="text-xs capitalize">{a.charAt(0).toUpperCase() + a.slice(1)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Subárea</label>
+                      <Select
+                        value={bancoSubarea || "__all__"}
+                        onValueChange={(v) => { setBancoSubarea(v === "__all__" ? "" : v); setBancoSelected(new Set()); }}
+                        disabled={!bancoArea}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-slate-50 border-slate-200">
+                          <SelectValue placeholder={bancoArea ? "Todas" : "Primero elige área"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__" className="text-xs">Todas las subáreas</SelectItem>
+                          {(AREA_SUBAREAS[bancoArea] ?? []).map((s: string) => (
+                            <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
-                    {bancoFiltered.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-sm text-slate-400">
-                        {bancoSearch.trim() ? "Sin resultados. Prueba con otras palabras." : "Escribe para buscar objetivos en el banco."}
+
+                  {/* Optional text search */}
+                  {bancoArea && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                      <Input
+                        placeholder="Filtrar por texto (opcional)…"
+                        value={bancoSearch}
+                        onChange={e => { setBancoSearch(e.target.value); setBancoSelected(new Set()); }}
+                        className="pl-8 h-8 text-xs bg-slate-50 border-slate-200"
+                      />
+                    </div>
+                  )}
+
+                  {/* Goal checklist */}
+                  {!bancoArea ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                      Selecciona un área para ver los objetivos disponibles
+                    </div>
+                  ) : loadingBanco ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                      Cargando objetivos…
+                    </div>
+                  ) : bancoFiltered.length === 0 ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                      Sin objetivos disponibles para esta selección.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Select-all row */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">{bancoFiltered.length} objetivos disponibles</span>
+                        <div className="flex gap-3">
+                          {bancoSelected.size > 0 && (
+                            <button onClick={clearBancoSelection} className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2">
+                              Limpiar
+                            </button>
+                          )}
+                          <button
+                            onClick={bancoSelected.size === bancoFiltered.length ? clearBancoSelection : selectAllBanco}
+                            className="text-xs font-medium hover:underline underline-offset-2"
+                            style={{ color: BRAND_TEAL }}
+                          >
+                            {bancoSelected.size === bancoFiltered.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      bancoFiltered.slice(0, 30).map((g: any) => (
-                        <button key={g.id}
-                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors group"
-                          onClick={() => addAdHocGoal(g)}>
-                          <Plus className="h-4 w-4 mt-0.5 text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 leading-snug">{g.nombreObjetivo}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              {g.areaClinica ?? g.area}
-                              {g.nivelDificultad ? ` · ${g.nivelDificultad}` : ""}
-                              {g.franjaEtaria ? ` · ${g.franjaEtaria} años` : ""}
-                            </p>
-                          </div>
-                          <span className="text-xs font-mono shrink-0 mt-0.5 text-slate-300 group-hover:text-slate-500">
-                            {g.idObjetivo}
-                          </span>
+
+                      {/* Scrollable checklist */}
+                      <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                        {bancoFiltered.map((g: any) => {
+                          const alreadyAdded = adHocGoals.some((a: any) => a.id === g.id);
+                          const isSelected = bancoSelected.has(g.id);
+                          return (
+                            <button
+                              key={g.id}
+                              className={`w-full flex items-start gap-3 px-4 py-2.5 text-left transition-colors ${
+                                alreadyAdded
+                                  ? "bg-emerald-50 cursor-default"
+                                  : isSelected
+                                  ? "bg-teal-50 hover:bg-teal-50"
+                                  : "hover:bg-slate-50"
+                              }`}
+                              onClick={() => { if (!alreadyAdded) toggleBancoGoal(g.id); }}
+                            >
+                              {/* Checkbox indicator */}
+                              <div className={`mt-0.5 h-4 w-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
+                                alreadyAdded
+                                  ? "bg-emerald-400 border-emerald-400"
+                                  : isSelected
+                                  ? "border-teal-500 bg-teal-500"
+                                  : "border-slate-300"
+                              }`}>
+                                {(alreadyAdded || isSelected) && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs font-medium leading-snug ${alreadyAdded ? "text-emerald-700" : "text-slate-800"}`}>
+                                  {g.nombreObjetivo}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  {g.nivelDificultad ? `${g.nivelDificultad} · ` : ""}
+                                  {g.franjaEtaria ? `${g.franjaEtaria} años · ` : ""}
+                                  {alreadyAdded ? "ya agregado" : g.idObjetivo}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Add button */}
+                      {bancoSelected.size > 0 && (
+                        <button
+                          onClick={addSelectedGoals}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98]"
+                          style={{ background: BRAND_TEAL }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Agregar {bancoSelected.size} objetivo{bancoSelected.size !== 1 ? "s" : ""} a la sesión
                         </button>
-                      ))
-                    )}
-                  </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
