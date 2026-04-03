@@ -1,312 +1,252 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { format, startOfWeek, endOfWeek } from "date-fns";
+import { es } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Plus,
-  ClipboardList,
-  ChevronRight,
-  BookOpen,
-  Stethoscope,
-  BarChart2,
-  Users,
-  Target,
-  TrendingUp,
-  CheckCircle2,
+  Plus, ClipboardList, ChevronRight, BookOpen,
+  Users, Target, CalendarDays, Clock, Sparkles,
+  ArrowRight, Calendar,
 } from "lucide-react";
-import {
-  useListPatients,
-  useListRegistrosClinicos,
-} from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
-import { Skeleton } from "@/components/ui/skeleton";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
 
-// ─── Patient card (same compact style as Patients panel) ──────────────────────
-
-type DisplayStatus = "Buen progreso" | "En progreso" | "Requiere ajuste";
-
-const STATUS: Record<
-  DisplayStatus,
-  { stripe: string; dot: string; label: string }
-> = {
-  "Buen progreso": {
-    stripe: "#10b981",
-    dot: "bg-emerald-400",
-    label: "text-emerald-600",
-  },
-  "En progreso": {
-    stripe: BRAND_TEAL,
-    dot: "bg-teal-400",
-    label: "text-teal-600",
-  },
-  "Requiere ajuste": {
-    stripe: "#f43f5e",
-    dot: "bg-rose-400",
-    label: "text-rose-600",
-  },
+const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
+  sesion:     { dot: "bg-blue-400",   bg: "bg-blue-50",   text: "text-blue-700"   },
+  evaluacion: { dot: "bg-violet-400", bg: "bg-violet-50", text: "text-violet-700" },
+  reunion:    { dot: "bg-amber-400",  bg: "bg-amber-50",  text: "text-amber-700"  },
+  otro:       { dot: "bg-slate-300",  bg: "bg-slate-50",  text: "text-slate-600"  },
 };
-
-function resolveStatus(raw: string | undefined): DisplayStatus {
-  if (raw === "Buen progreso") return "Buen progreso";
-  if (raw === "En progreso") return "En progreso";
-  return "Requiere ajuste";
-}
-
-function shortAction(raw: string | undefined): string | null {
-  if (!raw) return null;
-  if (raw.includes("Continuar")) return "Continuar";
-  if (raw.includes("Aumentar") || raw.includes("dificultad"))
-    return "Subir nivel";
-  if (raw.includes("Revisar")) return "Revisar";
-  if (raw.includes("Agregar") || raw.includes("nuevo")) return "Agregar";
-  return null;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+const TIPO_LABELS: Record<string, string> = {
+  sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
+};
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [showNewPatient, setShowNewPatient] = useState(false);
 
-  const { data: patients = [], isLoading: loadingPatients } = useListPatients();
-  const { data: registros = [] } = useListRegistrosClinicos({});
+  const today      = format(new Date(), "yyyy-MM-dd");
+  const todayLabel = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  const weekStart  = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const weekEnd    = format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
   const firstName = (user as any)?.name?.split(" ")[0] ?? "Profesional";
 
-  const navLinks = [
-    { label: "Registros", icon: ClipboardList, path: "/registros" },
-    { label: "Banco", icon: BookOpen, path: "/goal-library" },
-    { label: "Equipo", icon: Stethoscope, path: "/professionals" },
-    { label: "Reportes", icon: BarChart2, path: "/reportes" },
+  const { data: patients = [] } = useQuery<any[]>({
+    queryKey: ["listPatients"],
+    queryFn: async () => {
+      const res = await fetch("/api/patients");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: goals = [] } = useQuery<any[]>({
+    queryKey: ["listGoals"],
+    queryFn: async () => {
+      const res = await fetch("/api/goals");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: citasHoy = [], isLoading: loadingCitas } = useQuery<any[]>({
+    queryKey: ["citas", today, today],
+    queryFn: async () => {
+      const res = await fetch(`/api/citas?start=${today}&end=${today}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: citasSemana = [] } = useQuery<any[]>({
+    queryKey: ["citas", weekStart, weekEnd],
+    queryFn: async () => {
+      const res = await fetch(`/api/citas?start=${weekStart}&end=${weekEnd}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const totalPatients  = (patients as any[]).length;
+  const activeGoals    = (goals as any[]).filter(g => g.status === "activo" || g.status === "en progreso").length;
+  const sessionsSemana = (citasSemana as any[]).filter(c => c.status !== "cancelada").length;
+  const citasHoyActive = (citasHoy as any[]).filter(c => c.status !== "cancelada");
+
+  const quickLinks = [
+    { label: "Pacientes",        icon: Users,        path: "/patients",    color: BRAND_BLUE },
+    { label: "Agenda",           icon: CalendarDays, path: "/agenda",      color: "#7c3aed"  },
+    { label: "Banco de Objetivos", icon: BookOpen,   path: "/goal-library",color: BRAND_TEAL },
+  ];
+
+  const stats = [
+    { label: "Pacientes",          value: totalPatients,  icon: Users,        color: "text-primary",   bg: "bg-primary/8"   },
+    { label: "Objetivos activos",  value: activeGoals,    icon: Target,       color: "text-amber-600", bg: "bg-amber-50"    },
+    { label: "Citas esta semana",  value: sessionsSemana, icon: CalendarDays, color: "text-violet-600",bg: "bg-violet-50"   },
   ];
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-5 animate-in fade-in duration-400">
-        {/* ── Top bar: greeting + primary CTA ─────────────────────────── */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col gap-6 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
+
+        {/* ── Greeting ───────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">
-              Neurometric Lab
-            </p>
-            <h1
-              className="text-xl font-bold mt-0.5"
-              style={{ color: BRAND_BLUE }}
-            >
-              {firstName}
+            <p className="text-xs text-slate-400 font-medium capitalize">{todayLabel}</p>
+            <h1 className="text-2xl font-bold mt-0.5 font-display" style={{ color: BRAND_BLUE }}>
+              Hola, {firstName}
             </h1>
           </div>
+        </div>
 
+        {/* ── Primary actions ─────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => navigate("/nueva-sesion")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md
+            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
                        transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-            style={{
-              background: `linear-gradient(90deg, ${BRAND_TEAL} 0%, #18b3b3 100%)`,
-            }}
+            style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #1a5ea0 100%)` }}
           >
-            <ClipboardList className="h-4 w-4" />
-            Nueva sesión
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+              <ClipboardList className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold leading-tight">Nueva sesión</p>
+              <p className="text-xs font-normal text-white/70 mt-0.5">Registrar atención</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setShowNewPatient(true)}
+            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
+                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
+            style={{ background: `linear-gradient(135deg, ${BRAND_TEAL} 0%, #18b3b3 100%)` }}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+              <Plus className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold leading-tight">Nuevo paciente</p>
+              <p className="text-xs font-normal text-white/70 mt-0.5">Agregar al sistema</p>
+            </div>
           </button>
         </div>
 
-        {/* ── Active patients ──────────────────────────────────────────── */}
+        {/* ── Hoy ─────────────────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <h2
-                className="text-sm font-semibold"
-                style={{ color: BRAND_BLUE }}
-              >
-                Pacientes activos
-              </h2>
-              {!loadingPatients && (
-                <span className="text-xs text-slate-400">
-                  ({(patients as any[]).length})
-                </span>
-              )}
-            </div>
+            <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-slate-400" /> Agenda de hoy
+            </h2>
             <button
-              onClick={() => setShowNewPatient(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border
-                         transition-all hover:bg-slate-50 active:scale-95"
-              style={{ color: BRAND_BLUE, borderColor: "#e2e8f0" }}
-            >
-              <Plus className="h-3 w-3" />
-              Nuevo paciente
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {loadingPatients ? (
-              Array(6)
-                .fill(0)
-                .map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-xl border border-slate-100 p-4 space-y-3 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-3.5 w-20 rounded-full" />
-                    </div>
-                    <Skeleton className="h-3 w-40" />
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-1 flex-1 rounded-full" />
-                      <Skeleton className="h-3 w-8" />
-                      <Skeleton className="h-6 w-16 rounded-md" />
-                    </div>
-                  </div>
-                ))
-            ) : (patients as any[]).length === 0 ? (
-              <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                <Users className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">
-                  Sin pacientes registrados.
-                </p>
-                <button
-                  onClick={() => setShowNewPatient(true)}
-                  className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{ background: BRAND_TEAL }}
-                >
-                  Agregar primer paciente
-                </button>
-              </div>
-            ) : (
-              (patients as any[]).map((patient) => {
-                const displayStatus = resolveStatus(patient.clinicalStatus);
-                const sc = STATUS[displayStatus];
-                const focus = patient.currentFocus as
-                  | { title: string; area: string }
-                  | null
-                  | undefined;
-                const action = shortAction(patient.nextAction);
-                const pct =
-                  patient.promedioDesempeno != null
-                    ? Math.round((patient.promedioDesempeno as number) * 100)
-                    : null;
-                const focusLine = focus
-                  ? [focus.area, focus.title].filter(Boolean).join(" – ")
-                  : (patient.diagnosis ?? null);
-
-                return (
-                  <div
-                    key={patient.id}
-                    onClick={() => navigate(`/patients/${patient.id}`)}
-                    className="bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer group
-                               hover:shadow-md hover:border-slate-200 transition-all duration-200 overflow-hidden flex"
-                    style={{ borderLeft: `3px solid ${sc.stripe}` }}
-                  >
-                    <div className="flex-1 p-4 min-w-0 flex flex-col gap-2.5">
-                      {/* Row 1: Name · age · status */}
-                      <div className="flex items-center justify-between gap-2 min-w-0">
-                        <div className="flex items-baseline gap-2 min-w-0">
-                          <span
-                            className="font-semibold text-sm truncate leading-none"
-                            style={{ color: BRAND_BLUE }}
-                          >
-                            {patient.name}
-                          </span>
-                          {patient.age && (
-                            <span className="text-xs text-slate-400 shrink-0 leading-none">
-                              {patient.age}a
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          className={`flex items-center gap-1 text-xs font-medium shrink-0 ${sc.label}`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${sc.dot} shrink-0`}
-                          />
-                          {displayStatus}
-                        </span>
-                      </div>
-
-                      {/* Row 2: Focus line */}
-                      {focusLine && (
-                        <p className="text-xs text-slate-500 truncate leading-none">
-                          {focusLine}
-                        </p>
-                      )}
-
-                      {/* Row 3: Progress + action */}
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {pct !== null ? (
-                          <>
-                            <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${pct}%`,
-                                  background: sc.stripe,
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-slate-400 shrink-0 tabular-nums">
-                              {pct}%
-                            </span>
-                          </>
-                        ) : (
-                          <div className="flex-1" />
-                        )}
-
-                        {action ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/patients/${patient.id}`);
-                            }}
-                            className="shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold
-                                       transition-all hover:opacity-80 active:scale-95"
-                            style={{
-                              color: BRAND_TEAL,
-                              background: BRAND_TEAL + "18",
-                            }}
-                          >
-                            {action}
-                          </button>
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {(patients as any[]).length > 0 && (
-            <button
-              onClick={() => navigate("/patients")}
-              className="mt-3 flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80"
+              onClick={() => navigate("/agenda")}
+              className="text-xs font-medium flex items-center gap-0.5 transition-colors hover:opacity-75"
               style={{ color: BRAND_TEAL }}
             >
-              Ver todos los pacientes <ChevronRight className="h-3.5 w-3.5" />
+              Ver agenda <ChevronRight className="h-3.5 w-3.5" />
             </button>
+          </div>
+
+          {loadingCitas ? (
+            <div className="space-y-2">
+              {[0, 1].map(i => (
+                <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : citasHoyActive.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center">
+              <CalendarDays className="h-7 w-7 text-slate-200 mb-2" />
+              <p className="text-sm text-slate-400">Sin citas programadas para hoy</p>
+              <button
+                onClick={() => navigate("/agenda")}
+                className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+              >
+                Ir a la Agenda
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {citasHoyActive
+                .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+                .map((cita: any) => {
+                  const colors = TIPO_COLORS[cita.tipo] ?? TIPO_COLORS.otro;
+                  return (
+                    <div
+                      key={cita.id}
+                      className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
+                    >
+                      <div className={`flex items-center justify-center h-9 w-9 rounded-xl shrink-0 ${colors.bg}`}>
+                        <Clock className={`h-4 w-4 ${colors.text}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{cita.titulo}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {cita.horaInicio} – {cita.horaFin}
+                          {cita.tipo && (
+                            <span className="ml-2">{TIPO_LABELS[cita.tipo] ?? cita.tipo}</span>
+                          )}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => navigate("/nueva-sesion")}
+                        className="shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90 active:scale-95"
+                        style={{ background: BRAND_TEAL }}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Iniciar
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
           )}
         </div>
 
-        {/* ── Quick nav ────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 flex-wrap pt-1">
-          {navLinks.map((link) => (
-            <button
-              key={link.label}
-              onClick={() => navigate(link.path)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border
-                         bg-white transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              style={{ color: BRAND_BLUE, borderColor: "#e2e8f0" }}
-            >
-              <link.icon className="h-3.5 w-3.5 text-slate-400" />
-              {link.label}
-            </button>
-          ))}
+        {/* ── Stats summary ────────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-700 mb-3">Resumen</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {stats.map(s => (
+              <div key={s.label} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 text-center">
+                <div className={`inline-flex items-center justify-center h-8 w-8 rounded-xl mb-2 ${s.bg}`}>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+                <p className={`text-2xl font-bold font-display ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{s.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* ── Quick access ─────────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-700 mb-3">Acceso rápido</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {quickLinks.map(link => (
+              <button
+                key={link.label}
+                onClick={() => navigate(link.path)}
+                className="flex flex-col items-center gap-2 py-4 px-3 bg-white rounded-2xl border border-slate-100 shadow-sm
+                           text-center transition-all duration-200 hover:shadow-md hover:border-slate-200 active:scale-[0.97] group"
+              >
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
+                  style={{ background: link.color + "18" }}
+                >
+                  <link.icon className="h-5 w-5" style={{ color: link.color }} />
+                </div>
+                <span className="text-xs font-semibold text-slate-700 leading-tight">{link.label}</span>
+                <ArrowRight className="h-3 w-3 text-slate-300 group-hover:text-slate-400 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
 
       <NuevoPacienteModal
@@ -316,5 +256,3 @@ export default function Dashboard() {
     </AppLayout>
   );
 }
-
-// update
