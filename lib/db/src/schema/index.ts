@@ -8,3 +8,4 @@ export * from "./registros-clinicos";
 export * from "./patient-professionals";
 export * from "./actividades";
 export * from "./users";
+export * from "./citas";

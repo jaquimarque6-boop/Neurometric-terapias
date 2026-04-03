@@ -18,6 +18,7 @@ import Reportes from "@/pages/reportes";
 import Professionals from "@/pages/professionals";
 import GoalLibrary from "@/pages/goal-library";
 import NuevaSesion from "@/pages/nueva-sesion";
+import Agenda from "@/pages/agenda";
 import LoginPage from "@/pages/login";
 
 const queryClient = new QueryClient({
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/professionals" component={() => <ProtectedRoute component={Professionals} />} />
       <Route path="/goal-library" component={() => <ProtectedRoute component={GoalLibrary} />} />
       <Route path="/nueva-sesion" component={() => <ProtectedRoute component={NuevaSesion} />} />
+      <Route path="/agenda" component={() => <ProtectedRoute component={Agenda} />} />
       <Route component={NotFound} />
     </Switch>
   );

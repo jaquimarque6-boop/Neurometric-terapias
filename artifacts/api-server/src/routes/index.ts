@@ -12,6 +12,7 @@ import patientProfessionalsRouter from "./patient-professionals";
 import goalCodesRouter from "./goal-codes";
 import authRouter from "./auth";
 import goalGuidanceRouter from "./goal-guidance";
+import citasRouter from "./citas";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(actividadesRouter);
 router.use(patientProfessionalsRouter);
 router.use(goalCodesRouter);
 router.use(goalGuidanceRouter);
+router.use(citasRouter);
 
 export default router;
