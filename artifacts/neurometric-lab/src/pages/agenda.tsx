@@ -9,16 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
-  ChevronLeft, ChevronRight, Plus, Calendar, Clock, User, RefreshCw,
-  Repeat, X, Pencil, AlertCircle, CheckCircle2, CalendarDays, Trash2,
+  ChevronLeft, ChevronRight, Plus, Calendar, Clock,
+  Repeat, X, Pencil, AlertCircle, CalendarDays,
 } from "lucide-react";
 
-const HOUR_PX = 64;
+const HOUR_PX = 52;
 const START_HOUR = 7;
 const END_HOUR = 21;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -119,15 +118,6 @@ export default function AgendaPage() {
       return res.json();
     },
   });
-  const { data: professionals = [] } = useQuery<any[]>({
-    queryKey: ["listProfessionals"],
-    queryFn: async () => {
-      const res = await fetch("/api/professionals");
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
   const [isSaving, setIsSaving] = useState(false);
@@ -161,8 +151,8 @@ export default function AgendaPage() {
   };
 
   const handleCreate = async () => {
-    if (!form.titulo.trim() || !form.fecha || !form.horaInicio || !form.horaFin) {
-      toast({ title: "Completa los campos obligatorios", variant: "destructive" });
+    if (!form.patientId || !form.fecha || !form.horaInicio || !form.horaFin) {
+      toast({ title: "Selecciona un paciente y completa la fecha y horario", variant: "destructive" });
       return;
     }
     setIsSaving(true);
@@ -356,29 +346,22 @@ export default function AgendaPage() {
                       const top = topPx(cita.horaInicio);
                       const h = heightPx(cita.horaInicio, cita.horaFin);
                       const colors = TIPO_COLORS[cita.tipo] ?? TIPO_COLORS.otro;
-                      const isCancelled = cita.status === "cancelada";
+                      const durationMins = timeToMinutes(cita.horaFin) - timeToMinutes(cita.horaInicio);
                       return (
                         <button
                           key={cita.id}
                           onClick={() => setSelectedCita(cita)}
-                          className={`absolute left-1 right-1 rounded-lg border text-left overflow-hidden transition-shadow hover:shadow-md ${colors.bg} ${colors.border} ${isCancelled ? "opacity-40 line-through" : ""}`}
-                          style={{ top: top + 2, height: h - 4, zIndex: 1 }}
+                          className={`absolute left-0.5 right-0.5 rounded-md border-l-2 text-left overflow-hidden transition-all hover:brightness-95 active:scale-[0.98] ${colors.bg} ${colors.border}`}
+                          style={{ top: top + 1, height: h - 2, zIndex: 1, borderLeftColor: colors.dot.replace("bg-", "").includes("-") ? undefined : undefined }}
                         >
-                          <div className={`px-2 py-1 h-full flex flex-col justify-start gap-0.5`}>
-                            <div className="flex items-center gap-1 min-w-0">
-                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${colors.dot}`} />
-                              <span className={`text-xs font-semibold truncate leading-tight ${colors.text}`}>
-                                {cita.titulo}
-                              </span>
-                              {cita.serieId && (
-                                <Repeat className={`h-2.5 w-2.5 shrink-0 ${colors.text} opacity-60`} />
-                              )}
-                            </div>
-                            {h > 44 && (
-                              <span className={`text-[10px] ${colors.text} opacity-70 ml-2.5`}>
-                                {cita.horaInicio} – {cita.horaFin}
-                              </span>
-                            )}
+                          <div className="px-1.5 py-1 h-full flex flex-col justify-start">
+                            <span className={`text-[11px] font-semibold truncate leading-snug ${colors.text}`}>
+                              {cita.titulo}
+                            </span>
+                            <span className={`text-[10px] leading-none mt-0.5 ${colors.text} opacity-60`}>
+                              {cita.horaInicio}
+                              {h > 32 && ` · ${durationMins}min`}
+                            </span>
                           </div>
                         </button>
                       );
@@ -401,12 +384,21 @@ export default function AgendaPage() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600">Título *</label>
-              <Input
-                value={form.titulo}
-                onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
-                placeholder="Ej. Sesión de lenguaje"
-              />
+              <label className="text-xs font-semibold text-slate-600">Paciente *</label>
+              <select
+                value={form.patientId}
+                onChange={e => {
+                  const id = e.target.value;
+                  const patient = (patients as any[]).find(p => String(p.id) === id);
+                  setForm(f => ({ ...f, patientId: id, titulo: patient?.name ?? "" }));
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">— Seleccionar paciente —</option>
+                {(patients as any[]).map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -434,35 +426,6 @@ export default function AgendaPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-600">Hora fin *</label>
                 <Input type="time" value={form.horaFin} onChange={e => setForm(f => ({ ...f, horaFin: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Paciente</label>
-                <select
-                  value={form.patientId}
-                  onChange={e => setForm(f => ({ ...f, patientId: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">— Sin paciente —</option>
-                  {(patients as any[]).map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Profesional</label>
-                <select
-                  value={form.professionalId}
-                  onChange={e => setForm(f => ({ ...f, professionalId: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">— Sin profesional —</option>
-                  {(professionals as any[]).map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name ?? p.nombre}</option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -544,40 +507,34 @@ export default function AgendaPage() {
         <Dialog open onOpenChange={() => setSelectedCita(null)}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 pr-6">
-                <span className={`h-2.5 w-2.5 rounded-full ${TIPO_COLORS[selectedCita.tipo]?.dot ?? "bg-slate-400"}`} />
+              <DialogTitle className="flex items-center gap-2 pr-6 text-base">
                 {selectedCita.titulo}
               </DialogTitle>
               <DialogDescription asChild>
-                <div className="space-y-1 pt-1">
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />
-                      {format(parseISO(selectedCita.fecha), "EEEE d 'de' MMMM", { locale: es })}
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-col gap-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span className="capitalize">{format(parseISO(selectedCita.fecha), "EEEE d 'de' MMMM", { locale: es })}</span>
                     </span>
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
                       {selectedCita.horaInicio} – {selectedCita.horaFin}
+                      <span className="text-slate-400">({timeToMinutes(selectedCita.horaFin) - timeToMinutes(selectedCita.horaInicio)} min)</span>
                     </span>
                   </div>
-                  <div className="flex gap-2 flex-wrap pt-1">
-                    <Badge variant="secondary" className="text-xs">
-                      {TIPO_LABELS[selectedCita.tipo] ?? selectedCita.tipo}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${selectedCita.status === "cancelada" ? "text-red-600 border-red-200" : selectedCita.status === "realizada" ? "text-emerald-600 border-emerald-200" : "text-slate-600"}`}
-                    >
-                      {selectedCita.status === "programada" ? "Programada" :
-                       selectedCita.status === "realizada"  ? "Realizada"  :
-                       selectedCita.status === "cancelada"  ? "Cancelada"  : selectedCita.status}
-                    </Badge>
+                  <div className="flex gap-2 flex-wrap">
                     {selectedCita.serieId && (
                       <Badge variant="secondary" className="text-xs gap-1">
-                        <Repeat className="h-3 w-3" /> Serie semanal
+                        <Repeat className="h-3 w-3" /> Semanal
                       </Badge>
+                    )}
+                    {selectedCita.status === "cancelada" && (
+                      <Badge variant="outline" className="text-xs text-red-600 border-red-200">Cancelada</Badge>
                     )}
                   </div>
                   {selectedCita.notas && (
-                    <p className="text-xs text-slate-500 italic mt-2">{selectedCita.notas}</p>
+                    <p className="text-xs text-slate-400 italic">{selectedCita.notas}</p>
                   )}
                 </div>
               </DialogDescription>
@@ -640,10 +597,6 @@ export default function AgendaPage() {
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Título</label>
-                <Input value={editForm.titulo} onChange={e => setEditForm(f => ({ ...f, titulo: e.target.value }))} />
-              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600">Hora inicio</label>
