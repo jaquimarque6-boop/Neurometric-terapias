@@ -4,7 +4,7 @@ import { es } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -252,7 +252,8 @@ export default function AgendaPage() {
   const isToday = (d: Date) => isSameDay(d, new Date());
 
   return (
-    <div className="flex h-screen bg-slate-50/50 overflow-hidden">
+    <SidebarProvider>
+    <div className="flex h-screen bg-slate-50/50 overflow-hidden w-full">
       <AppSidebar />
       <SidebarInset className="flex flex-col overflow-hidden">
         {/* Top bar */}
@@ -733,5 +734,6 @@ export default function AgendaPage() {
         </Dialog>
       )}
     </div>
+    </SidebarProvider>
   );
 }

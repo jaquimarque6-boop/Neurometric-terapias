@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Users, Search, UserCircle, ArrowLeft, Plus, ChevronRight,
+  Users,
+  Search,
+  UserCircle,
+  ArrowLeft,
+  Plus,
+  ChevronRight,
 } from "lucide-react";
 import { useListPatients } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -16,16 +21,31 @@ const BRAND_TEAL = "#20C7C7";
 
 type DisplayStatus = "Buen progreso" | "En progreso" | "Requiere ajuste";
 
-const STATUS: Record<DisplayStatus, { stripe: string; dot: string; label: string }> = {
-  "Buen progreso":   { stripe: "#10b981", dot: "bg-emerald-400", label: "text-emerald-600" },
-  "En progreso":     { stripe: BRAND_TEAL, dot: "bg-teal-400",   label: "text-teal-600"   },
-  "Requiere ajuste": { stripe: "#f43f5e", dot: "bg-rose-400",    label: "text-rose-600"   },
+const STATUS: Record<
+  DisplayStatus,
+  { stripe: string; dot: string; label: string }
+> = {
+  "Buen progreso": {
+    stripe: "#10b981",
+    dot: "bg-emerald-400",
+    label: "text-emerald-600",
+  },
+  "En progreso": {
+    stripe: BRAND_TEAL,
+    dot: "bg-teal-400",
+    label: "text-teal-600",
+  },
+  "Requiere ajuste": {
+    stripe: "#f43f5e",
+    dot: "bg-rose-400",
+    label: "text-rose-600",
+  },
 };
 
 function resolveStatus(raw: string | undefined): DisplayStatus {
   if (!raw) return "Requiere ajuste";
   if (raw === "Buen progreso") return "Buen progreso";
-  if (raw === "En progreso")   return "En progreso";
+  if (raw === "En progreso") return "En progreso";
   // Estancado → Requiere ajuste; anything else → Requiere ajuste
   return "Requiere ajuste";
 }
@@ -33,9 +53,10 @@ function resolveStatus(raw: string | undefined): DisplayStatus {
 // Map verbose action labels to short imperative verbs
 function shortAction(raw: string | undefined): string | null {
   if (!raw) return null;
-  if (raw.includes("Continuar"))  return "Continuar";
-  if (raw.includes("Aumentar") || raw.includes("dificultad")) return "Subir nivel";
-  if (raw.includes("Revisar"))    return "Revisar";
+  if (raw.includes("Continuar")) return "Continuar";
+  if (raw.includes("Aumentar") || raw.includes("dificultad"))
+    return "Subir nivel";
+  if (raw.includes("Revisar")) return "Revisar";
   if (raw.includes("Agregar") || raw.includes("nuevo")) return "Agregar";
   return null;
 }
@@ -48,13 +69,15 @@ export default function Patients() {
   const [, navigate] = useLocation();
   const { data: patients, isLoading } = useListPatients();
 
-  const filtered = (patients ?? []).filter(p => {
+  const filtered = (patients ?? []).filter((p) => {
     const q = searchTerm.toLowerCase();
-    return !q ||
+    return (
+      !q ||
       p.name.toLowerCase().includes(q) ||
       (p.diagnosis ?? "").toLowerCase().includes(q) ||
       (p.profesionalNombre ?? "").toLowerCase().includes(q) ||
-      (p.franjaEtaria ?? "").includes(q);
+      (p.franjaEtaria ?? "").includes(q)
+    );
   });
 
   const handleBack = () => {
@@ -65,7 +88,6 @@ export default function Patients() {
   return (
     <AppLayout>
       <div className="flex flex-col gap-4 animate-in fade-in duration-400">
-
         <button
           onClick={handleBack}
           className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors w-fit"
@@ -93,7 +115,7 @@ export default function Patients() {
               <Input
                 placeholder="Buscar..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 h-8 text-sm w-44 bg-white border-slate-200 focus-visible:ring-primary/20"
               />
             </div>
@@ -111,28 +133,41 @@ export default function Patients() {
         {/* Patient list */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {isLoading ? (
-            Array(6).fill(0).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-slate-100 p-4 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3.5 w-20 rounded-full" />
+            Array(6)
+              .fill(0)
+              .map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-slate-100 p-4 space-y-3 shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3.5 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-40" />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-1 flex-1 rounded-full" />
+                    <Skeleton className="h-3 w-8" />
+                    <Skeleton className="h-6 w-16 rounded-md" />
+                  </div>
                 </div>
-                <Skeleton className="h-3 w-40" />
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-1 flex-1 rounded-full" />
-                  <Skeleton className="h-3 w-8" />
-                  <Skeleton className="h-6 w-16 rounded-md" />
-                </div>
-              </div>
-            ))
+              ))
           ) : filtered.length > 0 ? (
-            filtered.map(patient => {
-              const rawStatus = (patient as any).clinicalStatus as string | undefined;
-              const focus     = (patient as any).currentFocus as { title: string; area: string } | null | undefined;
-              const rawAction = (patient as any).nextAction as string | undefined;
-              const pct       = patient.promedioDesempeno != null
-                ? Math.round((patient.promedioDesempeno as number) * 100)
-                : null;
+            filtered.map((patient) => {
+              const rawStatus = (patient as any).clinicalStatus as
+                | string
+                | undefined;
+              const focus = (patient as any).currentFocus as
+                | { title: string; area: string }
+                | null
+                | undefined;
+              const rawAction = (patient as any).nextAction as
+                | string
+                | undefined;
+              const pct =
+                patient.promedioDesempeno != null
+                  ? Math.round((patient.promedioDesempeno as number) * 100)
+                  : null;
 
               const displayStatus = resolveStatus(rawStatus);
               const sc = STATUS[displayStatus];
@@ -153,7 +188,6 @@ export default function Patients() {
                   style={{ borderLeft: `3px solid ${sc.stripe}` }}
                 >
                   <div className="flex-1 p-4 min-w-0 flex flex-col gap-2.5">
-
                     {/* Row 1: Name + age · Status */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="flex items-baseline gap-2 min-w-0">
@@ -169,8 +203,12 @@ export default function Patients() {
                           </span>
                         )}
                       </div>
-                      <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${sc.label}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${sc.dot} shrink-0`} />
+                      <span
+                        className={`flex items-center gap-1 text-xs font-medium shrink-0 ${sc.label}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${sc.dot} shrink-0`}
+                        />
                         {displayStatus}
                       </span>
                     </div>
@@ -189,10 +227,15 @@ export default function Patients() {
                           <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-500"
-                              style={{ width: `${pct}%`, background: sc.stripe }}
+                              style={{
+                                width: `${pct}%`,
+                                background: sc.stripe,
+                              }}
                             />
                           </div>
-                          <span className="text-xs text-slate-400 shrink-0 tabular-nums">{pct}%</span>
+                          <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                            {pct}%
+                          </span>
                         </>
                       ) : (
                         <div className="flex-1" />
@@ -200,7 +243,10 @@ export default function Patients() {
 
                       {action && (
                         <button
-                          onClick={e => { e.stopPropagation(); navigate(`/patients/${patient.id}`); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/patients/${patient.id}`);
+                          }}
                           className="shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold transition-all
                                      hover:opacity-80 active:scale-95"
                           style={{
@@ -214,12 +260,9 @@ export default function Patients() {
 
                       {/* Fallback: always show an arrow to indicate clickable */}
                       {!action && (
-                        <ChevronRight
-                          className="h-4 w-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors"
-                        />
+                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
                       )}
                     </div>
-
                   </div>
                 </div>
               );
@@ -227,8 +270,12 @@ export default function Patients() {
           ) : (
             <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
               <UserCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-600">Sin resultados</p>
-              <p className="text-xs text-slate-400 mt-1">Ajusta la búsqueda o agrega un nuevo paciente.</p>
+              <p className="text-sm font-medium text-slate-600">
+                Sin resultados
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Ajusta la búsqueda o agrega un nuevo paciente.
+              </p>
               <button
                 onClick={() => setShowNewPatient(true)}
                 className="mt-4 px-4 py-2 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90"
@@ -241,7 +288,10 @@ export default function Patients() {
         </div>
       </div>
 
-      <NuevoPacienteModal open={showNewPatient} onClose={() => setShowNewPatient(false)} />
+      <NuevoPacienteModal
+        open={showNewPatient}
+        onClose={() => setShowNewPatient(false)}
+      />
     </AppLayout>
   );
 }
