@@ -20,6 +20,15 @@ import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
 
+const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
+  lenguaje:      ["Evocación", "Completar frase", "Asociación imagen-palabra"],
+  comprensión:   ["Selección múltiple", "Señalamiento", "Secuencias"],
+  fonología:     ["Pares mínimos", "Discriminación auditiva", "Elegir la correcta"],
+  cognición:     ["Secuencias", "Clasificación", "Resolver consignas"],
+  comunicación:  ["Turnos", "Intención comunicativa", "Juego guiado"],
+  habla:         ["Repetición", "Discriminación", "Denominación con apoyo"],
+};
+
 type RowState = {
   checked: boolean;
   intentos: string;
@@ -679,7 +688,10 @@ export default function NuevaSesion() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-600 mb-2">Actividades sugeridas</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {["Secuencias", "Selección múltiple", "Asociación imagen-palabra"].map(chip => (
+                      {(
+                        ACTIVIDADES_POR_AREA[(goalMeta?.area ?? goalMeta?.subarea ?? "").toLowerCase()] ??
+                        ["Actividad guiada", "Selección", "Asociación"]
+                      ).map(chip => (
                         <span
                           key={chip}
                           className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-white border border-slate-200 text-slate-600 select-none"
