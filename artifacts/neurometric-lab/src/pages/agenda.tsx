@@ -17,7 +17,7 @@ import {
   Repeat, X, Pencil, AlertCircle, CalendarDays,
 } from "lucide-react";
 
-const HOUR_PX = 52;
+const HOUR_PX = 32;
 const START_HOUR = 7;
 const END_HOUR = 21;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -247,11 +247,11 @@ export default function AgendaPage() {
       <AppSidebar />
       <SidebarInset className="flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center gap-3 px-6 py-4 border-b border-border/50 bg-white shrink-0">
+        <header className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-white shrink-0">
           <SidebarTrigger className="-ml-1" />
-          <div className="flex-1 flex items-center gap-4">
+          <div className="flex-1 flex items-center gap-2 max-w-2xl mx-auto">
             <div>
-              <h1 className="text-lg font-bold font-display text-slate-900">Agenda</h1>
+              <h1 className="text-base font-semibold">Agenda</h1>
               <p className="text-xs text-slate-400 capitalize">{formatWeekRange(currentMonday)}</p>
             </div>
             <div className="flex items-center gap-1 ml-4">
@@ -285,7 +285,7 @@ export default function AgendaPage() {
               {days.map((day, i) => (
                 <div
                   key={i}
-                  className={`flex-1 text-center py-3 border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/5" : ""}`}
+                  className={`flex-1 text-center py-2 border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/5" : ""}`}
                 >
                   <p className={`text-xs font-semibold uppercase tracking-wide ${isToday(day) ? "text-primary" : "text-slate-400"}`}>
                     {DAYS_ES[i]}
@@ -351,17 +351,18 @@ export default function AgendaPage() {
                         <button
                           key={cita.id}
                           onClick={() => setSelectedCita(cita)}
-                          className={`absolute left-0.5 right-0.5 rounded-md border-l-2 text-left overflow-hidden transition-all hover:brightness-95 active:scale-[0.98] ${colors.bg} ${colors.border}`}
-                          style={{ top: top + 1, height: h - 2, zIndex: 1, borderLeftColor: colors.dot.replace("bg-", "").includes("-") ? undefined : undefined }}
+                          className={`absolute left-0.5 right-0.5 rounded-sm border-l-2 text-left overflow-hidden transition-all hover:brightness-95 active:scale-[0.98] ${colors.bg} ${colors.border}`}
+                          style={{ top: top + 1, height: h - 2, zIndex: 1 }}
                         >
-                          <div className="px-1.5 py-1 h-full flex flex-col justify-start">
-                            <span className={`text-[11px] font-semibold truncate leading-snug ${colors.text}`}>
+                          <div className="px-1 py-0.5 h-full flex flex-col justify-start">
+                            <span className={`text-[10px] font-semibold truncate leading-tight ${colors.text}`}>
                               {cita.titulo}
                             </span>
-                            <span className={`text-[10px] leading-none mt-0.5 ${colors.text} opacity-60`}>
-                              {cita.horaInicio}
-                              {h > 32 && ` · ${durationMins}min`}
-                            </span>
+                            {h > 24 && (
+                              <span className={`text-[9px] leading-none ${colors.text} opacity-50`}>
+                                {cita.horaInicio}{h > 36 ? ` · ${durationMins}min` : ""}
+                              </span>
+                            )}
                           </div>
                         </button>
                       );

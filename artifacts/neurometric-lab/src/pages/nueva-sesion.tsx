@@ -99,6 +99,7 @@ export default function NuevaSesion() {
   const [showAllGoals, setShowAllGoals]       = useState(false);
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
+  const [focoTerapeutico, setFocoTerapeutico] = useState("");
   const [isSaving, setIsSaving]               = useState(false);
 
   // ── Voice recording ───────────────────────────────────────────────────────
@@ -471,7 +472,7 @@ export default function NuevaSesion() {
       <div className={`transition-colors ${row.checked ? "bg-slate-50/60" : ""}`}>
         {/* Header row */}
         <div
-          className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50/80"
+          className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50/80"
           onClick={onToggle}
         >
           <div className="mt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle(); }}>
@@ -481,7 +482,7 @@ export default function NuevaSesion() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className={`text-sm font-medium leading-snug ${row.checked ? "text-slate-900" : "text-slate-500"}`}>
+              <p className={`text-xs font-medium leading-snug ${row.checked ? "text-slate-900" : "text-slate-500"}`}>
                 {title}
               </p>
               {isSuggested && (
@@ -515,7 +516,8 @@ export default function NuevaSesion() {
           <div className="px-5 pb-4 border-t border-slate-100 space-y-3" onClick={e => e.stopPropagation()}>
 
             {/* Performance grid: Intentos · Correctas · Estado */}
-            <div className="grid grid-cols-3 gap-2 pt-3">
+            {false && (
+              <div className="grid grid-cols-3 gap-2 pt-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-500">Intentos</label>
                 <Input type="number" min={0} placeholder="0"
@@ -523,6 +525,7 @@ export default function NuevaSesion() {
                   onChange={e => onSetRow({ intentos: e.target.value })}
                   className="bg-white h-9 text-sm text-center" />
               </div>
+                
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-500">Correctas</label>
                 <Input type="number" min={0} placeholder="0"
@@ -556,6 +559,7 @@ export default function NuevaSesion() {
                 </Select>
               </div>
             </div>
+            )}
 
             {/* Performance bar */}
             {pct !== null && (
@@ -648,7 +652,7 @@ export default function NuevaSesion() {
                   const fallbackText = entry?.actividadesFamilia as string | undefined;
                   if (staticItems.length === 0 && !fallbackText) return null;
                   return (
-                    <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60">
+                    <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60 border-b border-amber-100/60">
                       <Home className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-amber-700 mb-1">Actividades para el hogar</p>
@@ -668,6 +672,24 @@ export default function NuevaSesion() {
                     </div>
                   );
                 })()}
+
+                {/* Actividades sugeridas */}
+                <div className="flex gap-2.5 px-3.5 py-3 bg-slate-50/60">
+                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-600 mb-2">Actividades sugeridas</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Secuencias", "Selección múltiple", "Asociación imagen-palabra"].map(chip => (
+                        <span
+                          key={chip}
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-white border border-slate-200 text-slate-600 select-none"
+                        >
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
               </div>
             )}
@@ -799,7 +821,7 @@ export default function NuevaSesion() {
               {/* Suggested objectives */}
               <div className="px-5 py-3.5">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
-                  Objetivos sugeridos para hoy
+                  Trabajo en sesión 
                 </p>
                 <div className="space-y-2">
                   {suggestedGoals.map(goal => {
@@ -839,19 +861,33 @@ export default function NuevaSesion() {
           </div>
         )}
 
+        {/* ── Foco terapéutico ─────────────────────────────────────────── */}
+        {patient && (
+          <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Foco terapéutico</label>
+            <Textarea
+              placeholder="Ej: trabajar comprensión de consignas y conectores temporales…"
+              rows={2}
+              value={focoTerapeutico}
+              onChange={e => setFocoTerapeutico(e.target.value)}
+              className="bg-slate-50 resize-none text-sm"
+            />
+          </div>
+        )}
+
         {/* ── Card: objetivos ───────────────────────────────────────────── */}
         {patient && (
           <div className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
             {/* Card header */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-800">
-                Objetivos trabajados
+                Trabajo en sesión
                 {totalSelected > 0 && (
                   <span
                     className="ml-2 inline-flex items-center rounded-full text-xs px-2 py-0.5 font-medium"
                     style={{ background: `${BRAND_TEAL}20`, color: BRAND_TEAL }}
                   >
-                    {totalSelected} seleccionado{totalSelected !== 1 ? "s" : ""}
+                    {totalSelected} {totalSelected === 1 ? "propuesta" : "propuestas"}
                   </span>
                 )}
               </h2>
@@ -937,7 +973,7 @@ export default function NuevaSesion() {
                   onClick={() => setShowBanco(true)}
                 >
                   <Plus className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                  Agregar objetivos del banco
+                  Agregar del banco
                   <BookOpen className="h-3.5 w-3.5 ml-auto text-slate-300 group-hover:text-slate-400" />
                 </button>
               ) : (
@@ -976,6 +1012,7 @@ export default function NuevaSesion() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Subárea</label>
+                      
                       <Select
                         value={bancoSubarea || "__all__"}
                         onValueChange={(v) => { setBancoSubarea(v === "__all__" ? "" : v); setBancoSelected(new Set()); }}
@@ -993,7 +1030,15 @@ export default function NuevaSesion() {
                       </Select>
                     </div>
                   </div>
-
+                  <div className="space-y-1 mt-3">
+                    <label className="block text-xs font-medium text-slate-500">
+                      Foco terapéutico
+                    </label>
+                    <Textarea
+                      placeholder="Ej: trabajar comprensión de consignas y conectores"
+                      className="text-sm min-h-[80px]"
+                    />
+                  </div>
                   {/* Optional text search */}
                   {bancoArea && (
                     <div className="relative">
