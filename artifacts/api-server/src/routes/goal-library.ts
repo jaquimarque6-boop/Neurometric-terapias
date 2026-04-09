@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { generateUniqueCode } from "../utils/code-generator";
+import { normalizarFranja, normalizarPorNumeros } from "../utils/franja";
 
 const router: IRouter = Router();
 
@@ -20,7 +21,12 @@ router.get("/goal-library", async (req, res) => {
     items = items.filter(i => (i.subarea ?? "").toLowerCase() === subarea.toLowerCase());
   }
   if (franja && franja !== "all") {
-    items = items.filter(i => i.franjaEtaria === franja);
+    const franjaTarget = normalizarFranja(franja) ?? franja;
+    items = items.filter(i => {
+      const norm = normalizarPorNumeros(i.franjaEtariaMin, i.franjaEtariaMax)
+                ?? normalizarFranja(i.franjaEtaria);
+      return norm === franjaTarget;
+    });
   }
   if (franjaMin) {
     const min = parseInt(franjaMin);
@@ -53,7 +59,12 @@ router.get("/goal-library", async (req, res) => {
     );
   }
 
-  res.json(items.map(i => ({ ...i, createdAt: i.createdAt.toISOString() })));
+  res.json(items.map(i => ({
+    ...i,
+    createdAt: i.createdAt.toISOString(),
+    franjaNormalizada: normalizarPorNumeros(i.franjaEtariaMin, i.franjaEtariaMax)
+                    ?? normalizarFranja(i.franjaEtaria),
+  })));
 });
 
 // ─── Create goal in library ───────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { actividadesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { normalizarFranja } from "../utils/franja";
 
 const router: IRouter = Router();
 
@@ -9,7 +10,10 @@ router.get("/actividades", async (req, res) => {
   let activities = await db.select().from(actividadesTable).orderBy(actividadesTable.tipo);
 
   const { franjaEtaria, area, tipo, goalLibraryId } = req.query;
-  if (franjaEtaria) activities = activities.filter(a => a.franjaEtaria === franjaEtaria);
+  if (franjaEtaria) {
+    const franjaTarget = normalizarFranja(franjaEtaria as string) ?? franjaEtaria;
+    activities = activities.filter(a => (normalizarFranja(a.franjaEtaria) ?? a.franjaEtaria) === franjaTarget);
+  }
   if (area) activities = activities.filter(a => a.area === area);
   if (tipo) activities = activities.filter(a => a.tipo === tipo);
   if (goalLibraryId) activities = activities.filter(a => a.goalLibraryId === parseInt(goalLibraryId as string));

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { normalizarFranja } from "@/utils/franja";
 import { Sparkles, Search, Filter, X, Stethoscope, Home } from "lucide-react";
 import { useListActividades } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -43,7 +44,10 @@ export default function Actividades() {
 
   const all = actividades as Actividad[];
   const areas   = useMemo(() => ["all", ...Array.from(new Set(all.map(a => a.area).filter(Boolean))).sort()], [all]);
-  const franjas = useMemo(() => ["all", ...Array.from(new Set(all.map(a => a.franjaEtaria).filter(Boolean))).sort()], [all]);
+  const franjas = useMemo(() => {
+    const normalized = new Set(all.map(a => normalizarFranja(a.franjaEtaria)).filter(Boolean));
+    return ["all", ...["0-2","3-5","6-8","9-12","13-16","17-20"].filter(f => normalized.has(f))];
+  }, [all]);
 
   const filtered = useMemo(() => all.filter(a => {
     const q = search.toLowerCase();
@@ -53,7 +57,7 @@ export default function Actividades() {
       (a.area ?? "").toLowerCase().includes(q) ||
       (a.objetivoNombre ?? "").toLowerCase().includes(q);
     const matchArea   = areaFilter === "all"   || a.area === areaFilter;
-    const matchFranja = franjaFilter === "all" || a.franjaEtaria === franjaFilter;
+    const matchFranja = franjaFilter === "all" || normalizarFranja(a.franjaEtaria) === franjaFilter;
     const matchTipo   = tipoFilter === "all"   || a.tipo === tipoFilter;
     return matchSearch && matchArea && matchFranja && matchTipo;
   }), [all, search, areaFilter, franjaFilter, tipoFilter]);
@@ -178,7 +182,7 @@ export default function Actividades() {
                             </Badge>
                           </div>
                           {act.franjaEtaria && (
-                            <span className="text-xs text-slate-400 shrink-0">{act.franjaEtaria} años</span>
+                            <span className="text-xs text-slate-400 shrink-0">{normalizarFranja(act.franjaEtaria) ?? act.franjaEtaria} años</span>
                           )}
                         </div>
                         <p className="font-medium text-slate-900 text-sm leading-snug mb-2">{act.titulo}</p>
