@@ -38,14 +38,43 @@ const FRANJAS_EDAD = [
   { value: "17-20", label: "17–20 años" },
 ];
 
+// ── Age helpers ───────────────────────────────────────────────────────────────
+function calcularEdadAnios(fechaNacimiento?: string | null, age?: number | string | null): number | null {
+  if (fechaNacimiento) {
+    const birth = new Date(fechaNacimiento);
+    if (!isNaN(birth.getTime())) {
+      const today = new Date();
+      let years = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) years--;
+      return Math.max(0, years);
+    }
+  }
+  if (age != null) {
+    const n = typeof age === "string" ? parseInt(age, 10) : age;
+    if (!isNaN(n)) return n;
+  }
+  return null;
+}
+
+function edadAFranja(edad: number): string {
+  if (edad <= 2)  return "0-2";
+  if (edad <= 5)  return "3-5";
+  if (edad <= 8)  return "6-8";
+  if (edad <= 12) return "9-12";
+  if (edad <= 16) return "13-16";
+  return "17-20";
+}
+
+// ── Clinical blocks with per-franja content ───────────────────────────────────
 type BloqueSesion = {
   area: string;
   label: string;
   bg: string; border: string; text: string;
-  habilidades: string[];
-  actividadesClinicas?: string[];
-  paraLaFamilia?: string[];
-  focoSugerido: string;
+  habilidadesPorFranja: Record<string, string[]>;
+  actividadesClinicasPorFranja?: Record<string, string[]>;
+  paraLaFamiliaPorFranja?: Record<string, string[]>;
+  focoSugeridoPorFranja: Record<string, string>;
 };
 
 const BLOQUES_SESION: BloqueSesion[] = [
@@ -53,85 +82,143 @@ const BLOQUES_SESION: BloqueSesion[] = [
     area: "comprensión",
     label: "Comprensión",
     bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700",
-    habilidades: [
-      "Comprende consignas de dos pasos",
-      "Responde preguntas simples sobre lo escuchado",
-      "Identifica relaciones de causa y efecto básicas",
-      "Sigue rutinas verbales sin apoyo visual",
-    ],
-    focoSugerido: "Trabajar comprensión de consignas y preguntas simples",
+    habilidadesPorFranja: {
+      "0-2":   ["Responde a su nombre", "Señala objetos al pedírselo", "Entiende 'no' y 'dame'", "Comprende rutinas cotidianas con apoyo gestual"],
+      "3-5":   ["Comprende consignas de un paso", "Responde ¿qué? y ¿dónde?", "Identifica conceptos básicos (arriba/abajo, grande/pequeño)", "Sigue dos instrucciones en secuencia"],
+      "6-8":   ["Comprende instrucciones complejas de tres pasos", "Responde ¿por qué? y ¿cómo?", "Comprende narraciones cortas e identifica personajes", "Usa inferencias básicas para completar información"],
+      "9-12":  ["Comprende lenguaje figurado simple (metáforas frecuentes)", "Infiere información no explícita en textos", "Identifica la idea principal de un párrafo", "Evalúa si una respuesta es coherente con el contexto"],
+      "13-16": ["Analiza argumentos y detecta contradicciones", "Comprende sarcasmo e ironía en contexto", "Integra información de múltiples fuentes orales", "Monitorea su propia comprensión durante la lectura"],
+      "17-20": ["Comprensión crítica de textos académicos y técnicos", "Integra y sintetiza información de fuentes múltiples", "Resuelve ambigüedades lingüísticas con autonomía", "Metacognición lectora: detecta y repara fallos de comprensión"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular comprensión de gestos, rutinas y palabras cotidianas",
+      "3-5":   "Trabajar comprensión de consignas simples y preguntas básicas",
+      "6-8":   "Desarrollar comprensión inferencial y seguimiento de instrucciones complejas",
+      "9-12":  "Trabajar comprensión de textos y lenguaje figurado básico",
+      "13-16": "Trabajar comprensión crítica y análisis del discurso",
+      "17-20": "Trabajar comprensión académica y metacognición lectora",
+    },
   },
   {
     area: "lenguaje",
     label: "Lenguaje",
     bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700",
-    habilidades: [
-      "Nombra objetos y acciones cotidianas",
-      "Usa frases de 3 a 4 palabras con estructura sujeto-verbo-objeto",
-      "Narra eventos simples en secuencia",
-      "Usa conectores básicos: y, pero, porque",
-    ],
-    focoSugerido: "Expandir vocabulario y estructura de frases completas",
+    habilidadesPorFranja: {
+      "0-2":   ["Balbucea y vocaliza con intención comunicativa", "Usa 1–3 palabras funcionales", "Combina gestos y vocalizaciones para comunicar", "Imita sonidos y palabras del entorno cercano"],
+      "3-5":   ["Usa frases de 2 a 4 palabras", "Nombra objetos y personas del entorno", "Pide usando palabras en lugar de gestos", "Narra con apoyo visual o adulto que medía"],
+      "6-8":   ["Usa oraciones completas con sujeto y predicado", "Emplea conectores básicos: y, pero, porque, entonces", "Narra experiencias recientes en secuencia", "Describe objetos con al menos dos atributos"],
+      "9-12":  ["Usa vocabulario variado y preciso", "Narra con estructura: inicio, desarrollo, desenlace", "Construye oraciones subordinadas", "Reformula espontáneamente cuando no es entendido"],
+      "13-16": ["Usa lenguaje abstracto y conceptual", "Argumenta y presenta contra-argumentos", "Adapta registro según el contexto (formal/informal)", "Comprende y usa doble sentido o ironía básica"],
+      "17-20": ["Discurso formal y académico estructurado", "Planifica y ejecuta exposiciones orales complejas", "Usa recursos retóricos con propósito comunicativo", "Metalenguaje explícito: reflexiona sobre el propio uso del lenguaje"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular intención comunicativa e inicio del lenguaje verbal",
+      "3-5":   "Expandir vocabulario y estructura de frases de 2 a 4 palabras",
+      "6-8":   "Trabajar narración, conectores y vocabulario variado",
+      "9-12":  "Desarrollar discurso coherente y vocabulario académico",
+      "13-16": "Trabajar lenguaje abstracto y habilidades argumentativas",
+      "17-20": "Desarrollar competencia comunicativa formal y académica",
+    },
   },
   {
     area: "atención",
     label: "Atención",
     bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700",
-    habilidades: [
-      "Mantiene atención en tarea estructurada por 5 minutos",
-      "Cambia foco atencional cuando se lo solicita el adulto",
-      "Ignora distractores simples del entorno",
-      "Sigue una secuencia de 3 pasos sin recordatorio",
-    ],
-    focoSugerido: "Trabajar atención sostenida y flexibilidad atencional",
+    habilidadesPorFranja: {
+      "0-2":   ["Mantiene contacto visual breve con el adulto", "Responde al nombre de forma consistente", "Explora un objeto por 1–2 minutos", "Sigue la mirada del adulto hacia un objeto señalado"],
+      "3-5":   ["Mantiene atención en tarea preferida por 5 minutos", "Cambia el foco atencional con guía del adulto", "Sigue una secuencia de 2 pasos", "Vuelve a la tarea tras una breve distracción"],
+      "6-8":   ["Mantiene atención en tarea estructurada por 10 minutos", "Ignora distractores simples del entorno", "Sigue 3 pasos sin recordatorio verbal", "Flexibilidad atencional básica entre tareas"],
+      "9-12":  ["Autorregula la atención en tarea escolar", "Planifica pasos de una tarea con apoyo", "Sostiene atención durante 20 o más minutos", "Divide la atención entre escuchar y tomar nota"],
+      "13-16": ["Gestiona distractores internos y externos sin apoyo", "Autorregula la atención en contextos grupales complejos", "Planifica y ejecuta tareas multistep de forma autónoma", "Monitorea su propio rendimiento atencional"],
+      "17-20": ["Atención dividida en tareas complejas y paralelas", "Planificación autónoma con gestión del tiempo", "Metacognición atencional: detecta y corrige fallos", "Manejo eficaz de carga cognitiva alta"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular atención conjunta y respuesta a estímulos sociales",
+      "3-5":   "Trabajar atención sostenida en tarea estructurada",
+      "6-8":   "Desarrollar atención selectiva y flexibilidad atencional",
+      "9-12":  "Trabajar autorregulación atencional y planificación",
+      "13-16": "Desarrollar atención dividida y gestión de distractores",
+      "17-20": "Trabajar metacognición atencional y carga cognitiva",
+    },
   },
   {
     area: "fonología",
     label: "Fonología",
     bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700",
-    habilidades: [
-      "Discrimina pares mínimos de sonidos",
-      "Produce sílabas CVC con precisión articulatoria",
-      "Identifica rima en palabras simples",
-      "Segmenta palabras en sílabas mediante palmadas",
-    ],
-    focoSugerido: "Trabajar conciencia fonológica y discriminación auditiva",
+    habilidadesPorFranja: {
+      "0-2":   ["Discrimina la voz humana del ruido ambiental", "Responde a cambios de entonación y melodía", "Produce vocales con consistencia", "Imita algunos sonidos consonánticos (/p/, /m/, /b/)"],
+      "3-5":   ["Produce todas las vocales correctamente", "Discrimina pares mínimos simples (pato/gato)", "Simplifica grupos consonánticos de forma esperada", "Es inteligible para familiares cercanos en >75% de enunciados"],
+      "6-8":   ["Articula correctamente en palabras aisladas", "Produce grupos consonánticos simples (br, pr, tr)", "Identifica y produce rimas con facilidad", "Segmenta palabras en sílabas con palmadas"],
+      "9-12":  ["Conciencia fonémica avanzada: manipula fonemas", "Manejo correcto de fonemas complejos (/r/, /rr/)", "Aplica reglas ortográficas básicas al leer en voz alta", "Velocidad y ritmo de habla apropiados al contexto"],
+      "13-16": ["Articulación correcta en habla espontánea y formal", "Discriminación auditiva fina de sonidos similares", "Procesamiento fonológico rápido y automático", "Conciencia de variantes y acentos dialectales"],
+      "17-20": ["Articulación precisa en todos los registros y contextos", "Procesamiento fonológico automático sin esfuerzo consciente", "Manejo de acentos y prosodia según el contexto", "Autocorrección inmediata y eficiente ante errores"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular discriminación auditiva y producciones vocálicas tempranas",
+      "3-5":   "Trabajar conciencia fonológica y discriminación de sonidos",
+      "6-8":   "Desarrollar conciencia fonémica y articulación en conversación",
+      "9-12":  "Trabajar procesamiento fonológico avanzado y velocidad de habla",
+      "13-16": "Trabajar articulación en habla espontánea y procesamiento auditivo",
+      "17-20": "Consolidar articulación precisa y procesamiento fonológico automático",
+    },
   },
   {
     area: "pragmática",
     label: "Pragmática",
     bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",
-    habilidades: [
-      "Inicia conversación con adultos conocidos",
-      "Mantiene turnos conversacionales (al menos 3 intercambios)",
-      "Adapta el registro según el interlocutor",
-      "Usa gestos y contacto visual de forma funcional",
-    ],
-    focoSugerido: "Trabajar habilidades pragmáticas y turno conversacional",
+    habilidadesPorFranja: {
+      "0-2":   ["Contacto visual funcional durante interacción", "Señalamiento protoimperativo (pedir) y protodeclarativo (mostrar)", "Turno comunicativo básico: actúa, espera, responde", "Responde a gestos y expresiones faciales del adulto"],
+      "3-5":   ["Inicia interacciones con pares y adultos conocidos", "Mantiene 2–3 turnos conversacionales", "Usa el lenguaje para diferentes funciones: pedir, saludar, comentar", "Atención conjunta funcional sobre objetos y eventos"],
+      "6-8":   ["Mantiene turno conversacional de 4 o más intercambios", "Adapta el mensaje según el interlocutor (niño/adulto)", "Repara la comunicación cuando no es entendido", "Narra con estructura y coherencia"],
+      "9-12":  ["Comprende reglas conversacionales (tomar/ceder turno)", "Usa lenguaje indirecto básico (pedidos suaves, cortesía)", "Adapta registro formal e informal según el contexto", "Comprende la intención comunicativa más allá de las palabras"],
+      "13-16": ["Maneja conversaciones complejas y grupales", "Comprende y usa ironía y sarcasmo en contexto", "Gestiona conflictos verbalmente con asertividad", "Argumenta su punto de vista respetando el turno ajeno"],
+      "17-20": ["Habilidades conversacionales avanzadas en contextos formales", "Discurso académico y laboral apropiado al contexto", "Manejo de pragmática social compleja (negociación, convicción)", "Conciencia de las reglas implícitas de cada contexto comunicativo"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular contacto visual, turnos y señalamiento comunicativo",
+      "3-5":   "Trabajar inicio de interacciones y atención conjunta",
+      "6-8":   "Desarrollar turno conversacional y adaptación al interlocutor",
+      "9-12":  "Trabajar reglas conversacionales y lenguaje indirecto",
+      "13-16": "Desarrollar habilidades conversacionales complejas e ironía",
+      "17-20": "Trabajar pragmática social y comunicación académica",
+    },
   },
   {
     area: "fonemas",
     label: "Adquisición de fonemas",
     bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700",
-    habilidades: [
-      "Produce fonemas tempranos con consistencia (/p/, /m/, /n/, /b/)",
-      "Mejora inteligibilidad en frases de 3 o más palabras",
-      "Reduce procesos fonológicos de simplificación",
-      "Generaliza fonemas trabajados en habla espontánea",
-    ],
-    actividadesClinicas: [
-      "Repetición de sonidos diana en sílabas y palabras",
-      "Pares mínimos para contraste auditivo-articulatorio",
-      "Discriminación auditiva con pares contrastivos",
-      "Denominación con apoyo visual y fonético",
-    ],
-    paraLaFamilia: [
-      "Modelar la pronunciación correcta sin corregir directamente",
-      "Jugar con rimas y canciones que incluyan el fonema trabajado",
-      "Reforzar positivamente todos los intentos del niño",
-      "Leer en voz alta cuentos con palabras que contengan el fonema objetivo",
-    ],
-    focoSugerido: "Trabajar adquisición y consolidación de fonemas objetivo",
+    habilidadesPorFranja: {
+      "0-2":   ["Produce vocales con consistencia", "Imita sonidos simples del adulto (/p/, /m/)", "Vocaliza con intención para comunicar", "Responde diferencialmente a sonidos del entorno"],
+      "3-5":   ["Produce fonemas tempranos con consistencia (/p/, /m/, /n/, /b/, /t/, /d/)", "Reduce procesos fonológicos esperados para la edad", "Es inteligible en frases de 3 o más palabras", "Empieza a autocorregir errores articulatorios"],
+      "6-8":   ["Articula fonemas tardíos (/r/, /l/, /s/, /ch/)", "Generaliza fonemas trabajados en conversación espontánea", "Reduce errores fonológicos atípicos", "Mantiene inteligibilidad incluso con extraños"],
+      "9-12":  ["Articulación correcta en todos los contextos comunicativos", "Habla fluente e inteligible sin esfuerzo consciente", "Monitorea su propia producción y se autocorrige", "Proceso de habla automático y sin interferencia"],
+      "13-16": ["Articulación automática y precisa en habla espontánea", "Ajusta características del habla según el contexto", "Manejo de disfluencias si aplica (tartamudez, etc.)", "Proyección y claridad vocal en contextos formales"],
+      "17-20": ["Control articulatorio completo en todos los registros", "Habla funcional en ámbitos académicos, laborales y sociales", "Autocorrección espontánea y eficiente", "Conciencia de la propia voz y su impacto comunicativo"],
+    },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Imitación de vocalizaciones y turnos vocales", "Juego vocal con variación de intensidad y tono", "Estimulación táctil-auditiva de fonemas labiales (/p/, /m/, /b/)"],
+      "3-5":   ["Repetición de sílabas diana en contexto lúdico", "Pares mínimos simples con apoyo visual (pato/dato)", "Denominación de objetos con foco en el fonema objetivo", "Juegos de rima con el sonido trabajado"],
+      "6-8":   ["Pares mínimos para contraste auditivo-articulatorio", "Discriminación auditiva con pares contrastivos", "Repetición en frases y oraciones", "Denominación con apoyo visual y fonético"],
+      "9-12":  ["Repetición de fonemas en habla conectada y conversación", "Lectura en voz alta con monitoreo articulatorio", "Juegos de trabalenguas y velocidad articulatoria", "Retroalimentación con grabación de audio"],
+      "13-16": ["Práctica articulatoria en contextos funcionales (presentaciones, lectura)", "Monitoreo con grabación y autoevaluación", "Ejercicios de proyección vocal y claridad", "Trabajo en prosodia y pausas"],
+      "17-20": ["Práctica en contextos reales: exposiciones, entrevistas", "Ejercicios de control vocal y dicción", "Retroalimentación auditiva y automonitoreo", "Estrategias de comunicación eficaz en contexto laboral"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Imitar las vocalizaciones del niño como un juego de turnos", "Hablar despacio y con contacto visual directo", "Usar canciones y rimas con los fonemas que se trabajan"],
+      "3-5":   ["Modelar la pronunciación correcta sin corregir directamente", "Jugar con rimas y canciones que incluyan el fonema trabajado", "Reforzar positivamente todos los intentos del niño", "Leer cuentos en voz alta con palabras que contengan el fonema objetivo"],
+      "6-8":   ["Practicar en casa las palabras trabajadas en sesión", "Escuchar con atención y no completar frases antes de tiempo", "Celebrar los logros articulatorios sin presión por la perfección", "Avisar al terapeuta si se nota cansancio o evitación del habla"],
+      "9-12":  ["Escuchar al niño sin corregir constantemente", "Motivar la práctica a través de exposiciones o lecturas en voz alta", "Apoyar la generalización usando las palabras trabajadas en conversación natural"],
+      "13-16": ["Crear espacios de conversación donde pueda practicar hablar con claridad", "Evitar completar sus frases o anticipar lo que va a decir", "Apoyar la confianza comunicativa en situaciones sociales"],
+      "17-20": ["Escuchar sin interrumpir y valorar el esfuerzo comunicativo", "Brindar retroalimentación positiva en contextos cotidianos", "Apoyar oportunidades reales de hablar en público o en grupo"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular producciones vocálicas e imitación de sonidos tempranos",
+      "3-5":   "Trabajar adquisición de fonemas tempranos y reducción de procesos fonológicos",
+      "6-8":   "Consolidar fonemas tardíos y generalización en conversación",
+      "9-12":  "Trabajar articulación correcta y monitoreo de la propia producción",
+      "13-16": "Consolidar articulación automática y adaptación contextual del habla",
+      "17-20": "Mantener articulación funcional y manejo de características vocales",
+    },
   },
 ];
 
@@ -218,6 +305,24 @@ export default function NuevaSesion() {
   const [isSaving, setIsSaving]               = useState(false);
   const [selectedBloque, setSelectedBloque]   = useState<string | null>(null);
   const [selectedEdad, setSelectedEdad]       = useState("3-5");
+
+  // ── Derive patient age franja ──────────────────────────────────────────────
+  const edadPaciente = useMemo(() => {
+    if (!patient) return null;
+    return calcularEdadAnios(patient.fechaNacimiento, patient.age);
+  }, [patient]);
+
+  const franjaPaciente = useMemo(() => {
+    if (edadPaciente == null) return null;
+    return edadAFranja(edadPaciente);
+  }, [edadPaciente]);
+
+  useEffect(() => {
+    if (franjaPaciente) {
+      setSelectedEdad(franjaPaciente);
+      setSelectedBloque(null);
+    }
+  }, [franjaPaciente]);
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -1005,19 +1110,30 @@ export default function NuevaSesion() {
             </div>
 
             {/* Age range pills */}
-            <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5">
-              {FRANJAS_EDAD.map(f => (
-                <button
-                  key={f.value}
-                  onClick={() => { setSelectedEdad(f.value); setSelectedBloque(null); }}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
-                  style={selectedEdad === f.value
-                    ? { background: "#C4703A", borderColor: "#C4703A", color: "white" }
-                    : { background: "white", borderColor: "#E8D5C4", color: "#92400E" }}
-                >
-                  {f.label}
-                </button>
-              ))}
+            <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5 items-center">
+              {franjaPaciente && edadPaciente != null && (
+                <span className="text-[11px] font-medium mr-1" style={{ color: "#92400E" }}>
+                  {edadPaciente}a →
+                </span>
+              )}
+              {FRANJAS_EDAD.map(f => {
+                const isPaciente = f.value === franjaPaciente;
+                const isSelected = f.value === selectedEdad;
+                return (
+                  <button
+                    key={f.value}
+                    onClick={() => { setSelectedEdad(f.value); setSelectedBloque(null); }}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                    style={isSelected
+                      ? { background: "#C4703A", borderColor: "#C4703A", color: "white" }
+                      : isPaciente
+                        ? { background: "#FEF3E2", borderColor: "#C4703A", color: "#92400E" }
+                        : { background: "white", borderColor: "#E8D5C4", color: "#92400E" }}
+                  >
+                    {f.label}{isPaciente && !isSelected ? " ·" : ""}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Area chips */}
@@ -1044,7 +1160,11 @@ export default function NuevaSesion() {
             {selectedBloque && (() => {
               const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
               if (!bloque) return null;
-              const edadLabel = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
+              const edadLabel     = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
+              const habs          = bloque.habilidadesPorFranja[selectedEdad] ?? [];
+              const acts          = bloque.actividadesClinicasPorFranja?.[selectedEdad];
+              const familia       = bloque.paraLaFamiliaPorFranja?.[selectedEdad];
+              const focoSugerido  = bloque.focoSugeridoPorFranja[selectedEdad] ?? "";
               return (
                 <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} overflow-hidden`} style={{ background: "white" }}>
                   {/* Block title */}
@@ -1054,65 +1174,75 @@ export default function NuevaSesion() {
                     </p>
                   </div>
 
-                  {/* Habilidades esperadas */}
-                  <div className="px-4 py-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Habilidades esperadas</p>
-                    <ul className="space-y-1.5">
-                      {bloque.habilidades.map((h, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-slate-700">
-                          <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
-                          <span className="leading-snug">{h}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Actividades clínicas — only if present */}
-                  {bloque.actividadesClinicas && (
-                    <div className="px-4 py-3 border-t border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Actividades clínicas</p>
-                      <ul className="space-y-1.5">
-                        {bloque.actividadesClinicas.map((a, i) => (
-                          <li key={i} className="flex gap-2 text-sm text-slate-700">
-                            <span className="shrink-0 text-orange-400 font-bold mt-0.5">›</span>
-                            <span className="leading-snug">{a}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Empty state — no content for this franja */}
+                  {habs.length === 0 ? (
+                    <div className="px-4 py-6 text-center">
+                      <p className="text-sm text-slate-400">Sin contenido clínico para esta franja etaria.</p>
+                      <p className="text-xs text-slate-300 mt-1">Selecciona otra franja o consulta al supervisor clínico.</p>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {/* Habilidades esperadas */}
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Habilidades esperadas</p>
+                        <ul className="space-y-1.5">
+                          {habs.map((h, i) => (
+                            <li key={i} className="flex gap-2 text-sm text-slate-700">
+                              <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
+                              <span className="leading-snug">{h}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                  {/* Para la familia — only if present */}
-                  {bloque.paraLaFamilia && (
-                    <div className="px-4 py-3 border-t" style={{ borderColor: "#F3D9C0", background: "#FEF6EE" }}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#92400E" }}>
-                        Para la familia
-                      </p>
-                      <ul className="space-y-1.5">
-                        {bloque.paraLaFamilia.map((a, i) => (
-                          <li key={i} className="flex gap-2 text-sm" style={{ color: "#7C3D12" }}>
-                            <span className="shrink-0 font-bold mt-0.5" style={{ color: "#C4703A" }}>·</span>
-                            <span className="leading-snug">{a}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                      {/* Actividades clínicas — only if present for this franja */}
+                      {acts && acts.length > 0 && (
+                        <div className="px-4 py-3 border-t border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Actividades clínicas</p>
+                          <ul className="space-y-1.5">
+                            {acts.map((a, i) => (
+                              <li key={i} className="flex gap-2 text-sm text-slate-700">
+                                <span className="shrink-0 text-orange-400 font-bold mt-0.5">›</span>
+                                <span className="leading-snug">{a}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
-                  {/* Usar en sesión button */}
-                  <div className="px-4 py-3 border-t border-slate-100">
-                    <button
-                      onClick={() => {
-                        setFocoTerapeutico(bloque.focoSugerido);
-                        setSelectedBloque(null);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
-                      style={{ background: "#C4703A" }}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Usar en sesión
-                    </button>
-                  </div>
+                      {/* Para la familia — only if present for this franja */}
+                      {familia && familia.length > 0 && (
+                        <div className="px-4 py-3 border-t" style={{ borderColor: "#F3D9C0", background: "#FEF6EE" }}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#92400E" }}>
+                            Para la familia
+                          </p>
+                          <ul className="space-y-1.5">
+                            {familia.map((a, i) => (
+                              <li key={i} className="flex gap-2 text-sm" style={{ color: "#7C3D12" }}>
+                                <span className="shrink-0 font-bold mt-0.5" style={{ color: "#C4703A" }}>·</span>
+                                <span className="leading-snug">{a}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Usar en sesión button */}
+                      <div className="px-4 py-3 border-t border-slate-100">
+                        <button
+                          onClick={() => {
+                            setFocoTerapeutico(focoSugerido);
+                            setSelectedBloque(null);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
+                          style={{ background: "#C4703A" }}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Usar en sesión
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })()}
