@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { normalizarFranja } from "@/utils/franja";
 import { format } from "date-fns";
 import {
   BookOpen, Search, Filter, ChevronDown, ChevronRight,
@@ -287,7 +286,7 @@ export default function GoalLibrary() {
     const matchArea    = areaFilter === "all"    || (g.areaClinica ?? g.area) === areaFilter;
     const matchSubarea = subareaFilter === "all" || (g.subarea ?? "") === subareaFilter;
     const matchNivel   = nivelFilter === "all"   || g.nivelDificultad === nivelFilter;
-    const matchFranja  = franjaFilter === "all"  || normalizarFranja(g.franjaEtaria) === franjaFilter;
+    const matchFranja  = franjaFilter === "all"  || g.franjaEtaria === franjaFilter;
     const matchEstado  = estadoFilter === "all"  || (g.estadoBanco ?? "activo") === estadoFilter;
     return matchSearch && matchArea && matchSubarea && matchNivel && matchFranja && matchEstado;
   }), [lib, search, areaFilter, subareaFilter, nivelFilter, franjaFilter, estadoFilter]);
@@ -746,7 +745,7 @@ export default function GoalLibrary() {
                                       {goal.franjaEtaria && (
                                         <>
                                           <span className="text-xs text-slate-300">·</span>
-                                          <span className="text-xs text-slate-400">{normalizarFranja(goal.franjaEtaria) ?? goal.franjaEtaria} años</span>
+                                          <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
                                         </>
                                       )}
                                       {goal.nivelDificultad && (
@@ -1457,7 +1456,7 @@ function AssignGoalDialog({
               </Badge>
             )}
             {goal.franjaEtaria && (
-              <span className={`text-xs ${ac.text} opacity-70`}>{normalizarFranja(goal.franjaEtaria) ?? goal.franjaEtaria} años</span>
+              <span className={`text-xs ${ac.text} opacity-70`}>{goal.franjaEtaria} años</span>
             )}
           </div>
           <p className={`font-semibold text-sm ${ac.text}`}>{goal.nombreObjetivo}</p>

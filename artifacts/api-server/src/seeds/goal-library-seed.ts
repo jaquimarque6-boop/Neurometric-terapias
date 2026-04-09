@@ -13,6 +13,9 @@ const SEED_GOALS = [
     subarea: "Comprensión",
     nivelDificultad: "básico",
     estadoBanco: "activo",
+    franjaEtaria: "3-5",
+    franjaEtariaMin: 3,
+    franjaEtariaMax: 5,
     definicionOperativa:
       "El paciente sigue instrucciones de una sola acción sin apoyo gestual o visual adicional, en al menos el 70% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -31,6 +34,9 @@ const SEED_GOALS = [
     subarea: "Comprensión",
     nivelDificultad: "básico",
     estadoBanco: "activo",
+    franjaEtaria: "3-5",
+    franjaEtariaMin: 3,
+    franjaEtariaMax: 5,
     definicionOperativa:
       "El paciente ejecuta correctamente dos acciones secuenciales incluidas en una sola instrucción, en al menos el 70% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -49,6 +55,9 @@ const SEED_GOALS = [
     subarea: "Comprensión",
     nivelDificultad: "básico",
     estadoBanco: "activo",
+    franjaEtaria: "3-5",
+    franjaEtariaMin: 3,
+    franjaEtariaMax: 5,
     definicionOperativa:
       "El paciente responde de forma pertinente a preguntas tipo 'qué' y 'quién' sobre imágenes o situaciones familiares, en al menos el 70% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -67,6 +76,9 @@ const SEED_GOALS = [
     subarea: "Comprensión",
     nivelDificultad: "intermedio",
     estadoBanco: "activo",
+    franjaEtaria: "6-8",
+    franjaEtariaMin: 6,
+    franjaEtariaMax: 8,
     definicionOperativa:
       "El paciente identifica y explica por qué una oración o situación es absurda, en al menos el 75% de los ítems presentados.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -85,6 +97,9 @@ const SEED_GOALS = [
     subarea: "Comprensión",
     nivelDificultad: "intermedio",
     estadoBanco: "activo",
+    franjaEtaria: "6-8",
+    franjaEtariaMin: 6,
+    franjaEtariaMax: 8,
     definicionOperativa:
       "El paciente identifica la causa o el efecto de un evento presentado verbalmente o mediante imagen, en al menos el 75% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -104,6 +119,9 @@ const SEED_GOALS = [
     subarea: "Léxico y Semántica",
     nivelDificultad: "básico",
     estadoBanco: "activo",
+    franjaEtaria: "3-5",
+    franjaEtariaMin: 3,
+    franjaEtariaMax: 5,
     definicionOperativa:
       "El paciente nombra correctamente objetos de uso frecuente en categorías (hogar, ropa, comida, escuela), alcanzando al menos el 70% de aciertos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -122,6 +140,9 @@ const SEED_GOALS = [
     subarea: "Léxico y Semántica",
     nivelDificultad: "básico",
     estadoBanco: "activo",
+    franjaEtaria: "3-5",
+    franjaEtariaMin: 3,
+    franjaEtariaMax: 5,
     definicionOperativa:
       "El paciente evoca verbos de alta frecuencia (comer, correr, dormir, jugar) al observar imágenes de acción, en al menos el 70% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -140,6 +161,9 @@ const SEED_GOALS = [
     subarea: "Léxico y Semántica",
     nivelDificultad: "intermedio",
     estadoBanco: "activo",
+    franjaEtaria: "6-8",
+    franjaEtariaMin: 6,
+    franjaEtariaMax: 8,
     definicionOperativa:
       "El paciente agrupa correctamente palabras o imágenes en categorías semánticas (animales, frutas, muebles, vehículos), en al menos el 75% de los ensayos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -158,6 +182,9 @@ const SEED_GOALS = [
     subarea: "Léxico y Semántica",
     nivelDificultad: "intermedio",
     estadoBanco: "activo",
+    franjaEtaria: "6-8",
+    franjaEtariaMin: 6,
+    franjaEtariaMax: 8,
     definicionOperativa:
       "El paciente produce al menos 5 palabras pertenecientes a una categoría dada en 60 segundos (fluidez verbal semántica), en al menos el 75% de los ensayos.",
     indicadorTipo: "porcentaje de respuestas correctas",
@@ -176,6 +203,9 @@ const SEED_GOALS = [
     subarea: "Léxico y Semántica",
     nivelDificultad: "intermedio",
     estadoBanco: "activo",
+    franjaEtaria: "6-8",
+    franjaEtariaMin: 6,
+    franjaEtariaMax: 8,
     definicionOperativa:
       "El paciente describe un objeto o imagen incluyendo al menos 3 atributos (nombre, función, color/tamaño o pertenencia a categoría), en al menos el 75% de los intentos.",
     indicadorTipo: "porcentaje de respuestas correctas",
