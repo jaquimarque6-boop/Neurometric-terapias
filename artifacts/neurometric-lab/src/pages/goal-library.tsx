@@ -75,6 +75,174 @@ function getAreaColor(areaClinica?: string | null, area?: string | null) {
   return AREA_COLORS[key] ?? { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" };
 }
 
+// ─── Bloques Clínicos ─────────────────────────────────────────────────────────
+type BloqueClinico = {
+  id: string;
+  area: string;
+  edad: string;
+  patologia?: string;
+  habilidades: string[];
+  guia: string;
+  actividades: string[];
+};
+
+const BLOQUES_CLINICOS: BloqueClinico[] = [
+  {
+    id: "comp-2-4",
+    area: "comprensión",
+    edad: "2–4",
+    habilidades: [
+      "Responde a su nombre",
+      "Señala objetos al pedírselo",
+      "Entiende 'dame' y 'no'",
+      "Identifica partes del cuerpo",
+      "Sigue instrucciones de un paso",
+    ],
+    guia: "Trabaja con rutinas conocidas y objetos cotidianos. Usa gestos naturales para apoyar la comprensión. Prioriza la consistencia en el ambiente.",
+    actividades: ["Señalamiento", "Rutinas con objetos", "Juego simbólico simple"],
+  },
+  {
+    id: "comp-4-6",
+    area: "comprensión",
+    edad: "4–6",
+    habilidades: [
+      "Comprende consignas de dos pasos",
+      "Responde preguntas simples (¿qué? ¿dónde?)",
+      "Identifica relaciones básicas (arriba/abajo)",
+      "Sigue rutinas verbales sin apoyo visual",
+      "Entiende conceptos de cantidad básica",
+    ],
+    guia: "Introduce apoyo pictográfico para aumentar comprensión. Usa narración de cuentos breves. Asegura que el input sea claro y a nivel del niño.",
+    actividades: ["Selección múltiple", "Secuencias de 3 pasos", "Preguntas sobre cuento"],
+  },
+  {
+    id: "comp-6-8",
+    area: "comprensión",
+    edad: "6–8",
+    habilidades: [
+      "Comprende narraciones cortas",
+      "Responde preguntas ¿por qué? y ¿cómo?",
+      "Entiende instrucciones complejas",
+      "Identifica idea principal de un texto",
+      "Usa inferencias básicas",
+    ],
+    guia: "Trabaja comprensión inferencial y monitoreo de comprensión. Usa textos adaptados al nivel lector. Introduce estrategias de anticipación.",
+    actividades: ["Inferencias simples", "Mapa de historia", "Preguntas abiertas"],
+  },
+  {
+    id: "leng-2-4",
+    area: "lenguaje",
+    edad: "2–4",
+    habilidades: [
+      "Usa palabras sueltas para comunicar",
+      "Combina 2 palabras (mamá agua)",
+      "Nombra objetos y personas cercanas",
+      "Usa gestos comunicativos",
+      "Imita palabras nuevas",
+    ],
+    guia: "Modelo de lenguaje natural sin presión de repetición. Amplía los enunciados del niño. Usa expansión y extensión como estrategias.",
+    actividades: ["Expansión de enunciados", "Denominación con apoyo", "Juego con imágenes"],
+  },
+  {
+    id: "leng-4-6",
+    area: "lenguaje",
+    edad: "4–6",
+    habilidades: [
+      "Forma oraciones de 4–5 palabras",
+      "Narra experiencias recientes",
+      "Usa plurales y artículos",
+      "Hace preguntas para obtener info",
+      "Describe objetos con 2 atributos",
+    ],
+    guia: "Trabaja morfosintaxis en contexto comunicativo real. Usa narración de láminas y cuentos. Evita corrección directa; usa recast.",
+    actividades: ["Completar frases", "Narrar láminas", "Asociación imagen-palabra"],
+  },
+  {
+    id: "leng-6-9",
+    area: "lenguaje",
+    edad: "6–9",
+    habilidades: [
+      "Usa oraciones complejas (coordinadas/subordinadas)",
+      "Narra secuencias con conectores",
+      "Describe imágenes con detalle",
+      "Usa vocabulario variado y preciso",
+      "Reformula cuando no se entiende",
+    ],
+    guia: "Enfócate en cohesión y coherencia del discurso. Introduce metalenguaje básico. Usa textos narrativos con estructura completa.",
+    actividades: ["Evocación narrativa", "Mapas semánticos", "Completar textos"],
+  },
+  {
+    id: "fono-3-5",
+    area: "fonología",
+    edad: "3–5",
+    habilidades: [
+      "Produce todas las vocales correctamente",
+      "Simplifica grupos consonánticos",
+      "Omite sílabas débiles en algunas palabras",
+      "Es inteligible para familiares",
+      "Comienza a corregir espontáneamente",
+    ],
+    guia: "Trabaja consciencia fonológica antes que articulación aislada. Prioriza pares mínimos y juego con rimas. No fuerce articulación sin conciencia.",
+    actividades: ["Pares mínimos", "Rimas", "Discriminación auditiva"],
+  },
+  {
+    id: "fono-5-7",
+    area: "fonología",
+    edad: "5–7",
+    habilidades: [
+      "Articula correctamente en palabras aisladas",
+      "Reduce procesos fonológicos atípicos",
+      "Produce grupos consonánticos simples",
+      "Es inteligible para extraños",
+      "Aplica autocorrección frecuente",
+    ],
+    guia: "Avanza hacia producción en frases y conversación espontánea. Trabaja transferencia de lo clínico al habla natural. Involucra a la familia.",
+    actividades: ["Elegir la correcta", "Repetición en frases", "Dictado de imágenes"],
+  },
+  {
+    id: "prag-3-5",
+    area: "pragmática",
+    edad: "3–5",
+    habilidades: [
+      "Inicia interacciones con pares",
+      "Responde preguntas de adultos",
+      "Mantiene contacto visual durante intercambio",
+      "Usa el lenguaje para diferentes funciones",
+      "Comparte atención sobre objetos/eventos",
+    ],
+    guia: "Trabaja en contexto de juego simbólico y rutinas sociales. Usa modelado de actos de habla. Incorpora turnos comunicativos naturales.",
+    actividades: ["Turnos", "Juego guiado", "Intención comunicativa"],
+  },
+  {
+    id: "cog-4-6",
+    area: "cognición",
+    edad: "4–6",
+    habilidades: [
+      "Secuencia 3 eventos narrativos",
+      "Clasifica objetos por categoría",
+      "Resuelve problemas simples con apoyo",
+      "Comprende causa-efecto básico",
+      "Mantiene atención en tarea por 10 min",
+    ],
+    guia: "Usa mediación verbal explícita. Trabaja estrategias de planificación paso a paso. Incorpora tareas concretas antes de abstracción.",
+    actividades: ["Secuencias", "Clasificación", "Resolver consignas"],
+  },
+];
+
+const BLOQUES_POR_AREA = BLOQUES_CLINICOS.reduce((acc, b) => {
+  if (!acc[b.area]) acc[b.area] = [];
+  acc[b.area].push(b);
+  return acc;
+}, {} as Record<string, BloqueClinico[]>);
+
+const BLOQUE_AREA_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  comprensión: { bg: "bg-violet-50",  text: "text-violet-700",  border: "border-violet-200", dot: "bg-violet-400"  },
+  lenguaje:    { bg: "bg-sky-50",     text: "text-sky-700",     border: "border-sky-200",    dot: "bg-sky-400"     },
+  fonología:   { bg: "bg-teal-50",    text: "text-teal-700",    border: "border-teal-200",   dot: "bg-teal-400"    },
+  pragmática:  { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200",dot: "bg-emerald-400" },
+  cognición:   { bg: "bg-blue-50",    text: "text-blue-700",    border: "border-blue-200",   dot: "bg-blue-400"    },
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function GoalLibrary() {
   const { data: library = [], isLoading } = useListGoalLibrary();
@@ -90,6 +258,8 @@ export default function GoalLibrary() {
   const [expandedId, setExpandedId]       = useState<number | null>(null);
   const [assignGoal, setAssignGoal]       = useState<any | null>(null);
   const [showNewGoal, setShowNewGoal]     = useState(false);
+  const [viewMode, setViewMode]           = useState<"objetivos" | "bloques">("objetivos");
+  const [expandedBloque, setExpandedBloque] = useState<string | null>(null);
 
   // ── Drill-down navigation state ────────────────────────────────────────────
   const [drillGrupo, setDrillGrupo]       = useState<string | null>(null);
@@ -238,8 +408,32 @@ export default function GoalLibrary() {
             </Button>
           </div>
 
-          {/* Area summary chips */}
-          <div className="flex flex-wrap gap-2 mb-5">
+          {/* View mode toggle */}
+          <div className="flex gap-1 p-1 rounded-xl bg-slate-100 mb-5 w-fit">
+            <button
+              onClick={() => setViewMode("objetivos")}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === "objetivos"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Objetivos
+            </button>
+            <button
+              onClick={() => setViewMode("bloques")}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === "bloques"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Vista clínica
+            </button>
+          </div>
+
+          {/* Area summary chips — only in objetivos mode */}
+          {viewMode === "objetivos" && <div className="flex flex-wrap gap-2 mb-5">
             {stats.porArea.map(s => {
               const ac = getAreaColor(s.area);
               const isActive = areaFilter === s.area;
@@ -256,10 +450,10 @@ export default function GoalLibrary() {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          {/* Search + filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search + filters — only in objetivos mode */}
+          {viewMode === "objetivos" && <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -346,11 +540,11 @@ export default function GoalLibrary() {
                 </Button>
               )}
             </div>
-          </div>
+          </div>}
         </div>
 
-        {/* ── Breadcrumb ────────────────────────────────────────────── */}
-        {(areaFilter !== "all") && (
+        {/* ── Breadcrumb — only in objetivos mode ──────────────────── */}
+        {viewMode === "objetivos" && (areaFilter !== "all") && (
           <div className="flex items-center gap-1 text-sm flex-wrap bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
             <button
               onClick={clearFilters}
@@ -385,8 +579,107 @@ export default function GoalLibrary() {
           </div>
         )}
 
-        {/* ── Result count (search mode) ────────────────────────────── */}
-        {isSearchMode && (
+        {/* ── Vista Clínica (bloques) ───────────────────────────────── */}
+        {viewMode === "bloques" && (
+          <div className="space-y-8">
+            {Object.entries(BLOQUES_POR_AREA).map(([area, bloques]) => {
+              const ac = BLOQUE_AREA_COLORS[area] ?? { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200", dot: "bg-slate-400" };
+              return (
+                <div key={area}>
+                  {/* Area header */}
+                  <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl mb-3 border ${ac.bg} ${ac.border}`}>
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${ac.dot}`} />
+                    <h2 className={`text-sm font-bold capitalize ${ac.text}`}>{area}</h2>
+                    <span className={`ml-auto text-xs font-medium ${ac.text} opacity-60`}>{bloques.length} bloque{bloques.length !== 1 ? "s" : ""}</span>
+                  </div>
+
+                  {/* Bloque cards */}
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {bloques.map(bloque => {
+                      const isOpen = expandedBloque === bloque.id;
+                      return (
+                        <div
+                          key={bloque.id}
+                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isOpen ? `ring-2 ring-offset-1 ${ac.border}` : "hover:shadow-md"}`}
+                        >
+                          {/* Card header — clickable */}
+                          <button
+                            className="w-full text-left px-5 py-4"
+                            onClick={() => setExpandedBloque(isOpen ? null : bloque.id)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full mb-2 ${ac.bg} ${ac.text} border ${ac.border}`}>
+                                  {bloque.edad} años
+                                </span>
+                                <p className="text-sm font-semibold text-slate-800 capitalize leading-snug">{area}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{bloque.habilidades.length} habilidades esperadas</p>
+                              </div>
+                              <ChevronDown className={`h-4 w-4 shrink-0 text-slate-300 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            </div>
+                          </button>
+
+                          {/* Expanded panel */}
+                          {isOpen && (
+                            <div className="border-t border-slate-100 text-xs">
+
+                              {/* Habilidades */}
+                              <div className="px-5 py-4 space-y-2">
+                                <p className="font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  Habilidades esperadas
+                                </p>
+                                <ul className="space-y-1.5">
+                                  {bloque.habilidades.map((h, i) => (
+                                    <li key={i} className="flex gap-2 text-slate-600">
+                                      <span className="shrink-0 text-slate-300 mt-0.5">·</span>
+                                      <span className="leading-snug">{h}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Guía clínica */}
+                              <div className="px-5 py-4 bg-violet-50/50 border-t border-violet-100/60 space-y-1.5">
+                                <p className="font-semibold text-violet-700 flex items-center gap-1.5">
+                                  <Lightbulb className="h-3.5 w-3.5" />
+                                  Guía clínica
+                                </p>
+                                <p className="text-violet-800/75 leading-relaxed">{bloque.guia}</p>
+                              </div>
+
+                              {/* Actividades sugeridas */}
+                              <div className="px-5 py-4 bg-teal-50/40 border-t border-teal-100/60 space-y-2">
+                                <p className="font-semibold text-teal-700 flex items-center gap-1.5">
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  Actividades sugeridas
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {bloque.actividades.map(act => (
+                                    <span
+                                      key={act}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-white border border-teal-200 text-teal-700"
+                                    >
+                                      {act}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Result count (search mode) — only in objetivos mode ───── */}
+        {viewMode === "objetivos" && isSearchMode && (
           <p className="text-sm text-slate-500 -mt-2 px-1">
             Mostrando <span className="font-semibold text-slate-700">{filtered.length}</span> objetivo{filtered.length !== 1 ? "s" : ""}
             {search && <> para <span className="italic">"{search}"</span></>}
@@ -394,7 +687,7 @@ export default function GoalLibrary() {
         )}
 
         {/* ── Main display ──────────────────────────────────────────── */}
-        {isLoading ? (
+        {viewMode === "objetivos" && (isLoading ? (
           <div className="space-y-4">
             {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
           </div>
@@ -717,7 +1010,7 @@ export default function GoalLibrary() {
               })}
             </div>
           )
-        )}
+        ))}
       </div>
 
       {assignGoal && (
