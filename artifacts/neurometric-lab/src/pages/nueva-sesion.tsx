@@ -29,6 +29,69 @@ const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   habla:         ["Repetición", "Discriminación", "Denominación con apoyo"],
 };
 
+const BLOQUES_SESION = [
+  {
+    area: "comprensión",
+    label: "Comprensión",
+    bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700",
+    habilidades: [
+      "Comprende consignas de dos pasos",
+      "Responde preguntas simples sobre lo escuchado",
+      "Identifica relaciones de causa y efecto básicas",
+      "Sigue rutinas verbales sin apoyo visual",
+    ],
+    focoSugerido: "Trabajar comprensión de consignas y preguntas simples",
+  },
+  {
+    area: "lenguaje",
+    label: "Lenguaje",
+    bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700",
+    habilidades: [
+      "Nombra objetos y acciones cotidianas",
+      "Usa frases de 3 a 4 palabras con estructura sujeto-verbo-objeto",
+      "Narra eventos simples en secuencia",
+      "Usa conectores básicos: y, pero, porque",
+    ],
+    focoSugerido: "Expandir vocabulario y estructura de frases completas",
+  },
+  {
+    area: "atención",
+    label: "Atención",
+    bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700",
+    habilidades: [
+      "Mantiene atención en tarea estructurada por 5 minutos",
+      "Cambia foco atencional cuando se lo solicita el adulto",
+      "Ignora distractores simples del entorno",
+      "Sigue una secuencia de 3 pasos sin recordatorio",
+    ],
+    focoSugerido: "Trabajar atención sostenida y flexibilidad atencional",
+  },
+  {
+    area: "fonología",
+    label: "Fonología",
+    bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700",
+    habilidades: [
+      "Discrimina pares mínimos de sonidos",
+      "Produce sílabas CVC con precisión articulatoria",
+      "Identifica rima en palabras simples",
+      "Segmenta palabras en sílabas mediante palmadas",
+    ],
+    focoSugerido: "Trabajar conciencia fonológica y discriminación auditiva",
+  },
+  {
+    area: "pragmática",
+    label: "Pragmática",
+    bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",
+    habilidades: [
+      "Inicia conversación con adultos conocidos",
+      "Mantiene turnos conversacionales (al menos 3 intercambios)",
+      "Adapta el registro según el interlocutor",
+      "Usa gestos y contacto visual de forma funcional",
+    ],
+    focoSugerido: "Trabajar habilidades pragmáticas y turno conversacional",
+  },
+];
+
 type RowState = {
   checked: boolean;
   intentos: string;
@@ -110,6 +173,7 @@ export default function NuevaSesion() {
   const [observaciones, setObservaciones]     = useState("");
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
   const [isSaving, setIsSaving]               = useState(false);
+  const [selectedBloque, setSelectedBloque]   = useState<string | null>(null);
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -884,6 +948,79 @@ export default function NuevaSesion() {
               onChange={e => setFocoTerapeutico(e.target.value)}
               className="bg-slate-50 resize-none text-sm"
             />
+          </div>
+        )}
+
+        {/* ── Guía por edad y área ─────────────────────────────────────── */}
+        {patient && (
+          <div className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+              <Brain className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+              <h2 className="text-sm font-semibold text-slate-800">Guía por edad y área</h2>
+              <span className="ml-auto text-xs text-slate-400 font-medium">4–5 años</span>
+            </div>
+
+            {/* Area chips */}
+            <div className="px-4 pt-3 pb-2 flex flex-wrap gap-2">
+              {BLOQUES_SESION.map(bloque => {
+                const isOpen = selectedBloque === bloque.area;
+                return (
+                  <button
+                    key={bloque.area}
+                    onClick={() => setSelectedBloque(isOpen ? null : bloque.area)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      isOpen
+                        ? `${bloque.bg} ${bloque.border} ${bloque.text} ring-2 ring-offset-1 ring-current`
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white"
+                    }`}
+                  >
+                    {bloque.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Expanded block panel */}
+            {selectedBloque && (() => {
+              const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
+              if (!bloque) return null;
+              return (
+                <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} ${bloque.bg} overflow-hidden`}>
+                  {/* Block header */}
+                  <div className={`px-4 py-2.5 border-b ${bloque.border}`}>
+                    <p className={`text-[11px] font-bold uppercase tracking-wide ${bloque.text}`}>
+                      Habilidades esperadas · {bloque.label} · 4–5 años
+                    </p>
+                  </div>
+
+                  {/* Habilidades list */}
+                  <ul className="px-4 py-3 space-y-2">
+                    {bloque.habilidades.map((h, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-slate-700">
+                        <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
+                        <span className="leading-snug">{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Usar en sesión button */}
+                  <div className="px-4 pb-4">
+                    <button
+                      onClick={() => {
+                        setFocoTerapeutico(bloque.focoSugerido);
+                        setSelectedBloque(null);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
+                      style={{ background: BRAND_TEAL }}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Usar en sesión
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
