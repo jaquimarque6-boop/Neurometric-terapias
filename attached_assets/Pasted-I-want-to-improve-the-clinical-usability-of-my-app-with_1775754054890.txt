@@ -1,0 +1,105 @@
+I want to improve the clinical usability of my app without breaking existing logic.
+
+Focus on 3 areas:
+
+1) Age grouping (franjas etarias)
+2) Phoneme acquisition (clinical priority)
+3) Visual style (warm / autumn palette)
+
+DO NOT refactor existing components or break current functionality.
+
+---
+
+1. Fix age grouping (very important)
+
+Standardize all age ranges across the app (goal library and session) to:
+
+- 0–2 años
+- 3–5 años
+- 6–8 años
+- 9–12 años
+- 13–16 años
+- 17–20 años
+
+Ensure:
+
+- filtering uses these ranges consistently
+- no mixing of ages
+- patients only see relevant content for their age group
+
+---
+
+2. Add strong focus on phoneme acquisition
+
+Create a dedicated clinical block for:
+
+"Adquisición de fonemas"
+
+This should include:
+
+a) Expected abilities by age (example)
+
+- produce early phonemes
+- improve intelligibility
+- reduce phonological processes
+
+b) Clinical activities (simple list)
+
+- repetition of target sounds
+- minimal pairs
+- auditory discrimination
+- naming with visual support
+
+c) Family suggestions
+
+Add a small section:
+"Para la familia"
+
+Examples:
+
+- model correct pronunciation without correction pressure
+- play sound-based games
+- reinforce attempts positively
+
+IMPORTANT:
+
+- keep text simple and clinical
+- no backend changes
+- no heavy logic
+
+---
+
+3. Improve UI colors (Neurometric Lab style)
+
+Adjust UI to a warm, autumn-like palette:
+
+- soft beige backgrounds
+- muted terracotta / orange accents
+- warm browns
+- avoid cold blue tones
+
+Apply lightly:
+
+- buttons
+- cards
+- headers
+
+Do NOT redesign the entire UI, just adapt colors.
+
+---
+
+4. Keep everything stable
+
+- Do not break JSX
+- Do not remove existing features
+- Do not modify session logic
+- Do not refactor deeply
+
+---
+
+Expected result
+
+- Age groups feel correct and ordered
+- Strong clinical value in phoneme acquisition
+- Added family guidance (important)
+- Warmer, more professional visual identity

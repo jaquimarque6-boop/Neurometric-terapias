@@ -29,7 +29,26 @@ const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   habla:         ["Repetición", "Discriminación", "Denominación con apoyo"],
 };
 
-const BLOQUES_SESION = [
+const FRANJAS_EDAD = [
+  { value: "0-2",   label: "0–2 años"   },
+  { value: "3-5",   label: "3–5 años"   },
+  { value: "6-8",   label: "6–8 años"   },
+  { value: "9-12",  label: "9–12 años"  },
+  { value: "13-16", label: "13–16 años" },
+  { value: "17-20", label: "17–20 años" },
+];
+
+type BloqueSesion = {
+  area: string;
+  label: string;
+  bg: string; border: string; text: string;
+  habilidades: string[];
+  actividadesClinicas?: string[];
+  paraLaFamilia?: string[];
+  focoSugerido: string;
+};
+
+const BLOQUES_SESION: BloqueSesion[] = [
   {
     area: "comprensión",
     label: "Comprensión",
@@ -89,6 +108,30 @@ const BLOQUES_SESION = [
       "Usa gestos y contacto visual de forma funcional",
     ],
     focoSugerido: "Trabajar habilidades pragmáticas y turno conversacional",
+  },
+  {
+    area: "fonemas",
+    label: "Adquisición de fonemas",
+    bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700",
+    habilidades: [
+      "Produce fonemas tempranos con consistencia (/p/, /m/, /n/, /b/)",
+      "Mejora inteligibilidad en frases de 3 o más palabras",
+      "Reduce procesos fonológicos de simplificación",
+      "Generaliza fonemas trabajados en habla espontánea",
+    ],
+    actividadesClinicas: [
+      "Repetición de sonidos diana en sílabas y palabras",
+      "Pares mínimos para contraste auditivo-articulatorio",
+      "Discriminación auditiva con pares contrastivos",
+      "Denominación con apoyo visual y fonético",
+    ],
+    paraLaFamilia: [
+      "Modelar la pronunciación correcta sin corregir directamente",
+      "Jugar con rimas y canciones que incluyan el fonema trabajado",
+      "Reforzar positivamente todos los intentos del niño",
+      "Leer en voz alta cuentos con palabras que contengan el fonema objetivo",
+    ],
+    focoSugerido: "Trabajar adquisición y consolidación de fonemas objetivo",
   },
 ];
 
@@ -174,6 +217,7 @@ export default function NuevaSesion() {
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
   const [isSaving, setIsSaving]               = useState(false);
   const [selectedBloque, setSelectedBloque]   = useState<string | null>(null);
+  const [selectedEdad, setSelectedEdad]       = useState("3-5");
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -953,26 +997,41 @@ export default function NuevaSesion() {
 
         {/* ── Guía por edad y área ─────────────────────────────────────── */}
         {patient && (
-          <div className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-              <Brain className="h-4 w-4" style={{ color: BRAND_TEAL }} />
-              <h2 className="text-sm font-semibold text-slate-800">Guía por edad y área</h2>
-              <span className="ml-auto text-xs text-slate-400 font-medium">4–5 años</span>
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
+            {/* Header — warm autumn */}
+            <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: "#E8D5C4", background: "#FDF3E9" }}>
+              <Brain className="h-4 w-4" style={{ color: "#C4703A" }} />
+              <h2 className="text-sm font-semibold" style={{ color: "#7C3D12" }}>Guía por edad y área</h2>
+            </div>
+
+            {/* Age range pills */}
+            <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5">
+              {FRANJAS_EDAD.map(f => (
+                <button
+                  key={f.value}
+                  onClick={() => { setSelectedEdad(f.value); setSelectedBloque(null); }}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                  style={selectedEdad === f.value
+                    ? { background: "#C4703A", borderColor: "#C4703A", color: "white" }
+                    : { background: "white", borderColor: "#E8D5C4", color: "#92400E" }}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
 
             {/* Area chips */}
-            <div className="px-4 pt-3 pb-2 flex flex-wrap gap-2">
+            <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
               {BLOQUES_SESION.map(bloque => {
                 const isOpen = selectedBloque === bloque.area;
                 return (
                   <button
                     key={bloque.area}
                     onClick={() => setSelectedBloque(isOpen ? null : bloque.area)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                       isOpen
                         ? `${bloque.bg} ${bloque.border} ${bloque.text} ring-2 ring-offset-1 ring-current`
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     {bloque.label}
@@ -985,34 +1044,70 @@ export default function NuevaSesion() {
             {selectedBloque && (() => {
               const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
               if (!bloque) return null;
+              const edadLabel = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
               return (
-                <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} ${bloque.bg} overflow-hidden`}>
-                  {/* Block header */}
-                  <div className={`px-4 py-2.5 border-b ${bloque.border}`}>
+                <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} overflow-hidden`} style={{ background: "white" }}>
+                  {/* Block title */}
+                  <div className={`px-4 py-2.5 border-b ${bloque.border} ${bloque.bg}`}>
                     <p className={`text-[11px] font-bold uppercase tracking-wide ${bloque.text}`}>
-                      Habilidades esperadas · {bloque.label} · 4–5 años
+                      {bloque.label} · {edadLabel}
                     </p>
                   </div>
 
-                  {/* Habilidades list */}
-                  <ul className="px-4 py-3 space-y-2">
-                    {bloque.habilidades.map((h, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-slate-700">
-                        <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
-                        <span className="leading-snug">{h}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Habilidades esperadas */}
+                  <div className="px-4 py-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Habilidades esperadas</p>
+                    <ul className="space-y-1.5">
+                      {bloque.habilidades.map((h, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-slate-700">
+                          <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
+                          <span className="leading-snug">{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Actividades clínicas — only if present */}
+                  {bloque.actividadesClinicas && (
+                    <div className="px-4 py-3 border-t border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Actividades clínicas</p>
+                      <ul className="space-y-1.5">
+                        {bloque.actividadesClinicas.map((a, i) => (
+                          <li key={i} className="flex gap-2 text-sm text-slate-700">
+                            <span className="shrink-0 text-orange-400 font-bold mt-0.5">›</span>
+                            <span className="leading-snug">{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Para la familia — only if present */}
+                  {bloque.paraLaFamilia && (
+                    <div className="px-4 py-3 border-t" style={{ borderColor: "#F3D9C0", background: "#FEF6EE" }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#92400E" }}>
+                        Para la familia
+                      </p>
+                      <ul className="space-y-1.5">
+                        {bloque.paraLaFamilia.map((a, i) => (
+                          <li key={i} className="flex gap-2 text-sm" style={{ color: "#7C3D12" }}>
+                            <span className="shrink-0 font-bold mt-0.5" style={{ color: "#C4703A" }}>·</span>
+                            <span className="leading-snug">{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Usar en sesión button */}
-                  <div className="px-4 pb-4">
+                  <div className="px-4 py-3 border-t border-slate-100">
                     <button
                       onClick={() => {
                         setFocoTerapeutico(bloque.focoSugerido);
                         setSelectedBloque(null);
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
-                      style={{ background: BRAND_TEAL }}
+                      style={{ background: "#C4703A" }}
                     >
                       <Check className="h-3.5 w-3.5" />
                       Usar en sesión

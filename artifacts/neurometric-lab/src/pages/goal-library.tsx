@@ -90,7 +90,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "comp-2-4",
     area: "comprensión",
-    edad: "2–4",
+    edad: "3–5",
     habilidades: [
       "Responde a su nombre",
       "Señala objetos al pedírselo",
@@ -104,7 +104,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "comp-4-6",
     area: "comprensión",
-    edad: "4–6",
+    edad: "3–5",
     habilidades: [
       "Comprende consignas de dos pasos",
       "Responde preguntas simples (¿qué? ¿dónde?)",
@@ -132,7 +132,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "leng-2-4",
     area: "lenguaje",
-    edad: "2–4",
+    edad: "3–5",
     habilidades: [
       "Usa palabras sueltas para comunicar",
       "Combina 2 palabras (mamá agua)",
@@ -146,7 +146,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "leng-4-6",
     area: "lenguaje",
-    edad: "4–6",
+    edad: "3–5",
     habilidades: [
       "Forma oraciones de 4–5 palabras",
       "Narra experiencias recientes",
@@ -160,7 +160,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "leng-6-9",
     area: "lenguaje",
-    edad: "6–9",
+    edad: "6–8",
     habilidades: [
       "Usa oraciones complejas (coordinadas/subordinadas)",
       "Narra secuencias con conectores",
@@ -188,7 +188,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "fono-5-7",
     area: "fonología",
-    edad: "5–7",
+    edad: "6–8",
     habilidades: [
       "Articula correctamente en palabras aisladas",
       "Reduce procesos fonológicos atípicos",
@@ -216,7 +216,7 @@ const BLOQUES_CLINICOS: BloqueClinico[] = [
   {
     id: "cog-4-6",
     area: "cognición",
-    edad: "4–6",
+    edad: "3–5",
     habilidades: [
       "Secuencia 3 eventos narrativos",
       "Clasifica objetos por categoría",
@@ -502,7 +502,7 @@ export default function GoalLibrary() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las franjas</SelectItem>
-                {["0-2","1-3","2-4","2-5","2-6","2-8","3-6","3-7","4-7","4-8","4-10","5-8","5-10","5-12","6-10","6-12","7-12"].map(f => (
+                {["0-2","3-5","6-8","9-12","13-16","17-20"].map(f => (
                   <SelectItem key={f} value={f}>{f} años</SelectItem>
                 ))}
               </SelectContent>
