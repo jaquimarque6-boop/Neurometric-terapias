@@ -40,11 +40,11 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-border/50 bg-white">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-6">
         <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-[1.02]">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/20">
-            <Activity className="h-6 w-6 text-white" />
+            <Activity className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
             <span className="font-display text-lg font-bold tracking-tight text-foreground leading-tight">
@@ -77,12 +77,12 @@ export function AppSidebar() {
                         rounded-xl transition-all duration-200 h-10
                         ${isActive
                           ? "bg-primary/10 text-primary font-semibold hover:bg-primary/15"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"}
                       `}
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3">
                         <item.icon
-                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-slate-400"}`}
+                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
                         />
                         <span className="text-sm">{item.title}</span>
                         {isActive && (

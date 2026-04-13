@@ -59,55 +59,75 @@
 }
 
 :root {
-  /* Clinical Theme: Crisp Slate & Calming Teal */
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%;
-  
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
-  
-  /* Deep Medical Teal */
-  --primary: 184 75% 35%;
-  --primary-foreground: 210 40% 98%;
-  
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  
-  /* Soft Blue Accent */
-  --accent: 199 89% 48%;
-  --accent-foreground: 210 40% 98%;
-  
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
+  /* ── Warm Autumn Palette — Neurometric Lab ─────────────────────────────── */
 
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 184 75% 35%;
+  /* Page background: warm cream */
+  --background: 38 42% 97%;
+  /* Main text: warm deep charcoal */
+  --foreground: 25 20% 18%;
 
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 32% 91%;
-  --sidebar-primary: 184 75% 35%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 210 40% 96%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 184 75% 35%;
+  /* Cards: very light warm white */
+  --card: 38 28% 98%;
+  --card-foreground: 25 20% 18%;
+  --card-border: 30 22% 87%;
+
+  /* Popovers / dropdowns */
+  --popover: 38 28% 99%;
+  --popover-foreground: 25 20% 18%;
+  --popover-border: 30 22% 87%;
+
+  /* Primary: Terracotta — warm muted orange */
+  --primary: 24 54% 50%;
+  --primary-foreground: 38 60% 97%;
+  --primary-border: hsl(24 54% 42%);
+
+  /* Secondary: warm sand */
+  --secondary: 33 26% 91%;
+  --secondary-foreground: 25 20% 22%;
+  --secondary-border: hsl(33 26% 80%);
+
+  /* Muted: very light warm beige */
+  --muted: 33 18% 94%;
+  --muted-foreground: 22 10% 50%;
+  --muted-border: hsl(33 18% 85%);
+
+  /* Accent: brand teal — slightly warmed */
+  --accent: 176 44% 38%;
+  --accent-foreground: 38 60% 97%;
+  --accent-border: hsl(176 44% 30%);
+
+  /* Destructive: warm red */
+  --destructive: 0 68% 55%;
+  --destructive-foreground: 38 60% 97%;
+  --destructive-border: hsl(0 68% 46%);
+
+  /* Borders & inputs */
+  --border: 30 20% 87%;
+  --input: 30 20% 87%;
+  --ring: 24 54% 50%;
+
+  /* Sidebar: warm off-white */
+  --sidebar: 36 32% 97%;
+  --sidebar-foreground: 25 20% 20%;
+  --sidebar-border: 30 20% 90%;
+  --sidebar-primary: 24 54% 50%;
+  --sidebar-primary-foreground: 38 60% 97%;
+  --sidebar-accent: 33 24% 92%;
+  --sidebar-accent-foreground: 25 20% 20%;
+  --sidebar-ring: 24 54% 50%;
+
+  /* Button outline / badge outline */
+  --button-outline: hsl(30 20% 82%);
+  --badge-outline: hsl(30 20% 78%);
 
   --radius: 0.75rem;
 
-  --chart-1: 184 75% 35%;
-  --chart-2: 199 89% 48%;
-  --chart-3: 215 25% 27%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 0 84% 60%;
+  /* Chart colors — warm palette */
+  --chart-1: 24 54% 50%;   /* terracotta */
+  --chart-2: 176 44% 38%;  /* warm teal */
+  --chart-3: 25 20% 32%;   /* warm brown */
+  --chart-4: 38 72% 55%;   /* warm amber */
+  --chart-5: 0 68% 55%;    /* warm red */
 }
 
 @layer base {
@@ -118,14 +138,14 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     @apply tracking-tight;
   }
 }
 
-/* Custom Scrollbar for a cleaner look */
+/* Warm scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -134,16 +154,20 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+  background-color: hsl(30 20% 80%);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(24 30% 70%);
 }
 
-/* Utility classes for subtle medical gradients */
+/* Utility gradients */
 @layer utilities {
   .bg-clinical-gradient {
-    @apply bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5;
+    @apply bg-gradient-to-br from-primary/5 via-primary/8 to-accent/5;
   }
   .bg-card-gradient {
-    @apply bg-gradient-to-b from-white to-slate-50/50;
+    @apply bg-gradient-to-b from-card to-muted/40;
   }
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
