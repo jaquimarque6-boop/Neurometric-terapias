@@ -90,7 +90,7 @@ export default function Patients() {
       <div className="flex flex-col gap-4 animate-in fade-in duration-400">
         <button
           onClick={handleBack}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors w-fit"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition-colors w-fit"
         >
           <ArrowLeft className="h-4 w-4" />
           Volver
@@ -103,7 +103,7 @@ export default function Patients() {
               Pacientes
             </h1>
             {!isLoading && (
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-muted-foreground">
                 ({patients?.length ?? 0})
               </span>
             )}
@@ -111,12 +111,12 @@ export default function Patients() {
 
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-sm w-44 bg-white border-slate-200 focus-visible:ring-primary/20"
+                className="pl-8 h-8 text-sm w-44 bg-white border-border focus-visible:ring-primary/20"
               />
             </div>
             <button
@@ -138,7 +138,7 @@ export default function Patients() {
               .map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl border border-slate-100 p-4 space-y-3 shadow-sm"
+                  className="bg-white rounded-xl border border-border/50 p-4 space-y-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-4 w-28" />
@@ -182,8 +182,8 @@ export default function Patients() {
                 <div
                   key={patient.id}
                   onClick={() => navigate(`/patients/${patient.id}`)}
-                  className="bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer group
-                             hover:shadow-md hover:border-slate-200 transition-all duration-200
+                  className="bg-white rounded-xl border border-border/50 shadow-sm cursor-pointer group
+                             hover:shadow-md hover:border-border transition-all duration-200
                              overflow-hidden flex"
                   style={{ borderLeft: `3px solid ${sc.stripe}` }}
                 >
@@ -198,7 +198,7 @@ export default function Patients() {
                           {patient.name}
                         </span>
                         {patient.age && (
-                          <span className="text-xs text-slate-400 shrink-0 leading-none">
+                          <span className="text-xs text-muted-foreground shrink-0 leading-none">
                             {patient.age}a
                           </span>
                         )}
@@ -215,7 +215,7 @@ export default function Patients() {
 
                     {/* Row 2: Current focus */}
                     {focusLine && (
-                      <p className="text-xs text-slate-500 truncate leading-none">
+                      <p className="text-xs text-muted-foreground truncate leading-none">
                         {focusLine}
                       </p>
                     )}
@@ -224,7 +224,7 @@ export default function Patients() {
                     <div className="flex items-center gap-2 mt-0.5">
                       {pct !== null ? (
                         <>
-                          <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{
@@ -233,7 +233,7 @@ export default function Patients() {
                               }}
                             />
                           </div>
-                          <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
                             {pct}%
                           </span>
                         </>
@@ -260,7 +260,7 @@ export default function Patients() {
 
                       {/* Fallback: always show an arrow to indicate clickable */}
                       {!action && (
-                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
                       )}
                     </div>
                   </div>
@@ -268,12 +268,12 @@ export default function Patients() {
               );
             })
           ) : (
-            <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <UserCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-600">
+            <div className="col-span-full py-16 text-center bg-card rounded-2xl border border-dashed border-border">
+              <UserCircle className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-foreground/70">
                 Sin resultados
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Ajusta la búsqueda o agrega un nuevo paciente.
               </p>
               <button

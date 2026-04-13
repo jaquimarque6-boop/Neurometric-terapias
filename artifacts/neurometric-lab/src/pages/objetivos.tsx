@@ -53,7 +53,7 @@ function statusIcon(status: string) {
 function statusStyle(status: string) {
   if (status === "logrado") return "bg-emerald-100 text-emerald-700 border-emerald-200";
   if (status === "suspendido") return "bg-red-100 text-red-700 border-red-200";
-  return "bg-blue-100 text-blue-700 border-blue-200";
+  return "bg-primary/10 text-primary border-primary/20";
 }
 
 function statusLabel(status: string) {
@@ -121,14 +121,14 @@ export default function Objetivos() {
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="bg-white border border-border/50 rounded-2xl shadow-sm p-6">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <Target className="h-6 w-6 text-primary" />
                 Objetivos Terapéuticos
               </h1>
-              <p className="text-slate-500 mt-1">
+              <p className="text-muted-foreground mt-1">
                 {stats.total} objetivos · {stats.activos} activos · {stats.logrados} logrados
               </p>
             </div>
@@ -140,8 +140,8 @@ export default function Objetivos() {
           {/* Stats chips */}
           <div className="flex flex-wrap gap-2 mb-4">
             {[
-              { label: "Total", count: stats.total, color: "bg-slate-100 text-slate-600" },
-              { label: "Activos", count: stats.activos, color: "bg-blue-100 text-blue-700" },
+              { label: "Total", count: stats.total, color: "bg-muted text-muted-foreground" },
+              { label: "Activos", count: stats.activos, color: "bg-primary/10 text-primary" },
               { label: "Logrados", count: stats.logrados, color: "bg-emerald-100 text-emerald-700" },
             ].map(s => (
               <div key={s.label} className={`px-3 py-1 rounded-full text-xs font-semibold ${s.color}`}>
@@ -152,11 +152,11 @@ export default function Objetivos() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input placeholder="Buscar objetivos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-slate-50 border-slate-200" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar objetivos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-muted/50" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-full sm:w-40 bg-muted/50">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -167,7 +167,7 @@ export default function Objetivos() {
               </SelectContent>
             </Select>
             <Select value={patientFilter} onValueChange={setPatientFilter}>
-              <SelectTrigger className="w-full sm:w-48 bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-full sm:w-48 bg-muted/50">
                 <SelectValue placeholder="Paciente" />
               </SelectTrigger>
               <SelectContent>
@@ -191,8 +191,8 @@ export default function Objetivos() {
               <div key={patientName}>
                 <div className="flex items-center gap-3 mb-3 px-1">
                   <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm font-display">{patientName.charAt(0)}</div>
-                  <h2 className="font-semibold text-slate-700">{patientName}</h2>
-                  <span className="text-xs text-slate-400">{patientGoals.length} objetivo{patientGoals.length !== 1 ? "s" : ""}</span>
+                  <h2 className="font-semibold text-foreground/80">{patientName}</h2>
+                  <span className="text-xs text-muted-foreground">{patientGoals.length} objetivo{patientGoals.length !== 1 ? "s" : ""}</span>
                 </div>
                 <div className="space-y-2">
                   {patientGoals.map(goal => (
@@ -207,29 +207,29 @@ export default function Objetivos() {
                               {goal.codigo && (
                                 <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{goal.codigo}</span>
                               )}
-                              <p className={`font-semibold text-slate-900 ${goal.status === "logrado" ? "line-through text-slate-400" : ""}`}>
+                              <p className={`font-semibold text-foreground ${goal.status === "logrado" ? "line-through text-muted-foreground" : ""}`}>
                                 {goal.title}
                               </p>
                             </div>
                             {goal.description && (
-                              <p className="text-sm text-slate-500 mt-1 line-clamp-2">{goal.description}</p>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{goal.description}</p>
                             )}
                             <div className="flex flex-wrap items-center gap-2 mt-2">
                               <Badge variant="outline" className={`text-xs ${statusStyle(goal.status)}`}>{statusLabel(goal.status)}</Badge>
                               {goal.category && (
-                                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100 capitalize">{goal.category}</Badge>
+                                <Badge variant="secondary" className="text-xs bg-muted text-foreground/70 hover:bg-muted capitalize">{goal.category}</Badge>
                               )}
                               {goal.franjaEtaria && (
-                                <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
+                                <span className="text-xs text-muted-foreground">{goal.franjaEtaria} años</span>
                               )}
                               {goal.targetDate && (
-                                <span className="text-xs text-slate-400 flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Clock className="h-3 w-3" /> Vence {goal.targetDate}
                                 </span>
                               )}
                             </div>
                           </div>
-                          <button onClick={() => setDeleteId(goal.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="Eliminar">
+                          <button onClick={() => setDeleteId(goal.id)} className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="Eliminar">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -241,10 +241,10 @@ export default function Objetivos() {
             ))}
           </div>
         ) : (
-          <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-            <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-            <p className="font-medium text-slate-600">No se encontraron objetivos</p>
-            <p className="text-slate-400 text-sm mt-1">Crea el primer objetivo terapéutico.</p>
+          <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-border">
+            <Target className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+            <p className="font-medium text-foreground/70">No se encontraron objetivos</p>
+            <p className="text-muted-foreground text-sm mt-1">Crea el primer objetivo terapéutico.</p>
           </div>
         )}
       </div>
@@ -305,42 +305,42 @@ function GoalForm({ patients, onSave, onClose, isSaving }: {
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Paciente *</label>
+            <label className="text-sm font-medium text-foreground/80">Paciente *</label>
             <Select value={form.patientId} onValueChange={v => set("patientId", v)}>
-              <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar paciente..." /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar paciente..." /></SelectTrigger>
               <SelectContent>{patients.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Código</label>
-              <Input value={form.codigo} onChange={e => set("codigo", e.target.value)} placeholder="NL-001" className="bg-slate-50 font-mono" />
+              <label className="text-sm font-medium text-foreground/80">Código</label>
+              <Input value={form.codigo} onChange={e => set("codigo", e.target.value)} placeholder="NL-001" className="bg-muted/50 font-mono" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Franja etaria</label>
-              <Input value={form.franjaEtaria} onChange={e => set("franjaEtaria", e.target.value)} placeholder="3-5" className="bg-slate-50" />
+              <label className="text-sm font-medium text-foreground/80">Franja etaria</label>
+              <Input value={form.franjaEtaria} onChange={e => set("franjaEtaria", e.target.value)} placeholder="3-5" className="bg-muted/50" />
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Título del objetivo *</label>
-            <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo..." className="bg-slate-50" />
+            <label className="text-sm font-medium text-foreground/80">Título del objetivo *</label>
+            <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo..." className="bg-muted/50" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Descripción / Definición operativa</label>
-            <Textarea rows={3} value={form.description} onChange={e => set("description", e.target.value)} placeholder="El paciente nombrará correctamente..." className="bg-slate-50 resize-none" />
+            <label className="text-sm font-medium text-foreground/80">Descripción / Definición operativa</label>
+            <Textarea rows={3} value={form.description} onChange={e => set("description", e.target.value)} placeholder="El paciente nombrará correctamente..." className="bg-muted/50 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Categoría *</label>
+              <label className="text-sm font-medium text-foreground/80">Categoría *</label>
               <Select value={form.category} onValueChange={v => set("category", v)}>
-                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
                 <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Estado</label>
+              <label className="text-sm font-medium text-foreground/80">Estado</label>
               <Select value={form.status} onValueChange={v => set("status", v)}>
-                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="activo">Activo</SelectItem>
                   <SelectItem value="logrado">Logrado</SelectItem>
@@ -350,8 +350,8 @@ function GoalForm({ patients, onSave, onClose, isSaving }: {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Fecha objetivo</label>
-            <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-slate-50" />
+            <label className="text-sm font-medium text-foreground/80">Fecha objetivo</label>
+            <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-muted/50" />
           </div>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>

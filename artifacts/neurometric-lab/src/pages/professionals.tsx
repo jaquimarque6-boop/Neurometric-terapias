@@ -35,7 +35,7 @@ const ESPECIALIDADES = [
 
 function statusBadge(status: string) {
   if (status === "active") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  return "bg-slate-100 text-slate-500 border-slate-200";
+  return "bg-muted text-muted-foreground border-border";
 }
 
 function statusLabel(status: string) {
@@ -53,11 +53,11 @@ export default function Professionals() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+            <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Stethoscope className="h-6 w-6 text-primary" />
               Equipo Clínico
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-muted-foreground mt-1">
               {professionals?.length ?? 0} profesional{professionals?.length !== 1 ? "es" : ""} registrado{professionals?.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -101,7 +101,7 @@ export default function Professionals() {
                           {pro.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 leading-tight">{pro.name}</h3>
+                          <h3 className="font-bold text-foreground leading-tight">{pro.name}</h3>
                           <p className="text-sm font-medium text-primary mt-0.5">{pro.specialty}</p>
                         </div>
                       </div>
@@ -114,41 +114,41 @@ export default function Professionals() {
                     </div>
 
                     <div className="space-y-2.5">
-                      <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                        <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="truncate">{pro.email}</span>
                       </div>
                       {pro.phone && (
-                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                          <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                          <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span>{pro.phone}</span>
                         </div>
                       )}
                       {pro.license && (
-                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                          <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                          <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span>Matrícula: {pro.license}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                  <div className="px-6 py-3.5 bg-muted/50 border-t border-border/50 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sm text-foreground/70">
                       <UsersIcon className="h-4 w-4 text-primary" />
                       <span className="font-semibold text-primary">{(pro as any).patientCount ?? 0}</span>
-                      <span className="text-slate-400">paciente{(pro as any).patientCount !== 1 ? "s" : ""}</span>
+                      <span className="text-muted-foreground">paciente{(pro as any).patientCount !== 1 ? "s" : ""}</span>
                     </div>
-                    <span className="text-xs text-slate-400">ID #{pro.id}</span>
+                    <span className="text-xs text-muted-foreground">ID #{pro.id}</span>
                   </div>
                 </CardContent>
               </Card>
             ))
           ) : (
-            <div className="col-span-full py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <Stethoscope className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-              <p className="font-medium text-slate-600">No hay profesionales registrados</p>
-              <p className="text-slate-400 text-sm mt-1">Agrega el primer miembro del equipo clínico.</p>
+            <div className="col-span-full py-20 text-center bg-card rounded-2xl border border-dashed border-border">
+              <Stethoscope className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="font-medium text-foreground/70">No hay profesionales registrados</p>
+              <p className="text-muted-foreground text-sm mt-1">Agrega el primer miembro del equipo clínico.</p>
             </div>
           )}
         </div>
@@ -214,20 +214,20 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Nombre completo *</label>
+            <label className="text-sm font-medium text-foreground/80">Nombre completo *</label>
             <Input
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Dra. María García"
-              className={`bg-slate-50 ${errors.name && form.name ? "border-red-300" : ""}`}
+              className={`bg-muted/50 ${errors.name && form.name ? "border-red-300" : ""}`}
             />
             {errors.name && form.name && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Especialidad *</label>
+            <label className="text-sm font-medium text-foreground/80">Especialidad *</label>
             <Select value={form.specialty} onValueChange={v => set("specialty", v)}>
-              <SelectTrigger className="bg-slate-50">
+              <SelectTrigger className="bg-muted/50">
                 <SelectValue placeholder="Seleccionar especialidad..." />
               </SelectTrigger>
               <SelectContent>
@@ -242,42 +242,42 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Correo electrónico *</label>
+            <label className="text-sm font-medium text-foreground/80">Correo electrónico *</label>
             <Input
               type="email"
               value={form.email}
               onChange={e => set("email", e.target.value)}
               placeholder="profesional@neurometric.com"
-              className={`bg-slate-50 ${errors.email && form.email ? "border-red-300" : ""}`}
+              className={`bg-muted/50 ${errors.email && form.email ? "border-red-300" : ""}`}
             />
             {errors.email && form.email && <p className="text-xs text-red-500">{errors.email}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Teléfono</label>
+              <label className="text-sm font-medium text-foreground/80">Teléfono</label>
               <Input
                 value={form.phone}
                 onChange={e => set("phone", e.target.value)}
                 placeholder="+54 11 5555-0000"
-                className="bg-slate-50"
+                className="bg-muted/50"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Matrícula</label>
+              <label className="text-sm font-medium text-foreground/80">Matrícula</label>
               <Input
                 value={form.license}
                 onChange={e => set("license", e.target.value)}
                 placeholder="MP-12345"
-                className="bg-slate-50"
+                className="bg-muted/50"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Estado</label>
+            <label className="text-sm font-medium text-foreground/80">Estado</label>
             <Select value={form.status} onValueChange={v => set("status", v)}>
-              <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Activo</SelectItem>
                 <SelectItem value="inactive">Inactivo</SelectItem>

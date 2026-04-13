@@ -116,7 +116,7 @@ Each event card shows: colored dot (by event type) + vertical connector line, ev
 
 Filters: Todo / Sesiones / Objetivos / Logros / Estados / Notas — clicking narrows displayed events. Events are grouped by month-year with a section header.
 
-Color coding: sesion=sky, objetivo_asignado=primary, objetivo_logrado=emerald, estado_actualizado=amber, nota_progreso=slate.
+Color coding: sesion=teal, objetivo_asignado=primary, objetivo_logrado=emerald, estado_actualizado=amber, nota_progreso=muted.
 
 ### Key Data Rules
 

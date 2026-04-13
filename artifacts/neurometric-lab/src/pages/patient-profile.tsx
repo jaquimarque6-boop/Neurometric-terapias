@@ -98,8 +98,8 @@ const STATUS_STYLE: Record<string, string> = {
   "activo":      "bg-primary/10 text-primary border-primary/20",
   "en progreso": "bg-amber-100 text-amber-700 border-amber-200",
   "logrado":     "bg-emerald-100 text-emerald-700 border-emerald-200",
-  "archivado":   "bg-slate-100 text-slate-500 border-slate-200",
-  "suspendido":  "bg-slate-100 text-slate-500 border-slate-200",
+  "archivado":   "bg-muted text-muted-foreground border-border",
+  "suspendido":  "bg-muted text-muted-foreground border-border",
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -109,13 +109,13 @@ const CATEGORIAS = [
 ];
 
 const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "lenguaje":              { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
-  "habla":                 { bg: "bg-sky-100",     text: "text-sky-700",     border: "border-sky-200"     },
+  "lenguaje":              { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
+  "habla":                 { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200"   },
   "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
   "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
   "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
-  "cognición":             { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-200"    },
-  "estimulación temprana": { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
+  "cognición":             { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "estimulación temprana": { bg: "bg-stone-200",   text: "text-stone-700",   border: "border-stone-300"   },
 };
 
 const NIVEL_COLORS: Record<string, string> = {
@@ -125,21 +125,21 @@ const NIVEL_COLORS: Record<string, string> = {
 };
 
 function getAreaColor(area?: string | null) {
-  return AREA_COLORS[(area ?? "").toLowerCase()] ?? { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" };
+  return AREA_COLORS[(area ?? "").toLowerCase()] ?? { bg: "bg-muted", text: "text-muted-foreground", border: "border-border" };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function semaforoMeta(s?: string | null) {
-  if (!s) return { label: "Sin datos", dot: "bg-slate-300", badge: "bg-slate-100 text-slate-600" };
+  if (!s) return { label: "Sin datos", dot: "bg-muted-foreground/40", badge: "bg-muted text-muted-foreground" };
   if (s.includes("🟢")) return { label: "Buen progreso",     dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700" };
   if (s.includes("🟡")) return { label: "En progreso",       dot: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-700"  };
   if (s.includes("🔴")) return { label: "Requiere atención", dot: "bg-red-400",     badge: "bg-red-100 text-red-700"        };
-  return { label: s, dot: "bg-slate-300", badge: "bg-slate-100 text-slate-600" };
+  return { label: s, dot: "bg-muted-foreground/40", badge: "bg-muted text-muted-foreground" };
 }
 
 function GoalStatusIcon({ status }: { status: string }) {
   if (status === "logrado")     return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />;
-  if (status === "archivado" || status === "suspendido") return <Archive className="h-4 w-4 text-slate-400 shrink-0" />;
+  if (status === "archivado" || status === "suspendido") return <Archive className="h-4 w-4 text-muted-foreground shrink-0" />;
   if (status === "en progreso") return <Clock className="h-4 w-4 text-amber-500 shrink-0" />;
   return <Circle className="h-4 w-4 text-primary shrink-0" />;
 }
@@ -236,20 +236,20 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
       {/* Header + actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Informe</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Resumen clínico y texto editable · exportable como PDF</p>
+          <h2 className="text-base font-semibold text-foreground">Informe</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Resumen clínico y texto editable · exportable como PDF</p>
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
             <button
               onClick={() => setView("tecnico")}
-              className={`px-3 py-1.5 transition-colors ${view === "tecnico" ? "text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              className={`px-3 py-1.5 transition-colors ${view === "tecnico" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
               style={view === "tecnico" ? { background: "#0E3A6D" } : {}}
             >Técnico</button>
             <button
               onClick={() => setView("familia")}
-              className={`px-3 py-1.5 transition-colors ${view === "familia" ? "text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              className={`px-3 py-1.5 transition-colors ${view === "familia" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
               style={view === "familia" ? { background: "#20C7C7", color: "#fff" } : {}}
             >Para familias</button>
           </div>
@@ -266,18 +266,18 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
           <Card className="border-border/50 shadow-sm">
             <CardContent className="p-5" id="informe-tecnico-content">
               {/* Header block (printed) */}
-              <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-200">
+              <div className="flex justify-between items-start mb-5 pb-4 border-b border-border">
                 <div>
                   <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
-                  <div className="text-xs text-slate-500 mt-1 space-y-0.5">
-                    {patient.age && <p>Edad: <span className="font-medium text-slate-700">{patient.age} años</span></p>}
-                    {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-slate-700">{patient.diagnosis}</span></p>}
-                    {patient.fechaInicio && <p>Inicio de tratamiento: <span className="font-medium text-slate-700">{formatFecha(patient.fechaInicio)}</span></p>}
-                    {profs.length > 0 && <p>Profesional(es): <span className="font-medium text-slate-700">{profs.map(p => p.professionalName).join(", ")}</span></p>}
+                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                    {patient.age && <p>Edad: <span className="font-medium text-foreground/80">{patient.age} años</span></p>}
+                    {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-foreground/80">{patient.diagnosis}</span></p>}
+                    {patient.fechaInicio && <p>Inicio de tratamiento: <span className="font-medium text-foreground/80">{formatFecha(patient.fechaInicio)}</span></p>}
+                    {profs.length > 0 && <p>Profesional(es): <span className="font-medium text-foreground/80">{profs.map(p => p.professionalName).join(", ")}</span></p>}
                   </div>
                 </div>
-                <div className="text-right text-xs text-slate-400">
-                  <p className="text-xs font-medium text-slate-500">Informe clínico</p>
+                <div className="text-right text-xs text-muted-foreground">
+                  <p className="text-xs font-medium text-muted-foreground">Informe clínico</p>
                   <p>{today}</p>
                 </div>
               </div>
@@ -285,14 +285,14 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 {[
-                  { label: "Sesiones realizadas", val: totalSessions, color: "text-sky-600" },
+                  { label: "Sesiones realizadas", val: totalSessions, color: "text-teal-600" },
                   { label: "Objetivos en proceso", val: totalActive, color: "text-amber-600" },
                   { label: "Objetivos logrados", val: achievedGoals.length, color: "text-emerald-600" },
-                  { label: "Área(s) trabajada(s)", val: new Set(goals.map(g => g.areaClinica ?? g.category).filter(Boolean)).size, color: "text-violet-600" },
+                  { label: "Área(s) trabajada(s)", val: new Set(goals.map(g => g.areaClinica ?? g.category).filter(Boolean)).size, color: "text-rose-600" },
                 ].map(s => (
-                  <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                  <div key={s.label} className="bg-muted/60 border border-border rounded-xl p-3 text-center">
                     <p className={`text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{s.label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -308,8 +308,8 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                       <div key={g.id} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
                         <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 leading-snug">{g.title}</p>
-                          {g.areaClinica && <p className="text-[10px] text-slate-400 mt-0.5">{g.areaClinica}</p>}
+                          <p className="text-xs font-semibold text-foreground leading-snug">{g.title}</p>
+                          {g.areaClinica && <p className="text-[10px] text-muted-foreground mt-0.5">{g.areaClinica}</p>}
                         </div>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">100%</span>
                       </div>
@@ -328,17 +328,17 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                     {[...inProgressGoals, ...activeGoals].map(g => {
                       const pct = goalProgressPct(g.status);
                       return (
-                        <div key={g.id} className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                        <div key={g.id} className="px-3 py-2 rounded-lg bg-muted/50 border border-border">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-slate-800 leading-snug">{g.title}</p>
-                              {g.areaClinica && <p className="text-[10px] text-slate-400 mt-0.5">{g.areaClinica}</p>}
+                              <p className="text-xs font-semibold text-foreground leading-snug">{g.title}</p>
+                              {g.areaClinica && <p className="text-[10px] text-muted-foreground mt-0.5">{g.areaClinica}</p>}
                             </div>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${g.status === "en progreso" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${g.status === "en progreso" ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"}`}>
                               {pct}%
                             </span>
                           </div>
-                          <div className="mt-1.5 h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${g.status === "en progreso" ? "bg-amber-400" : "bg-primary"}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -351,14 +351,14 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
               {/* Recent sessions */}
               {recentRegistros.length > 0 && (
                 <div className="mb-5">
-                  <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
                     Últimas {recentRegistros.length} sesiones
                   </h2>
                   <div className="space-y-2">
                     {recentRegistros.map(r => (
-                      <div key={r.id} className="py-2 border-b border-slate-100 last:border-0">
-                        <p className="text-[10px] text-slate-400">{formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}</p>
-                        {r.resumenSesion && <p className="text-xs text-slate-700 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
+                      <div key={r.id} className="py-2 border-b border-border/50 last:border-0">
+                        <p className="text-[10px] text-muted-foreground">{formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}</p>
+                        {r.resumenSesion && <p className="text-xs text-foreground/80 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
                       </div>
                     ))}
                   </div>
@@ -367,7 +367,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
 
               {/* Clinical narrative — editable */}
               <div>
-                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
                   Narrativa clínica
                 </h2>
                 <Textarea
@@ -375,7 +375,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                   onChange={e => setTextoClinico(e.target.value)}
                   placeholder="Redacta aquí el informe clínico evolutivo del paciente. Este texto aparecerá en el PDF exportado."
                   rows={7}
-                  className="resize-none text-sm bg-slate-50 border-slate-200"
+                  className="resize-none text-sm bg-muted/50"
                 />
               </div>
             </CardContent>
@@ -396,12 +396,12 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
         <div className="space-y-4">
           <Card className="border-border/50 shadow-sm">
             <CardContent className="p-5" id="informe-familia-content">
-              <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-200">
+              <div className="flex justify-between items-start mb-5 pb-4 border-b border-border">
                 <div>
                   <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
-                  {patient.age && <p className="text-xs text-slate-500 mt-0.5">Edad: {patient.age} años</p>}
+                  {patient.age && <p className="text-xs text-muted-foreground mt-0.5">Edad: {patient.age} años</p>}
                 </div>
-                <div className="text-right text-xs text-slate-400">
+                <div className="text-right text-xs text-muted-foreground">
                   <p>Informe para la familia</p>
                   <p>{today}</p>
                 </div>
@@ -409,17 +409,17 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
 
               {/* Plain-language summary */}
               <div className="mb-4">
-                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">¿Cómo va el proceso?</h2>
+                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">¿Cómo va el proceso?</h2>
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { label: "Sesiones realizadas", val: totalSessions, icon: "📅" },
                     { label: "Objetivos en proceso", val: totalActive, icon: "🎯" },
                     { label: "Objetivos alcanzados", val: achievedGoals.length, icon: "✅" },
                   ].map(s => (
-                    <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                    <div key={s.label} className="bg-muted/50 border border-border rounded-xl p-3 text-center">
                       <p className="text-lg">{s.icon}</p>
-                      <p className="text-2xl font-bold font-display text-slate-800 mt-1">{s.val}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{s.label}</p>
+                      <p className="text-2xl font-bold font-display text-foreground mt-1">{s.val}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
                     </div>
                   ))}
                 </div>
@@ -430,7 +430,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                   <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wide border-b border-emerald-100 pb-1.5 mb-3">✅ Lo que ya logró</h2>
                   <ul className="space-y-1.5">
                     {achievedGoals.map(g => (
-                      <li key={g.id} className="flex items-center gap-2 text-xs text-slate-700">
+                      <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                         {g.title}
                       </li>
@@ -444,7 +444,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                   <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wide border-b border-amber-100 pb-1.5 mb-3">🎯 En lo que estamos trabajando</h2>
                   <ul className="space-y-1.5">
                     {[...inProgressGoals, ...activeGoals].map(g => (
-                      <li key={g.id} className="flex items-center gap-2 text-xs text-slate-700">
+                      <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
                         {g.title}
                       </li>
@@ -455,7 +455,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
 
               {/* Family narrative — editable */}
               <div>
-                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-1.5 mb-3">
+                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
                   Mensaje para la familia
                 </h2>
                 <Textarea
@@ -463,7 +463,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                   onChange={e => setTextoFamilia(e.target.value)}
                   placeholder="Escribe aquí un mensaje sencillo y amigable para la familia del paciente, en lenguaje no técnico."
                   rows={6}
-                  className="resize-none text-sm bg-slate-50 border-slate-200"
+                  className="resize-none text-sm bg-muted/50"
                 />
               </div>
             </CardContent>
@@ -756,8 +756,8 @@ export default function PatientProfile() {
   if (!patient) return (
     <AppLayout>
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <User className="h-16 w-16 text-slate-300 mb-4" />
-        <h2 className="text-xl font-bold text-slate-700">Paciente no encontrado</h2>
+        <User className="h-16 w-16 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-bold text-foreground/80">Paciente no encontrado</h2>
         <Button variant="outline" className="mt-6" onClick={() => navigate("/patients")}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Volver a pacientes
         </Button>
@@ -769,7 +769,7 @@ export default function PatientProfile() {
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
         {/* Back */}
-        <button onClick={() => navigate("/patients")} className="flex items-center gap-2 text-sm text-slate-500 hover:text-primary transition-colors w-fit group">
+        <button onClick={() => navigate("/patients")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Volver a pacientes
         </button>
@@ -783,7 +783,7 @@ export default function PatientProfile() {
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-display font-bold text-slate-900">{patient.name}</h1>
+                  <h1 className="text-2xl font-display font-bold text-foreground">{patient.name}</h1>
                   {(patient as any).semaforo && (
                     <Badge variant="outline" className={`${sm.badge} border-0 text-xs`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${sm.dot} mr-1.5 inline-block`} />
@@ -791,16 +791,16 @@ export default function PatientProfile() {
                     </Badge>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-4 text-sm text-slate-600 mt-2">
-                  {patient.age && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-slate-400" />{patient.age} años</span>}
-                  {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-slate-400" />Franja {(patient as any).franjaEtaria}</span>}
-                  {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-slate-400" />{(patient as any).profesionalNombre}</span>}
+                <div className="flex flex-wrap gap-4 text-sm text-foreground/70 mt-2">
+                  {patient.age && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-muted-foreground" />{patient.age} años</span>}
+                  {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-muted-foreground" />Franja {(patient as any).franjaEtaria}</span>}
+                  {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-muted-foreground" />{(patient as any).profesionalNombre}</span>}
                 </div>
                 {pct != null && (
                   <div className="mt-4 max-w-xs">
-                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span>Promedio desempeño</span>
-                      <span className="font-semibold text-slate-700">{pct}%</span>
+                      <span className="font-semibold text-foreground/80">{pct}%</span>
                     </div>
                     <div className="h-2 bg-white/70 rounded-full overflow-hidden border border-white">
                       <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -811,7 +811,7 @@ export default function PatientProfile() {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setShowEditPatient(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-slate-300 bg-white text-slate-600 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400 active:scale-[0.97]"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-border bg-white text-foreground/70 shadow-sm transition-all duration-200 hover:bg-muted/50 hover:border-border active:scale-[0.97]"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Editar
@@ -830,8 +830,8 @@ export default function PatientProfile() {
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
                 <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-0.5">Diagnóstico</p>
-                  <p className="text-slate-800 text-sm">{patient.diagnosis}</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-0.5">Diagnóstico</p>
+                  <p className="text-foreground text-sm">{patient.diagnosis}</p>
                 </div>
               </div>
             )}
@@ -849,30 +849,30 @@ export default function PatientProfile() {
 
         {/* Stats — compact strip */}
         <div className="flex items-center gap-3 flex-wrap px-1">
-          <span className="flex items-center gap-1.5 text-sm text-slate-600">
-            <ClipboardList className="h-3.5 w-3.5 text-slate-400" />
-            <span className="font-semibold text-slate-800">{registros.length}</span>
-            <span className="text-slate-500">registros</span>
+          <span className="flex items-center gap-1.5 text-sm text-foreground/70">
+            <ClipboardList className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{registros.length}</span>
+            <span className="text-muted-foreground">registros</span>
           </span>
-          <span className="text-slate-200 select-none">·</span>
-          <span className="flex items-center gap-1.5 text-sm text-slate-600">
-            <Target className="h-3.5 w-3.5 text-slate-400" />
-            <span className="font-semibold text-slate-800">{activeGoals.length + inProgressGoals.length}</span>
-            <span className="text-slate-500">activos</span>
+          <span className="text-muted-foreground/20 select-none">·</span>
+          <span className="flex items-center gap-1.5 text-sm text-foreground/70">
+            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{activeGoals.length + inProgressGoals.length}</span>
+            <span className="text-muted-foreground">activos</span>
           </span>
-          <span className="text-slate-200 select-none">·</span>
-          <span className="flex items-center gap-1.5 text-sm text-slate-600">
-            <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
-            <span className="font-semibold text-slate-800">{achievedGoals.length}</span>
-            <span className="text-slate-500">logrados</span>
+          <span className="text-muted-foreground/20 select-none">·</span>
+          <span className="flex items-center gap-1.5 text-sm text-foreground/70">
+            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{achievedGoals.length}</span>
+            <span className="text-muted-foreground">logrados</span>
           </span>
           {profs.length > 0 && (
             <>
-              <span className="text-slate-200 select-none">·</span>
-              <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-800">{profs.length}</span>
-                <span className="text-slate-500">profesional{profs.length !== 1 ? "es" : ""}</span>
+              <span className="text-muted-foreground/20 select-none">·</span>
+              <span className="flex items-center gap-1.5 text-sm text-foreground/70">
+                <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-semibold text-foreground">{profs.length}</span>
+                <span className="text-muted-foreground">profesional{profs.length !== 1 ? "es" : ""}</span>
               </span>
             </>
           )}
@@ -880,7 +880,7 @@ export default function PatientProfile() {
 
         {/* Tabs */}
         <Tabs defaultValue="anamnesis">
-          <TabsList className="bg-white border border-border/50 p-1 rounded-xl shadow-sm flex-wrap h-auto gap-1">
+          <TabsList className="bg-card border border-border/50 p-1 rounded-xl shadow-sm flex-wrap h-auto gap-1">
             <TabsTrigger value="anamnesis" className="rounded-lg text-sm flex items-center gap-1.5">
               <ClipboardList className="h-3.5 w-3.5" /> Anamnesis
             </TabsTrigger>
@@ -919,76 +919,76 @@ export default function PatientProfile() {
               <CardContent className="p-5 space-y-5">
                 {/* Motivo de consulta */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-slate-400" /> Motivo de consulta
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" /> Motivo de consulta
                   </label>
                   <Textarea
                     value={anMotivo}
                     onChange={e => { setAnMotivo(e.target.value); setAnDirty(true); }}
                     placeholder="¿Por qué consulta? Describe el motivo principal de consulta y las preocupaciones del paciente o familia…"
                     rows={3}
-                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                    className="resize-none text-sm bg-muted/50"
                   />
                 </div>
 
                 {/* Antecedentes */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5 text-slate-400" /> Antecedentes relevantes
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-muted-foreground" /> Antecedentes relevantes
                   </label>
                   <Textarea
                     value={anAntecedentes}
                     onChange={e => { setAnAntecedentes(e.target.value); setAnDirty(true); }}
                     placeholder="Antecedentes médicos, psicológicos, del desarrollo, intervenciones anteriores…"
                     rows={3}
-                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                    className="resize-none text-sm bg-muted/50"
                   />
                 </div>
 
                 {/* Historia familiar */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <Home className="h-3.5 w-3.5 text-slate-400" /> Historia familiar
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-muted-foreground" /> Historia familiar
                   </label>
                   <Textarea
                     value={anFamilia}
                     onChange={e => { setAnFamilia(e.target.value); setAnDirty(true); }}
                     placeholder="Composición familiar, dinámica del hogar, factores familiares relevantes…"
                     rows={3}
-                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                    className="resize-none text-sm bg-muted/50"
                   />
                 </div>
 
                 {/* Escolaridad */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-slate-400" /> Escolaridad
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-muted-foreground" /> Escolaridad
                   </label>
                   <Textarea
                     value={anEscolaridad}
                     onChange={e => { setAnEscolaridad(e.target.value); setAnDirty(true); }}
                     placeholder="Nivel educativo, establecimiento, rendimiento escolar, adaptación, apoyos pedagógicos…"
                     rows={2}
-                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                    className="resize-none text-sm bg-muted/50"
                   />
                 </div>
 
                 {/* Observaciones generales */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                    <Eye className="h-3.5 w-3.5 text-slate-400" /> Observaciones generales
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" /> Observaciones generales
                   </label>
                   <Textarea
                     value={anObs}
                     onChange={e => { setAnObs(e.target.value); setAnDirty(true); }}
                     placeholder="Otras observaciones clínicas relevantes, aspectos conductuales, contextuales…"
                     rows={3}
-                    className="resize-none text-sm bg-slate-50 border-slate-200"
+                    className="resize-none text-sm bg-muted/50"
                   />
                 </div>
 
                 {/* Save */}
-                <div className="flex justify-end pt-2 border-t border-slate-100">
+                <div className="flex justify-end pt-2 border-t border-border/50">
                   <Button
                     onClick={handleSaveAnamnesis}
                     disabled={isSavingAn}
@@ -1027,36 +1027,36 @@ export default function PatientProfile() {
                         {/* Row: date + title + actions */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="h-8 w-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-0.5">
+                            <div className="h-8 w-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
                               <ClipboardList className="h-4 w-4" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-semibold text-slate-900 text-sm">
+                                <p className="font-semibold text-foreground text-sm">
                                   {formatFecha(r.fecha)}
                                 </p>
                                 {shortTitle && (
                                   <>
-                                    <span className="text-slate-300">–</span>
-                                    <p className="text-sm text-slate-600 truncate">{shortTitle}</p>
+                                    <span className="text-muted-foreground/40">–</span>
+                                    <p className="text-sm text-foreground/70 truncate">{shortTitle}</p>
                                   </>
                                 )}
                               </div>
                               {r.professionalName && (
-                                <p className="text-xs text-slate-400 mt-0.5">{r.professionalName}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{r.professionalName}</p>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => setEditingRegistro(r)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-primary border border-slate-200 hover:border-primary/40 rounded-lg transition-all hover:bg-primary/5"
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary border border-border hover:border-primary/40 rounded-lg transition-all hover:bg-primary/5"
                             >
                               <Pencil className="h-3 w-3" /> Editar
                             </button>
                             <button
                               onClick={() => setExpanded(isExpanded ? null : r.id)}
-                              className="p-1.5 text-slate-400 hover:text-primary rounded-lg hover:bg-primary/5 transition-colors"
+                              className="p-1.5 text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/5 transition-colors"
                             >
                               <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                             </button>
@@ -1067,7 +1067,7 @@ export default function PatientProfile() {
                         {isExpanded && (
                           <div className="mt-3 ml-11 space-y-2.5">
                             {r.resumenSesion && (
-                              <p className="text-sm text-slate-700 leading-relaxed">{r.resumenSesion}</p>
+                              <p className="text-sm text-foreground/80 leading-relaxed">{r.resumenSesion}</p>
                             )}
                             <div className="grid sm:grid-cols-2 gap-2">
                               {r.observaciones && (
@@ -1093,7 +1093,7 @@ export default function PatientProfile() {
                     );
                   })
                 ) : (
-                  <div className="py-12 text-center text-slate-400 text-sm">Sin registros clínicos para este paciente.</div>
+                  <div className="py-12 text-center text-muted-foreground text-sm">Sin registros clínicos para este paciente.</div>
                 )}
               </div>
             </Card>
@@ -1112,7 +1112,7 @@ export default function PatientProfile() {
 
             {/* Action bar */}
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" /> Objetivos del plan
               </h2>
               <div className="flex items-center gap-2">
@@ -1137,7 +1137,7 @@ export default function PatientProfile() {
             {/* Active goals */}
             {activeGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-primary inline-block" /> Activos ({activeGoals.length})
                 </h3>
                 {activeGoals.map(goal => (
@@ -1173,8 +1173,8 @@ export default function PatientProfile() {
             {/* Archived goals */}
             {archivedGoals.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-slate-300 inline-block" /> Archivados ({archivedGoals.length})
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/25 inline-block" /> Archivados ({archivedGoals.length})
                 </h3>
                 {archivedGoals.map(goal => (
                   <GoalCard key={goal.id} goal={goal} onCycle={cycleGoalStatus} onProgress={setProgressGoal} muted />
@@ -1183,10 +1183,10 @@ export default function PatientProfile() {
             )}
 
             {goals.length === 0 && (
-              <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                <Target className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">Sin objetivos definidos</p>
-                <p className="text-slate-400 text-sm mt-1">Agrega objetivos desde el banco clínico o crea uno personalizado.</p>
+              <div className="py-16 text-center bg-card rounded-2xl border border-dashed border-border">
+                <Target className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="text-muted-foreground font-medium">Sin objetivos definidos</p>
+                <p className="text-muted-foreground text-sm mt-1">Agrega objetivos desde el banco clínico o crea uno personalizado.</p>
                 <div className="flex items-center justify-center gap-2 mt-4">
                   <Button size="sm" variant="outline" onClick={() => setShowBankDialog(true)}>
                     <Library className="h-3.5 w-3.5 mr-1.5" /> Desde el banco
@@ -1233,26 +1233,26 @@ export default function PatientProfile() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Nombre <span className="text-red-400">*</span></label>
-                <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-slate-50" />
+                <label className="text-xs font-semibold text-foreground/70">Nombre <span className="text-red-400">*</span></label>
+                <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-muted/50" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600">Edad</label>
-                  <Input value={epAge} onChange={e => setEpAge(e.target.value)} placeholder="Ej. 8" type="number" min={0} max={120} className="bg-slate-50" />
+                  <label className="text-xs font-semibold text-foreground/70">Edad</label>
+                  <Input value={epAge} onChange={e => setEpAge(e.target.value)} placeholder="Ej. 8" type="number" min={0} max={120} className="bg-muted/50" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600">Profesional a cargo</label>
-                  <Input value={epProf} onChange={e => setEpProf(e.target.value)} placeholder="Nombre del profesional" className="bg-slate-50" />
+                  <label className="text-xs font-semibold text-foreground/70">Profesional a cargo</label>
+                  <Input value={epProf} onChange={e => setEpProf(e.target.value)} placeholder="Nombre del profesional" className="bg-muted/50" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Diagnóstico</label>
-                <Input value={epDiagnosis} onChange={e => setEpDiagnosis(e.target.value)} placeholder="Diagnóstico principal" className="bg-slate-50" />
+                <label className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
+                <Input value={epDiagnosis} onChange={e => setEpDiagnosis(e.target.value)} placeholder="Diagnóstico principal" className="bg-muted/50" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Notas generales</label>
-                <Textarea value={epObs} onChange={e => setEpObs(e.target.value)} placeholder="Observaciones generales del paciente…" rows={3} className="bg-slate-50 resize-none text-sm" />
+                <label className="text-xs font-semibold text-foreground/70">Notas generales</label>
+                <Textarea value={epObs} onChange={e => setEpObs(e.target.value)} placeholder="Observaciones generales del paciente…" rows={3} className="bg-muted/50 resize-none text-sm" />
               </div>
             </div>
             <div className="flex gap-3 pt-2">
@@ -1279,16 +1279,16 @@ export default function PatientProfile() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Fecha</label>
-                <Input type="date" value={erFecha} onChange={e => setErFecha(e.target.value)} className="bg-slate-50" />
+                <label className="text-xs font-semibold text-foreground/70">Fecha</label>
+                <Input type="date" value={erFecha} onChange={e => setErFecha(e.target.value)} className="bg-muted/50" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Resumen de sesión</label>
-                <Textarea value={erResumen} onChange={e => setErResumen(e.target.value)} placeholder="¿Qué se trabajó en la sesión?" rows={3} className="bg-slate-50 resize-none text-sm" />
+                <label className="text-xs font-semibold text-foreground/70">Resumen de sesión</label>
+                <Textarea value={erResumen} onChange={e => setErResumen(e.target.value)} placeholder="¿Qué se trabajó en la sesión?" rows={3} className="bg-muted/50 resize-none text-sm" />
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-600">Observaciones clínicas</label>
+                  <label className="text-xs font-semibold text-foreground/70">Observaciones clínicas</label>
                   {hasSpeechSupport && (
                     <button
                       type="button"
@@ -1296,7 +1296,7 @@ export default function PatientProfile() {
                       className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all ${
                         isRecordingEr
                           ? "bg-red-50 border-red-200 text-red-600 animate-pulse"
-                          : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
                       }`}
                     >
                       {isRecordingEr
@@ -1310,7 +1310,7 @@ export default function PatientProfile() {
                   onChange={e => setErObs(e.target.value)}
                   placeholder={isRecordingEr ? "Escuchando… habla ahora" : "Observaciones clínicas relevantes…"}
                   rows={3}
-                  className={`resize-none text-sm transition-colors ${isRecordingEr ? "bg-red-50/40 border-red-200" : "bg-slate-50"}`}
+                  className={`resize-none text-sm transition-colors ${isRecordingEr ? "bg-red-50/40 border-red-200" : "bg-muted/50"}`}
                 />
                 {isRecordingEr && (
                   <p className="text-xs text-red-500 flex items-center gap-1.5">
@@ -1320,8 +1320,8 @@ export default function PatientProfile() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Recomendaciones para el hogar</label>
-                <Textarea value={erHogar} onChange={e => setErHogar(e.target.value)} placeholder="Actividades sugeridas para casa…" rows={2} className="bg-slate-50 resize-none text-sm" />
+                <label className="text-xs font-semibold text-foreground/70">Recomendaciones para el hogar</label>
+                <Textarea value={erHogar} onChange={e => setErHogar(e.target.value)} placeholder="Actividades sugeridas para casa…" rows={2} className="bg-muted/50 resize-none text-sm" />
               </div>
             </div>
             <div className="flex gap-3 pt-2">
@@ -1452,7 +1452,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
       <CardContent className="p-0">
         {/* Progress bar at top */}
         {goal.status !== "archivado" && goal.status !== "suspendido" && (
-          <div className="h-1 w-full bg-slate-100 rounded-t-xl overflow-hidden">
+          <div className="h-1 w-full bg-muted rounded-t-xl overflow-hidden">
             <div className={`h-full ${barColor} transition-all duration-500 rounded-t-xl`} style={{ width: `${pct}%` }} />
           </div>
         )}
@@ -1475,13 +1475,13 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                     {goal.codigo}
                   </span>
                 )}
-                <p className={`font-semibold text-slate-900 leading-snug ${isStruck ? "line-through text-slate-400" : ""}`}>
+                <p className={`font-semibold text-foreground leading-snug ${isStruck ? "line-through text-muted-foreground" : ""}`}>
                   {goal.title}
                 </p>
               </div>
 
               {!expanded && goal.description && (
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{goal.description}</p>
               )}
 
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1498,16 +1498,16 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                     {goal.nivelDificultad}
                   </Badge>
                 )}
-                {goal.franjaEtaria && <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>}
+                {goal.franjaEtaria && <span className="text-xs text-muted-foreground self-center">{goal.franjaEtaria} años</span>}
               </div>
 
               {/* Progress indicator */}
               {goal.status !== "archivado" && goal.status !== "suspendido" && (
                 <div className="flex items-center gap-1.5 mt-2.5">
-                  <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                     <div className={`h-full ${barColor} rounded-full`} style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="text-xs text-slate-400 shrink-0">{pct}%</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{pct}%</span>
                 </div>
               )}
             </div>
@@ -1516,14 +1516,14 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
               <button
                 onClick={() => onProgress(goal)}
                 title="Registrar seguimiento"
-                className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
               >
                 <History className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setExpanded(e => !e)}
                 title={expanded ? "Colapsar detalle" : "Ver actividades y detalle"}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground/80 hover:bg-muted rounded-lg transition-colors"
               >
                 <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
               </button>
@@ -1533,18 +1533,18 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
 
         {/* ── Expandable detail panel ────────────────────────────────────── */}
         {expanded && (
-          <div className="border-t border-slate-100 px-4 pb-4 pt-3 space-y-4">
+          <div className="border-t border-border/50 px-4 pb-4 pt-3 space-y-4">
 
             {/* Dates row */}
             {(goal.fechaAsignacion || goal.targetDate) && (
-              <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                 {goal.fechaAsignacion && (
                   <span className="flex items-center gap-1">
                     <CalendarDays className="h-3 w-3" /> Asignado: {formatFecha(goal.fechaAsignacion)}
                   </span>
                 )}
                 {goal.targetDate && daysRemaining !== null && (
-                  <span className={`flex items-center gap-1 font-medium ${daysRemaining < 0 ? "text-red-500" : daysRemaining <= 14 ? "text-amber-600" : "text-slate-500"}`}>
+                  <span className={`flex items-center gap-1 font-medium ${daysRemaining < 0 ? "text-red-500" : daysRemaining <= 14 ? "text-amber-600" : "text-muted-foreground"}`}>
                     <Flag className="h-3 w-3" />
                     Meta: {formatFecha(goal.targetDate)}
                     {daysRemaining >= 0
@@ -1558,17 +1558,17 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             {/* Description */}
             {goal.description && (
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Descripción</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{goal.description}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Descripción</p>
+                <p className="text-sm text-foreground/80 leading-relaxed">{goal.description}</p>
               </div>
             )}
 
             {/* Loading skeleton */}
             {!actData && (
               <div className="space-y-2 animate-pulse">
-                <div className="h-3 w-32 bg-slate-100 rounded" />
-                <div className="h-9 bg-slate-100 rounded-lg" />
-                <div className="h-9 bg-slate-100 rounded-lg" />
+                <div className="h-3 w-32 bg-muted rounded" />
+                <div className="h-9 bg-muted rounded-lg" />
+                <div className="h-9 bg-muted rounded-lg" />
               </div>
             )}
 
@@ -1576,7 +1576,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             {lib?.definicionOperativa && (
               <div className={`${ac.bg} border ${ac.border} rounded-xl p-3`}>
                 <p className={`text-xs font-semibold ${ac.text} uppercase tracking-wide mb-1`}>Definición operativa</p>
-                <p className="text-xs text-slate-700 leading-relaxed">{lib.definicionOperativa}</p>
+                <p className="text-xs text-foreground/80 leading-relaxed">{lib.definicionOperativa}</p>
               </div>
             )}
 
@@ -1590,15 +1590,15 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                   </div>
                 )}
                 {lib?.indicadorTipo && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
-                    <p className="text-xs font-bold text-blue-700 capitalize">{lib.indicadorTipo}</p>
-                    <p className="text-xs text-blue-600">Indicador</p>
+                  <div className="bg-teal-50 border border-teal-100 rounded-xl p-2.5 text-center">
+                    <p className="text-xs font-bold text-teal-700 capitalize">{lib.indicadorTipo}</p>
+                    <p className="text-xs text-teal-600">Indicador</p>
                   </div>
                 )}
                 {lib?.intentosSugeridos && (
-                  <div className="bg-violet-50 border border-violet-100 rounded-xl p-2.5 text-center">
-                    <p className="text-xs font-bold text-violet-700">{lib.intentosSugeridos}</p>
-                    <p className="text-xs text-violet-600">Intentos</p>
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 text-center">
+                    <p className="text-xs font-bold text-amber-700">{lib.intentosSugeridos}</p>
+                    <p className="text-xs text-amber-600">Intentos</p>
                   </div>
                 )}
               </div>
@@ -1607,12 +1607,12 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             {/* Clinical activities */}
             {clinicActs.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Stethoscope className="h-3.5 w-3.5 text-primary" /> Actividades clínicas
                 </p>
                 <div className="space-y-1.5">
                   {clinicActs.map((a: any) => (
-                    <div key={a.id} className="flex items-start gap-2 text-sm text-slate-700 bg-primary/[0.04] border border-primary/10 rounded-lg px-3 py-2 leading-snug">
+                    <div key={a.id} className="flex items-start gap-2 text-sm text-foreground/80 bg-primary/[0.04] border border-primary/10 rounded-lg px-3 py-2 leading-snug">
                       <Activity className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                       <span>{a.titulo}</span>
                     </div>
@@ -1624,12 +1624,12 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             {/* Family/home activities */}
             {familyActs.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar / familia
                 </p>
                 <div className="space-y-1.5">
                   {familyActs.map((a: any) => (
-                    <div key={a.id} className="flex items-start gap-2 text-sm text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-snug">
+                    <div key={a.id} className="flex items-start gap-2 text-sm text-foreground/80 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-snug">
                       <Home className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
                       <span>{a.titulo}</span>
                     </div>
@@ -1641,28 +1641,28 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
             {/* Fallback: library text when no structured activities */}
             {actData && clinicActs.length === 0 && lib?.actividadesClinicas && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Stethoscope className="h-3.5 w-3.5 text-primary" /> Actividades clínicas
                 </p>
                 <div className="bg-primary/[0.04] border border-primary/10 rounded-xl p-3">
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{lib.actividadesClinicas}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{lib.actividadesClinicas}</p>
                 </div>
               </div>
             )}
             {actData && familyActs.length === 0 && lib?.actividadesFamilia && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar / familia
                 </p>
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{lib.actividadesFamilia}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{lib.actividadesFamilia}</p>
                 </div>
               </div>
             )}
 
             {/* No activities anywhere */}
             {actData && clinicActs.length === 0 && familyActs.length === 0 && !lib?.actividadesClinicas && !lib?.actividadesFamilia && !lib?.definicionOperativa && !goal.description && (
-              <p className="text-xs text-slate-400 text-center py-1">Sin actividades vinculadas al banco</p>
+              <p className="text-xs text-muted-foreground text-center py-1">Sin actividades vinculadas al banco</p>
             )}
 
             {/* Notas del profesional */}
@@ -1677,11 +1677,11 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
 
             {/* Clinical recommendation */}
             {lib?.recomendacionClinica && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1.5">
+              <div className="bg-muted/50 border border-border rounded-xl p-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5 text-amber-500" /> Recomendación clínica
                 </p>
-                <p className="text-xs text-slate-700 leading-relaxed">{lib.recomendacionClinica}</p>
+                <p className="text-xs text-foreground/80 leading-relaxed">{lib.recomendacionClinica}</p>
               </div>
             )}
 
@@ -1822,8 +1822,8 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
 
           {/* ── Activities checklist (structured) ───────────────────────── */}
           {allActivities.length > 0 && (
-            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
-              <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <div className="border border-border rounded-xl p-4 bg-muted/30 space-y-3">
+              <p className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" /> Actividades de esta sesión
                 {checkedActs.size > 0 && (
                   <span className="ml-auto text-xs font-normal text-primary bg-primary/10 px-2 py-0.5 rounded-full">
@@ -1831,12 +1831,12 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                   </span>
                 )}
               </p>
-              <p className="text-xs text-slate-400">Marca las actividades realizadas — se incluirán en la nota automáticamente.</p>
+              <p className="text-xs text-muted-foreground">Marca las actividades realizadas — se incluirán en la nota automáticamente.</p>
 
               {/* Clinical activities */}
               {allActivities.filter(a => a.tipo === "clinica").length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                     <Stethoscope className="h-3.5 w-3.5 text-primary" /> Clínicas
                   </p>
                   {allActivities.filter(a => a.tipo === "clinica").map((a: any) => (
@@ -1846,12 +1846,12 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
                         checkedActs.has(a.id)
                           ? "bg-primary/10 border-primary/30 text-primary font-medium"
-                          : "bg-white border-slate-200 text-slate-700 hover:border-primary/30 hover:bg-primary/[0.02]"
+                          : "bg-white border-border text-foreground/80 hover:border-primary/30 hover:bg-primary/[0.02]"
                       }`}
                     >
                       {checkedActs.has(a.id)
                         ? <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-slate-300" />
+                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground/40" />
                       }
                       <span className="leading-snug">{a.titulo}</span>
                     </button>
@@ -1862,7 +1862,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
               {/* Family activities */}
               {allActivities.filter(a => a.tipo !== "clinica").length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                     <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar
                   </p>
                   {allActivities.filter(a => a.tipo !== "clinica").map((a: any) => (
@@ -1872,12 +1872,12 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
                         checkedActs.has(a.id)
                           ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
-                          : "bg-white border-slate-200 text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50"
+                          : "bg-white border-border text-foreground/80 hover:border-emerald-200 hover:bg-emerald-50/50"
                       }`}
                     >
                       {checkedActs.has(a.id)
                         ? <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600" />
-                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-slate-300" />
+                        : <Square className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground/40" />
                       }
                       <span className="leading-snug">{a.titulo}</span>
                     </button>
@@ -1889,28 +1889,28 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
 
           {/* ── Text activities from library (when no structured ones) ─── */}
           {actData && allActivities.length === 0 && (actData.libraryEntry?.actividadesClinicas || actData.libraryEntry?.actividadesFamilia) && (
-            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
-              <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <div className="border border-border rounded-xl p-4 bg-muted/30 space-y-3">
+              <p className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" /> Actividades sugeridas
               </p>
-              <p className="text-xs text-slate-400">Referencia del banco clínico para este objetivo.</p>
+              <p className="text-xs text-muted-foreground">Referencia del banco clínico para este objetivo.</p>
               {actData.libraryEntry?.actividadesClinicas && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
                     <Stethoscope className="h-3.5 w-3.5 text-primary" /> Clínicas
                   </p>
                   <div className="bg-primary/[0.04] border border-primary/10 rounded-lg p-3">
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesClinicas}</p>
+                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesClinicas}</p>
                   </div>
                 </div>
               )}
               {actData.libraryEntry?.actividadesFamilia && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
                     <Home className="h-3.5 w-3.5 text-emerald-600" /> Para el hogar
                   </p>
                   <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesFamilia}</p>
+                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{actData.libraryEntry.actividadesFamilia}</p>
                   </div>
                 </div>
               )}
@@ -1918,8 +1918,8 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
           )}
 
           {/* ── Progress note form ───────────────────────────────────────── */}
-          <div className="space-y-3 border border-slate-200 rounded-xl p-4 bg-white">
-            <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <div className="space-y-3 border border-border rounded-xl p-4 bg-white">
+            <p className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" /> Nota de progreso
             </p>
             <Textarea
@@ -1927,14 +1927,14 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
               onChange={e => setNota(e.target.value)}
               placeholder="Describe el progreso observado, logros, dificultades..."
               rows={3}
-              className="bg-slate-50 resize-none text-sm"
+              className="bg-muted/50 resize-none text-sm"
             />
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Sesión asociada</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Sesión asociada</label>
                 <Select value={sessionId} onValueChange={setSessionId}>
-                  <SelectTrigger className="bg-slate-50 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1948,9 +1948,9 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                 </Select>
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Estado del objetivo</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Estado del objetivo</label>
                 <Select value={newStatus} onValueChange={setNewStatus}>
-                  <SelectTrigger className="bg-slate-50 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1966,7 +1966,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
             {/* Progress slider */}
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-xs text-slate-500 font-medium flex items-center gap-1.5 shrink-0">
+                <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 shrink-0">
                   <BarChart3 className="h-3.5 w-3.5 text-primary" /> Progreso del objetivo
                 </label>
                 <div className="flex items-center gap-1.5">
@@ -1988,7 +1988,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       "text-primary border-primary/30 bg-primary/5"
                     }`}
                   />
-                  <span className="text-xs text-slate-400">%</span>
+                  <span className="text-xs text-muted-foreground">%</span>
                 </div>
               </div>
               <input
@@ -2010,10 +2010,10 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                   } ${customPct}%, #e2e8f0 ${customPct}%)`,
                 }}
               />
-              <div className="flex justify-between text-[10px] text-slate-400 select-none px-0.5">
+              <div className="flex justify-between text-[10px] text-muted-foreground select-none px-0.5">
                 <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
               </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full ${barColor} rounded-full transition-all duration-300`}
                   style={{ width: `${customPct}%` }}
@@ -2044,21 +2044,21 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
 
           {/* ── History timeline ─────────────────────────────────────────── */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <History className="h-4 w-4 text-slate-400" /> Historial de seguimiento
+            <p className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+              <History className="h-4 w-4 text-muted-foreground" /> Historial de seguimiento
             </p>
             {loadingHistory ? (
               <div className="space-y-2">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
             ) : history.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+              <div className="py-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl">
                 Sin notas de seguimiento aún.
               </div>
             ) : (
               <div className="space-y-2">
                 {history.map(entry => (
-                  <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <div key={entry.id} className="bg-white border border-border rounded-xl p-3.5 space-y-2">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-slate-400">{formatTs(entry.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">{formatTs(entry.createdAt)}</span>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
                         {entry.progressPct != null && (
                           <span className="text-xs font-bold tabular-nums text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
@@ -2070,7 +2070,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                             <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusAnterior ?? "activo"] ?? ""}`}>
                               {STATUS_LABELS[entry.statusAnterior ?? "activo"] ?? entry.statusAnterior}
                             </Badge>
-                            <ChevronRight className="h-3 w-3 text-slate-400" />
+                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
                             <Badge variant="outline" className={`text-xs border ${STATUS_STYLE[entry.statusNuevo ?? "activo"] ?? ""}`}>
                               {STATUS_LABELS[entry.statusNuevo ?? "activo"] ?? entry.statusNuevo}
                             </Badge>
@@ -2079,14 +2079,14 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       </div>
                     </div>
                     {entry.progressPct != null && (
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${goalProgressColor(entry.statusNuevo ?? "activo")}`}
                           style={{ width: `${entry.progressPct}%` }}
                         />
                       </div>
                     )}
-                    {entry.nota && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{entry.nota}</p>}
+                    {entry.nota && <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{entry.nota}</p>}
                   </div>
                 ))}
               </div>
@@ -2140,8 +2140,8 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
             <Lightbulb className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">Sugerencias inteligentes</h3>
-            <p className="text-sm text-slate-500 mt-1">
+            <h3 className="font-semibold text-foreground">Sugerencias inteligentes</h3>
+            <p className="text-sm text-muted-foreground mt-1">
               Objetivos seleccionados automáticamente según la edad, diagnóstico y área clínica de <strong>{patientName}</strong>. Los objetivos ya asignados no aparecen aquí.
             </p>
           </div>
@@ -2151,10 +2151,10 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
       {isLoading ? (
         <div className="space-y-3">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
       ) : suggestions.length === 0 ? (
-        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-          <Star className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-          <p className="font-medium text-slate-600">No hay sugerencias disponibles</p>
-          <p className="text-slate-400 text-sm mt-1">Es posible que todos los objetivos relevantes ya estén asignados, o que falte información de diagnóstico/edad.</p>
+        <div className="py-16 text-center bg-card rounded-2xl border border-dashed border-border">
+          <Star className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+          <p className="font-medium text-foreground/70">No hay sugerencias disponibles</p>
+          <p className="text-muted-foreground text-sm mt-1">Es posible que todos los objetivos relevantes ya estén asignados, o que falte información de diagnóstico/edad.</p>
           <Button size="sm" variant="outline" className="mt-4" onClick={() => refetch()}>Actualizar sugerencias</Button>
         </div>
       ) : (
@@ -2170,24 +2170,24 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
                       {goal.idObjetivo}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900 leading-snug">{goal.nombreObjetivo}</p>
+                      <p className="font-semibold text-foreground leading-snug">{goal.nombreObjetivo}</p>
                       {goal.definicionOperativa && (
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{goal.definicionOperativa}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{goal.definicionOperativa}</p>
                       )}
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         <Badge variant="secondary" className={`text-xs border-0 ${ac.bg} ${ac.text}`}>
                           {goal.areaClinica ?? goal.area}
                         </Badge>
-                        {goal.subarea && <span className="text-xs text-slate-400 self-center">{goal.subarea}</span>}
+                        {goal.subarea && <span className="text-xs text-muted-foreground self-center">{goal.subarea}</span>}
                         {goal.nivelDificultad && (
                           <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
                             {goal.nivelDificultad}
                           </Badge>
                         )}
-                        {goal.franjaEtaria && <span className="text-xs text-slate-400 self-center">{goal.franjaEtaria} años</span>}
+                        {goal.franjaEtaria && <span className="text-xs text-muted-foreground self-center">{goal.franjaEtaria} años</span>}
                       </div>
                       {goal.habilidadesRelacionadas && (
-                        <p className="text-xs text-slate-400 mt-1.5 italic">Habilidades: {goal.habilidadesRelacionadas}</p>
+                        <p className="text-xs text-muted-foreground mt-1.5 italic">Habilidades: {goal.habilidadesRelacionadas}</p>
                       )}
                     </div>
                     <Button
@@ -2207,7 +2207,7 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
               </Card>
             );
           })}
-          <p className="text-xs text-slate-400 text-center pt-1">Mostrando los {suggestions.length} objetivos más relevantes para este paciente.</p>
+          <p className="text-xs text-muted-foreground text-center pt-1">Mostrando los {suggestions.length} objetivos más relevantes para este paciente.</p>
         </div>
       )}
     </div>
@@ -2263,29 +2263,29 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
       />
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Título del objetivo *</label>
-        <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo en contexto funcional..." className="bg-slate-50" />
+        <label className="text-sm font-medium text-foreground/80">Título del objetivo *</label>
+        <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ampliar vocabulario sustantivo en contexto funcional..." className="bg-muted/50" />
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Descripción / Definición operativa</label>
-        <Textarea rows={2} value={form.description} onChange={e => set("description", e.target.value)} placeholder="Describe el comportamiento observable esperado..." className="bg-slate-50 resize-none" />
+        <label className="text-sm font-medium text-foreground/80">Descripción / Definición operativa</label>
+        <Textarea rows={2} value={form.description} onChange={e => set("description", e.target.value)} placeholder="Describe el comportamiento observable esperado..." className="bg-muted/50 resize-none" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Área clínica</label>
+          <label className="text-sm font-medium text-foreground/80">Área clínica</label>
           <Select value={form.areaClinica} onValueChange={handleAreaChange}>
-            <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
             <SelectContent>
               {CATEGORIAS.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Subárea</label>
+          <label className="text-sm font-medium text-foreground/80">Subárea</label>
           <Select value={form.subarea} onValueChange={v => set("subarea", v)} disabled={subareaOptions.length === 0}>
-            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+            <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
             <SelectContent>
               {subareaOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
@@ -2295,9 +2295,9 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Nivel</label>
+          <label className="text-sm font-medium text-foreground/80">Nivel</label>
           <Select value={form.nivelDificultad} onValueChange={v => set("nivelDificultad", v)}>
-            <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="básico">Básico</SelectItem>
               <SelectItem value="intermedio">Intermedio</SelectItem>
@@ -2306,18 +2306,18 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Edad mín.</label>
-          <Input type="number" min={0} max={18} value={form.franjaEtariaMin} onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-slate-50" />
+          <label className="text-sm font-medium text-foreground/80">Edad mín.</label>
+          <Input type="number" min={0} max={18} value={form.franjaEtariaMin} onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-muted/50" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Edad máx.</label>
-          <Input type="number" min={0} max={18} value={form.franjaEtariaMax} onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-slate-50" />
+          <label className="text-sm font-medium text-foreground/80">Edad máx.</label>
+          <Input type="number" min={0} max={18} value={form.franjaEtariaMax} onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-muted/50" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Fecha objetivo</label>
-        <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-slate-50" />
+        <label className="text-sm font-medium text-foreground/80">Fecha objetivo</label>
+        <Input type="date" value={form.targetDate} onChange={e => set("targetDate", e.target.value)} className="bg-muted/50" />
       </div>
 
       <div className="flex gap-3 pt-2">
@@ -2377,7 +2377,7 @@ function PlanOverviewCard({ activeGoals, inProgressGoals, achievedGoals, archive
         <div className="shrink-0 flex flex-col items-center">
           <div className="relative h-20 w-20">
             <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-100" />
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/60" />
               <circle
                 cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="2.5"
                 strokeDasharray={`${completionPct} ${100 - completionPct}`}
@@ -2386,29 +2386,29 @@ function PlanOverviewCard({ activeGoals, inProgressGoals, achievedGoals, archive
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-lg font-display font-bold text-slate-900 leading-none">{completionPct}%</span>
+              <span className="text-lg font-display font-bold text-foreground leading-none">{completionPct}%</span>
             </div>
           </div>
-          <span className="text-xs text-slate-400 mt-1 text-center leading-tight">completado</span>
+          <span className="text-xs text-muted-foreground mt-1 text-center leading-tight">completado</span>
         </div>
 
         {/* Stats */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-3">
+          <h3 className="font-semibold text-foreground flex items-center gap-2 mb-3">
             <BarChart3 className="h-4 w-4 text-primary" /> Resumen del plan terapéutico
           </h3>
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
               <p className="text-2xl font-display font-bold text-primary">{activeGoals.length + inProgressGoals.length}</p>
-              <p className="text-xs text-slate-500 leading-tight">En trabajo</p>
+              <p className="text-xs text-muted-foreground leading-tight">En trabajo</p>
             </div>
             <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
               <p className="text-2xl font-display font-bold text-emerald-600">{logradoCount}</p>
-              <p className="text-xs text-slate-500 leading-tight">Logrados</p>
+              <p className="text-xs text-muted-foreground leading-tight">Logrados</p>
             </div>
             <div className="text-center bg-white/80 rounded-xl p-2.5 border border-white shadow-sm">
-              <p className="text-2xl font-display font-bold text-slate-700">{total}</p>
-              <p className="text-xs text-slate-500 leading-tight">Total plan</p>
+              <p className="text-2xl font-display font-bold text-foreground/80">{total}</p>
+              <p className="text-xs text-muted-foreground leading-tight">Total plan</p>
             </div>
           </div>
 
@@ -2421,13 +2421,13 @@ function PlanOverviewCard({ activeGoals, inProgressGoals, achievedGoals, archive
                 return (
                   <div key={area} className="flex items-center gap-2">
                     <span className={`text-xs font-medium ${ac.text} w-28 truncate capitalize`}>{area}</span>
-                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full ${ac.bg.replace("bg-", "bg-").replace("100", "500")} rounded-full transition-all duration-500`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-xs text-slate-400 w-14 text-right">{data.logrado}/{data.total}</span>
+                    <span className="text-xs text-muted-foreground w-14 text-right">{data.logrado}/{data.total}</span>
                   </div>
                 );
               })}
@@ -2514,16 +2514,16 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
-            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar objetivos..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 text-sm bg-slate-50"
+              className="pl-8 h-8 text-sm bg-muted/50"
             />
           </div>
           <Select value={areaFilter} onValueChange={setAreaFilter}>
-            <SelectTrigger className="w-36 h-8 text-sm bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36 h-8 text-sm bg-muted/50"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las áreas</SelectItem>
               {areas.filter(a => a !== "all").map(a => (
@@ -2532,7 +2532,7 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
             </SelectContent>
           </Select>
           <Select value={nivelFilter} onValueChange={setNivelFilter}>
-            <SelectTrigger className="w-32 h-8 text-sm bg-slate-50"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-32 h-8 text-sm bg-muted/50"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los niveles</SelectItem>
               <SelectItem value="básico">Básico</SelectItem>
@@ -2543,7 +2543,7 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
         </div>
 
         {/* Counter */}
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {filtered.length} objetivo{filtered.length !== 1 ? "s" : ""} disponible{filtered.length !== 1 ? "s" : ""}
           {existingGoalLibraryIds.length > 0 && ` · ${existingGoalLibraryIds.length} ya asignado${existingGoalLibraryIds.length !== 1 ? "s" : ""}`}
         </p>
@@ -2553,7 +2553,7 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
           {isLoading ? (
             <div className="space-y-2">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
           ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+            <div className="py-12 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl">
               {search || areaFilter !== "all" || nivelFilter !== "all"
                 ? "Sin resultados para esta búsqueda."
                 : "Todos los objetivos del banco ya están en el plan."}
@@ -2563,14 +2563,14 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
               const ac = getAreaColor(goal.areaClinica);
               const isAssigning = assigning === goal.id;
               return (
-                <div key={goal.id} className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-primary/30 hover:bg-primary/2 transition-colors">
+                <div key={goal.id} className="flex items-start gap-3 p-3 bg-white border border-border rounded-xl hover:border-primary/30 hover:bg-primary/2 transition-colors">
                   <div className={`shrink-0 text-xs font-mono font-bold px-2 py-1 rounded-lg ${ac.bg} ${ac.text} border ${ac.border} whitespace-nowrap mt-0.5`}>
                     {goal.idObjetivo}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 text-sm leading-snug">{goal.nombreObjetivo}</p>
+                    <p className="font-medium text-foreground text-sm leading-snug">{goal.nombreObjetivo}</p>
                     {goal.definicionOperativa && (
-                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{goal.definicionOperativa}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{goal.definicionOperativa}</p>
                     )}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {goal.areaClinica && (
@@ -2578,13 +2578,13 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
                           {goal.areaClinica}
                         </span>
                       )}
-                      {goal.subarea && <span className="text-xs text-slate-400">{goal.subarea}</span>}
+                      {goal.subarea && <span className="text-xs text-muted-foreground">{goal.subarea}</span>}
                       {goal.nivelDificultad && (
                         <span className={`text-xs px-1.5 py-0.5 rounded-md border ${NIVEL_COLORS[goal.nivelDificultad] ?? ""}`}>
                           {goal.nivelDificultad}
                         </span>
                       )}
-                      {goal.franjaEtaria && <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>}
+                      {goal.franjaEtaria && <span className="text-xs text-muted-foreground">{goal.franjaEtaria} años</span>}
                     </div>
                   </div>
                   <Button
@@ -2619,7 +2619,7 @@ const EVENT_CFG: Record<string, {
   Icon: React.ElementType; label: string;
 }> = {
   sesion: {
-    dot: "bg-sky-500", border: "border-sky-200", bg: "bg-sky-50/60", text: "text-sky-700",
+    dot: "bg-teal-500", border: "border-teal-200", bg: "bg-teal-50/60", text: "text-teal-700",
     Icon: CalendarCheck2, label: "Sesión realizada",
   },
   objetivo_asignado: {
@@ -2635,7 +2635,7 @@ const EVENT_CFG: Record<string, {
     Icon: TrendingUp, label: "Estado actualizado",
   },
   nota_progreso: {
-    dot: "bg-slate-400", border: "border-slate-200", bg: "bg-slate-50", text: "text-slate-600",
+    dot: "bg-muted-foreground/50", border: "border-border", bg: "bg-muted/50", text: "text-foreground/70",
     Icon: MessageSquare, label: "Nota de progreso",
   },
 };
@@ -2668,7 +2668,7 @@ function tlBadgeStyle(badge: string) {
   if (b === "logrado") return "bg-emerald-100 text-emerald-700 border border-emerald-200";
   if (b === "activo") return "bg-primary/10 text-primary border border-primary/20";
   if (b === "en progreso") return "bg-amber-100 text-amber-700 border border-amber-200";
-  if (b === "archivado" || b === "suspendido") return "bg-slate-100 text-slate-500 border border-slate-200";
+  if (b === "archivado" || b === "suspendido") return "bg-muted text-muted-foreground border border-border";
   const c = getAreaColor(badge);
   return `${c.bg} ${c.text} border ${c.border}`;
 }
@@ -2685,7 +2685,7 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
         <div className={`z-10 mt-0.5 h-5 w-5 rounded-full ${cfg.dot} ring-2 ring-white shadow-sm flex items-center justify-center shrink-0`}>
           <cfg.Icon className="h-2.5 w-2.5 text-white" />
         </div>
-        <div className="flex-1 w-0.5 bg-slate-200 mt-1 group-last:hidden" />
+        <div className="flex-1 w-0.5 bg-muted mt-1 group-last:hidden" />
       </div>
 
       {/* Card */}
@@ -2695,10 +2695,10 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
             <cfg.Icon className="h-3.5 w-3.5" />
             {event.title}
           </span>
-          <time className="text-xs text-slate-400 shrink-0 tabular-nums">{fmtEventDate(event.date ?? event.sortKey)}</time>
+          <time className="text-xs text-muted-foreground shrink-0 tabular-nums">{fmtEventDate(event.date ?? event.sortKey)}</time>
         </div>
 
-        <p className="text-sm text-slate-800 font-medium leading-snug">{event.description}</p>
+        <p className="text-sm text-foreground font-medium leading-snug">{event.description}</p>
 
         {event.badge && (
           <span className={`inline-block mt-1.5 text-xs px-1.5 py-0.5 rounded-md font-medium ${tlBadgeStyle(event.badge)}`}>
@@ -2708,11 +2708,11 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
 
         {hasTrans && (
           <div className="flex items-center gap-1.5 mt-2 text-xs flex-wrap">
-            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusAnterior!] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusAnterior!] ?? "bg-muted text-muted-foreground border-border"}`}>
               {STATUS_LABELS[event.extra!.statusAnterior!] ?? event.extra!.statusAnterior}
             </span>
-            <ArrowRight className="h-3 w-3 text-slate-400" />
-            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusNuevo!] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            <span className={`px-1.5 py-0.5 rounded-md border ${STATUS_STYLE[event.extra!.statusNuevo!] ?? "bg-muted text-muted-foreground border-border"}`}>
               {STATUS_LABELS[event.extra!.statusNuevo!] ?? event.extra!.statusNuevo}
             </span>
           </div>
@@ -2722,13 +2722,13 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
         {event.progressPct != null && (
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Progreso registrado</span>
+              <span className="text-muted-foreground">Progreso registrado</span>
               <span className={`font-bold tabular-nums ${
                 event.progressPct >= 100 ? "text-emerald-600" :
                 event.progressPct >= 60  ? "text-amber-600"   : "text-primary"
               }`}>{event.progressPct}%</span>
             </div>
-            <div className="h-1.5 bg-slate-200/70 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-muted/70 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${
                   event.progressPct >= 100 ? "bg-emerald-500" :
@@ -2741,7 +2741,7 @@ function TimelineCard({ event }: { event: TimelineEvent }) {
         )}
 
         {event.meta && (
-          <p className="text-xs text-slate-500 mt-2 leading-relaxed border-t border-slate-200/70 pt-2 whitespace-pre-wrap line-clamp-4">
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-t border-border/70 pt-2 whitespace-pre-wrap line-clamp-4">
             {event.meta}
           </p>
         )}
@@ -2778,15 +2778,15 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
     <div className="space-y-4 pt-2">
       {[1, 2, 3].map(i => (
         <div key={i} className="flex gap-4 animate-pulse">
-          <div className="h-5 w-5 rounded-full bg-slate-200 mt-0.5 shrink-0" />
-          <div className="flex-1 h-16 bg-slate-100 rounded-xl" />
+          <div className="h-5 w-5 rounded-full bg-muted mt-0.5 shrink-0" />
+          <div className="flex-1 h-16 bg-muted rounded-xl" />
         </div>
       ))}
     </div>
   );
 
   if (isError) return (
-    <div className="text-center py-12 text-slate-500 text-sm">
+    <div className="text-center py-12 text-muted-foreground text-sm">
       Error al cargar la línea de tiempo.
     </div>
   );
@@ -2795,7 +2795,7 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+        <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         {FILTER_OPTS.map(opt => (
           <button
             key={opt.value}
@@ -2803,14 +2803,14 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               activeFilter === opt.value
                 ? "bg-primary text-white border-primary shadow-sm"
-                : "bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary"
+                : "bg-white text-foreground/70 border-border hover:border-primary/40 hover:text-primary"
             }`}
           >
             {opt.label}
           </button>
         ))}
         {filtered.length > 0 && (
-          <span className="ml-auto text-xs text-slate-400">
+          <span className="ml-auto text-xs text-muted-foreground">
             {filtered.length} evento{filtered.length !== 1 ? "s" : ""}
           </span>
         )}
@@ -2819,9 +2819,9 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="text-center py-16">
-          <GitCommitVertical className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm font-medium">Sin eventos registrados</p>
-          <p className="text-slate-400 text-xs mt-1">
+          <GitCommitVertical className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+          <p className="text-muted-foreground text-sm font-medium">Sin eventos registrados</p>
+          <p className="text-muted-foreground text-xs mt-1">
             {activeFilter === "all"
               ? "Los eventos aparecerán aquí al registrar sesiones, objetivos o notas."
               : "No hay eventos de este tipo. Prueba otro filtro."}
@@ -2833,11 +2833,11 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
       {groups.map(group => (
         <div key={group.label}>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest capitalize">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest capitalize">
               {group.label}
             </span>
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400 tabular-nums">{group.events.length}</span>
+            <div className="flex-1 h-px bg-muted" />
+            <span className="text-xs text-muted-foreground tabular-nums">{group.events.length}</span>
           </div>
           <div>
             {group.events.map(ev => (

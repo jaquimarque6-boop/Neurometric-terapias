@@ -80,7 +80,7 @@ export default function Goals() {
       case 'achieved': return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
       case 'in-progress': return <ArrowRightCircle className="h-5 w-5 text-accent" />;
       case 'discontinued': return <AlertCircle className="h-5 w-5 text-red-500" />;
-      default: return <Circle className="h-5 w-5 text-slate-300" />;
+      default: return <Circle className="h-5 w-5 text-muted-foreground/40" />;
     }
   };
 
@@ -90,28 +90,28 @@ export default function Goals() {
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+            <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Target className="h-6 w-6 text-primary" />
               Therapy Goals
             </h1>
-            <p className="text-slate-500 mt-1">Track treatment plan objectives and progress.</p>
+            <p className="text-muted-foreground mt-1">Track treatment plan objectives and progress.</p>
           </div>
           <CreateGoalSheet />
         </div>
 
         <div className="space-y-6">
           {isLoading ? (
-            <div className="text-center p-12 text-slate-500 animate-pulse">Loading treatment plans...</div>
+            <div className="text-center p-12 text-muted-foreground animate-pulse">Loading treatment plans...</div>
           ) : !groupedGoals || Object.keys(groupedGoals).length === 0 ? (
-            <div className="text-center p-12 bg-white rounded-2xl border border-dashed border-slate-300">
-              <Target className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-slate-900">No active goals</h3>
-              <p className="text-slate-500 mt-1">Create treatment goals for your patients.</p>
+            <div className="text-center p-12 bg-white rounded-2xl border border-dashed border-border">
+              <Target className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-foreground">No active goals</h3>
+              <p className="text-muted-foreground mt-1">Create treatment goals for your patients.</p>
             </div>
           ) : (
             Object.entries(groupedGoals).map(([patientName, patientGoals]) => (
               <Card key={patientName} className="border-border/50 shadow-sm overflow-hidden bg-white">
-                <CardHeader className="bg-slate-50/80 border-b py-4">
+                <CardHeader className="bg-muted/50 border-b py-4">
                   <CardTitle className="text-lg font-display text-primary flex items-center gap-2">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">
                       {patientName.charAt(0)}
@@ -122,24 +122,24 @@ export default function Goals() {
                 <CardContent className="p-0">
                   <div className="divide-y divide-border/50">
                     {patientGoals.map(goal => (
-                      <div key={goal.id} className="p-5 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row gap-4 md:items-start justify-between group">
+                      <div key={goal.id} className="p-5 hover:bg-muted/40/50 transition-colors flex flex-col md:flex-row gap-4 md:items-start justify-between group">
                         <div className="flex gap-4">
                           <div className="mt-0.5">
                             <StatusIcon status={goal.status} />
                           </div>
                           <div>
-                            <h4 className={`font-semibold ${goal.status === 'achieved' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                            <h4 className={`font-semibold ${goal.status === 'achieved' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                               {goal.title}
                             </h4>
                             {goal.description && (
-                              <p className="text-sm text-slate-600 mt-1 max-w-2xl">{goal.description}</p>
+                              <p className="text-sm text-foreground/70 mt-1 max-w-2xl">{goal.description}</p>
                             )}
                             <div className="flex items-center gap-3 mt-3">
-                              <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-600 hover:bg-slate-100">
+                              <Badge variant="secondary" className="capitalize bg-muted text-foreground/70 hover:bg-muted">
                                 {goal.category}
                               </Badge>
                               {goal.targetDate && (
-                                <span className="text-xs text-slate-500 font-medium bg-white px-2 py-1 rounded border">
+                                <span className="text-xs text-muted-foreground font-medium bg-white px-2 py-1 rounded border">
                                   Target: {format(new Date(goal.targetDate), 'MMM d, yyyy')}
                                 </span>
                               )}
@@ -231,7 +231,7 @@ function CreateGoalSheet() {
           Add Goal
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-slate-50 border-l-0 shadow-2xl">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-muted/50 border-l-0 shadow-2xl">
         <SheetHeader className="bg-white -mx-6 -mt-6 p-6 border-b shadow-sm mb-6">
           <SheetTitle className="font-display text-2xl text-primary">Treatment Goal</SheetTitle>
           <SheetDescription>
@@ -242,16 +242,16 @@ function CreateGoalSheet() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
               <FormField
                 control={form.control}
                 name="patientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-slate-700">Patient</FormLabel>
+                    <FormLabel className="text-foreground/80">Patient</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value?.toString()}>
                       <FormControl>
-                        <SelectTrigger className="bg-slate-50">
+                        <SelectTrigger className="bg-muted/50">
                           <SelectValue placeholder="Select patient" />
                         </SelectTrigger>
                       </FormControl>
@@ -267,15 +267,15 @@ function CreateGoalSheet() {
               />
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-slate-700">Goal Title</FormLabel>
+                    <FormLabel className="text-foreground/80">Goal Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="Reduce panic attacks to <1/week" className="bg-slate-50 font-medium" {...field} />
+                      <Input placeholder="Reduce panic attacks to <1/week" className="bg-muted/50 font-medium" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -287,11 +287,11 @@ function CreateGoalSheet() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-slate-700">Details / Measurement</FormLabel>
+                    <FormLabel className="text-foreground/80">Details / Measurement</FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Patient will utilize grounding techniques..." 
-                        className="bg-slate-50 min-h-[80px] resize-none text-sm" 
+                        className="bg-muted/50 min-h-[80px] resize-none text-sm" 
                         {...field} 
                       />
                     </FormControl>
@@ -301,17 +301,17 @@ function CreateGoalSheet() {
               />
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-slate-700">Domain</FormLabel>
+                      <FormLabel className="text-foreground/80">Domain</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="bg-slate-50">
+                          <SelectTrigger className="bg-muted/50">
                             <SelectValue placeholder="Category" />
                           </SelectTrigger>
                         </FormControl>
@@ -333,9 +333,9 @@ function CreateGoalSheet() {
                   name="targetDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-slate-700">Target Date</FormLabel>
+                      <FormLabel className="text-foreground/80">Target Date</FormLabel>
                       <FormControl>
-                        <Input type="date" className="bg-slate-50" {...field} value={field.value || ''} />
+                        <Input type="date" className="bg-muted/50" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

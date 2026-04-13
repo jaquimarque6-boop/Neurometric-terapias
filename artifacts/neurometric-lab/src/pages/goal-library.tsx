@@ -55,13 +55,13 @@ const AREA_LABELS: Record<string, string> = {
 };
 
 const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "lenguaje":              { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
-  "habla":                 { bg: "bg-sky-100",     text: "text-sky-700",     border: "border-sky-200"     },
+  "lenguaje":              { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
+  "habla":                 { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200"   },
   "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
   "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
   "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
-  "cognición":             { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-200"    },
-  "estimulación temprana": { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
+  "cognición":             { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "estimulación temprana": { bg: "bg-stone-200",   text: "text-stone-700",   border: "border-stone-300"   },
 };
 
 const NIVEL_COLORS: Record<string, string> = {
@@ -72,7 +72,7 @@ const NIVEL_COLORS: Record<string, string> = {
 
 function getAreaColor(areaClinica?: string | null, area?: string | null) {
   const key = (areaClinica ?? area ?? "").toLowerCase();
-  return AREA_COLORS[key] ?? { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" };
+  return AREA_COLORS[key] ?? { bg: "bg-muted", text: "text-foreground/70", border: "border-border" };
 }
 
 // ─── Bloques Clínicos ─────────────────────────────────────────────────────────
@@ -236,11 +236,11 @@ const BLOQUES_POR_AREA = BLOQUES_CLINICOS.reduce((acc, b) => {
 }, {} as Record<string, BloqueClinico[]>);
 
 const BLOQUE_AREA_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  comprensión: { bg: "bg-violet-50",  text: "text-violet-700",  border: "border-violet-200", dot: "bg-violet-400"  },
-  lenguaje:    { bg: "bg-sky-50",     text: "text-sky-700",     border: "border-sky-200",    dot: "bg-sky-400"     },
+  comprensión: { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",  dot: "bg-amber-400"   },
+  lenguaje:    { bg: "bg-rose-50",    text: "text-rose-700",    border: "border-rose-200",   dot: "bg-rose-400"    },
   fonología:   { bg: "bg-teal-50",    text: "text-teal-700",    border: "border-teal-200",   dot: "bg-teal-400"    },
   pragmática:  { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200",dot: "bg-emerald-400" },
-  cognición:   { bg: "bg-blue-50",    text: "text-blue-700",    border: "border-blue-200",   dot: "bg-blue-400"    },
+  cognición:   { bg: "bg-stone-100",  text: "text-stone-700",   border: "border-stone-200",  dot: "bg-stone-400"   },
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -389,14 +389,14 @@ export default function GoalLibrary() {
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="bg-white border border-border/50 rounded-2xl shadow-sm p-6">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
             <div>
-              <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <BookOpen className="h-6 w-6 text-primary" />
                 Banco de Objetivos Terapéuticos
               </h1>
-              <p className="text-slate-500 mt-1 text-sm">
+              <p className="text-muted-foreground mt-1 text-sm">
                 {stats.total} objetivos clínicos en {stats.porArea.length} áreas
               </p>
             </div>
@@ -409,13 +409,13 @@ export default function GoalLibrary() {
           </div>
 
           {/* View mode toggle */}
-          <div className="flex gap-1 p-1 rounded-xl bg-slate-100 mb-5 w-fit">
+          <div className="flex gap-1 p-1 rounded-xl bg-muted mb-5 w-fit">
             <button
               onClick={() => setViewMode("objetivos")}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 viewMode === "objetivos"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground/80"
               }`}
             >
               Objetivos
@@ -424,8 +424,8 @@ export default function GoalLibrary() {
               onClick={() => setViewMode("bloques")}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 viewMode === "bloques"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground/80"
               }`}
             >
               Vista clínica
@@ -455,15 +455,15 @@ export default function GoalLibrary() {
           {/* Search + filters — only in objetivos mode */}
           {viewMode === "objetivos" && <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre, área, código o descripción..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-slate-50 border-slate-200"
+                className="pl-9 bg-muted/50"
               />
               {search && (
-                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/70">
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -471,7 +471,7 @@ export default function GoalLibrary() {
 
             {subareas.length > 2 && (
               <Select value={subareaFilter} onValueChange={setSubareaFilter}>
-                <SelectTrigger className="w-full sm:w-44 bg-slate-50 border-slate-200">
+                <SelectTrigger className="w-full sm:w-44 bg-muted/50">
                   <SelectValue placeholder="Subárea" />
                 </SelectTrigger>
                 <SelectContent>
@@ -484,8 +484,8 @@ export default function GoalLibrary() {
             )}
 
             <Select value={nivelFilter} onValueChange={setNivelFilter}>
-              <SelectTrigger className="w-full sm:w-44 bg-slate-50 border-slate-200">
-                <BarChart2 className="h-4 w-4 mr-2 text-slate-400" />
+              <SelectTrigger className="w-full sm:w-44 bg-muted/50">
+                <BarChart2 className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Dificultad" />
               </SelectTrigger>
               <SelectContent>
@@ -497,7 +497,7 @@ export default function GoalLibrary() {
             </Select>
 
             <Select value={franjaFilter} onValueChange={setFranjaFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-full sm:w-40 bg-muted/50">
                 <SelectValue placeholder="Franja etaria" />
               </SelectTrigger>
               <SelectContent>
@@ -509,7 +509,7 @@ export default function GoalLibrary() {
             </Select>
 
             <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-full sm:w-40 bg-muted/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -525,7 +525,7 @@ export default function GoalLibrary() {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                   sortBy === "codigo"
                     ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300"
+                    : "bg-muted/50 text-muted-foreground border-border hover:border-border"
                 }`}
                 title="Ordenar por código"
               >
@@ -534,9 +534,9 @@ export default function GoalLibrary() {
               </button>
 
               {activeFilters > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-slate-500 hover:text-slate-700 whitespace-nowrap">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground/80 whitespace-nowrap">
                   Limpiar
-                  <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-200 text-xs">{activeFilters}</Badge>
+                  <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center bg-muted text-foreground/70 hover:bg-muted text-xs">{activeFilters}</Badge>
                 </Button>
               )}
             </div>
@@ -545,26 +545,26 @@ export default function GoalLibrary() {
 
         {/* ── Breadcrumb — only in objetivos mode ──────────────────── */}
         {viewMode === "objetivos" && (areaFilter !== "all") && (
-          <div className="flex items-center gap-1 text-sm flex-wrap bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-1 text-sm flex-wrap bg-white border border-border/50 rounded-xl px-4 py-2.5 shadow-sm">
             <button
               onClick={clearFilters}
               className="text-primary/70 hover:text-primary transition-colors font-medium"
             >
               Banco
             </button>
-            <span className="text-slate-300 mx-0.5">/</span>
+            <span className="text-muted-foreground/40 mx-0.5">/</span>
             <button
               onClick={() => { setDrillGrupo(null); setDrillSubarea(null); setSubareaFilter("all"); }}
-              className={`font-medium transition-colors ${!drillGrupo ? "text-slate-800" : "text-primary/70 hover:text-primary"}`}
+              className={`font-medium transition-colors ${!drillGrupo ? "text-foreground" : "text-primary/70 hover:text-primary"}`}
             >
               {AREA_LABELS[areaFilter] ?? areaFilter}
             </button>
             {drillGrupo && (
               <>
-                <span className="text-slate-300 mx-0.5">/</span>
+                <span className="text-muted-foreground/40 mx-0.5">/</span>
                 <button
                   onClick={() => { setDrillSubarea(null); setSubareaFilter("all"); }}
-                  className={`font-medium transition-colors ${!drillSubarea ? "text-slate-800" : "text-primary/70 hover:text-primary"}`}
+                  className={`font-medium transition-colors ${!drillSubarea ? "text-foreground" : "text-primary/70 hover:text-primary"}`}
                 >
                   {drillGrupo}
                 </button>
@@ -572,8 +572,8 @@ export default function GoalLibrary() {
             )}
             {drillSubarea && (
               <>
-                <span className="text-slate-300 mx-0.5">/</span>
-                <span className="font-semibold text-slate-800">{drillSubarea}</span>
+                <span className="text-muted-foreground/40 mx-0.5">/</span>
+                <span className="font-semibold text-foreground">{drillSubarea}</span>
               </>
             )}
           </div>
@@ -583,7 +583,7 @@ export default function GoalLibrary() {
         {viewMode === "bloques" && (
           <div className="space-y-8">
             {Object.entries(BLOQUES_POR_AREA).map(([area, bloques]) => {
-              const ac = BLOQUE_AREA_COLORS[area] ?? { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200", dot: "bg-slate-400" };
+              const ac = BLOQUE_AREA_COLORS[area] ?? { bg: "bg-muted/50", text: "text-foreground/80", border: "border-border", dot: "bg-muted-foreground/50" };
               return (
                 <div key={area}>
                   {/* Area header */}
@@ -612,27 +612,27 @@ export default function GoalLibrary() {
                                 <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full mb-2 ${ac.bg} ${ac.text} border ${ac.border}`}>
                                   {bloque.edad} años
                                 </span>
-                                <p className="text-sm font-semibold text-slate-800 capitalize leading-snug">{area}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">{bloque.habilidades.length} habilidades esperadas</p>
+                                <p className="text-sm font-semibold text-foreground capitalize leading-snug">{area}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{bloque.habilidades.length} habilidades esperadas</p>
                               </div>
-                              <ChevronDown className={`h-4 w-4 shrink-0 text-slate-300 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                              <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground/40 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                             </div>
                           </button>
 
                           {/* Expanded panel */}
                           {isOpen && (
-                            <div className="border-t border-slate-100 text-xs">
+                            <div className="border-t border-border/50 text-xs">
 
                               {/* Habilidades */}
                               <div className="px-5 py-4 space-y-2">
-                                <p className="font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
+                                <p className="font-semibold text-foreground/70 mb-2 flex items-center gap-1.5">
                                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                                   Habilidades esperadas
                                 </p>
                                 <ul className="space-y-1.5">
                                   {bloque.habilidades.map((h, i) => (
-                                    <li key={i} className="flex gap-2 text-slate-600">
-                                      <span className="shrink-0 text-slate-300 mt-0.5">·</span>
+                                    <li key={i} className="flex gap-2 text-foreground/70">
+                                      <span className="shrink-0 text-muted-foreground/40 mt-0.5">·</span>
                                       <span className="leading-snug">{h}</span>
                                     </li>
                                   ))}
@@ -640,12 +640,12 @@ export default function GoalLibrary() {
                               </div>
 
                               {/* Guía clínica */}
-                              <div className="px-5 py-4 bg-violet-50/50 border-t border-violet-100/60 space-y-1.5">
-                                <p className="font-semibold text-violet-700 flex items-center gap-1.5">
+                              <div className="px-5 py-4 bg-teal-50/50 border-t border-teal-100/60 space-y-1.5">
+                                <p className="font-semibold text-teal-700 flex items-center gap-1.5">
                                   <Lightbulb className="h-3.5 w-3.5" />
                                   Guía clínica
                                 </p>
-                                <p className="text-violet-800/75 leading-relaxed">{bloque.guia}</p>
+                                <p className="text-teal-800/75 leading-relaxed">{bloque.guia}</p>
                               </div>
 
                               {/* Actividades sugeridas */}
@@ -680,8 +680,8 @@ export default function GoalLibrary() {
 
         {/* ── Result count (search mode) — only in objetivos mode ───── */}
         {viewMode === "objetivos" && isSearchMode && (
-          <p className="text-sm text-slate-500 -mt-2 px-1">
-            Mostrando <span className="font-semibold text-slate-700">{filtered.length}</span> objetivo{filtered.length !== 1 ? "s" : ""}
+          <p className="text-sm text-muted-foreground -mt-2 px-1">
+            Mostrando <span className="font-semibold text-foreground/80">{filtered.length}</span> objetivo{filtered.length !== 1 ? "s" : ""}
             {search && <> para <span className="italic">"{search}"</span></>}
           </p>
         )}
@@ -695,10 +695,10 @@ export default function GoalLibrary() {
         ) : isSearchMode ? (
           /* ── Search/filter mode: flat grouped results ── */
           Object.keys(grouped).length === 0 ? (
-            <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <BookOpen className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-              <p className="font-medium text-slate-600">No se encontraron objetivos</p>
-              <p className="text-slate-400 text-sm mt-1">Intenta ajustar los filtros de búsqueda.</p>
+            <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-border">
+              <BookOpen className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="font-medium text-foreground/70">No se encontraron objetivos</p>
+              <p className="text-muted-foreground text-sm mt-1">Intenta ajustar los filtros de búsqueda.</p>
             </div>
           ) : (
           <div className="space-y-6">
@@ -737,24 +737,24 @@ export default function GoalLibrary() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="font-semibold text-slate-900 leading-snug">{goal.nombreObjetivo}</p>
+                                    <p className="font-semibold text-foreground leading-snug">{goal.nombreObjetivo}</p>
                                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                       {goal.subarea && (
-                                        <span className="text-xs text-slate-400 font-medium">{goal.subarea}</span>
+                                        <span className="text-xs text-muted-foreground font-medium">{goal.subarea}</span>
                                       )}
                                       {goal.franjaEtaria && (
                                         <>
-                                          <span className="text-xs text-slate-300">·</span>
-                                          <span className="text-xs text-slate-400">{goal.franjaEtaria} años</span>
+                                          <span className="text-xs text-muted-foreground/40">·</span>
+                                          <span className="text-xs text-muted-foreground">{goal.franjaEtaria} años</span>
                                         </>
                                       )}
                                       {goal.nivelDificultad && (
-                                        <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? "bg-slate-100 text-slate-500"}`}>
+                                        <Badge variant="outline" className={`text-xs border ${NIVEL_COLORS[goal.nivelDificultad] ?? "bg-muted text-muted-foreground"}`}>
                                           {goal.nivelDificultad.charAt(0).toUpperCase() + goal.nivelDificultad.slice(1)}
                                         </Badge>
                                       )}
                                       {archived && (
-                                        <Badge variant="outline" className="text-xs bg-slate-100 text-slate-500 border-slate-200">
+                                        <Badge variant="outline" className="text-xs bg-muted text-muted-foreground border-border">
                                           <Archive className="h-3 w-3 mr-1" /> Archivado
                                         </Badge>
                                       )}
@@ -772,8 +772,8 @@ export default function GoalLibrary() {
                                       </Button>
                                     )}
                                     {expanded
-                                      ? <ChevronDown className="h-4 w-4 text-slate-400" />
-                                      : <ChevronRight className="h-4 w-4 text-slate-400" />
+                                      ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      : <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     }
                                   </div>
                                 </div>
@@ -782,7 +782,7 @@ export default function GoalLibrary() {
                           </div>
 
                           {expanded && (
-                            <div className="border-t border-slate-100 bg-slate-50/60">
+                            <div className="border-t border-border/50 bg-muted/40">
                               <div className="p-5 space-y-5">
 
                                 {/* ── Definición operativa ────────────────── */}
@@ -800,22 +800,22 @@ export default function GoalLibrary() {
                                     {goal.indicadorTipo && (
                                       <div className="bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
                                         <Target className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-                                        <span className="text-slate-500">Indicador de logro:</span>
-                                        <span className="font-semibold text-slate-700">{goal.indicadorTipo}</span>
+                                        <span className="text-muted-foreground">Indicador de logro:</span>
+                                        <span className="font-semibold text-foreground/80">{goal.indicadorTipo}</span>
                                       </div>
                                     )}
                                     {goal.intentosSugeridos && (
-                                      <div className="bg-white border border-blue-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
-                                        <BarChart2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                        <span className="text-slate-500">Intentos sugeridos:</span>
-                                        <span className="font-semibold text-slate-700">{goal.intentosSugeridos}</span>
+                                      <div className="bg-card border border-amber-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                        <BarChart2 className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                        <span className="text-muted-foreground">Intentos sugeridos:</span>
+                                        <span className="font-semibold text-foreground/80">{goal.intentosSugeridos}</span>
                                       </div>
                                     )}
                                     {goal.metaPorcentaje && (
                                       <div className="bg-white border border-emerald-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
                                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                                        <span className="text-slate-500">Meta:</span>
-                                        <span className="font-semibold text-slate-700">{goal.metaPorcentaje}</span>
+                                        <span className="text-muted-foreground">Meta:</span>
+                                        <span className="font-semibold text-foreground/80">{goal.metaPorcentaje}</span>
                                       </div>
                                     )}
                                   </div>
@@ -825,26 +825,26 @@ export default function GoalLibrary() {
                                 {(goal.nivel1Descripcion || goal.nivel2Descripcion || goal.nivel3Descripcion) && (
                                   <div>
                                     <div className="flex items-center gap-2 mb-3">
-                                      <SortAsc className="h-4 w-4 text-slate-500" />
-                                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Progresión de niveles</p>
+                                      <SortAsc className="h-4 w-4 text-muted-foreground" />
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Progresión de niveles</p>
                                     </div>
                                     <div className="grid md:grid-cols-3 gap-3">
                                       {goal.nivel1Descripcion && (
                                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                                           <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">Nivel 1 · Básico</p>
-                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel1Descripcion}</p>
+                                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{goal.nivel1Descripcion}</p>
                                         </div>
                                       )}
                                       {goal.nivel2Descripcion && (
                                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                                           <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Nivel 2 · Intermedio</p>
-                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel2Descripcion}</p>
+                                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{goal.nivel2Descripcion}</p>
                                         </div>
                                       )}
                                       {goal.nivel3Descripcion && (
-                                        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                                          <p className="text-xs font-bold text-violet-700 uppercase tracking-wider mb-2">Nivel 3 · Generalización</p>
-                                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.nivel3Descripcion}</p>
+                                        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                                          <p className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-2">Nivel 3 · Generalización</p>
+                                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{goal.nivel3Descripcion}</p>
                                         </div>
                                       )}
                                     </div>
@@ -853,12 +853,12 @@ export default function GoalLibrary() {
 
                                 {/* ── Marco conceptual ────────────────────── */}
                                 {goal.marcoConceptual && (
-                                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+                                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <BookOpen className="h-4 w-4 text-sky-600" />
-                                      <p className="text-xs font-semibold text-sky-700 uppercase tracking-widest">Marco Conceptual</p>
+                                      <BookOpen className="h-4 w-4 text-teal-600" />
+                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-widest">Marco Conceptual</p>
                                     </div>
-                                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{goal.marcoConceptual}</p>
+                                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{goal.marcoConceptual}</p>
                                   </div>
                                 )}
 
@@ -880,14 +880,14 @@ export default function GoalLibrary() {
                                   )}
                                   {goal.habilidadesRelacionadas && (
                                     <DetailSection
-                                      icon={<Link2 className="h-4 w-4 text-violet-500" />}
+                                      icon={<Link2 className="h-4 w-4 text-rose-500" />}
                                       title="Habilidades Relacionadas"
                                       content={goal.habilidadesRelacionadas}
                                     />
                                   )}
                                   {goal.prerequisitos && (
                                     <DetailSection
-                                      icon={<ChevronRight className="h-4 w-4 text-sky-500" />}
+                                      icon={<ChevronRight className="h-4 w-4 text-teal-500" />}
                                       title="Prerrequisitos"
                                       content={goal.prerequisitos}
                                     />
@@ -950,9 +950,9 @@ export default function GoalLibrary() {
         ) : (!drillGrupo) ? (
           /* ── Browse Level 1: Grupo cards for selected area ── */
           grupoCards.length === 0 ? (
-            <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <BookOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-500 font-medium">No hay objetivos en esta área</p>
+            <div className="py-16 text-center bg-card rounded-2xl border border-dashed border-border">
+              <BookOpen className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-muted-foreground font-medium">No hay objetivos en esta área</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -967,7 +967,7 @@ export default function GoalLibrary() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className={`font-bold text-base leading-snug ${ac.text}`}>{g.name}</p>
-                        <p className="text-sm text-slate-400 mt-0.5">
+                        <p className="text-sm text-muted-foreground mt-0.5">
                           {g.count} objetivo{g.count !== 1 ? "s" : ""} · {g.subareas.length > 0 ? g.subareas.length : "?"} subcategoría{g.subareas.length !== 1 ? "s" : ""}
                         </p>
                       </div>
@@ -984,9 +984,9 @@ export default function GoalLibrary() {
         ) : (
           /* ── Browse Level 2: Subcategoría cards for selected grupo ── */
           subareaCards.length === 0 ? (
-            <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <BookOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-500 font-medium">No hay objetivos en este grupo</p>
+            <div className="py-16 text-center bg-card rounded-2xl border border-dashed border-border">
+              <BookOpen className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-muted-foreground font-medium">No hay objetivos en este grupo</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1036,12 +1036,12 @@ export default function GoalLibrary() {
 
 function DetailSection({ icon, title, content }: { icon: React.ReactNode; title: string; content: string }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
+    <div className="bg-white rounded-xl border border-border p-4">
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{title}</p>
+        <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">{title}</p>
       </div>
-      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{content}</p>
+      <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{content}</p>
     </div>
   );
 }
@@ -1168,8 +1168,8 @@ function GoalActivitiesPanel({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-5">
-      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
+    <div className="bg-white rounded-xl border border-border p-4 space-y-5">
+      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-amber-500" />
         Actividades terapéuticas
       </p>
@@ -1198,7 +1198,7 @@ function GoalActivitiesPanel({
             </div>
 
             {clinicActs.length === 0 && addingType !== "clinica" && (
-              <p className="text-xs text-slate-400 italic py-2 pl-1">Sin actividades clínicas aún.</p>
+              <p className="text-xs text-muted-foreground italic py-2 pl-1">Sin actividades clínicas aún.</p>
             )}
 
             {clinicActs.map(act => (
@@ -1245,7 +1245,7 @@ function GoalActivitiesPanel({
             </div>
 
             {familyActs.length === 0 && addingType !== "familia" && (
-              <p className="text-xs text-slate-400 italic py-2 pl-1">Sin actividades para el hogar aún.</p>
+              <p className="text-xs text-muted-foreground italic py-2 pl-1">Sin actividades para el hogar aún.</p>
             )}
 
             {familyActs.map(act => (
@@ -1307,20 +1307,20 @@ function ActivityItem({
     );
   }
   return (
-    <div className="group flex items-start gap-2 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5">
+    <div className="group flex items-start gap-2 bg-muted/50 border border-border/50 rounded-lg px-3 py-2.5">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800 leading-snug">{act.titulo}</p>
+        <p className="text-sm font-medium text-foreground leading-snug">{act.titulo}</p>
         {act.descripcion && (
-          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{act.descripcion}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{act.descripcion}</p>
         )}
         {act.recursos && (
-          <p className="text-xs text-slate-400 mt-0.5 italic">Recursos: {act.recursos}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 italic">Recursos: {act.recursos}</p>
         )}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
         <button
           onClick={onEdit}
-          className="p-1 rounded text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+          className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Editar"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -1328,7 +1328,7 @@ function ActivityItem({
         <button
           onClick={onDelete}
           disabled={deleting}
-          className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+          className="p-1 rounded text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-colors"
           title="Eliminar"
         >
           {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -1355,7 +1355,7 @@ function ActivityAddForm({
         value={form.titulo}
         onChange={e => setForm({ ...form, titulo: e.target.value })}
         placeholder="Título de la actividad"
-        className="h-8 text-sm border-slate-200 focus-visible:ring-primary/30"
+        className="h-8 text-sm border-border focus-visible:ring-primary/30"
         autoFocus
       />
       <Textarea
@@ -1363,13 +1363,13 @@ function ActivityAddForm({
         onChange={e => setForm({ ...form, descripcion: e.target.value })}
         placeholder="Descripción (opcional)"
         rows={2}
-        className="text-sm resize-none border-slate-200 focus-visible:ring-primary/30"
+        className="text-sm resize-none border-border focus-visible:ring-primary/30"
       />
       <Input
         value={form.recursos}
         onChange={e => setForm({ ...form, recursos: e.target.value })}
         placeholder="Recursos necesarios (opcional)"
-        className="h-8 text-sm border-slate-200 focus-visible:ring-primary/30"
+        className="h-8 text-sm border-border focus-visible:ring-primary/30"
       />
       <div className="flex gap-2 justify-end pt-1">
         <Button variant="ghost" size="sm" onClick={onCancel} className="h-7 text-xs">
@@ -1438,7 +1438,7 @@ function AssignGoalDialog({
     <Dialog open onOpenChange={() => !assign.isPending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-display text-slate-900 flex items-center gap-2">
+          <DialogTitle className="text-xl font-display text-foreground flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
             Asignar objetivo a paciente
           </DialogTitle>
@@ -1467,14 +1467,14 @@ function AssignGoalDialog({
             <div className="h-14 w-14 rounded-full bg-emerald-100 flex items-center justify-center">
               <Check className="h-7 w-7 text-emerald-600" />
             </div>
-            <p className="font-semibold text-slate-800">Objetivo asignado correctamente</p>
+            <p className="font-semibold text-foreground">Objetivo asignado correctamente</p>
           </div>
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Seleccionar paciente *</label>
+              <label className="text-sm font-medium text-foreground/80">Seleccionar paciente *</label>
               <Select value={patientId} onValueChange={setPatientId}>
-                <SelectTrigger className="bg-slate-50">
+                <SelectTrigger className="bg-muted/50">
                   <SelectValue placeholder="Elegir un paciente..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -1486,7 +1486,7 @@ function AssignGoalDialog({
                             {p.name.charAt(0)}
                           </span>
                           {p.name}
-                          {p.franjaEtaria && <span className="text-xs text-slate-400 ml-1">· {p.franjaEtaria}</span>}
+                          {p.franjaEtaria && <span className="text-xs text-muted-foreground ml-1">· {p.franjaEtaria}</span>}
                         </span>
                       </SelectItem>
                     ))
@@ -1498,12 +1498,12 @@ function AssignGoalDialog({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Fecha objetivo <span className="text-slate-400 font-normal">(opcional)</span></label>
+              <label className="text-sm font-medium text-foreground/80">Fecha objetivo <span className="text-muted-foreground font-normal">(opcional)</span></label>
               <input
                 type="date"
                 value={targetDate}
                 onChange={e => setTargetDate(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-slate-50 px-3 py-2 text-sm"
+                className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm"
                 min={format(new Date(), "yyyy-MM-dd")}
               />
             </div>
@@ -1658,50 +1658,50 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
 
           {/* Nombre */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Nombre del objetivo *</label>
+            <label className="text-sm font-medium text-foreground/80">Nombre del objetivo *</label>
             <Input
               value={form.nombreObjetivo}
               onChange={e => set("nombreObjetivo", e.target.value)}
               placeholder="Ampliar vocabulario expresivo en contexto funcional"
-              className="bg-slate-50"
+              className="bg-muted/50"
             />
           </div>
 
           {/* Definición operativa */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Definición operativa</label>
+            <label className="text-sm font-medium text-foreground/80">Definición operativa</label>
             <Textarea
               rows={3}
               value={form.definicionOperativa}
               onChange={e => set("definicionOperativa", e.target.value)}
               placeholder="Describe el comportamiento observable y medible esperado..."
-              className="bg-slate-50 resize-none"
+              className="bg-muted/50 resize-none"
             />
           </div>
 
           {/* Indicador de logro + Intentos + Meta */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Indicador de logro</label>
+              <label className="text-sm font-medium text-foreground/80">Indicador de logro</label>
               <Input value={form.indicadorTipo} onChange={e => set("indicadorTipo", e.target.value)}
-                placeholder="Ej: Denominación espontánea" className="bg-slate-50 text-sm" />
+                placeholder="Ej: Denominación espontánea" className="bg-muted/50 text-sm" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Intentos sugeridos</label>
+              <label className="text-sm font-medium text-foreground/80">Intentos sugeridos</label>
               <Input value={form.intentosSugeridos} onChange={e => set("intentosSugeridos", e.target.value)}
-                placeholder="Ej: 10 por sesión" className="bg-slate-50 text-sm" />
+                placeholder="Ej: 10 por sesión" className="bg-muted/50 text-sm" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Meta (%)</label>
+              <label className="text-sm font-medium text-foreground/80">Meta (%)</label>
               <Input value={form.metaPorcentaje} onChange={e => set("metaPorcentaje", e.target.value)}
-                placeholder="Ej: 80% en 4/5 intentos" className="bg-slate-50 text-sm" />
+                placeholder="Ej: 80% en 4/5 intentos" className="bg-muted/50 text-sm" />
             </div>
           </div>
 
           {/* Marco conceptual */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-              <BookOpen className="h-4 w-4 text-sky-500" />
+            <label className="text-sm font-medium text-foreground/80 flex items-center gap-1.5">
+              <BookOpen className="h-4 w-4 text-teal-500" />
               Marco conceptual
             </label>
             <Textarea
@@ -1709,14 +1709,14 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
               value={form.marcoConceptual}
               onChange={e => set("marcoConceptual", e.target.value)}
               placeholder="Fundamento teórico del objetivo (enfoque clínico, modelo de intervención...)"
-              className="bg-slate-50 resize-none text-sm"
+              className="bg-muted/50 resize-none text-sm"
             />
           </div>
 
           {/* Progresión de niveles */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-              <SortAsc className="h-4 w-4 text-slate-500" />
+            <label className="text-sm font-medium text-foreground/80 flex items-center gap-1.5">
+              <SortAsc className="h-4 w-4 text-muted-foreground" />
               Progresión de niveles
             </label>
             <div className="grid gap-3">
@@ -1727,7 +1727,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
                 <Textarea rows={2} value={form.nivel1Descripcion}
                   onChange={e => set("nivel1Descripcion", e.target.value)}
                   placeholder="Cómo se trabaja este objetivo en nivel inicial..."
-                  className="bg-slate-50 resize-none text-sm" />
+                  className="bg-muted/50 resize-none text-sm" />
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -1736,16 +1736,16 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
                 <Textarea rows={2} value={form.nivel2Descripcion}
                   onChange={e => set("nivel2Descripcion", e.target.value)}
                   placeholder="Cómo se trabaja este objetivo en nivel intermedio..."
-                  className="bg-slate-50 resize-none text-sm" />
+                  className="bg-muted/50 resize-none text-sm" />
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-md px-2 py-0.5">Nivel 3 · Generalización</span>
+                  <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-md px-2 py-0.5">Nivel 3 · Generalización</span>
                 </div>
                 <Textarea rows={2} value={form.nivel3Descripcion}
                   onChange={e => set("nivel3Descripcion", e.target.value)}
                   placeholder="Cómo se generaliza en contextos cotidianos..."
-                  className="bg-slate-50 resize-none text-sm" />
+                  className="bg-muted/50 resize-none text-sm" />
               </div>
             </div>
           </div>
@@ -1753,9 +1753,9 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
           {/* Area + Subarea */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Área clínica</label>
+              <label className="text-sm font-medium text-foreground/80">Área clínica</label>
               <Select value={form.areaClinica} onValueChange={handleAreaChange}>
-                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.keys(AREA_SUBAREAS).map(a => (
                     <SelectItem key={a} value={a} className="capitalize">{a.charAt(0).toUpperCase() + a.slice(1)}</SelectItem>
@@ -1764,9 +1764,9 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Subárea</label>
+              <label className="text-sm font-medium text-foreground/80">Subárea</label>
               <Select value={form.subarea} onValueChange={v => set("subarea", v)} disabled={subareaOptions.length === 0}>
-                <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                 <SelectContent>
                   {subareaOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
@@ -1777,9 +1777,9 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
           {/* Nivel + Franja */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Nivel de dificultad</label>
+              <label className="text-sm font-medium text-foreground/80">Nivel de dificultad</label>
               <Select value={form.nivelDificultad} onValueChange={v => set("nivelDificultad", v)}>
-                <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="básico">Básico</SelectItem>
                   <SelectItem value="intermedio">Intermedio</SelectItem>
@@ -1788,47 +1788,47 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Edad mínima</label>
+              <label className="text-sm font-medium text-foreground/80">Edad mínima</label>
               <Input type="number" min={0} max={18} value={form.franjaEtariaMin}
-                onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-slate-50" />
+                onChange={e => set("franjaEtariaMin", e.target.value)} placeholder="2" className="bg-muted/50" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Edad máxima</label>
+              <label className="text-sm font-medium text-foreground/80">Edad máxima</label>
               <Input type="number" min={0} max={18} value={form.franjaEtariaMax}
-                onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-slate-50" />
+                onChange={e => set("franjaEtariaMax", e.target.value)} placeholder="5" className="bg-muted/50" />
             </div>
           </div>
 
           {/* Habilidades + Prerrequisitos */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Habilidades relacionadas</label>
+              <label className="text-sm font-medium text-foreground/80">Habilidades relacionadas</label>
               <Textarea rows={2} value={form.habilidadesRelacionadas}
                 onChange={e => set("habilidadesRelacionadas", e.target.value)}
-                placeholder="Ej: Memoria semántica, atención conjunta..." className="bg-slate-50 resize-none text-sm" />
+                placeholder="Ej: Memoria semántica, atención conjunta..." className="bg-muted/50 resize-none text-sm" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Prerrequisitos</label>
+              <label className="text-sm font-medium text-foreground/80">Prerrequisitos</label>
               <Textarea rows={2} value={form.prerequisitos}
                 onChange={e => set("prerequisitos", e.target.value)}
-                placeholder="Ej: Vocabulario de 50+ palabras..." className="bg-slate-50 resize-none text-sm" />
+                placeholder="Ej: Vocabulario de 50+ palabras..." className="bg-muted/50 resize-none text-sm" />
             </div>
           </div>
 
           {/* Actividades clínicas */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Actividades clínicas</label>
+            <label className="text-sm font-medium text-foreground/80">Actividades clínicas</label>
             <Textarea rows={2} value={form.actividadesClinicas}
               onChange={e => set("actividadesClinicas", e.target.value)}
-              placeholder="Actividades para trabajar en sesión..." className="bg-slate-50 resize-none text-sm" />
+              placeholder="Actividades para trabajar en sesión..." className="bg-muted/50 resize-none text-sm" />
           </div>
 
           {/* Actividades familia */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Actividades para el hogar</label>
+            <label className="text-sm font-medium text-foreground/80">Actividades para el hogar</label>
             <Textarea rows={2} value={form.actividadesFamilia}
               onChange={e => set("actividadesFamilia", e.target.value)}
-              placeholder="Actividades para la familia en casa..." className="bg-slate-50 resize-none text-sm" />
+              placeholder="Actividades para la familia en casa..." className="bg-muted/50 resize-none text-sm" />
           </div>
 
           <div className="flex gap-3 pt-2">

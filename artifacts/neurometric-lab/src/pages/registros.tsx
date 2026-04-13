@@ -100,14 +100,14 @@ export default function Registros() {
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="bg-white border border-border/50 rounded-2xl shadow-sm p-6">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <ClipboardList className="h-6 w-6 text-primary" />
                 Registros Clínicos
               </h1>
-              <p className="text-slate-500 mt-1">{allReg.length} registros de sesión · {patientNames.length} pacientes</p>
+              <p className="text-muted-foreground mt-1">{allReg.length} registros de sesión · {patientNames.length} pacientes</p>
             </div>
             <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90 text-white shadow-sm">
               <Plus className="h-4 w-4 mr-2" /> Nuevo registro
@@ -115,11 +115,11 @@ export default function Registros() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-slate-50 border-slate-200" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-muted/50" />
             </div>
             <Select value={patientFilter} onValueChange={setPatientFilter}>
-              <SelectTrigger className="w-full sm:w-52 bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-full sm:w-52 bg-muted/50">
                 <SelectValue placeholder="Todos los pacientes" />
               </SelectTrigger>
               <SelectContent>
@@ -145,36 +145,36 @@ export default function Registros() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="font-bold text-slate-900">{r.patientName}</span>
-                          <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600 border-slate-200">{formatFecha(r.fecha)}</Badge>
+                          <span className="font-bold text-foreground">{r.patientName}</span>
+                          <Badge variant="outline" className="text-xs bg-muted/50 text-foreground/70 border-border">{formatFecha(r.fecha)}</Badge>
                         </div>
                         {r.professionalName && (
-                          <p className="text-sm text-slate-500 flex items-center gap-1.5">
-                            <Stethoscope className="h-3.5 w-3.5 text-slate-400" /> {r.professionalName}
+                          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                            <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" /> {r.professionalName}
                           </p>
                         )}
                         {r.resumenSesion && (
-                          <p className={`text-sm text-slate-700 mt-2 leading-relaxed ${expanded === r.id ? "" : "line-clamp-2"}`}>
+                          <p className={`text-sm text-foreground/80 mt-2 leading-relaxed ${expanded === r.id ? "" : "line-clamp-2"}`}>
                             {r.resumenSesion}
                           </p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Expandir">
+                      <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Expandir">
                         <ChevronDown className={`h-4 w-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
                       </button>
-                      <button onClick={() => setEditing(r)} className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Editar">
+                      <button onClick={() => setEditing(r)} className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Editar">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button onClick={() => setDeleteId(r.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                      <button onClick={() => setDeleteId(r.id)} className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
 
                   {expanded === r.id && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 grid sm:grid-cols-2 gap-4">
+                    <div className="mt-4 pt-4 border-t border-border/50 grid sm:grid-cols-2 gap-4">
                       {r.observaciones && (
                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
                           <div className="flex items-center gap-2 mb-2">
@@ -199,10 +199,10 @@ export default function Registros() {
               </Card>
             ))
           ) : (
-            <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-              <ClipboardList className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-              <p className="font-medium text-slate-600">No se encontraron registros</p>
-              <p className="text-slate-400 text-sm mt-1">Crea el primer registro clínico.</p>
+            <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-border">
+              <ClipboardList className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="font-medium text-foreground/70">No se encontraron registros</p>
+              <p className="text-muted-foreground text-sm mt-1">Crea el primer registro clínico.</p>
             </div>
           )}
         </div>
@@ -276,9 +276,9 @@ function RegistroForm({
         <div className="space-y-4 py-2">
           {!registro && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Paciente *</label>
+              <label className="text-sm font-medium text-foreground/80">Paciente *</label>
               <Select value={form.patientId} onValueChange={v => set("patientId", v)}>
-                <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar paciente..." /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar paciente..." /></SelectTrigger>
                 <SelectContent>
                   {patients.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
                 </SelectContent>
@@ -286,29 +286,29 @@ function RegistroForm({
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Profesional</label>
+            <label className="text-sm font-medium text-foreground/80">Profesional</label>
             <Select value={form.professionalId} onValueChange={v => set("professionalId", v)}>
-              <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Seleccionar profesional..." /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar profesional..." /></SelectTrigger>
               <SelectContent>
                 {professionals.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name} · {p.specialty}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Fecha de sesión *</label>
-            <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-slate-50" />
+            <label className="text-sm font-medium text-foreground/80">Fecha de sesión *</label>
+            <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-muted/50" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Resumen de sesión</label>
-            <Textarea rows={3} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)} placeholder="Describe lo trabajado en la sesión..." className="bg-slate-50 resize-none" />
+            <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Resumen de sesión</label>
+            <Textarea rows={3} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)} placeholder="Describe lo trabajado en la sesión..." className="bg-muted/50 resize-none" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-2"><Eye className="h-4 w-4 text-amber-500" /> Observaciones</label>
-            <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)} placeholder="Observaciones clínicas relevantes..." className="bg-slate-50 resize-none" />
+            <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><Eye className="h-4 w-4 text-amber-500" /> Observaciones</label>
+            <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)} placeholder="Observaciones clínicas relevantes..." className="bg-muted/50 resize-none" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center gap-2"><Home className="h-4 w-4 text-emerald-600" /> Recomendaciones para el hogar</label>
-            <Textarea rows={2} value={form.recomendacionesHogar} onChange={e => set("recomendacionesHogar", e.target.value)} placeholder="Actividades y sugerencias para la familia..." className="bg-slate-50 resize-none" />
+            <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><Home className="h-4 w-4 text-emerald-600" /> Recomendaciones para el hogar</label>
+            <Textarea rows={2} value={form.recomendacionesHogar} onChange={e => set("recomendacionesHogar", e.target.value)} placeholder="Actividades y sugerencias para la familia..." className="bg-muted/50 resize-none" />
           </div>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>

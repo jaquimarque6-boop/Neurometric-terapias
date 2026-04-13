@@ -24,10 +24,10 @@ const TOTAL_HOURS = END_HOUR - START_HOUR;
 const GRID_HEIGHT = TOTAL_HOURS * HOUR_PX;
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  sesion:     { bg: "bg-blue-50",   text: "text-blue-800",   border: "border-blue-200",   dot: "bg-blue-500"   },
-  evaluacion: { bg: "bg-violet-50", text: "text-violet-800", border: "border-violet-200", dot: "bg-violet-500" },
+  sesion:     { bg: "bg-teal-50",   text: "text-teal-800",   border: "border-teal-200",   dot: "bg-teal-500"   },
+  evaluacion: { bg: "bg-rose-50",   text: "text-rose-800",   border: "border-rose-200",   dot: "bg-rose-500"   },
   reunion:    { bg: "bg-amber-50",  text: "text-amber-800",  border: "border-amber-200",  dot: "bg-amber-500"  },
-  otro:       { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200",  dot: "bg-slate-400"  },
+  otro:       { bg: "bg-muted/50",  text: "text-foreground/80",  border: "border-border",  dot: "bg-muted-foreground/40"  },
 };
 const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
@@ -243,7 +243,7 @@ export default function AgendaPage() {
 
   return (
     <SidebarProvider>
-    <div className="flex h-screen bg-slate-50/50 overflow-hidden w-full">
+    <div className="flex h-screen bg-muted/30 overflow-hidden w-full">
       <AppSidebar />
       <SidebarInset className="flex flex-col overflow-hidden">
         {/* Top bar */}
@@ -252,7 +252,7 @@ export default function AgendaPage() {
           <div className="flex-1 flex items-center gap-2 max-w-2xl mx-auto">
             <div>
               <h1 className="text-base font-semibold">Agenda</h1>
-              <p className="text-xs text-slate-400 capitalize">{formatWeekRange(currentMonday)}</p>
+              <p className="text-xs text-muted-foreground capitalize">{formatWeekRange(currentMonday)}</p>
             </div>
             <div className="flex items-center gap-1 ml-4">
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCurrentMonday(d => subWeeks(d, 1))}>
@@ -287,10 +287,10 @@ export default function AgendaPage() {
                   key={i}
                   className={`flex-1 text-center py-2 border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/5" : ""}`}
                 >
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${isToday(day) ? "text-primary" : "text-slate-400"}`}>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${isToday(day) ? "text-primary" : "text-muted-foreground"}`}>
                     {DAYS_ES[i]}
                   </p>
-                  <p className={`text-lg font-bold font-display mt-0.5 leading-none ${isToday(day) ? "text-primary" : "text-slate-800"}`}>
+                  <p className={`text-lg font-bold font-display mt-0.5 leading-none ${isToday(day) ? "text-primary" : "text-foreground"}`}>
                     {format(day, "d")}
                   </p>
                   {isToday(day) && (
@@ -307,7 +307,7 @@ export default function AgendaPage() {
                 {hoursLabels.map(h => (
                   <div
                     key={h}
-                    className="absolute right-2 text-[10px] text-slate-400 font-medium leading-none -translate-y-2"
+                    className="absolute right-2 text-[10px] text-muted-foreground font-medium leading-none -translate-y-2"
                     style={{ top: (h - START_HOUR) * HOUR_PX }}
                   >
                     {String(h).padStart(2, "0")}:00
@@ -328,7 +328,7 @@ export default function AgendaPage() {
                     {hoursLabels.map(h => (
                       <div
                         key={h}
-                        className="absolute left-0 right-0 border-t border-slate-100"
+                        className="absolute left-0 right-0 border-t border-border/50"
                         style={{ top: (h - START_HOUR) * HOUR_PX }}
                       />
                     ))}
@@ -336,7 +336,7 @@ export default function AgendaPage() {
                     {hoursLabels.map(h => (
                       <div
                         key={`h-${h}`}
-                        className="absolute left-0 right-0 border-t border-dashed border-slate-100/80"
+                        className="absolute left-0 right-0 border-t border-dashed border-border/50/80"
                         style={{ top: (h - START_HOUR) * HOUR_PX + HOUR_PX / 2 }}
                       />
                     ))}
@@ -385,7 +385,7 @@ export default function AgendaPage() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600">Paciente *</label>
+              <label className="text-xs font-semibold text-foreground/70">Paciente *</label>
               <select
                 value={form.patientId}
                 onChange={e => {
@@ -404,7 +404,7 @@ export default function AgendaPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Tipo</label>
+                <label className="text-xs font-semibold text-foreground/70">Tipo</label>
                 <select
                   value={form.tipo}
                   onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
@@ -414,24 +414,24 @@ export default function AgendaPage() {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Fecha *</label>
+                <label className="text-xs font-semibold text-foreground/70">Fecha *</label>
                 <Input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Hora inicio *</label>
+                <label className="text-xs font-semibold text-foreground/70">Hora inicio *</label>
                 <Input type="time" value={form.horaInicio} onChange={e => setForm(f => ({ ...f, horaInicio: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Hora fin *</label>
+                <label className="text-xs font-semibold text-foreground/70">Hora fin *</label>
                 <Input type="time" value={form.horaFin} onChange={e => setForm(f => ({ ...f, horaFin: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600">Notas</label>
+              <label className="text-xs font-semibold text-foreground/70">Notas</label>
               <Textarea
                 value={form.notas}
                 onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
@@ -442,17 +442,17 @@ export default function AgendaPage() {
             </div>
 
             {/* Recurrence */}
-            <div className="rounded-xl border border-border/60 p-4 space-y-3 bg-slate-50/60">
+            <div className="rounded-xl border border-border/60 p-4 space-y-3 bg-muted/40">
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.repetirSemanal}
                   onChange={e => setForm(f => ({ ...f, repetirSemanal: e.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300 text-primary accent-primary"
+                  className="h-4 w-4 rounded border-border text-primary accent-primary"
                 />
                 <div className="flex items-center gap-1.5">
                   <Repeat className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-slate-800">Repetir semanalmente</span>
+                  <span className="text-sm font-semibold text-foreground">Repetir semanalmente</span>
                 </div>
               </label>
 
@@ -465,7 +465,7 @@ export default function AgendaPage() {
                       onChange={() => setForm(f => ({ ...f, sinFechaFin: true }))}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-slate-700">Indefinidamente</span>
+                    <span className="text-sm text-foreground/80">Indefinidamente</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -474,7 +474,7 @@ export default function AgendaPage() {
                       onChange={() => setForm(f => ({ ...f, sinFechaFin: false }))}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-slate-700">Hasta una fecha:</span>
+                    <span className="text-sm text-foreground/80">Hasta una fecha:</span>
                   </label>
                   {!form.sinFechaFin && (
                     <Input
@@ -485,7 +485,7 @@ export default function AgendaPage() {
                       className="ml-5 w-auto"
                     />
                   )}
-                  <p className="text-[10px] text-slate-400 ml-0.5">
+                  <p className="text-[10px] text-muted-foreground ml-0.5">
                     {form.sinFechaFin
                       ? "Se crearán citas hasta 1 año desde la fecha indicada."
                       : `Se crearán citas cada semana hasta el ${form.repetirHasta || "…"}.`}
@@ -513,7 +513,7 @@ export default function AgendaPage() {
               </DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-2 pt-1">
-                  <div className="flex flex-col gap-1 text-xs text-slate-500">
+                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5 shrink-0" />
                       <span className="capitalize">{format(parseISO(selectedCita.fecha), "EEEE d 'de' MMMM", { locale: es })}</span>
@@ -521,7 +521,7 @@ export default function AgendaPage() {
                     <span className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 shrink-0" />
                       {selectedCita.horaInicio} – {selectedCita.horaFin}
-                      <span className="text-slate-400">({timeToMinutes(selectedCita.horaFin) - timeToMinutes(selectedCita.horaInicio)} min)</span>
+                      <span className="text-muted-foreground">({timeToMinutes(selectedCita.horaFin) - timeToMinutes(selectedCita.horaInicio)} min)</span>
                     </span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
@@ -535,7 +535,7 @@ export default function AgendaPage() {
                     )}
                   </div>
                   {selectedCita.notas && (
-                    <p className="text-xs text-slate-400 italic">{selectedCita.notas}</p>
+                    <p className="text-xs text-muted-foreground italic">{selectedCita.notas}</p>
                   )}
                 </div>
               </DialogDescription>
@@ -600,16 +600,16 @@ export default function AgendaPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600">Hora inicio</label>
+                  <label className="text-xs font-semibold text-foreground/70">Hora inicio</label>
                   <Input type="time" value={editForm.horaInicio} onChange={e => setEditForm(f => ({ ...f, horaInicio: e.target.value }))} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600">Hora fin</label>
+                  <label className="text-xs font-semibold text-foreground/70">Hora fin</label>
                   <Input type="time" value={editForm.horaFin} onChange={e => setEditForm(f => ({ ...f, horaFin: e.target.value }))} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Tipo</label>
+                <label className="text-xs font-semibold text-foreground/70">Tipo</label>
                 <select
                   value={editForm.tipo}
                   onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))}
@@ -619,7 +619,7 @@ export default function AgendaPage() {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600">Notas</label>
+                <label className="text-xs font-semibold text-foreground/70">Notas</label>
                 <Textarea
                   value={editForm.notas}
                   onChange={e => setEditForm(f => ({ ...f, notas: e.target.value }))}
@@ -661,12 +661,12 @@ export default function AgendaPage() {
                       className="accent-red-600 mt-0.5"
                     />
                     <div>
-                      <p className="text-sm font-medium text-slate-800">
+                      <p className="text-sm font-medium text-foreground">
                         {s === "solo"       ? "Solo esta ocurrencia"        :
                          s === "siguientes" ? "Esta y las siguientes citas" :
                                              "Toda la serie"}
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {s === "solo"       ? "Las demás citas de la serie se mantienen."     :
                          s === "siguientes" ? "Se cancelan esta y todas las citas futuras."   :
                                              "Se cancelan todas las citas de la serie."}
@@ -676,7 +676,7 @@ export default function AgendaPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-600">Esta acción marcará la cita como cancelada.</p>
+              <p className="text-sm text-foreground/70">Esta acción marcará la cita como cancelada.</p>
             )}
             <DialogFooter>
               <Button variant="ghost" onClick={() => setShowCancel(false)} disabled={isCancelling}>Volver</Button>

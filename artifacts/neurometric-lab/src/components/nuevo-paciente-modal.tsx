@@ -70,20 +70,20 @@ export function NuevoPacienteModal({
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-foreground/80">
               Nombre <span className="text-red-400">*</span>
             </label>
             <Input
               placeholder="Nombre completo"
               value={form.name}
               onChange={e => set("name", e.target.value)}
-              className="bg-slate-50"
+              className="bg-muted/50"
               autoFocus
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Edad</label>
+            <label className="text-sm font-medium text-foreground/80">Edad</label>
             <Input
               type="number"
               placeholder="Años"
@@ -91,31 +91,31 @@ export function NuevoPacienteModal({
               max={120}
               value={form.age}
               onChange={e => set("age", e.target.value)}
-              className="bg-slate-50"
+              className="bg-muted/50"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
-              Diagnóstico <span className="text-slate-400 font-normal">(opcional)</span>
+            <label className="text-sm font-medium text-foreground/80">
+              Diagnóstico <span className="text-muted-foreground font-normal">(opcional)</span>
             </label>
             <Input
               placeholder="Diagnóstico o motivo de consulta"
               value={form.diagnosis}
               onChange={e => set("diagnosis", e.target.value)}
-              className="bg-slate-50"
+              className="bg-muted/50"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
-              Profesional asignado <span className="text-slate-400 font-normal">(opcional)</span>
+            <label className="text-sm font-medium text-foreground/80">
+              Profesional asignado <span className="text-muted-foreground font-normal">(opcional)</span>
             </label>
             <Select
               value={form.profesionalNombre}
               onValueChange={v => set("profesionalNombre", v === "__none__" ? "" : v)}
             >
-              <SelectTrigger className="bg-slate-50">
+              <SelectTrigger className="bg-muted/50">
                 <SelectValue placeholder="Sin asignar" />
               </SelectTrigger>
               <SelectContent>
@@ -128,7 +128,7 @@ export function NuevoPacienteModal({
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2 border-t border-slate-100">
+        <div className="flex gap-3 pt-2 border-t border-border/50">
           <Button variant="outline" className="flex-1" onClick={handleClose} disabled={createPatient.isPending}>
             Cancelar
           </Button>

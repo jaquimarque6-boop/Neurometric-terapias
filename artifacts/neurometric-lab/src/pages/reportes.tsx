@@ -57,14 +57,14 @@ export default function Reportes() {
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="bg-white border border-border/50 rounded-2xl shadow-sm p-6">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="h-6 w-6 text-primary" />
                 Reportes
               </h1>
-              <p className="text-slate-500 mt-1">Resumen estadístico de la plataforma clínica.</p>
+              <p className="text-muted-foreground mt-1">Resumen estadístico de la plataforma clínica.</p>
             </div>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default function Reportes() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Pacientes", value: patients.length, icon: Users, color: "text-primary bg-primary/10" },
-            { label: "Registros clínicos", value: allReg.length, icon: ClipboardList, color: "text-sky-600 bg-sky-100" },
+            { label: "Registros clínicos", value: allReg.length, icon: ClipboardList, color: "text-teal-600 bg-teal-50" },
             { label: "Objetivos activos", value: allGoals.filter(g => g.status === "activo").length, icon: Target, color: "text-amber-600 bg-amber-100" },
             { label: "Logros", value: allGoals.filter(g => g.status === "logrado").length, icon: TrendingUp, color: "text-emerald-600 bg-emerald-100" },
           ].map(s => (
@@ -82,8 +82,8 @@ export default function Reportes() {
                 <div className={`inline-flex p-2.5 rounded-xl ${s.color} mb-3`}>
                   <s.icon className="h-5 w-5" />
                 </div>
-                <p className="text-3xl font-display font-bold text-slate-900">{s.value}</p>
-                <p className="text-sm text-slate-500 mt-0.5">{s.label}</p>
+                <p className="text-3xl font-display font-bold text-foreground">{s.value}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{s.label}</p>
               </CardContent>
             </Card>
           ))}
@@ -110,7 +110,7 @@ export default function Reportes() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">Sin datos de objetivos.</div>
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Sin datos de objetivos.</div>
               )}
             </CardContent>
           </Card>
@@ -126,15 +126,15 @@ export default function Reportes() {
               {categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={categoryData} layout="vertical" margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 18% 92%)" />
                     <XAxis type="number" tick={{ fontSize: 12 }} />
                     <YAxis dataKey="cat" type="category" tick={{ fontSize: 11 }} width={90} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} name="Objetivos" />
+                    <Bar dataKey="count" fill="hsl(24,54%,50%)" radius={[0, 4, 4, 0]} name="Objetivos" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">Sin datos.</div>
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>
               )}
             </CardContent>
           </Card>
@@ -146,22 +146,22 @@ export default function Reportes() {
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="pb-4 border-b">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4 text-sky-500" /> Registros por paciente
+                <Users className="h-4 w-4 text-teal-500" /> Registros por paciente
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               {recByPatient.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={recByPatient}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 18% 92%)" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="Registros" />
+                    <Bar dataKey="count" fill="hsl(176,44%,38%)" radius={[4, 4, 0, 0]} name="Registros" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-slate-400 text-sm">Sin datos.</div>
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>
               )}
             </CardContent>
           </Card>
@@ -177,7 +177,7 @@ export default function Reportes() {
               {recByProfessional.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={recByProfessional}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 18% 92%)" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
@@ -185,7 +185,7 @@ export default function Reportes() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-slate-400 text-sm">Sin datos.</div>
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>
               )}
             </CardContent>
           </Card>
@@ -200,7 +200,7 @@ export default function Reportes() {
           </CardHeader>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-500 border-b">
+              <thead className="bg-muted/50 text-muted-foreground border-b">
                 <tr>
                   <th className="px-6 py-3 font-medium">Paciente</th>
                   <th className="px-6 py-3 font-medium text-center">Objetivos activos</th>
@@ -215,25 +215,25 @@ export default function Reportes() {
                   const pReg = allReg.filter(r => r.patientName === p.name);
                   const pct = p.promedioDesempeno != null ? Math.round(p.promedioDesempeno * 100) : null;
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={p.id} className="hover:bg-muted/40/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold font-display">{p.name.charAt(0)}</div>
-                          <span className="font-medium text-slate-900">{p.name}</span>
+                          <span className="font-medium text-foreground">{p.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center font-semibold text-blue-600">{pGoals.filter(g => g.status === "activo").length}</td>
+                      <td className="px-6 py-4 text-center font-semibold text-teal-600">{pGoals.filter(g => g.status === "activo").length}</td>
                       <td className="px-6 py-4 text-center font-semibold text-emerald-600">{pGoals.filter(g => g.status === "logrado").length}</td>
                       <td className="px-6 py-4 text-center">{pReg.length}</td>
                       <td className="px-6 py-4">
                         {pct != null ? (
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 max-w-[100px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="flex-1 max-w-[100px] h-1.5 bg-muted rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-400" : pct >= 50 ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-xs font-semibold text-slate-700">{pct}%</span>
+                            <span className="text-xs font-semibold text-foreground/80">{pct}%</span>
                           </div>
-                        ) : <span className="text-slate-400">—</span>}
+                        ) : <span className="text-muted-foreground">—</span>}
                       </td>
                     </tr>
                   );

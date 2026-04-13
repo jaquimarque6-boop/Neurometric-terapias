@@ -101,15 +101,15 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+      <label className="text-sm font-medium text-foreground/80 flex items-center gap-2">
         Código del objetivo
-        <span className="text-slate-400 font-normal text-xs">(generado automáticamente)</span>
+        <span className="text-muted-foreground font-normal text-xs">(generado automáticamente)</span>
       </label>
 
       {/* Live prefix preview */}
       {previewPrefix && !value && (
-        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border border-dashed border-slate-200">
-          <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 border border-dashed border-border">
+          <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span>Vista previa del prefijo: <strong className="font-mono text-primary">{previewPrefix}-??</strong></span>
         </div>
       )}
@@ -121,12 +121,12 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
             value={value}
             onChange={e => onChange(e.target.value.toUpperCase().replace(/\s/g, ""))}
             placeholder={previewPrefix ? `${previewPrefix}-01` : "NL-2-4-LEX-B-01"}
-            className="font-mono bg-slate-50 pr-9 uppercase"
+            className="font-mono bg-muted/50 pr-9 uppercase"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2">{statusIcon()}</span>
         </div>
         {value && (
-          <button onClick={copyCode} title="Copiar código" className="p-2 text-slate-400 hover:text-primary rounded-lg hover:bg-primary/5 transition-colors">
+          <button onClick={copyCode} title="Copiar código" className="p-2 text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/5 transition-colors">
             <Copy className="h-4 w-4" />
           </button>
         )}
@@ -158,8 +158,8 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
         <div className="bg-primary/5 border border-primary/15 rounded-lg px-3 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-sm font-bold text-primary">{value}</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-xs text-slate-600">{explainCode(value)}</span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-xs text-foreground/70">{explainCode(value)}</span>
           </div>
           {/* Segment breakdown */}
           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -168,7 +168,7 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
               return (
                 <span key={i} className="inline-flex flex-col items-center">
                   <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{seg}</span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">{labels[i] ?? ""}</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">{labels[i] ?? ""}</span>
                 </span>
               );
             })}
@@ -177,7 +177,7 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
       )}
 
       {/* Format hint */}
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-muted-foreground">
         Formato: <span className="font-mono">ÁREA-MÍNIMO-MÁXIMO-SUBÁREA-NIVEL-N°</span>
         &nbsp;·&nbsp; Ej: <span className="font-mono">NL-2-4-LEX-B-01</span>
       </p>

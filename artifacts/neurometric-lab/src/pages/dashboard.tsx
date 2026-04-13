@@ -16,10 +16,10 @@ const BRAND_BLUE = "#0E3A6D";
 const BRAND_TEAL = "#20C7C7";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  sesion:     { dot: "bg-blue-400",   bg: "bg-blue-50",   text: "text-blue-700"   },
-  evaluacion: { dot: "bg-violet-400", bg: "bg-violet-50", text: "text-violet-700" },
-  reunion:    { dot: "bg-amber-400",  bg: "bg-amber-50",  text: "text-amber-700"  },
-  otro:       { dot: "bg-slate-300",  bg: "bg-slate-50",  text: "text-slate-600"  },
+  sesion:     { dot: "bg-primary/70",  bg: "bg-primary/8",  text: "text-primary"      },
+  evaluacion: { dot: "bg-rose-400",    bg: "bg-rose-50",    text: "text-rose-700"     },
+  reunion:    { dot: "bg-amber-400",   bg: "bg-amber-50",   text: "text-amber-700"    },
+  otro:       { dot: "bg-stone-300",   bg: "bg-stone-50",   text: "text-stone-600"    },
 };
 const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
@@ -79,15 +79,15 @@ export default function Dashboard() {
   const citasHoyActive = (citasHoy as any[]).filter(c => c.status !== "cancelada");
 
   const quickLinks = [
-    { label: "Pacientes",        icon: Users,        path: "/patients",    color: BRAND_BLUE },
-    { label: "Agenda",           icon: CalendarDays, path: "/agenda",      color: "#7c3aed"  },
-    { label: "Banco de Objetivos", icon: BookOpen,   path: "/goal-library",color: BRAND_TEAL },
+    { label: "Pacientes",          icon: Users,        path: "/patients",    color: BRAND_BLUE },
+    { label: "Agenda",             icon: CalendarDays, path: "/agenda",      color: "#C4703A"  },
+    { label: "Banco de Objetivos", icon: BookOpen,     path: "/goal-library",color: BRAND_TEAL },
   ];
 
   const stats = [
     { label: "Pacientes",          value: totalPatients,  icon: Users,        color: "text-primary",   bg: "bg-primary/8"   },
     { label: "Objetivos activos",  value: activeGoals,    icon: Target,       color: "text-amber-600", bg: "bg-amber-50"    },
-    { label: "Citas esta semana",  value: sessionsSemana, icon: CalendarDays, color: "text-violet-600",bg: "bg-violet-50"   },
+    { label: "Citas esta semana",  value: sessionsSemana, icon: CalendarDays, color: "text-teal-600",  bg: "bg-teal-50"     },
   ];
 
   return (
@@ -97,7 +97,7 @@ export default function Dashboard() {
         {/* ── Greeting ───────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs text-slate-400 font-medium capitalize">{todayLabel}</p>
+            <p className="text-xs text-muted-foreground font-medium capitalize">{todayLabel}</p>
             <h1 className="text-2xl font-bold mt-0.5 font-display" style={{ color: BRAND_BLUE }}>
               Hola, {firstName}
             </h1>
@@ -140,8 +140,8 @@ export default function Dashboard() {
         {/* ── Hoy ─────────────────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-              <Calendar className="h-4 w-4 text-slate-400" /> Agenda de hoy
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-muted-foreground" /> Agenda de hoy
             </h2>
             <button
               onClick={() => navigate("/agenda")}
@@ -155,16 +155,16 @@ export default function Dashboard() {
           {loadingCitas ? (
             <div className="space-y-2">
               {[0, 1].map(i => (
-                <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
+                <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
               ))}
             </div>
           ) : citasHoyActive.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center">
-              <CalendarDays className="h-7 w-7 text-slate-200 mb-2" />
-              <p className="text-sm text-slate-400">Sin citas programadas para hoy</p>
+            <div className="flex flex-col items-center justify-center py-8 rounded-2xl border border-dashed border-border bg-card text-center">
+              <CalendarDays className="h-7 w-7 text-muted-foreground/30 mb-2" />
+              <p className="text-sm text-muted-foreground">Sin citas programadas para hoy</p>
               <button
                 onClick={() => navigate("/agenda")}
-                className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
               >
                 Ir a la Agenda
               </button>
@@ -178,14 +178,14 @@ export default function Dashboard() {
                   return (
                     <div
                       key={cita.id}
-                      className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
+                      className="flex items-center gap-3 bg-card rounded-xl border border-border/50 shadow-sm px-4 py-3 hover:shadow-md transition-shadow"
                     >
                       <div className={`flex items-center justify-center h-9 w-9 rounded-xl shrink-0 ${colors.bg}`}>
                         <Clock className={`h-4 w-4 ${colors.text}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{cita.titulo}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-sm font-semibold text-foreground truncate">{cita.titulo}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {cita.horaInicio} – {cita.horaFin}
                           {cita.tipo && (
                             <span className="ml-2">{TIPO_LABELS[cita.tipo] ?? cita.tipo}</span>
@@ -209,15 +209,15 @@ export default function Dashboard() {
 
         {/* ── Stats summary ────────────────────────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-bold text-slate-700 mb-3">Resumen</h2>
+          <h2 className="text-sm font-bold text-foreground mb-3">Resumen</h2>
           <div className="grid grid-cols-3 gap-3">
             {stats.map(s => (
-              <div key={s.label} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 text-center">
+              <div key={s.label} className="bg-card rounded-xl border border-border/50 shadow-sm p-4 text-center">
                 <div className={`inline-flex items-center justify-center h-8 w-8 rounded-xl mb-2 ${s.bg}`}>
                   <s.icon className={`h-4 w-4 ${s.color}`} />
                 </div>
                 <p className={`text-2xl font-bold font-display ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{s.label}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
               </div>
             ))}
           </div>
@@ -225,14 +225,14 @@ export default function Dashboard() {
 
         {/* ── Quick access ─────────────────────────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-bold text-slate-700 mb-3">Acceso rápido</h2>
+          <h2 className="text-sm font-bold text-foreground mb-3">Acceso rápido</h2>
           <div className="grid grid-cols-3 gap-3">
             {quickLinks.map(link => (
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
-                className="flex flex-col items-center gap-2 py-4 px-3 bg-white rounded-2xl border border-slate-100 shadow-sm
-                           text-center transition-all duration-200 hover:shadow-md hover:border-slate-200 active:scale-[0.97] group"
+                className="flex flex-col items-center gap-2 py-4 px-3 bg-card rounded-2xl border border-border/50 shadow-sm
+                           text-center transition-all duration-200 hover:shadow-md hover:border-border active:scale-[0.97] group"
               >
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
@@ -240,8 +240,8 @@ export default function Dashboard() {
                 >
                   <link.icon className="h-5 w-5" style={{ color: link.color }} />
                 </div>
-                <span className="text-xs font-semibold text-slate-700 leading-tight">{link.label}</span>
-                <ArrowRight className="h-3 w-3 text-slate-300 group-hover:text-slate-400 transition-colors" />
+                <span className="text-xs font-semibold text-foreground leading-tight">{link.label}</span>
+                <ArrowRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
               </button>
             ))}
           </div>

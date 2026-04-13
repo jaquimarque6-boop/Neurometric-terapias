@@ -37,19 +37,19 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary shadow-lg shadow-primary/30 mb-4">
             <Activity className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
+          <h1 className="text-2xl font-bold text-foreground font-display tracking-tight">
             Neurometric Lab
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Plataforma clínica de intervención terapéutica</p>
+          <p className="text-muted-foreground text-sm mt-1">Plataforma clínica de intervención terapéutica</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
           <CardContent className="p-8">
-            <h2 className="text-lg font-semibold text-slate-900 mb-6">Iniciar sesión</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-6">Iniciar sesión</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Correo electrónico</label>
+                <label className="text-sm font-medium text-foreground/80">Correo electrónico</label>
                 <Input
                   type="email"
                   value={email}
@@ -62,7 +62,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Contraseña</label>
+                <label className="text-sm font-medium text-foreground/80">Contraseña</label>
                 <div className="relative">
                   <Input
                     type={showPw ? "text" : "password"}
@@ -75,7 +75,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPw(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/70"
                   >
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -104,9 +104,9 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <p className="text-xs text-slate-400 text-center">
-                Cuenta de demostración: <span className="font-mono text-slate-600">admin@neurometric.cl</span> / <span className="font-mono text-slate-600">admin1234</span>
+            <div className="mt-6 pt-5 border-t border-border/50">
+              <p className="text-xs text-muted-foreground text-center">
+                Cuenta de demostración: <span className="font-mono text-foreground/70">admin@neurometric.cl</span> / <span className="font-mono text-foreground/70">admin1234</span>
               </p>
             </div>
           </CardContent>
