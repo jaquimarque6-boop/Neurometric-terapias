@@ -154,14 +154,22 @@ Session-based auth using `express-session` + `bcryptjs`.
 
 ### Informe Tab (Clinical Report / PDF Export)
 
-The `InformeTab` component in `patient-profile.tsx` (tab value `"informe"`) generates a formatted clinical report:
-- Stats boxes: registros, active goals, achieved goals, average progress %
-- Professional team badges
-- Goals grouped by status (en progreso → activo → logrado) with progress bars
-- Last 5 clinical sessions with date, professional, and notes
-- Patient observations and evolution report (if filled)
+The `InformeTab` component in `patient-profile.tsx` (tab value `"informe"`) generates a structured clinical report organized by area.
 
-**PDF Export**: "Exportar PDF" button opens a new window with print-ready HTML (self-contained styles), then triggers `window.print()`.
+**Storage format**: `informeEvolucion` stores a JSON object `{ v: 2, resumen, areas: Record<string, string>, sugerencias }`. Old plain-text strings are auto-migrated to this format (backward compatible). `informeFamilia` stores the family message text directly.
+
+**Técnico view sections:**
+1. Patient header + stats (sesiones, active goals, logrados, áreas trabajadas)
+2. **Resumen general** — editable textarea + "Sugerir texto" auto-generator
+3. **Desarrollo por área** — one collapsible card per clinical area, showing goal chips (logrado/en progreso) + progress bar + editable narrative per area + "Sugerir" auto-generator
+4. **Sugerencias y continuidad** — editable textarea (green tint) + "Sugerir texto"
+5. Last 5 sessions (date + summary)
+
+**Familia view sections**: stats, achieved goals list, in-progress goals list, editable family message + "Sugerir texto" auto-generator.
+
+**Auto-generators** (`generarResumenGeneral`, `generarNarrativaArea`, `generarSugerencias`, `generarMensajeFamilia`) produce contextual Spanish clinical text based on goals, progress, and session notes.
+
+**PDF Export**: "Exportar PDF" button renders `informe-tecnico-content` (or `informe-familia-content`) as print-ready HTML with embedded CSS classes (`area-section`, `area-header`, `goal-chips`, `chip-green/amber/default`, `sugerencias-box`). Textareas are `display:none` in print CSS.
 
 ## Seed Scripts
 

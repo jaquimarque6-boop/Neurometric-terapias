@@ -154,6 +154,122 @@ function formatTs(ts: string) {
   catch { return ts; }
 }
 
+// ─── InformeTab helpers ────────────────────────────────────────────────────────
+type InformeData = { v: 2; resumen: string; areas: Record<string, string>; sugerencias: string };
+
+function parseInformeData(raw: string | null | undefined): InformeData {
+  if (!raw) return { v: 2, resumen: "", areas: {}, sugerencias: "" };
+  try {
+    const p = JSON.parse(raw);
+    if (p && p.v === 2) return p as InformeData;
+    return { v: 2, resumen: raw, areas: {}, sugerencias: "" };
+  } catch {
+    return { v: 2, resumen: raw, areas: {}, sugerencias: "" };
+  }
+}
+
+function gPct(status: string, progressPct?: number | null): number {
+  if (progressPct != null) return progressPct;
+  if (status === "logrado")     return 100;
+  if (status === "en progreso") return 55;
+  if (status === "activo")      return 15;
+  return 0;
+}
+
+function generarResumenGeneral(
+  patient: { name: string; age?: number | null; diagnosis?: string | null },
+  goals: Goal[], registros: RC[]
+): string {
+  const nombre    = patient.name.split(" ")[0];
+  const logrados  = goals.filter(g => g.status === "logrado");
+  const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const areas     = [...new Set(goals.filter(g => g.status !== "archivado")
+    .map(g => g.areaClinica ?? g.category).filter(Boolean))];
+  let txt = `${nombre}`;
+  if (patient.age) txt += ` (${patient.age} años)`;
+  txt += ` ha participado activamente en el proceso de intervención terapéutica, completando ${registros.length} sesión(es) de trabajo.`;
+  if (areas.length > 0)
+    txt += `\n\nEl trabajo clínico ha abordado las siguientes áreas: ${areas.join(", ")}.`;
+  if (logrados.length > 0)
+    txt += ` Durante el período evaluado se alcanzaron ${logrados.length} objetivo(s) terapéutico(s), evidenciando progreso significativo.`;
+  if (enProceso.length > 0)
+    txt += ` Actualmente se trabajan ${enProceso.length} objetivo(s) en proceso de adquisición y consolidación.`;
+  if (patient.diagnosis)
+    txt += `\n\nDiagnóstico de referencia: ${patient.diagnosis}.`;
+  return txt;
+}
+
+function generarNarrativaArea(area: string, areaGoals: Goal[], registros: RC[]): string {
+  const nombre    = area.charAt(0).toUpperCase() + area.slice(1);
+  const logrados  = areaGoals.filter(g => g.status === "logrado");
+  const enProceso = areaGoals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const avgPct    = Math.round(
+    areaGoals.reduce((s, g) => s + gPct(g.status, g.progressPct), 0) / areaGoals.length
+  );
+  let parts: string[] = [];
+  if (logrados.length > 0 && enProceso.length > 0) {
+    parts.push(
+      `En el área de ${nombre}, el paciente ha alcanzado ${logrados.length} objetivo(s) ` +
+      `(${logrados.map(g => `"${g.title}"`).join(", ")}) y continúa trabajando en ` +
+      `${enProceso.length} objetivo(s) adicional(es): ${enProceso.map(g => `"${g.title}"`).join(", ")}.`
+    );
+  } else if (logrados.length > 0) {
+    parts.push(
+      `En el área de ${nombre}, el paciente ha logrado todos los objetivos planteados: ` +
+      `${logrados.map(g => `"${g.title}"`).join(", ")}.`
+    );
+  } else if (enProceso.length > 0) {
+    parts.push(
+      `En el área de ${nombre}, el paciente trabaja actualmente en: ` +
+      `${enProceso.map(g => `"${g.title}"`).join(", ")}.`
+    );
+  }
+  if (avgPct >= 80) {
+    parts.push("Se observa un desempeño consistente y sostenido, respondiendo a las actividades con alta frecuencia de éxito y mostrando generalización progresiva.");
+  } else if (avgPct >= 50) {
+    parts.push("Se observan avances progresivos; el paciente requiere apoyo moderado del terapeuta para generalizar las habilidades al contexto cotidiano.");
+  } else {
+    parts.push("El trabajo en esta área se encuentra en etapa inicial. Se requiere apoyo estructurado, repetición sistemática y estrategias de moldeamiento.");
+  }
+  const relevantNote = registros.find(r => r.resumenSesion?.toLowerCase().includes(area.toLowerCase()));
+  if (relevantNote?.resumenSesion) {
+    parts.push(`Nota de sesión: "${relevantNote.resumenSesion.slice(0, 120)}${relevantNote.resumenSesion.length > 120 ? "…" : ""}"`);
+  }
+  return parts.join(" ");
+}
+
+function generarSugerencias(goals: Goal[], registros: RC[]): string {
+  const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const areas     = [...new Set(enProceso.map(g => g.areaClinica ?? g.category).filter(Boolean))];
+  let txt = "Se recomienda mantener la frecuencia de sesiones establecida para consolidar los avances alcanzados.";
+  if (areas.length > 0)
+    txt += ` Continuar trabajando las áreas de ${areas.slice(0, 3).join(", ")} con actividades estructuradas, graduadas y con retroalimentación positiva.`;
+  const ultRec = [...registros].sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())[0];
+  if (ultRec?.recomendacionesHogar)
+    txt += `\n\nSugerencias para el hogar (última sesión): ${ultRec.recomendacionesHogar}`;
+  return txt;
+}
+
+function generarMensajeFamilia(
+  patient: { name: string; age?: number | null },
+  goals: Goal[], registros: RC[]
+): string {
+  const nombre   = patient.name.split(" ")[0];
+  const logrados = goals.filter(g => g.status === "logrado");
+  const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const ultRec   = [...registros].sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())[0];
+  let txt = `Estimada familia de ${nombre},\n\n`;
+  txt += `Queremos compartirles los avances del proceso terapéutico de ${nombre}. Su participación y apoyo en casa son fundamentales para el progreso.`;
+  if (logrados.length > 0)
+    txt += `\n\nEn este período, ${nombre} ha logrado ${logrados.length} objetivo(s) importante(s), lo que refleja su esfuerzo y constancia. ¡Felicitaciones!`;
+  if (enProceso.length > 0)
+    txt += `\n\nContinuamos trabajando en ${enProceso.length} objetivo(s) de manera activa. Es importante reforzar estas habilidades también en el hogar.`;
+  if (ultRec?.recomendacionesHogar)
+    txt += `\n\nActividades sugeridas para practicar en casa:\n${ultRec.recomendacionesHogar}`;
+  txt += "\n\nGracias por ser parte activa y comprometida de este proceso. Cualquier duda estamos disponibles.";
+  return txt;
+}
+
 // ─── InformeTab ───────────────────────────────────────────────────────────────
 type InformeProps = {
   patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; franjaEtaria?: string | null; observaciones?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null; motivoConsulta?: string | null };
@@ -163,37 +279,66 @@ type InformeProps = {
   onSave: (fields: { informeEvolucion?: string; informeFamilia?: string }) => Promise<void>;
 };
 
+const AREA_PDF_COLORS: Record<string, string> = {
+  "lenguaje": "#fce7f3", "habla": "#fef3c7", "pragmática": "#d1fae5",
+  "motricidad orofacial": "#ffedd5", "lectoescritura": "#d1fae5",
+  "cognición": "#ccfbf1", "comprensión": "#fef3c7", "fonología": "#ccfbf1",
+  "estimulación temprana": "#e7e5e4",
+};
+
 function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) {
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
-  const [view, setView] = useState<"tecnico" | "familia">("tecnico");
-  const [textoClinico, setTextoClinico] = useState(patient.informeEvolucion ?? "");
-  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+  const [view, setView]   = useState<"tecnico" | "familia">("tecnico");
   const [isSaving, setIsSaving] = useState(false);
 
+  const initialData = parseInformeData(patient.informeEvolucion);
+  const [resumen,    setResumen]    = useState(initialData.resumen);
+  const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initialData.areas);
+  const [sugerencias, setSugerencias] = useState(initialData.sugerencias);
+  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+
   useEffect(() => {
-    setTextoClinico(patient.informeEvolucion ?? "");
+    const d = parseInformeData(patient.informeEvolucion);
+    setResumen(d.resumen);
+    setAreaTexts(d.areas);
+    setSugerencias(d.sugerencias);
     setTextoFamilia((patient as any).informeFamilia ?? "");
   }, [patient.informeEvolucion, (patient as any).informeFamilia]);
 
   const activeGoals     = goals.filter(g => g.status === "activo");
   const inProgressGoals = goals.filter(g => g.status === "en progreso");
   const achievedGoals   = goals.filter(g => g.status === "logrado");
-  const recentRegistros = [...registros]
-    .sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())
-    .slice(0, 5);
+  const workingGoals    = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
+  const totalSessions   = registros.length;
+  const totalActive     = activeGoals.length + inProgressGoals.length;
 
-  const totalSessions = registros.length;
-  const totalActive   = activeGoals.length + inProgressGoals.length;
+  const sortedRegistros = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  );
+  const recentRegistros = sortedRegistros.slice(0, 5);
+
+  const areaGroups = workingGoals.reduce<Record<string, Goal[]>>((acc, g) => {
+    const a = (g.areaClinica ?? g.category ?? "otro").toLowerCase();
+    if (!acc[a]) acc[a] = [];
+    acc[a].push(g);
+    return acc;
+  }, {});
+  const areas = Object.keys(areaGroups).sort();
 
   const handleSave = async () => {
     setIsSaving(true);
-    try { await onSave({ informeEvolucion: textoClinico, informeFamilia: textoFamilia }); }
-    finally { setIsSaving(false); }
+    try {
+      const informeEvolucion = JSON.stringify({ v: 2, resumen, areas: areaTexts, sugerencias });
+      await onSave({ informeEvolucion, informeFamilia: textoFamilia });
+    } finally { setIsSaving(false); }
   };
+
+  const setAreaText = (area: string, text: string) =>
+    setAreaTexts(prev => ({ ...prev, [area]: text }));
 
   const handlePrint = () => {
     const contentId = view === "familia" ? "informe-familia-content" : "informe-tecnico-content";
-    const content = document.getElementById(contentId)?.innerHTML;
+    const content   = document.getElementById(contentId)?.innerHTML;
     if (!content) return;
     const win = window.open("", "_blank");
     if (!win) return;
@@ -201,31 +346,35 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
 <title>Informe — ${patient.name}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;padding:40px 48px;font-size:13px;line-height:1.6}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;padding:40px 48px;font-size:13px;line-height:1.7}
   h1{font-size:20px;font-weight:700;color:#0E3A6D;margin-bottom:4px}
-  h2{font-size:13px;font-weight:700;color:#334155;margin:18px 0 7px;border-bottom:1.5px solid #e2e8f0;padding-bottom:4px}
+  h2{font-size:12px;font-weight:700;color:#334155;margin:20px 0 8px;border-bottom:1.5px solid #e2e8f0;padding-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
   .meta{font-size:11px;color:#64748b;margin-top:3px}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #0E3A6D}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 20px}
   .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center}
   .stat-val{font-size:20px;font-weight:700;color:#0E3A6D}
   .stat-lbl{font-size:10px;color:#64748b;margin-top:2px}
-  .goal{padding:8px 0;border-bottom:1px solid #f1f5f9}
-  .goal-title{font-weight:600;font-size:12px;color:#1e293b}
-  .goal-area{font-size:10px;color:#64748b;margin-top:1px}
-  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:600}
-  .badge-green{background:#dcfce7;color:#15803d}
-  .badge-blue{background:#dbeafe;color:#1d4ed8}
-  .badge-amber{background:#fef3c7;color:#92400e}
-  .bar{height:5px;background:#e2e8f0;border-radius:3px;margin-top:4px}
-  .bar-fill{height:100%;border-radius:3px}
-  .narrativa{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;white-space:pre-wrap;font-size:12px;color:#475569;margin-top:6px}
+  .area-section{margin:0 0 18px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+  .area-header{padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+  .area-body{padding:10px 14px 14px}
+  .goal-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,.08)}
+  .chip-green{background:#dcfce7;color:#15803d}
+  .chip-amber{background:#fef3c7;color:#92400e}
+  .chip-default{background:#f1f5f9;color:#475569}
+  .area-narrative{font-size:12px;color:#374151;white-space:pre-wrap;line-height:1.7}
+  .sugerencias-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;font-size:12px;color:#166534;white-space:pre-wrap;line-height:1.7;margin-top:6px}
   .session{padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
   .session-date{font-size:10px;color:#94a3b8}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#15803d}
+  .badge-teal{background:#ccfbf1;color:#0f766e}
+  .badge-amber{background:#fef3c7;color:#92400e}
   .footer{margin-top:36px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+  textarea{display:none}
   @media print{body{padding:20px 28px}}
 </style></head><body>${content}
-<div class="footer"><span>Neurometric Lab</span><span>Generado el ${today}</span></div>
+<div class="footer"><span>Neurometric Lab · Informe Clínico</span><span>Generado el ${today}</span></div>
 </body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
@@ -236,22 +385,17 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
       {/* Header + actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Informe</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Resumen clínico y texto editable · exportable como PDF</p>
+          <h2 className="text-base font-semibold text-foreground">Informe clínico</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Estructurado por área · editable · exportable como PDF</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
-            <button
-              onClick={() => setView("tecnico")}
+            <button onClick={() => setView("tecnico")}
               className={`px-3 py-1.5 transition-colors ${view === "tecnico" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-              style={view === "tecnico" ? { background: "#0E3A6D" } : {}}
-            >Técnico</button>
-            <button
-              onClick={() => setView("familia")}
+              style={view === "tecnico" ? { background: "#0E3A6D" } : {}}>Técnico</button>
+            <button onClick={() => setView("familia")}
               className={`px-3 py-1.5 transition-colors ${view === "familia" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-              style={view === "familia" ? { background: "#20C7C7", color: "#fff" } : {}}
-            >Para familias</button>
+              style={view === "familia" ? { background: "#20C7C7", color: "#fff" } : {}}>Para familias</button>
           </div>
           <Button size="sm" variant="outline" onClick={handlePrint} className="h-8 gap-1.5 text-xs">
             <Printer className="h-3.5 w-3.5" /> Exportar PDF
@@ -262,84 +406,129 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
       {/* ── INFORME TÉCNICO ─────────────────────────────────────────────────── */}
       {view === "tecnico" && (
         <div className="space-y-4">
-          {/* Auto-generated summary card */}
           <Card className="border-border/50 shadow-sm">
             <CardContent className="p-5" id="informe-tecnico-content">
-              {/* Header block (printed) */}
+
+              {/* Header block */}
               <div className="flex justify-between items-start mb-5 pb-4 border-b border-border">
                 <div>
                   <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
                   <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                     {patient.age && <p>Edad: <span className="font-medium text-foreground/80">{patient.age} años</span></p>}
                     {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-foreground/80">{patient.diagnosis}</span></p>}
-                    {patient.fechaInicio && <p>Inicio de tratamiento: <span className="font-medium text-foreground/80">{formatFecha(patient.fechaInicio)}</span></p>}
+                    {patient.fechaInicio && <p>Inicio: <span className="font-medium text-foreground/80">{formatFecha(patient.fechaInicio)}</span></p>}
                     {profs.length > 0 && <p>Profesional(es): <span className="font-medium text-foreground/80">{profs.map(p => p.professionalName).join(", ")}</span></p>}
                   </div>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
-                  <p className="text-xs font-medium text-muted-foreground">Informe clínico</p>
+                  <p className="font-medium">Informe clínico</p>
                   <p>{today}</p>
                 </div>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div className="stats grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 {[
                   { label: "Sesiones realizadas", val: totalSessions, color: "text-teal-600" },
                   { label: "Objetivos en proceso", val: totalActive, color: "text-amber-600" },
-                  { label: "Objetivos logrados", val: achievedGoals.length, color: "text-emerald-600" },
-                  { label: "Área(s) trabajada(s)", val: new Set(goals.map(g => g.areaClinica ?? g.category).filter(Boolean)).size, color: "text-rose-600" },
+                  { label: "Objetivos logrados",   val: achievedGoals.length, color: "text-emerald-600" },
+                  { label: "Áreas trabajadas",     val: areas.length, color: "text-rose-600" },
                 ].map(s => (
-                  <div key={s.label} className="bg-muted/60 border border-border rounded-xl p-3 text-center">
-                    <p className={`text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
+                  <div key={s.label} className="stat bg-muted/60 border border-border rounded-xl p-3 text-center">
+                    <p className={`stat-val text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
+                    <p className="stat-lbl text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Goals: Logrados */}
-              {achievedGoals.length > 0 && (
-                <div className="mb-5">
-                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wide border-b border-emerald-100 pb-1.5 mb-3 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Objetivos logrados ({achievedGoals.length})
+              {/* ── Sección 1: Resumen general ───────────────────────── */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide flex items-center gap-1.5">
+                    <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> Resumen general
                   </h2>
-                  <div className="space-y-1.5">
-                    {achievedGoals.map(g => (
-                      <div key={g.id} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
-                        <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground leading-snug">{g.title}</p>
-                          {g.areaClinica && <p className="text-[10px] text-muted-foreground mt-0.5">{g.areaClinica}</p>}
-                        </div>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">100%</span>
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setResumen(generarResumenGeneral(patient, goals, registros))}
+                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
+                  >
+                    <Sparkles className="h-3 w-3" /> Sugerir texto
+                  </button>
                 </div>
-              )}
+                <Textarea
+                  value={resumen}
+                  onChange={e => setResumen(e.target.value)}
+                  placeholder={`Describe el progreso general de ${patient.name.split(" ")[0]} en el período. Puedes usar "Sugerir texto" para generar un borrador.`}
+                  rows={5}
+                  className="resize-none text-sm bg-muted/50"
+                />
+              </div>
 
-              {/* Goals: En proceso */}
-              {(activeGoals.length > 0 || inProgressGoals.length > 0) && (
-                <div className="mb-5">
-                  <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wide border-b border-amber-100 pb-1.5 mb-3 flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" /> En proceso ({totalActive})
+              {/* ── Sección 2: Desarrollo por área ──────────────────── */}
+              {areas.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-4 flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-primary" /> Desarrollo por área
                   </h2>
-                  <div className="space-y-2">
-                    {[...inProgressGoals, ...activeGoals].map(g => {
-                      const pct = goalProgressPct(g.status);
+                  <div className="space-y-4">
+                    {areas.map(area => {
+                      const areaGoals = areaGroups[area];
+                      const areaLabel = area.charAt(0).toUpperCase() + area.slice(1);
+                      const ac        = AREA_COLORS[area] ?? { bg: "bg-muted/60", text: "text-muted-foreground", border: "border-border" };
+                      const pdfBg     = AREA_PDF_COLORS[area] ?? "#f8fafc";
+                      const aLogrados = areaGoals.filter(g => g.status === "logrado");
+                      const aActivos  = areaGoals.filter(g => ["activo", "en progreso"].includes(g.status));
+                      const avgPct    = Math.round(areaGoals.reduce((s, g) => s + gPct(g.status, g.progressPct), 0) / areaGoals.length);
                       return (
-                        <div key={g.id} className="px-3 py-2 rounded-lg bg-muted/50 border border-border">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground leading-snug">{g.title}</p>
-                              {g.areaClinica && <p className="text-[10px] text-muted-foreground mt-0.5">{g.areaClinica}</p>}
-                            </div>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${g.status === "en progreso" ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"}`}>
-                              {pct}%
-                            </span>
+                        <div key={area} className={`area-section rounded-xl border overflow-hidden ${ac.border}`}
+                          style={{ ["--pdf-bg" as string]: pdfBg }}>
+                          {/* Area header */}
+                          <div className={`area-header ${ac.bg} ${ac.text} px-4 py-2.5 flex items-center justify-between`}
+                            style={{ background: pdfBg }}>
+                            <span className="text-xs font-bold uppercase tracking-wide">{areaLabel}</span>
+                            <span className="text-[10px] font-semibold opacity-70">{avgPct}% promedio</span>
                           </div>
-                          <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${g.status === "en progreso" ? "bg-amber-400" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+                          {/* Goals chips */}
+                          <div className="area-body px-4 pt-3 pb-1">
+                            <div className="goal-chips flex flex-wrap gap-1.5 mb-3">
+                              {aLogrados.map(g => (
+                                <span key={g.id} className="chip chip-green flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> {g.title}
+                                </span>
+                              ))}
+                              {aActivos.map(g => (
+                                <span key={g.id} className={`chip flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${g.status === "en progreso" ? "chip-amber bg-amber-100 text-amber-700 border-amber-200" : "chip-default bg-muted text-muted-foreground border-border"}`}>
+                                  <Circle className="h-2.5 w-2.5" /> {g.title}
+                                </span>
+                              ))}
+                            </div>
+                            {/* Progress bar */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${avgPct}%` }} />
+                              </div>
+                              <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{avgPct}%</span>
+                            </div>
+                          </div>
+                          {/* Editable narrative */}
+                          <div className="px-4 pb-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Narrativa clínica</span>
+                              <button
+                                type="button"
+                                onClick={() => setAreaText(area, generarNarrativaArea(area, areaGoals, registros))}
+                                className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
+                              >
+                                <Sparkles className="h-3 w-3" /> Sugerir
+                              </button>
+                            </div>
+                            <Textarea
+                              value={areaTexts[area] ?? ""}
+                              onChange={e => setAreaText(area, e.target.value)}
+                              placeholder={`Describe el desempeño, avances y dificultades en ${areaLabel}…`}
+                              rows={4}
+                              className="area-narrative resize-none text-sm bg-muted/40"
+                            />
                           </div>
                         </div>
                       );
@@ -348,40 +537,50 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                 </div>
               )}
 
-              {/* Recent sessions */}
+              {/* ── Sección 3: Sugerencias y continuidad ───────────── */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide flex items-center gap-1.5">
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-500" /> Sugerencias y continuidad
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setSugerencias(generarSugerencias(goals, registros))}
+                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
+                  >
+                    <Sparkles className="h-3 w-3" /> Sugerir texto
+                  </button>
+                </div>
+                <Textarea
+                  value={sugerencias}
+                  onChange={e => setSugerencias(e.target.value)}
+                  placeholder="Recomendaciones para el próximo período, frecuencia de sesiones, actividades para el hogar…"
+                  rows={4}
+                  className="sugerencias-box resize-none text-sm bg-emerald-50/60 border-emerald-200 placeholder:text-emerald-700/40"
+                />
+              </div>
+
+              {/* ── Sección 4: Últimas sesiones ─────────────────────── */}
               {recentRegistros.length > 0 && (
-                <div className="mb-5">
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
-                    Últimas {recentRegistros.length} sesiones
+                <div>
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3 flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" /> Últimas {recentRegistros.length} sesiones
                   </h2>
                   <div className="space-y-2">
                     {recentRegistros.map(r => (
-                      <div key={r.id} className="py-2 border-b border-border/50 last:border-0">
-                        <p className="text-[10px] text-muted-foreground">{formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}</p>
+                      <div key={r.id} className="session py-2 border-b border-border/50 last:border-0">
+                        <p className="session-date text-[10px] text-muted-foreground">
+                          {formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}
+                        </p>
                         {r.resumenSesion && <p className="text-xs text-foreground/80 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Clinical narrative — editable */}
-              <div>
-                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
-                  Narrativa clínica
-                </h2>
-                <Textarea
-                  value={textoClinico}
-                  onChange={e => setTextoClinico(e.target.value)}
-                  placeholder="Redacta aquí el informe clínico evolutivo del paciente. Este texto aparecerá en el PDF exportado."
-                  rows={7}
-                  className="resize-none text-sm bg-muted/50"
-                />
-              </div>
             </CardContent>
           </Card>
 
-          {/* Save button */}
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} className="gap-2 text-white" style={{ background: "#0E3A6D" }}>
               <Save className="h-4 w-4" />
@@ -407,7 +606,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                 </div>
               </div>
 
-              {/* Plain-language summary */}
+              {/* Stats */}
               <div className="mb-4">
                 <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">¿Cómo va el proceso?</h2>
                 <div className="grid grid-cols-3 gap-3">
@@ -433,6 +632,7 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                       <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                         {g.title}
+                        {g.areaClinica && <span className="text-[10px] text-muted-foreground">· {g.areaClinica}</span>}
                       </li>
                     ))}
                   </ul>
@@ -447,22 +647,32 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
                       <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
                         {g.title}
+                        {g.areaClinica && <span className="text-[10px] text-muted-foreground">· {g.areaClinica}</span>}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* Family narrative — editable */}
+              {/* Family message — editable */}
               <div>
-                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">
-                  Mensaje para la familia
-                </h2>
+                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
+                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide">
+                    Mensaje para la familia
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setTextoFamilia(generarMensajeFamilia(patient, goals, registros))}
+                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
+                  >
+                    <Sparkles className="h-3 w-3" /> Sugerir texto
+                  </button>
+                </div>
                 <Textarea
                   value={textoFamilia}
                   onChange={e => setTextoFamilia(e.target.value)}
-                  placeholder="Escribe aquí un mensaje sencillo y amigable para la familia del paciente, en lenguaje no técnico."
-                  rows={6}
+                  placeholder="Escribe aquí un mensaje para la familia en lenguaje cercano y no técnico. Usa 'Sugerir texto' para generar un borrador."
+                  rows={8}
                   className="resize-none text-sm bg-muted/50"
                 />
               </div>
