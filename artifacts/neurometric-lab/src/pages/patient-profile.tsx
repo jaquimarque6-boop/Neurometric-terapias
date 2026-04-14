@@ -155,17 +155,25 @@ function formatTs(ts: string) {
 }
 
 // ─── InformeTab helpers ────────────────────────────────────────────────────────
-type InformeData = { v: 3; observaciones: string; sugerencias: string };
+type InformeData = {
+  v: 4;
+  resumen: string;
+  conducta: string;
+  areas: Record<string, string>;
+  sugerencias: string;
+};
 
 function parseInformeData(raw: string | null | undefined): InformeData {
-  if (!raw) return { v: 3, observaciones: "", sugerencias: "" };
+  const empty: InformeData = { v: 4, resumen: "", conducta: "", areas: {}, sugerencias: "" };
+  if (!raw) return empty;
   try {
     const p = JSON.parse(raw);
-    if (p?.v === 3) return p as InformeData;
-    if (p?.v === 2) return { v: 3, observaciones: p.resumen ?? "", sugerencias: p.sugerencias ?? "" };
-    return { v: 3, observaciones: "", sugerencias: "" };
+    if (p?.v === 4) return p as InformeData;
+    if (p?.v === 3) return { ...empty, resumen: p.observaciones ?? "", sugerencias: p.sugerencias ?? "" };
+    if (p?.v === 2) return { ...empty, resumen: p.resumen ?? "", areas: p.areas ?? {}, sugerencias: p.sugerencias ?? "" };
+    return empty;
   } catch {
-    return { v: 3, observaciones: raw, sugerencias: "" };
+    return { ...empty, resumen: raw };
   }
 }
 
@@ -177,32 +185,72 @@ function gPct(status: string, progressPct?: number | null): number {
   return 0;
 }
 
-function generarObservaciones(
+function generarResumenProceso(
   patient: { name: string; age?: number | null; diagnosis?: string | null },
   goals: Goal[], registros: RC[]
 ): string {
-  const nombre    = patient.name.split(" ")[0];
   const logrados  = goals.filter(g => g.status === "logrado");
   const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const areas     = [...new Set(goals.filter(g => g.status !== "archivado")
+  const areas     = [...new Set(goals.filter(g => !["archivado", "suspendido"].includes(g.status))
     .map(g => g.areaClinica ?? g.category).filter(Boolean))];
-  const ultRec = [...registros].sort(
-    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
-  )[0];
-  let txt = `${nombre}`;
-  if (patient.age) txt += ` (${patient.age} años)`;
-  txt += ` ha asistido a ${registros.length} sesión(es) de intervención terapéutica.`;
+  let txt = `${patient.name}`;
+  if (patient.age) txt += `, de ${patient.age} años,`;
+  txt += ` ha asistido a ${registros.length} sesión${registros.length !== 1 ? "es" : ""} de intervención terapéutica.`;
   if (areas.length > 0)
-    txt += ` El trabajo clínico ha abordado las áreas de: ${areas.join(", ")}.`;
+    txt += ` El trabajo clínico ha abordado las áreas de ${areas.join(", ")}.`;
   if (logrados.length > 0)
-    txt += ` Se han alcanzado ${logrados.length} objetivo(s), evidenciando avances significativos.`;
+    txt += ` A la fecha se han alcanzado ${logrados.length} objetivo${logrados.length !== 1 ? "s" : ""} terapéutico${logrados.length !== 1 ? "s" : ""}, evidenciando progreso significativo en el proceso.`;
   if (enProceso.length > 0)
-    txt += ` Actualmente se trabajan ${enProceso.length} objetivo(s) en proceso de adquisición.`;
+    txt += ` Actualmente se trabajan ${enProceso.length} objetivo${enProceso.length !== 1 ? "s" : ""} en proceso de adquisición y consolidación.`;
   if (patient.diagnosis)
     txt += `\n\nDiagnóstico de referencia: ${patient.diagnosis}.`;
-  if (ultRec?.observaciones)
-    txt += `\n\nObservación de última sesión: ${ultRec.observaciones}`;
   return txt;
+}
+
+function generarConductaSesiones(registros: RC[]): string {
+  const recientes = [...registros]
+    .sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())
+    .slice(0, 3);
+  let txt = "El/La paciente se muestra colaborador/a durante las actividades propuestas, respondiendo adecuadamente a las instrucciones y consignas del terapeuta. Se observa motivación frente a las tareas, con períodos de atención sostenida acordes a su etapa de desarrollo.";
+  const conObs = recientes.find(r => r.observaciones);
+  if (conObs?.observaciones) {
+    const obs = conObs.observaciones;
+    txt += `\n\nObservación reciente: "${obs.slice(0, 200)}${obs.length > 200 ? "…" : ""}"`;
+  }
+  return txt;
+}
+
+function generarNarrativaArea(area: string, areaGoals: Goal[], registros: RC[]): string {
+  const nombre    = area.charAt(0).toUpperCase() + area.slice(1);
+  const logrados  = areaGoals.filter(g => g.status === "logrado");
+  const enProceso = areaGoals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const avgPct    = areaGoals.length > 0
+    ? Math.round(areaGoals.reduce((s, g) => s + gPct(g.status, g.progressPct), 0) / areaGoals.length)
+    : 0;
+  let parts: string[] = [];
+  if (logrados.length > 0 && enProceso.length > 0) {
+    parts.push(
+      `En el área de ${nombre} se han alcanzado los siguientes objetivos: ${logrados.map(g => `"${g.title}"`).join(", ")}. ` +
+      `Actualmente se trabaja en: ${enProceso.map(g => `"${g.title}"`).join(", ")}.`
+    );
+  } else if (logrados.length > 0) {
+    parts.push(`En el área de ${nombre} se han logrado todos los objetivos planteados: ${logrados.map(g => `"${g.title}"`).join(", ")}.`);
+  } else if (enProceso.length > 0) {
+    parts.push(`En el área de ${nombre} se trabaja actualmente en: ${enProceso.map(g => `"${g.title}"`).join(", ")}.`);
+  }
+  if (avgPct >= 80) {
+    parts.push("Se observa desempeño consistente y generalización progresiva de habilidades al contexto cotidiano.");
+  } else if (avgPct >= 50) {
+    parts.push("Se observan avances progresivos; se requiere apoyo moderado para consolidar y generalizar las habilidades trabajadas.");
+  } else {
+    parts.push("El trabajo en esta área se encuentra en etapa inicial, requiriéndose apoyo sistemático y estrategias de moldeamiento progresivo.");
+  }
+  const nota = registros.find(r => r.resumenSesion?.toLowerCase().includes(area.toLowerCase()));
+  if (nota?.resumenSesion) {
+    const n = nota.resumenSesion;
+    parts.push(`Nota de sesión: "${n.slice(0, 180)}${n.length > 180 ? "…" : ""}"`);
+  }
+  return parts.join(" ");
 }
 
 function generarSugerenciasFamilia(
@@ -216,56 +264,53 @@ function generarSugerenciasFamilia(
   )[0];
   let txt = `Para apoyar el proceso de ${nombre} en casa, les compartimos las siguientes sugerencias:\n\n`;
   if (enProceso.length > 0) {
-    txt += `• Reforzar en el día a día las habilidades que estamos trabajando en sesión.\n`;
+    txt += `• Reforzar en el día a día las habilidades trabajadas en sesión.\n`;
     txt += `• Celebrar los logros de ${nombre}, por pequeños que sean.\n`;
-    txt += `• Mantener una rutina estable y predecible.\n`;
+    txt += `• Mantener rutinas estables y predecibles en el hogar.\n`;
   }
   if (ultRec?.recomendacionesHogar)
     txt += `\nActividades sugeridas:\n${ultRec.recomendacionesHogar}`;
-  txt += `\n\nAnte cualquier consulta, estamos disponibles para ayudarles.`;
+  txt += `\n\nAnte cualquier consulta, estamos disponibles para orientarles.`;
   return txt;
 }
 
 // ─── InformeTab sub-components ────────────────────────────────────────────────
-function InformeSectionHeader({
-  icon, title, onSuggest,
-}: { icon: React.ReactNode; title: string; onSuggest?: () => void }) {
+function DocSection({
+  title, onSuggest, children,
+}: { title: string; onSuggest?: () => void; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
-      <h3 className="text-xs font-bold text-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
-        {icon} {title}
-      </h3>
-      {onSuggest && (
-        <button
-          type="button"
-          onClick={onSuggest}
-          className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
-        >
-          <Sparkles className="h-3 w-3" /> Sugerir texto
-        </button>
-      )}
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          {title}
+        </h3>
+        {onSuggest && (
+          <button
+            type="button"
+            onClick={onSuggest}
+            className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
+          >
+            <Sparkles className="h-2.5 w-2.5" /> Sugerir
+          </button>
+        )}
+      </div>
+      <div className="border-b border-border/40 mb-3" />
+      {children}
     </div>
   );
 }
 
-function InformeTextarea({
-  label, value, onChange, placeholder, rows = 5,
-}: { label?: string; value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) {
+function DocTextarea({
+  value, onChange, placeholder, rows = 6,
+}: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) {
   return (
-    <div className="relative group">
-      {label && (
-        <p className="text-[10px] font-medium text-muted-foreground mb-1 flex items-center gap-1">
-          <Pencil className="h-2.5 w-2.5" /> {label}
-        </p>
-      )}
-      <Textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="resize-none text-sm bg-muted/30 border-dashed border-border/80 leading-relaxed placeholder:text-muted-foreground/50 focus:border-primary/40 focus:bg-card transition-colors"
-      />
-    </div>
+    <Textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="resize-none w-full text-sm leading-[1.85] bg-transparent border border-dashed border-border/40 rounded-lg px-4 py-3 text-foreground/90 focus:border-primary/30 focus:bg-muted/10 placeholder:text-muted-foreground/35 transition-all shadow-none"
+    />
   );
 }
 
@@ -283,37 +328,38 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const initial = parseInformeData(patient.informeEvolucion);
-  const [observaciones, setObservaciones] = useState(initial.observaciones);
-  const [sugerencias,   setSugerencias]   = useState(initial.sugerencias);
-  const [textoFamilia,  setTextoFamilia]  = useState((patient as any).informeFamilia ?? "");
+  const [resumen,    setResumen]    = useState(initial.resumen);
+  const [conducta,   setConducta]   = useState(initial.conducta);
+  const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initial.areas);
+  const [sugerencias, setSugerencias] = useState(initial.sugerencias);
+  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
 
   useEffect(() => {
     const d = parseInformeData(patient.informeEvolucion);
-    setObservaciones(d.observaciones);
+    setResumen(d.resumen);
+    setConducta(d.conducta);
+    setAreaTexts(d.areas);
     setSugerencias(d.sugerencias);
     setTextoFamilia((patient as any).informeFamilia ?? "");
   }, [patient.informeEvolucion, (patient as any).informeFamilia]);
 
-  const achievedGoals = goals.filter(g => g.status === "logrado");
-  const workingGoals  = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const totalSessions = registros.length;
+  const achievedGoals  = goals.filter(g => g.status === "logrado");
+  const workingGoals   = goals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const totalSessions  = registros.length;
 
-  const sortedReg = [...registros].sort(
-    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
-  );
-  const recentReg = sortedReg.slice(0, 3);
-
-  const workingByArea = workingGoals.reduce<Record<string, Goal[]>>((acc, g) => {
+  const reportGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
+  const areaGroups  = reportGoals.reduce<Record<string, Goal[]>>((acc, g) => {
     const a = g.areaClinica ?? g.category ?? "general";
     if (!acc[a]) acc[a] = [];
     acc[a].push(g);
     return acc;
   }, {});
+  const areas = Object.keys(areaGroups).sort();
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const informeEvolucion = JSON.stringify({ v: 3, observaciones, sugerencias });
+      const informeEvolucion = JSON.stringify({ v: 4, resumen, conducta, areas: areaTexts, sugerencias });
       await onSave({ informeEvolucion, informeFamilia: textoFamilia });
     } finally { setIsSaving(false); }
   };
@@ -326,32 +372,34 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Informe — ${patient.name}</title><style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2d1f14;padding:40px 48px;font-size:13px;line-height:1.8}
-  h1{font-size:22px;font-weight:700;color:#7c3d18;margin-bottom:4px}
-  h3{font-size:10.5px;font-weight:700;color:#78716c;text-transform:uppercase;letter-spacing:.07em;margin:24px 0 10px;padding-bottom:5px;border-bottom:1px solid #e7e1d8}
-  .meta{font-size:11px;color:#92897e}
-  .pills{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
-  .pill{background:#fdf6ee;border:1px solid #e8d9c8;border-radius:99px;padding:4px 12px;font-size:11px;color:#6b4c2a;font-weight:600}
-  .pill-green{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
-  .pill-amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1412;padding:48px 56px;font-size:13px;line-height:1.85;max-width:820px;margin:0 auto}
+  .doc-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #ddd3c8;margin-bottom:32px}
+  .doc-header-left h1{font-size:22px;font-weight:700;color:#1c1412;margin-bottom:6px}
+  .doc-meta{font-size:11.5px;color:#78716c;display:flex;flex-wrap:wrap;gap:0 20px}
+  .doc-header-right{text-align:right;font-size:11px;color:#78716c}
+  .doc-header-right strong{display:block;font-size:12px;color:#374151;margin-bottom:2px}
+  .doc-section{margin-bottom:28px}
+  .doc-section-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin-bottom:6px}
+  .doc-section-line{border:none;border-bottom:1px solid #e5e7eb;margin-bottom:12px}
+  .doc-text{font-size:13px;color:#1c1412;line-height:1.85;white-space:pre-wrap;min-height:36px}
+  .doc-area{margin-bottom:20px}
+  .doc-area-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#374151;margin-bottom:6px}
+  .doc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}
+  .doc-stat{background:#faf7f4;border:1px solid #e7e1d8;border-radius:10px;padding:12px;text-align:center}
+  .doc-stat-emoji{font-size:20px;margin-bottom:4px}
+  .doc-stat-val{font-size:20px;font-weight:700;color:#1c1412}
+  .doc-stat-label{font-size:10px;color:#78716c;margin-top:2px}
   ul{padding:0;margin:0;list-style:none}
-  li{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12.5px;color:#2d1f14;border-bottom:1px solid #f3ede6}
+  li{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12.5px;color:#1c1412;border-bottom:1px solid #f3ede6}
   li:last-child{border-bottom:none}
-  .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
-  .dot-green{background:#10b981}
+  .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;background:#10b981}
   .dot-amber{background:#f59e0b}
-  .area-label{font-size:9.5px;color:#78716c;margin-left:2px}
-  .bar-row{display:flex;align-items:center;gap:8px;margin-top:3px}
-  .bar-track{flex:1;height:3px;background:#e7e1d8;border-radius:2px}
-  .bar-fill{height:100%;border-radius:2px;background:#c2855a}
-  .text-block{background:#faf8f5;border:1px solid #e7e1d8;border-radius:8px;padding:14px 16px;white-space:pre-wrap;font-size:12.5px;color:#374151;line-height:1.8;min-height:50px}
-  .session-row{padding:6px 0;border-bottom:1px solid #f3ede6;font-size:12px}
-  .session-date{font-size:10px;color:#92897e}
-  .footer{margin-top:36px;padding-top:10px;border-top:1px solid #e7e1d8;font-size:10px;color:#92897e;display:flex;justify-content:space-between}
-  button,svg{display:none}
-  textarea{display:none}
+  .footer{margin-top:40px;padding-top:10px;border-top:1px solid #e7e1d8;font-size:10px;color:#92897e;display:flex;justify-content:space-between}
+  button,svg{display:none!important}
+  textarea{display:none!important}
+  .doc-text-area-print{display:block}
   @media print{body{padding:24px 32px}}
-</style></head><body>${content}<div class="footer"><span>Neurometric Lab · Informe Clínico</span><span>${today}</span></div></body></html>`);
+</style></head><body>${content}<div class="footer"><span>Neurometric Lab · Informe de Evolución</span><span>${today}</span></div></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
@@ -362,8 +410,8 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Informe clínico</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Narrativo · editable · exportable como PDF</p>
+          <h2 className="text-base font-semibold text-foreground">Informe de evolución</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Documento clínico narrativo · editable · exportable como PDF</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
@@ -386,160 +434,109 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       {view === "clinico" && (
         <div className="space-y-4">
           <Card className="border-border/50 shadow-sm">
-            <CardContent className="p-6 space-y-6" id="informe-clinico-content">
+            <CardContent className="px-8 py-8 space-y-8" id="informe-clinico-content">
 
-              {/* Patient header */}
-              <div className="flex justify-between items-start pb-4 border-b border-border">
+              {/* ── Encabezado del documento ─────────────────────────── */}
+              <div className="doc-header flex justify-between items-start pb-6 border-b-2 border-border">
                 <div>
-                  <h1 className="text-xl font-bold font-display text-primary">{patient.name}</h1>
-                  <div className="meta text-xs text-muted-foreground mt-1 space-y-0.5">
-                    {patient.age && <p>Edad: <span className="font-medium text-foreground/80">{patient.age} años</span></p>}
-                    {(patient as any).diagnosis && <p>Diagnóstico: <span className="font-medium text-foreground/80">{(patient as any).diagnosis}</span></p>}
-                    {(patient as any).profesionalNombre && <p>Profesional: <span className="font-medium text-foreground/80">{(patient as any).profesionalNombre}</span></p>}
-                    {patient.fechaInicio && <p>Inicio: <span className="font-medium text-foreground/80">{formatFecha(patient.fechaInicio)}</span></p>}
+                  <h1 className="text-2xl font-bold font-display text-foreground">{patient.name}</h1>
+                  <div className="doc-meta flex flex-wrap gap-x-5 gap-y-0.5 mt-2 text-xs text-muted-foreground">
+                    {patient.age && <span>Edad: <strong className="text-foreground/80">{patient.age} años</strong></span>}
+                    {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{(patient as any).diagnosis}</strong></span>}
+                    {patient.fechaInicio && <span>Inicio: <strong className="text-foreground/80">{formatFecha(patient.fechaInicio)}</strong></span>}
+                    <span>Sesiones: <strong className="text-foreground/80">{totalSessions}</strong></span>
                   </div>
                 </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <p className="font-semibold">Informe clínico</p>
-                  <p>{today}</p>
+                <div className="doc-header-right text-right text-xs text-muted-foreground">
+                  <strong className="block text-sm text-foreground/80 mb-0.5">Informe de evolución</strong>
+                  <span>{today}</span>
                 </div>
               </div>
 
               {/* ── ¿Cómo va el proceso? ─────────────────────────────── */}
-              <div>
-                <InformeSectionHeader icon={<Activity className="h-3.5 w-3.5 text-primary" />} title="¿Cómo va el proceso?" />
-                <div className="pills flex flex-wrap gap-2">
-                  <span className="pill flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-full">
-                    <CalendarDays className="h-3 w-3" />
-                    {totalSessions} {totalSessions === 1 ? "sesión realizada" : "sesiones realizadas"}
-                  </span>
-                  {achievedGoals.length > 0 && (
-                    <span className="pill pill-green flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full">
-                      <CheckCircle2 className="h-3 w-3" />
-                      {achievedGoals.length} {achievedGoals.length === 1 ? "objetivo logrado" : "objetivos logrados"}
-                    </span>
-                  )}
-                  {workingGoals.length > 0 && (
-                    <span className="pill pill-amber flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full">
-                      <Target className="h-3 w-3" />
-                      {workingGoals.length} {workingGoals.length === 1 ? "objetivo en proceso" : "objetivos en proceso"}
-                    </span>
-                  )}
-                </div>
+              <div className="doc-section">
+                <DocSection
+                  title="¿Cómo va el proceso?"
+                  onSuggest={() => setResumen(generarResumenProceso(patient, goals, registros))}
+                >
+                  <div className="doc-text-area-print doc-text hidden">{resumen || "Sin contenido."}</div>
+                  <DocTextarea
+                    value={resumen}
+                    onChange={setResumen}
+                    placeholder={`Describe de forma general el estado actual del proceso terapéutico de ${patient.name.split(" ")[0]}: cuántas sesiones lleva, qué áreas se han abordado, avances generales…`}
+                    rows={5}
+                  />
+                </DocSection>
               </div>
 
-              {/* ── Lo que logró ─────────────────────────────────────── */}
-              <div>
-                <InformeSectionHeader icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />} title="Lo que logró" />
-                {achievedGoals.length > 0 ? (
-                  <ul className="space-y-2">
-                    {achievedGoals.map(g => (
-                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/40 last:border-0">
-                        <span className="dot dot-green mt-1.5 h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                        <div>
-                          <span className="text-sm text-foreground">{g.title}</span>
-                          {(g.areaClinica || g.category) && (
-                            <span className="area-label ml-2 text-[10px] text-muted-foreground">· {g.areaClinica ?? g.category}</span>
-                          )}
+              {/* ── Conducta en sesiones ─────────────────────────────── */}
+              <div className="doc-section">
+                <DocSection
+                  title="Conducta en sesiones"
+                  onSuggest={() => setConducta(generarConductaSesiones(registros))}
+                >
+                  <div className="doc-text-area-print doc-text hidden">{conducta || "Sin contenido."}</div>
+                  <DocTextarea
+                    value={conducta}
+                    onChange={setConducta}
+                    placeholder="Describe la actitud, disposición, nivel de atención y conducta del/la paciente durante las sesiones de intervención…"
+                    rows={4}
+                  />
+                </DocSection>
+              </div>
+
+              {/* ── Desarrollo por área ──────────────────────────────── */}
+              <div className="doc-section">
+                <DocSection title="Desarrollo por área">
+                  {areas.length > 0 ? (
+                    <div className="space-y-6">
+                      {areas.map(area => (
+                        <div key={area} className="doc-area">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="doc-area-title text-[11px] font-bold uppercase tracking-[0.07em] text-foreground/75">
+                              {area.charAt(0).toUpperCase() + area.slice(1)}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area], registros) }))}
+                              className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
+                            >
+                              <Sparkles className="h-2.5 w-2.5" /> Sugerir
+                            </button>
+                          </div>
+                          <div className="doc-text-area-print doc-text hidden">{areaTexts[area] || "Sin contenido."}</div>
+                          <DocTextarea
+                            value={areaTexts[area] ?? ""}
+                            onChange={v => setAreaTexts(prev => ({ ...prev, [area]: v }))}
+                            placeholder={`Describe el desempeño y evolución clínica en el área de ${area.charAt(0).toUpperCase() + area.slice(1)}…`}
+                            rows={4}
+                          />
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic py-2">
-                    El proceso está en inicio. Los logros aparecerán aquí a medida que se alcancen.
-                  </p>
-                )}
-              </div>
-
-              {/* ── En lo que estamos trabajando ─────────────────────── */}
-              {workingGoals.length > 0 && (
-                <div>
-                  <InformeSectionHeader icon={<Circle className="h-3.5 w-3.5 text-amber-500" />} title="En lo que estamos trabajando" />
-                  <ul className="space-y-2.5">
-                    {Object.entries(workingByArea).map(([area, aGoals]) => (
-                      <li key={area} className="py-0 border-0">
-                        {Object.keys(workingByArea).length > 1 && (
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                            {area.charAt(0).toUpperCase() + area.slice(1)}
-                          </p>
-                        )}
-                        <ul className="space-y-2">
-                          {aGoals.map(g => {
-                            const pct = gPct(g.status, g.progressPct);
-                            return (
-                              <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
-                                <span className="dot dot-amber mt-1.5 h-2 w-2 rounded-full bg-amber-400 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-sm text-foreground">{g.title}</span>
-                                  <div className="bar-row flex items-center gap-2 mt-1.5">
-                                    <div className="bar-track flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                                      <div className="bar-fill h-full rounded-full bg-primary/40" style={{ width: `${pct}%` }} />
-                                    </div>
-                                    <span className="text-[10px] text-muted-foreground/70 w-7 text-right">{pct}%</span>
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* ── Observaciones clínicas ─────────────────────────── */}
-              <div>
-                <InformeSectionHeader
-                  icon={<ClipboardList className="h-3.5 w-3.5 text-primary" />}
-                  title="Observaciones clínicas"
-                  onSuggest={() => setObservaciones(generarObservaciones(patient, goals, registros))}
-                />
-                {/* Print version */}
-                <div className="text-block hidden">
-                  {observaciones || "Sin observaciones registradas."}
-                </div>
-                <InformeTextarea
-                  value={observaciones}
-                  onChange={setObservaciones}
-                  placeholder={`Describe el desempeño, avances, dificultades y observaciones clínicas relevantes para ${patient.name.split(" ")[0]}…`}
-                  rows={5}
-                />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic py-3">
+                      No hay áreas registradas aún. Agrega objetivos terapéuticos para habilitar esta sección.
+                    </p>
+                  )}
+                </DocSection>
               </div>
 
               {/* ── Sugerencias para la familia ──────────────────────── */}
-              <div>
-                <InformeSectionHeader
-                  icon={<Home className="h-3.5 w-3.5 text-amber-500" />}
+              <div className="doc-section">
+                <DocSection
                   title="Sugerencias para la familia"
                   onSuggest={() => setSugerencias(generarSugerenciasFamilia(patient, goals, registros))}
-                />
-                <div className="text-block hidden">
-                  {sugerencias || "Sin sugerencias registradas."}
-                </div>
-                <InformeTextarea
-                  value={sugerencias}
-                  onChange={setSugerencias}
-                  placeholder="Escribe aquí recomendaciones para la familia en lenguaje claro y cercano…"
-                  rows={4}
-                />
+                >
+                  <div className="doc-text-area-print doc-text hidden">{sugerencias || "Sin contenido."}</div>
+                  <DocTextarea
+                    value={sugerencias}
+                    onChange={setSugerencias}
+                    placeholder="Escribe recomendaciones y sugerencias para la familia en lenguaje claro y accesible…"
+                    rows={4}
+                  />
+                </DocSection>
               </div>
-
-              {/* ── Últimas sesiones ──────────────────────────────────── */}
-              {recentReg.length > 0 && (
-                <div>
-                  <InformeSectionHeader icon={<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />} title={`Últimas ${recentReg.length} sesiones`} />
-                  <div className="space-y-1">
-                    {recentReg.map(r => (
-                      <div key={r.id} className="session-row py-2 border-b border-border/40 last:border-0">
-                        <p className="session-date text-[10px] text-muted-foreground">{formatFecha(r.fecha || r.createdAt)}</p>
-                        {r.resumenSesion && <p className="text-xs text-foreground/80 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
             </CardContent>
           </Card>
@@ -556,78 +553,81 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       {view === "familia" && (
         <div className="space-y-4">
           <Card className="border-border/50 shadow-sm">
-            <CardContent className="p-6 space-y-6" id="informe-familia-content">
+            <CardContent className="px-8 py-8 space-y-8" id="informe-familia-content">
 
               {/* Header */}
-              <div className="pb-4 border-b border-border">
-                <h1 className="text-xl font-bold font-display text-primary">{patient.name}</h1>
-                <p className="meta text-xs text-muted-foreground mt-1">Informe para la familia · {today}</p>
+              <div className="doc-header flex justify-between items-start pb-5 border-b border-border">
+                <div>
+                  <h1 className="text-2xl font-bold font-display text-primary">{patient.name}</h1>
+                  <p className="doc-meta text-xs text-muted-foreground mt-1">Informe para la familia · {today}</p>
+                </div>
               </div>
 
-              {/* ¿Cómo va el proceso? */}
-              <div>
-                <InformeSectionHeader icon={<Activity className="h-3.5 w-3.5 text-primary" />} title="¿Cómo va el proceso?" />
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { emoji: "📅", val: totalSessions, label: totalSessions === 1 ? "sesión realizada" : "sesiones realizadas" },
-                    { emoji: "✅", val: achievedGoals.length, label: achievedGoals.length === 1 ? "objetivo alcanzado" : "objetivos alcanzados" },
-                    { emoji: "🎯", val: workingGoals.length, label: workingGoals.length === 1 ? "objetivo en progreso" : "objetivos en progreso" },
-                  ].map(s => (
-                    <div key={s.label} className="bg-muted/50 border border-border rounded-xl p-3 text-center">
-                      <p className="text-2xl mb-1">{s.emoji}</p>
-                      <p className="text-2xl font-bold font-display text-foreground">{s.val}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
+              {/* Stats */}
+              <div className="doc-section">
+                <DocSection title="¿Cómo va el proceso?">
+                  <div className="doc-stat-grid grid grid-cols-3 gap-3">
+                    {[
+                      { emoji: "📅", val: totalSessions, label: totalSessions === 1 ? "sesión realizada" : "sesiones realizadas" },
+                      { emoji: "✅", val: achievedGoals.length, label: achievedGoals.length === 1 ? "objetivo alcanzado" : "objetivos alcanzados" },
+                      { emoji: "🎯", val: workingGoals.length, label: workingGoals.length === 1 ? "objetivo en progreso" : "objetivos en progreso" },
+                    ].map(s => (
+                      <div key={s.label} className="doc-stat bg-muted/50 border border-border rounded-xl p-3 text-center">
+                        <p className="doc-stat-emoji text-2xl mb-1">{s.emoji}</p>
+                        <p className="doc-stat-val text-2xl font-bold font-display text-foreground">{s.val}</p>
+                        <p className="doc-stat-label text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </DocSection>
               </div>
 
               {/* Lo que logró */}
               {achievedGoals.length > 0 && (
-                <div>
-                  <InformeSectionHeader icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />} title="Lo que logró ✨" />
-                  <ul className="space-y-2">
-                    {achievedGoals.map(g => (
-                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
-                        <span className="dot dot-green mt-1.5 h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                        <span className="text-sm text-foreground">{g.title}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="doc-section">
+                  <DocSection title="Lo que logró ✨">
+                    <ul className="space-y-2">
+                      {achievedGoals.map(g => (
+                        <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
+                          <span className="dot mt-1.5 h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                          <span className="text-sm text-foreground">{g.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </DocSection>
                 </div>
               )}
 
               {/* En lo que estamos trabajando */}
               {workingGoals.length > 0 && (
-                <div>
-                  <InformeSectionHeader icon={<Target className="h-3.5 w-3.5 text-amber-500" />} title="En lo que estamos trabajando" />
-                  <ul className="space-y-2">
-                    {workingGoals.map(g => (
-                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
-                        <span className="dot dot-amber mt-1.5 h-2 w-2 rounded-full bg-amber-400 flex-shrink-0" />
-                        <span className="text-sm text-foreground">{g.title}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="doc-section">
+                  <DocSection title="En lo que estamos trabajando">
+                    <ul className="space-y-2">
+                      {workingGoals.map(g => (
+                        <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
+                          <span className="dot dot-amber mt-1.5 h-2 w-2 rounded-full bg-amber-400 flex-shrink-0" />
+                          <span className="text-sm text-foreground">{g.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </DocSection>
                 </div>
               )}
 
               {/* Mensaje y sugerencias */}
-              <div>
-                <InformeSectionHeader
-                  icon={<MessageSquare className="h-3.5 w-3.5 text-primary" />}
+              <div className="doc-section">
+                <DocSection
                   title="Mensaje y sugerencias para la familia"
                   onSuggest={() => setTextoFamilia(generarSugerenciasFamilia(patient, goals, registros))}
-                />
-                <div className="text-block hidden">
-                  {textoFamilia || "Sin mensaje registrado."}
-                </div>
-                <InformeTextarea
-                  value={textoFamilia}
-                  onChange={setTextoFamilia}
-                  placeholder="Escribe aquí un mensaje y sugerencias para la familia en lenguaje cercano y amigable…"
-                  rows={7}
-                />
+                >
+                  <div className="doc-text-area-print doc-text hidden">{textoFamilia || "Sin mensaje registrado."}</div>
+                  <DocTextarea
+                    value={textoFamilia}
+                    onChange={setTextoFamilia}
+                    placeholder="Escribe aquí un mensaje y sugerencias para la familia en lenguaje cercano y amigable…"
+                    rows={7}
+                  />
+                </DocSection>
               </div>
 
             </CardContent>
