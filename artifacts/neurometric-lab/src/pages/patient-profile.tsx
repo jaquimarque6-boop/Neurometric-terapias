@@ -769,9 +769,9 @@ export default function PatientProfile() {
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
         {/* Back */}
-        <button onClick={() => navigate("/patients")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit group">
+        <button onClick={() => window.history.length > 1 ? window.history.back() : navigate("/patients")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Volver a pacientes
+          Volver
         </button>
 
         {/* Patient header */}

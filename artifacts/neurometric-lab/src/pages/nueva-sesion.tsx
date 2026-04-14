@@ -766,7 +766,8 @@ export default function NuevaSesion() {
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       const n = totalSelected;
       toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
-      navigate(preselectedId ? `/patients/${preselectedId}` : "/");
+      if (window.history.length > 1) window.history.back();
+      else navigate(preselectedId ? `/patients/${preselectedId}` : "/");
     } catch (err: any) {
       toast({ title: "Error al guardar la sesión", description: err.message, variant: "destructive" });
     } finally {
@@ -1057,11 +1058,11 @@ export default function NuevaSesion() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(preselectedId ? `/patients/${preselectedId}` : "/")}
+            onClick={() => window.history.length > 1 ? window.history.back() : navigate(preselectedId ? `/patients/${preselectedId}` : "/")}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            {preselectedId ? "Volver al paciente" : "Volver"}
+            Volver
           </button>
         </div>
 
@@ -1700,7 +1701,7 @@ export default function NuevaSesion() {
         {/* ── Save bar ──────────────────────────────────────────────────── */}
         {patient && (
           <div className="flex gap-3 pb-8">
-            <Button variant="outline" className="w-28" onClick={() => navigate(preselectedId ? `/patients/${preselectedId}` : "/")}>
+            <Button variant="outline" className="w-28" onClick={() => window.history.length > 1 ? window.history.back() : navigate(preselectedId ? `/patients/${preselectedId}` : "/")}>
               Cancelar
             </Button>
             <Button
