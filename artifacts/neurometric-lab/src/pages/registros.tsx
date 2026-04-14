@@ -2,8 +2,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  ClipboardList, Search, Plus, User, Stethoscope, Home,
-  Eye, Pencil, Trash2, X, Check, ChevronDown
+  ClipboardList, Search, Plus, User, Home,
+  Eye, Pencil, Trash2, ChevronDown
 } from "lucide-react";
 import {
   useListRegistrosClinicos,
@@ -11,7 +11,6 @@ import {
   useUpdateRegistroClinico,
   useDeleteRegistroClinico,
   useListPatients,
-  useListProfessionals,
   getListRegistrosClinicosQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,7 +50,6 @@ function formatFecha(fecha: string) {
 export default function Registros() {
   const { data: registros = [], isLoading } = useListRegistrosClinicos();
   const { data: patients = [] } = useListPatients();
-  const { data: professionals = [] } = useListProfessionals();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -148,11 +146,6 @@ export default function Registros() {
                           <span className="font-bold text-foreground">{r.patientName}</span>
                           <Badge variant="outline" className="text-xs bg-muted/50 text-foreground/70 border-border">{formatFecha(r.fecha)}</Badge>
                         </div>
-                        {r.professionalName && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                            <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" /> {r.professionalName}
-                          </p>
-                        )}
                         {r.resumenSesion && (
                           <p className={`text-sm text-foreground/80 mt-2 leading-relaxed ${expanded === r.id ? "" : "line-clamp-2"}`}>
                             {r.resumenSesion}
@@ -212,7 +205,6 @@ export default function Registros() {
         <RegistroForm
           registro={editing}
           patients={patients}
-          professionals={professionals}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); }}
           isSaving={create.isPending || update.isPending}
@@ -241,18 +233,16 @@ export default function Registros() {
 }
 
 function RegistroForm({
-  registro, patients, professionals, onSave, onClose, isSaving,
+  registro, patients, onSave, onClose, isSaving,
 }: {
   registro: RC | null;
   patients: Array<{ id: number; name: string }>;
-  professionals: Array<{ id: number; name: string; specialty: string }>;
   onSave: (data: any) => void;
   onClose: () => void;
   isSaving: boolean;
 }) {
   const [form, setForm] = useState({
     patientId: registro?.patientId?.toString() ?? "",
-    professionalId: registro?.professionalId?.toString() ?? "",
     fecha: registro?.fecha ?? new Date().toISOString().split("T")[0],
     resumenSesion: registro?.resumenSesion ?? "",
     observaciones: registro?.observaciones ?? "",
@@ -286,15 +276,6 @@ function RegistroForm({
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/80">Profesional</label>
-            <Select value={form.professionalId} onValueChange={v => set("professionalId", v)}>
-              <SelectTrigger className="bg-muted/50"><SelectValue placeholder="Seleccionar profesional..." /></SelectTrigger>
-              <SelectContent>
-                {professionals.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name} · {p.specialty}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
             <label className="text-sm font-medium text-foreground/80">Fecha de sesión *</label>
             <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-muted/50" />
           </div>
@@ -315,7 +296,7 @@ function RegistroForm({
             <Button
               className="flex-1 bg-primary hover:bg-primary/90"
               disabled={!canSave || isSaving}
-              onClick={() => onSave({ patientId: parseInt(form.patientId), professionalId: form.professionalId ? parseInt(form.professionalId) : null, fecha: form.fecha, resumenSesion: form.resumenSesion || null, observaciones: form.observaciones || null, recomendacionesHogar: form.recomendacionesHogar || null })}
+              onClick={() => onSave({ patientId: parseInt(form.patientId), professionalId: null, fecha: form.fecha, resumenSesion: form.resumenSesion || null, observaciones: form.observaciones || null, recomendacionesHogar: form.recomendacionesHogar || null })}
             >
               {isSaving ? "Guardando..." : "Guardar registro"}
             </Button>

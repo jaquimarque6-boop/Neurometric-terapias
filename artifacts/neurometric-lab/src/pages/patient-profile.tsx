@@ -155,16 +155,17 @@ function formatTs(ts: string) {
 }
 
 // ─── InformeTab helpers ────────────────────────────────────────────────────────
-type InformeData = { v: 2; resumen: string; areas: Record<string, string>; sugerencias: string };
+type InformeData = { v: 3; observaciones: string; sugerencias: string };
 
 function parseInformeData(raw: string | null | undefined): InformeData {
-  if (!raw) return { v: 2, resumen: "", areas: {}, sugerencias: "" };
+  if (!raw) return { v: 3, observaciones: "", sugerencias: "" };
   try {
     const p = JSON.parse(raw);
-    if (p && p.v === 2) return p as InformeData;
-    return { v: 2, resumen: raw, areas: {}, sugerencias: "" };
+    if (p?.v === 3) return p as InformeData;
+    if (p?.v === 2) return { v: 3, observaciones: p.resumen ?? "", sugerencias: p.sugerencias ?? "" };
+    return { v: 3, observaciones: "", sugerencias: "" };
   } catch {
-    return { v: 2, resumen: raw, areas: {}, sugerencias: "" };
+    return { v: 3, observaciones: raw, sugerencias: "" };
   }
 }
 
@@ -172,11 +173,11 @@ function gPct(status: string, progressPct?: number | null): number {
   if (progressPct != null) return progressPct;
   if (status === "logrado")     return 100;
   if (status === "en progreso") return 55;
-  if (status === "activo")      return 15;
+  if (status === "activo")      return 20;
   return 0;
 }
 
-function generarResumenGeneral(
+function generarObservaciones(
   patient: { name: string; age?: number | null; diagnosis?: string | null },
   goals: Goal[], registros: RC[]
 ): string {
@@ -185,217 +186,195 @@ function generarResumenGeneral(
   const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
   const areas     = [...new Set(goals.filter(g => g.status !== "archivado")
     .map(g => g.areaClinica ?? g.category).filter(Boolean))];
+  const ultRec = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  )[0];
   let txt = `${nombre}`;
   if (patient.age) txt += ` (${patient.age} años)`;
-  txt += ` ha participado activamente en el proceso de intervención terapéutica, completando ${registros.length} sesión(es) de trabajo.`;
+  txt += ` ha asistido a ${registros.length} sesión(es) de intervención terapéutica.`;
   if (areas.length > 0)
-    txt += `\n\nEl trabajo clínico ha abordado las siguientes áreas: ${areas.join(", ")}.`;
+    txt += ` El trabajo clínico ha abordado las áreas de: ${areas.join(", ")}.`;
   if (logrados.length > 0)
-    txt += ` Durante el período evaluado se alcanzaron ${logrados.length} objetivo(s) terapéutico(s), evidenciando progreso significativo.`;
+    txt += ` Se han alcanzado ${logrados.length} objetivo(s), evidenciando avances significativos.`;
   if (enProceso.length > 0)
-    txt += ` Actualmente se trabajan ${enProceso.length} objetivo(s) en proceso de adquisición y consolidación.`;
+    txt += ` Actualmente se trabajan ${enProceso.length} objetivo(s) en proceso de adquisición.`;
   if (patient.diagnosis)
     txt += `\n\nDiagnóstico de referencia: ${patient.diagnosis}.`;
+  if (ultRec?.observaciones)
+    txt += `\n\nObservación de última sesión: ${ultRec.observaciones}`;
   return txt;
 }
 
-function generarNarrativaArea(area: string, areaGoals: Goal[], registros: RC[]): string {
-  const nombre    = area.charAt(0).toUpperCase() + area.slice(1);
-  const logrados  = areaGoals.filter(g => g.status === "logrado");
-  const enProceso = areaGoals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const avgPct    = Math.round(
-    areaGoals.reduce((s, g) => s + gPct(g.status, g.progressPct), 0) / areaGoals.length
-  );
-  let parts: string[] = [];
-  if (logrados.length > 0 && enProceso.length > 0) {
-    parts.push(
-      `En el área de ${nombre}, el paciente ha alcanzado ${logrados.length} objetivo(s) ` +
-      `(${logrados.map(g => `"${g.title}"`).join(", ")}) y continúa trabajando en ` +
-      `${enProceso.length} objetivo(s) adicional(es): ${enProceso.map(g => `"${g.title}"`).join(", ")}.`
-    );
-  } else if (logrados.length > 0) {
-    parts.push(
-      `En el área de ${nombre}, el paciente ha logrado todos los objetivos planteados: ` +
-      `${logrados.map(g => `"${g.title}"`).join(", ")}.`
-    );
-  } else if (enProceso.length > 0) {
-    parts.push(
-      `En el área de ${nombre}, el paciente trabaja actualmente en: ` +
-      `${enProceso.map(g => `"${g.title}"`).join(", ")}.`
-    );
-  }
-  if (avgPct >= 80) {
-    parts.push("Se observa un desempeño consistente y sostenido, respondiendo a las actividades con alta frecuencia de éxito y mostrando generalización progresiva.");
-  } else if (avgPct >= 50) {
-    parts.push("Se observan avances progresivos; el paciente requiere apoyo moderado del terapeuta para generalizar las habilidades al contexto cotidiano.");
-  } else {
-    parts.push("El trabajo en esta área se encuentra en etapa inicial. Se requiere apoyo estructurado, repetición sistemática y estrategias de moldeamiento.");
-  }
-  const relevantNote = registros.find(r => r.resumenSesion?.toLowerCase().includes(area.toLowerCase()));
-  if (relevantNote?.resumenSesion) {
-    parts.push(`Nota de sesión: "${relevantNote.resumenSesion.slice(0, 120)}${relevantNote.resumenSesion.length > 120 ? "…" : ""}"`);
-  }
-  return parts.join(" ");
-}
-
-function generarSugerencias(goals: Goal[], registros: RC[]): string {
-  const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const areas     = [...new Set(enProceso.map(g => g.areaClinica ?? g.category).filter(Boolean))];
-  let txt = "Se recomienda mantener la frecuencia de sesiones establecida para consolidar los avances alcanzados.";
-  if (areas.length > 0)
-    txt += ` Continuar trabajando las áreas de ${areas.slice(0, 3).join(", ")} con actividades estructuradas, graduadas y con retroalimentación positiva.`;
-  const ultRec = [...registros].sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())[0];
-  if (ultRec?.recomendacionesHogar)
-    txt += `\n\nSugerencias para el hogar (última sesión): ${ultRec.recomendacionesHogar}`;
-  return txt;
-}
-
-function generarMensajeFamilia(
+function generarSugerenciasFamilia(
   patient: { name: string; age?: number | null },
   goals: Goal[], registros: RC[]
 ): string {
-  const nombre   = patient.name.split(" ")[0];
-  const logrados = goals.filter(g => g.status === "logrado");
+  const nombre    = patient.name.split(" ")[0];
   const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const ultRec   = [...registros].sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())[0];
-  let txt = `Estimada familia de ${nombre},\n\n`;
-  txt += `Queremos compartirles los avances del proceso terapéutico de ${nombre}. Su participación y apoyo en casa son fundamentales para el progreso.`;
-  if (logrados.length > 0)
-    txt += `\n\nEn este período, ${nombre} ha logrado ${logrados.length} objetivo(s) importante(s), lo que refleja su esfuerzo y constancia. ¡Felicitaciones!`;
-  if (enProceso.length > 0)
-    txt += `\n\nContinuamos trabajando en ${enProceso.length} objetivo(s) de manera activa. Es importante reforzar estas habilidades también en el hogar.`;
+  const ultRec    = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  )[0];
+  let txt = `Para apoyar el proceso de ${nombre} en casa, les compartimos las siguientes sugerencias:\n\n`;
+  if (enProceso.length > 0) {
+    txt += `• Reforzar en el día a día las habilidades que estamos trabajando en sesión.\n`;
+    txt += `• Celebrar los logros de ${nombre}, por pequeños que sean.\n`;
+    txt += `• Mantener una rutina estable y predecible.\n`;
+  }
   if (ultRec?.recomendacionesHogar)
-    txt += `\n\nActividades sugeridas para practicar en casa:\n${ultRec.recomendacionesHogar}`;
-  txt += "\n\nGracias por ser parte activa y comprometida de este proceso. Cualquier duda estamos disponibles.";
+    txt += `\nActividades sugeridas:\n${ultRec.recomendacionesHogar}`;
+  txt += `\n\nAnte cualquier consulta, estamos disponibles para ayudarles.`;
   return txt;
+}
+
+// ─── InformeTab sub-components ────────────────────────────────────────────────
+function InformeSectionHeader({
+  icon, title, onSuggest,
+}: { icon: React.ReactNode; title: string; onSuggest?: () => void }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
+      <h3 className="text-xs font-bold text-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+        {icon} {title}
+      </h3>
+      {onSuggest && (
+        <button
+          type="button"
+          onClick={onSuggest}
+          className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
+        >
+          <Sparkles className="h-3 w-3" /> Sugerir texto
+        </button>
+      )}
+    </div>
+  );
+}
+
+function InformeTextarea({
+  label, value, onChange, placeholder, rows = 5,
+}: { label?: string; value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) {
+  return (
+    <div className="relative group">
+      {label && (
+        <p className="text-[10px] font-medium text-muted-foreground mb-1 flex items-center gap-1">
+          <Pencil className="h-2.5 w-2.5" /> {label}
+        </p>
+      )}
+      <Textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="resize-none text-sm bg-muted/30 border-dashed border-border/80 leading-relaxed placeholder:text-muted-foreground/50 focus:border-primary/40 focus:bg-card transition-colors"
+      />
+    </div>
+  );
 }
 
 // ─── InformeTab ───────────────────────────────────────────────────────────────
 type InformeProps = {
-  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; franjaEtaria?: string | null; observaciones?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null; motivoConsulta?: string | null };
+  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null };
   goals: Goal[];
   registros: RC[];
-  profs: Array<{ id: number; professionalId: number; professionalName?: string | null; professionalSpecialty?: string | null }>;
   onSave: (fields: { informeEvolucion?: string; informeFamilia?: string }) => Promise<void>;
 };
 
-const AREA_PDF_COLORS: Record<string, string> = {
-  "lenguaje": "#fce7f3", "habla": "#fef3c7", "pragmática": "#d1fae5",
-  "motricidad orofacial": "#ffedd5", "lectoescritura": "#d1fae5",
-  "cognición": "#ccfbf1", "comprensión": "#fef3c7", "fonología": "#ccfbf1",
-  "estimulación temprana": "#e7e5e4",
-};
-
-function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) {
+function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
-  const [view, setView]   = useState<"tecnico" | "familia">("tecnico");
+  const [view, setView]     = useState<"clinico" | "familia">("clinico");
   const [isSaving, setIsSaving] = useState(false);
 
-  const initialData = parseInformeData(patient.informeEvolucion);
-  const [resumen,    setResumen]    = useState(initialData.resumen);
-  const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initialData.areas);
-  const [sugerencias, setSugerencias] = useState(initialData.sugerencias);
-  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+  const initial = parseInformeData(patient.informeEvolucion);
+  const [observaciones, setObservaciones] = useState(initial.observaciones);
+  const [sugerencias,   setSugerencias]   = useState(initial.sugerencias);
+  const [textoFamilia,  setTextoFamilia]  = useState((patient as any).informeFamilia ?? "");
 
   useEffect(() => {
     const d = parseInformeData(patient.informeEvolucion);
-    setResumen(d.resumen);
-    setAreaTexts(d.areas);
+    setObservaciones(d.observaciones);
     setSugerencias(d.sugerencias);
     setTextoFamilia((patient as any).informeFamilia ?? "");
   }, [patient.informeEvolucion, (patient as any).informeFamilia]);
 
-  const activeGoals     = goals.filter(g => g.status === "activo");
-  const inProgressGoals = goals.filter(g => g.status === "en progreso");
-  const achievedGoals   = goals.filter(g => g.status === "logrado");
-  const workingGoals    = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
-  const totalSessions   = registros.length;
-  const totalActive     = activeGoals.length + inProgressGoals.length;
+  const achievedGoals = goals.filter(g => g.status === "logrado");
+  const workingGoals  = goals.filter(g => ["activo", "en progreso"].includes(g.status));
+  const totalSessions = registros.length;
 
-  const sortedRegistros = [...registros].sort(
+  const sortedReg = [...registros].sort(
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   );
-  const recentRegistros = sortedRegistros.slice(0, 5);
+  const recentReg = sortedReg.slice(0, 3);
 
-  const areaGroups = workingGoals.reduce<Record<string, Goal[]>>((acc, g) => {
-    const a = (g.areaClinica ?? g.category ?? "otro").toLowerCase();
+  const workingByArea = workingGoals.reduce<Record<string, Goal[]>>((acc, g) => {
+    const a = g.areaClinica ?? g.category ?? "general";
     if (!acc[a]) acc[a] = [];
     acc[a].push(g);
     return acc;
   }, {});
-  const areas = Object.keys(areaGroups).sort();
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const informeEvolucion = JSON.stringify({ v: 2, resumen, areas: areaTexts, sugerencias });
+      const informeEvolucion = JSON.stringify({ v: 3, observaciones, sugerencias });
       await onSave({ informeEvolucion, informeFamilia: textoFamilia });
     } finally { setIsSaving(false); }
   };
 
-  const setAreaText = (area: string, text: string) =>
-    setAreaTexts(prev => ({ ...prev, [area]: text }));
-
   const handlePrint = () => {
-    const contentId = view === "familia" ? "informe-familia-content" : "informe-tecnico-content";
+    const contentId = view === "familia" ? "informe-familia-content" : "informe-clinico-content";
     const content   = document.getElementById(contentId)?.innerHTML;
     if (!content) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
-<title>Informe — ${patient.name}</title>
-<style>
+    win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Informe — ${patient.name}</title><style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;padding:40px 48px;font-size:13px;line-height:1.7}
-  h1{font-size:20px;font-weight:700;color:#0E3A6D;margin-bottom:4px}
-  h2{font-size:12px;font-weight:700;color:#334155;margin:20px 0 8px;border-bottom:1.5px solid #e2e8f0;padding-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-  .meta{font-size:11px;color:#64748b;margin-top:3px}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 20px}
-  .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center}
-  .stat-val{font-size:20px;font-weight:700;color:#0E3A6D}
-  .stat-lbl{font-size:10px;color:#64748b;margin-top:2px}
-  .area-section{margin:0 0 18px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
-  .area-header{padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
-  .area-body{padding:10px 14px 14px}
-  .goal-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,.08)}
-  .chip-green{background:#dcfce7;color:#15803d}
-  .chip-amber{background:#fef3c7;color:#92400e}
-  .chip-default{background:#f1f5f9;color:#475569}
-  .area-narrative{font-size:12px;color:#374151;white-space:pre-wrap;line-height:1.7}
-  .sugerencias-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;font-size:12px;color:#166534;white-space:pre-wrap;line-height:1.7;margin-top:6px}
-  .session{padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
-  .session-date{font-size:10px;color:#94a3b8}
-  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:600}
-  .badge-green{background:#dcfce7;color:#15803d}
-  .badge-teal{background:#ccfbf1;color:#0f766e}
-  .badge-amber{background:#fef3c7;color:#92400e}
-  .footer{margin-top:36px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2d1f14;padding:40px 48px;font-size:13px;line-height:1.8}
+  h1{font-size:22px;font-weight:700;color:#7c3d18;margin-bottom:4px}
+  h3{font-size:10.5px;font-weight:700;color:#78716c;text-transform:uppercase;letter-spacing:.07em;margin:24px 0 10px;padding-bottom:5px;border-bottom:1px solid #e7e1d8}
+  .meta{font-size:11px;color:#92897e}
+  .pills{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
+  .pill{background:#fdf6ee;border:1px solid #e8d9c8;border-radius:99px;padding:4px 12px;font-size:11px;color:#6b4c2a;font-weight:600}
+  .pill-green{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+  .pill-amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+  ul{padding:0;margin:0;list-style:none}
+  li{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12.5px;color:#2d1f14;border-bottom:1px solid #f3ede6}
+  li:last-child{border-bottom:none}
+  .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .dot-green{background:#10b981}
+  .dot-amber{background:#f59e0b}
+  .area-label{font-size:9.5px;color:#78716c;margin-left:2px}
+  .bar-row{display:flex;align-items:center;gap:8px;margin-top:3px}
+  .bar-track{flex:1;height:3px;background:#e7e1d8;border-radius:2px}
+  .bar-fill{height:100%;border-radius:2px;background:#c2855a}
+  .text-block{background:#faf8f5;border:1px solid #e7e1d8;border-radius:8px;padding:14px 16px;white-space:pre-wrap;font-size:12.5px;color:#374151;line-height:1.8;min-height:50px}
+  .session-row{padding:6px 0;border-bottom:1px solid #f3ede6;font-size:12px}
+  .session-date{font-size:10px;color:#92897e}
+  .footer{margin-top:36px;padding-top:10px;border-top:1px solid #e7e1d8;font-size:10px;color:#92897e;display:flex;justify-content:space-between}
+  button,svg{display:none}
   textarea{display:none}
-  @media print{body{padding:20px 28px}}
-</style></head><body>${content}
-<div class="footer"><span>Neurometric Lab · Informe Clínico</span><span>Generado el ${today}</span></div>
-</body></html>`);
+  @media print{body{padding:24px 32px}}
+</style></head><body>${content}<div class="footer"><span>Neurometric Lab · Informe Clínico</span><span>${today}</span></div></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
 
   return (
     <div className="space-y-5">
-      {/* Header + actions */}
+
+      {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">Informe clínico</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Estructurado por área · editable · exportable como PDF</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Narrativo · editable · exportable como PDF</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
-            <button onClick={() => setView("tecnico")}
-              className={`px-3 py-1.5 transition-colors ${view === "tecnico" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-              style={view === "tecnico" ? { background: "#0E3A6D" } : {}}>Técnico</button>
+            <button onClick={() => setView("clinico")}
+              className={`px-3 py-1.5 transition-colors ${view === "clinico" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+              Clínico
+            </button>
             <button onClick={() => setView("familia")}
-              className={`px-3 py-1.5 transition-colors ${view === "familia" ? "text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-              style={view === "familia" ? { background: "#20C7C7", color: "#fff" } : {}}>Para familias</button>
+              className={`px-3 py-1.5 transition-colors ${view === "familia" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+              Para familias
+            </button>
           </div>
           <Button size="sm" variant="outline" onClick={handlePrint} className="h-8 gap-1.5 text-xs">
             <Printer className="h-3.5 w-3.5" /> Exportar PDF
@@ -403,186 +382,169 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
         </div>
       </div>
 
-      {/* ── INFORME TÉCNICO ─────────────────────────────────────────────────── */}
-      {view === "tecnico" && (
+      {/* ── INFORME CLÍNICO ──────────────────────────────────────────────────── */}
+      {view === "clinico" && (
         <div className="space-y-4">
           <Card className="border-border/50 shadow-sm">
-            <CardContent className="p-5" id="informe-tecnico-content">
+            <CardContent className="p-6 space-y-6" id="informe-clinico-content">
 
-              {/* Header block */}
-              <div className="flex justify-between items-start mb-5 pb-4 border-b border-border">
+              {/* Patient header */}
+              <div className="flex justify-between items-start pb-4 border-b border-border">
                 <div>
-                  <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
-                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                  <h1 className="text-xl font-bold font-display text-primary">{patient.name}</h1>
+                  <div className="meta text-xs text-muted-foreground mt-1 space-y-0.5">
                     {patient.age && <p>Edad: <span className="font-medium text-foreground/80">{patient.age} años</span></p>}
-                    {patient.diagnosis && <p>Diagnóstico: <span className="font-medium text-foreground/80">{patient.diagnosis}</span></p>}
+                    {(patient as any).diagnosis && <p>Diagnóstico: <span className="font-medium text-foreground/80">{(patient as any).diagnosis}</span></p>}
+                    {(patient as any).profesionalNombre && <p>Profesional: <span className="font-medium text-foreground/80">{(patient as any).profesionalNombre}</span></p>}
                     {patient.fechaInicio && <p>Inicio: <span className="font-medium text-foreground/80">{formatFecha(patient.fechaInicio)}</span></p>}
-                    {profs.length > 0 && <p>Profesional(es): <span className="font-medium text-foreground/80">{profs.map(p => p.professionalName).join(", ")}</span></p>}
                   </div>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
-                  <p className="font-medium">Informe clínico</p>
+                  <p className="font-semibold">Informe clínico</p>
                   <p>{today}</p>
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="stats grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                {[
-                  { label: "Sesiones realizadas", val: totalSessions, color: "text-teal-600" },
-                  { label: "Objetivos en proceso", val: totalActive, color: "text-amber-600" },
-                  { label: "Objetivos logrados",   val: achievedGoals.length, color: "text-emerald-600" },
-                  { label: "Áreas trabajadas",     val: areas.length, color: "text-rose-600" },
-                ].map(s => (
-                  <div key={s.label} className="stat bg-muted/60 border border-border rounded-xl p-3 text-center">
-                    <p className={`stat-val text-2xl font-bold font-display ${s.color}`}>{s.val}</p>
-                    <p className="stat-lbl text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Sección 1: Resumen general ───────────────────────── */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide flex items-center gap-1.5">
-                    <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> Resumen general
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setResumen(generarResumenGeneral(patient, goals, registros))}
-                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
-                  >
-                    <Sparkles className="h-3 w-3" /> Sugerir texto
-                  </button>
+              {/* ── ¿Cómo va el proceso? ─────────────────────────────── */}
+              <div>
+                <InformeSectionHeader icon={<Activity className="h-3.5 w-3.5 text-primary" />} title="¿Cómo va el proceso?" />
+                <div className="pills flex flex-wrap gap-2">
+                  <span className="pill flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-full">
+                    <CalendarDays className="h-3 w-3" />
+                    {totalSessions} {totalSessions === 1 ? "sesión realizada" : "sesiones realizadas"}
+                  </span>
+                  {achievedGoals.length > 0 && (
+                    <span className="pill pill-green flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {achievedGoals.length} {achievedGoals.length === 1 ? "objetivo logrado" : "objetivos logrados"}
+                    </span>
+                  )}
+                  {workingGoals.length > 0 && (
+                    <span className="pill pill-amber flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full">
+                      <Target className="h-3 w-3" />
+                      {workingGoals.length} {workingGoals.length === 1 ? "objetivo en proceso" : "objetivos en proceso"}
+                    </span>
+                  )}
                 </div>
-                <Textarea
-                  value={resumen}
-                  onChange={e => setResumen(e.target.value)}
-                  placeholder={`Describe el progreso general de ${patient.name.split(" ")[0]} en el período. Puedes usar "Sugerir texto" para generar un borrador.`}
-                  rows={5}
-                  className="resize-none text-sm bg-muted/50"
-                />
               </div>
 
-              {/* ── Sección 2: Desarrollo por área ──────────────────── */}
-              {areas.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-4 flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5 text-primary" /> Desarrollo por área
-                  </h2>
-                  <div className="space-y-4">
-                    {areas.map(area => {
-                      const areaGoals = areaGroups[area];
-                      const areaLabel = area.charAt(0).toUpperCase() + area.slice(1);
-                      const ac        = AREA_COLORS[area] ?? { bg: "bg-muted/60", text: "text-muted-foreground", border: "border-border" };
-                      const pdfBg     = AREA_PDF_COLORS[area] ?? "#f8fafc";
-                      const aLogrados = areaGoals.filter(g => g.status === "logrado");
-                      const aActivos  = areaGoals.filter(g => ["activo", "en progreso"].includes(g.status));
-                      const avgPct    = Math.round(areaGoals.reduce((s, g) => s + gPct(g.status, g.progressPct), 0) / areaGoals.length);
-                      return (
-                        <div key={area} className={`area-section rounded-xl border overflow-hidden ${ac.border}`}
-                          style={{ ["--pdf-bg" as string]: pdfBg }}>
-                          {/* Area header */}
-                          <div className={`area-header ${ac.bg} ${ac.text} px-4 py-2.5 flex items-center justify-between`}
-                            style={{ background: pdfBg }}>
-                            <span className="text-xs font-bold uppercase tracking-wide">{areaLabel}</span>
-                            <span className="text-[10px] font-semibold opacity-70">{avgPct}% promedio</span>
-                          </div>
-                          {/* Goals chips */}
-                          <div className="area-body px-4 pt-3 pb-1">
-                            <div className="goal-chips flex flex-wrap gap-1.5 mb-3">
-                              {aLogrados.map(g => (
-                                <span key={g.id} className="chip chip-green flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                  <CheckCircle2 className="h-2.5 w-2.5" /> {g.title}
-                                </span>
-                              ))}
-                              {aActivos.map(g => (
-                                <span key={g.id} className={`chip flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${g.status === "en progreso" ? "chip-amber bg-amber-100 text-amber-700 border-amber-200" : "chip-default bg-muted text-muted-foreground border-border"}`}>
-                                  <Circle className="h-2.5 w-2.5" /> {g.title}
-                                </span>
-                              ))}
-                            </div>
-                            {/* Progress bar */}
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${avgPct}%` }} />
-                              </div>
-                              <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{avgPct}%</span>
-                            </div>
-                          </div>
-                          {/* Editable narrative */}
-                          <div className="px-4 pb-4">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Narrativa clínica</span>
-                              <button
-                                type="button"
-                                onClick={() => setAreaText(area, generarNarrativaArea(area, areaGoals, registros))}
-                                className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
-                              >
-                                <Sparkles className="h-3 w-3" /> Sugerir
-                              </button>
-                            </div>
-                            <Textarea
-                              value={areaTexts[area] ?? ""}
-                              onChange={e => setAreaText(area, e.target.value)}
-                              placeholder={`Describe el desempeño, avances y dificultades en ${areaLabel}…`}
-                              rows={4}
-                              className="area-narrative resize-none text-sm bg-muted/40"
-                            />
-                          </div>
+              {/* ── Lo que logró ─────────────────────────────────────── */}
+              <div>
+                <InformeSectionHeader icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />} title="Lo que logró" />
+                {achievedGoals.length > 0 ? (
+                  <ul className="space-y-2">
+                    {achievedGoals.map(g => (
+                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/40 last:border-0">
+                        <span className="dot dot-green mt-1.5 h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                        <div>
+                          <span className="text-sm text-foreground">{g.title}</span>
+                          {(g.areaClinica || g.category) && (
+                            <span className="area-label ml-2 text-[10px] text-muted-foreground">· {g.areaClinica ?? g.category}</span>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic py-2">
+                    El proceso está en inicio. Los logros aparecerán aquí a medida que se alcancen.
+                  </p>
+                )}
+              </div>
+
+              {/* ── En lo que estamos trabajando ─────────────────────── */}
+              {workingGoals.length > 0 && (
+                <div>
+                  <InformeSectionHeader icon={<Circle className="h-3.5 w-3.5 text-amber-500" />} title="En lo que estamos trabajando" />
+                  <ul className="space-y-2.5">
+                    {Object.entries(workingByArea).map(([area, aGoals]) => (
+                      <li key={area} className="py-0 border-0">
+                        {Object.keys(workingByArea).length > 1 && (
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            {area.charAt(0).toUpperCase() + area.slice(1)}
+                          </p>
+                        )}
+                        <ul className="space-y-2">
+                          {aGoals.map(g => {
+                            const pct = gPct(g.status, g.progressPct);
+                            return (
+                              <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
+                                <span className="dot dot-amber mt-1.5 h-2 w-2 rounded-full bg-amber-400 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm text-foreground">{g.title}</span>
+                                  <div className="bar-row flex items-center gap-2 mt-1.5">
+                                    <div className="bar-track flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                                      <div className="bar-fill h-full rounded-full bg-primary/40" style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground/70 w-7 text-right">{pct}%</span>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
-              {/* ── Sección 3: Sugerencias y continuidad ───────────── */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide flex items-center gap-1.5">
-                    <Lightbulb className="h-3.5 w-3.5 text-amber-500" /> Sugerencias y continuidad
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setSugerencias(generarSugerencias(goals, registros))}
-                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
-                  >
-                    <Sparkles className="h-3 w-3" /> Sugerir texto
-                  </button>
+              {/* ── Observaciones clínicas ─────────────────────────── */}
+              <div>
+                <InformeSectionHeader
+                  icon={<ClipboardList className="h-3.5 w-3.5 text-primary" />}
+                  title="Observaciones clínicas"
+                  onSuggest={() => setObservaciones(generarObservaciones(patient, goals, registros))}
+                />
+                {/* Print version */}
+                <div className="text-block hidden">
+                  {observaciones || "Sin observaciones registradas."}
                 </div>
-                <Textarea
-                  value={sugerencias}
-                  onChange={e => setSugerencias(e.target.value)}
-                  placeholder="Recomendaciones para el próximo período, frecuencia de sesiones, actividades para el hogar…"
-                  rows={4}
-                  className="sugerencias-box resize-none text-sm bg-emerald-50/60 border-emerald-200 placeholder:text-emerald-700/40"
+                <InformeTextarea
+                  value={observaciones}
+                  onChange={setObservaciones}
+                  placeholder={`Describe el desempeño, avances, dificultades y observaciones clínicas relevantes para ${patient.name.split(" ")[0]}…`}
+                  rows={5}
                 />
               </div>
 
-              {/* ── Sección 4: Últimas sesiones ─────────────────────── */}
-              {recentRegistros.length > 0 && (
+              {/* ── Sugerencias para la familia ──────────────────────── */}
+              <div>
+                <InformeSectionHeader
+                  icon={<Home className="h-3.5 w-3.5 text-amber-500" />}
+                  title="Sugerencias para la familia"
+                  onSuggest={() => setSugerencias(generarSugerenciasFamilia(patient, goals, registros))}
+                />
+                <div className="text-block hidden">
+                  {sugerencias || "Sin sugerencias registradas."}
+                </div>
+                <InformeTextarea
+                  value={sugerencias}
+                  onChange={setSugerencias}
+                  placeholder="Escribe aquí recomendaciones para la familia en lenguaje claro y cercano…"
+                  rows={4}
+                />
+              </div>
+
+              {/* ── Últimas sesiones ──────────────────────────────────── */}
+              {recentReg.length > 0 && (
                 <div>
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3 flex items-center gap-1.5">
-                    <CalendarDays className="h-3.5 w-3.5" /> Últimas {recentRegistros.length} sesiones
-                  </h2>
-                  <div className="space-y-2">
-                    {recentRegistros.map(r => (
-                      <div key={r.id} className="session py-2 border-b border-border/50 last:border-0">
-                        <p className="session-date text-[10px] text-muted-foreground">
-                          {formatFecha(r.fecha || r.createdAt)}{r.professionalName ? ` · ${r.professionalName}` : ""}
-                        </p>
+                  <InformeSectionHeader icon={<CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />} title={`Últimas ${recentReg.length} sesiones`} />
+                  <div className="space-y-1">
+                    {recentReg.map(r => (
+                      <div key={r.id} className="session-row py-2 border-b border-border/40 last:border-0">
+                        <p className="session-date text-[10px] text-muted-foreground">{formatFecha(r.fecha || r.createdAt)}</p>
                         {r.resumenSesion && <p className="text-xs text-foreground/80 mt-0.5 line-clamp-2">{r.resumenSesion}</p>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
             </CardContent>
           </Card>
-
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2 text-white" style={{ background: "#0E3A6D" }}>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
               <Save className="h-4 w-4" />
               {isSaving ? "Guardando…" : "Guardar informe"}
             </Button>
@@ -590,99 +552,90 @@ function InformeTab({ patient, goals, registros, profs, onSave }: InformeProps) 
         </div>
       )}
 
-      {/* ── VERSIÓN PARA FAMILIAS ──────────────────────────────────────────── */}
+      {/* ── PARA FAMILIAS ────────────────────────────────────────────────────── */}
       {view === "familia" && (
         <div className="space-y-4">
           <Card className="border-border/50 shadow-sm">
-            <CardContent className="p-5" id="informe-familia-content">
-              <div className="flex justify-between items-start mb-5 pb-4 border-b border-border">
-                <div>
-                  <h1 className="text-xl font-bold font-display" style={{ color: "#0E3A6D" }}>{patient.name}</h1>
-                  {patient.age && <p className="text-xs text-muted-foreground mt-0.5">Edad: {patient.age} años</p>}
-                </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>Informe para la familia</p>
-                  <p>{today}</p>
-                </div>
+            <CardContent className="p-6 space-y-6" id="informe-familia-content">
+
+              {/* Header */}
+              <div className="pb-4 border-b border-border">
+                <h1 className="text-xl font-bold font-display text-primary">{patient.name}</h1>
+                <p className="meta text-xs text-muted-foreground mt-1">Informe para la familia · {today}</p>
               </div>
 
-              {/* Stats */}
-              <div className="mb-4">
-                <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide border-b border-border pb-1.5 mb-3">¿Cómo va el proceso?</h2>
+              {/* ¿Cómo va el proceso? */}
+              <div>
+                <InformeSectionHeader icon={<Activity className="h-3.5 w-3.5 text-primary" />} title="¿Cómo va el proceso?" />
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: "Sesiones realizadas", val: totalSessions, icon: "📅" },
-                    { label: "Objetivos en proceso", val: totalActive, icon: "🎯" },
-                    { label: "Objetivos alcanzados", val: achievedGoals.length, icon: "✅" },
+                    { emoji: "📅", val: totalSessions, label: totalSessions === 1 ? "sesión realizada" : "sesiones realizadas" },
+                    { emoji: "✅", val: achievedGoals.length, label: achievedGoals.length === 1 ? "objetivo alcanzado" : "objetivos alcanzados" },
+                    { emoji: "🎯", val: workingGoals.length, label: workingGoals.length === 1 ? "objetivo en progreso" : "objetivos en progreso" },
                   ].map(s => (
                     <div key={s.label} className="bg-muted/50 border border-border rounded-xl p-3 text-center">
-                      <p className="text-lg">{s.icon}</p>
-                      <p className="text-2xl font-bold font-display text-foreground mt-1">{s.val}</p>
+                      <p className="text-2xl mb-1">{s.emoji}</p>
+                      <p className="text-2xl font-bold font-display text-foreground">{s.val}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* Lo que logró */}
               {achievedGoals.length > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wide border-b border-emerald-100 pb-1.5 mb-3">✅ Lo que ya logró</h2>
-                  <ul className="space-y-1.5">
+                <div>
+                  <InformeSectionHeader icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />} title="Lo que logró ✨" />
+                  <ul className="space-y-2">
                     {achievedGoals.map(g => (
-                      <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                        {g.title}
-                        {g.areaClinica && <span className="text-[10px] text-muted-foreground">· {g.areaClinica}</span>}
+                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
+                        <span className="dot dot-green mt-1.5 h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                        <span className="text-sm text-foreground">{g.title}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {totalActive > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wide border-b border-amber-100 pb-1.5 mb-3">🎯 En lo que estamos trabajando</h2>
-                  <ul className="space-y-1.5">
-                    {[...inProgressGoals, ...activeGoals].map(g => (
-                      <li key={g.id} className="flex items-center gap-2 text-xs text-foreground/80">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
-                        {g.title}
-                        {g.areaClinica && <span className="text-[10px] text-muted-foreground">· {g.areaClinica}</span>}
+              {/* En lo que estamos trabajando */}
+              {workingGoals.length > 0 && (
+                <div>
+                  <InformeSectionHeader icon={<Target className="h-3.5 w-3.5 text-amber-500" />} title="En lo que estamos trabajando" />
+                  <ul className="space-y-2">
+                    {workingGoals.map(g => (
+                      <li key={g.id} className="flex items-start gap-2.5 py-1 border-b border-border/30 last:border-0">
+                        <span className="dot dot-amber mt-1.5 h-2 w-2 rounded-full bg-amber-400 flex-shrink-0" />
+                        <span className="text-sm text-foreground">{g.title}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* Family message — editable */}
+              {/* Mensaje y sugerencias */}
               <div>
-                <div className="flex items-center justify-between mb-2 border-b border-border pb-1.5">
-                  <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-wide">
-                    Mensaje para la familia
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setTextoFamilia(generarMensajeFamilia(patient, goals, registros))}
-                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded-md hover:bg-primary/5"
-                  >
-                    <Sparkles className="h-3 w-3" /> Sugerir texto
-                  </button>
+                <InformeSectionHeader
+                  icon={<MessageSquare className="h-3.5 w-3.5 text-primary" />}
+                  title="Mensaje y sugerencias para la familia"
+                  onSuggest={() => setTextoFamilia(generarSugerenciasFamilia(patient, goals, registros))}
+                />
+                <div className="text-block hidden">
+                  {textoFamilia || "Sin mensaje registrado."}
                 </div>
-                <Textarea
+                <InformeTextarea
                   value={textoFamilia}
-                  onChange={e => setTextoFamilia(e.target.value)}
-                  placeholder="Escribe aquí un mensaje para la familia en lenguaje cercano y no técnico. Usa 'Sugerir texto' para generar un borrador."
-                  rows={8}
-                  className="resize-none text-sm bg-muted/50"
+                  onChange={setTextoFamilia}
+                  placeholder="Escribe aquí un mensaje y sugerencias para la familia en lenguaje cercano y amigable…"
+                  rows={7}
                 />
               </div>
+
             </CardContent>
           </Card>
-
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2 text-white" style={{ background: "#20C7C7" }}>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
               <Save className="h-4 w-4" />
-              {isSaving ? "Guardando…" : "Guardar versión familias"}
+              {isSaving ? "Guardando…" : "Guardar para familias"}
             </Button>
           </div>
         </div>
@@ -1076,16 +1029,6 @@ export default function PatientProfile() {
             <span className="font-semibold text-foreground">{achievedGoals.length}</span>
             <span className="text-muted-foreground">logrados</span>
           </span>
-          {profs.length > 0 && (
-            <>
-              <span className="text-muted-foreground/20 select-none">·</span>
-              <span className="flex items-center gap-1.5 text-sm text-foreground/70">
-                <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-semibold text-foreground">{profs.length}</span>
-                <span className="text-muted-foreground">profesional{profs.length !== 1 ? "es" : ""}</span>
-              </span>
-            </>
-          )}
         </div>
 
         {/* Tabs */}
@@ -1424,7 +1367,6 @@ export default function PatientProfile() {
               patient={patient as any}
               goals={goals}
               registros={registros}
-              profs={profs}
               onSave={handleSaveInforme}
             />
           </TabsContent>

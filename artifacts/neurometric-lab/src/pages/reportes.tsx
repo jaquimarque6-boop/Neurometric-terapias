@@ -1,7 +1,7 @@
-import { BarChart3, TrendingUp, Users, Target, ClipboardList, Sparkles, Download } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, ClipboardList, Sparkles } from "lucide-react";
 import {
   useGetDashboardStats, useListGoals, useListRegistrosClinicos,
-  useListPatients, useListProfessionals,
+  useListPatients,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,15 +19,15 @@ export default function Reportes() {
   const { data: goals = [] }      = useListGoals();
   const { data: registros = [] }  = useListRegistrosClinicos();
   const { data: patients = [] }   = useListPatients();
-  const { data: professionals = [] } = useListProfessionals();
 
   const allGoals = goals as Goal[];
   const allReg   = registros as RC[];
 
   // Goals by status
   const goalStatusData = [
-    { name: "Activos",     value: allGoals.filter(g => g.status === "activo").length,     color: "#6366f1" },
+    { name: "Activos",     value: allGoals.filter(g => g.status === "activo").length,     color: "hsl(24,54%,50%)" },
     { name: "Logrados",    value: allGoals.filter(g => g.status === "logrado").length,    color: "#10b981" },
+    { name: "En progreso", value: allGoals.filter(g => g.status === "en progreso").length, color: "#f59e0b" },
     { name: "Suspendidos", value: allGoals.filter(g => g.status === "suspendido").length, color: "#ef4444" },
   ].filter(d => d.value > 0);
 
@@ -43,14 +43,6 @@ export default function Reportes() {
     recPatMap[k] = (recPatMap[k] ?? 0) + 1;
   }
   const recByPatient = Object.entries(recPatMap).map(([name, count]) => ({ name, count }));
-
-  // Records by professional
-  const recProfMap: Record<string, number> = {};
-  for (const r of allReg) {
-    const k = r.professionalName ?? "Sin profesional";
-    recProfMap[k] = (recProfMap[k] ?? 0) + 1;
-  }
-  const recByProfessional = Object.entries(recProfMap).map(([name, count]) => ({ name: name.split(" ").slice(-1)[0], count }));
 
   return (
     <AppLayout>
@@ -141,51 +133,27 @@ export default function Reportes() {
         </div>
 
         {/* Charts row 2 */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-1 gap-6">
           {/* Records by patient */}
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="pb-4 border-b">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4 text-teal-500" /> Registros por paciente
+                <Users className="h-4 w-4 text-teal-500" /> Sesiones por paciente
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               {recByPatient.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={recByPatient}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 18% 92%)" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="hsl(176,44%,38%)" radius={[4, 4, 0, 0]} name="Registros" />
+                    <Bar dataKey="count" fill="hsl(176,44%,38%)" radius={[4, 4, 0, 0]} name="Sesiones" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Records by professional */}
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader className="pb-4 border-b">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-emerald-500" /> Registros por profesional
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {recByProfessional.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={recByProfessional}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(30 18% 92%)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} name="Registros" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">Sin datos.</div>
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Sin datos de sesiones.</div>
               )}
             </CardContent>
           </Card>
