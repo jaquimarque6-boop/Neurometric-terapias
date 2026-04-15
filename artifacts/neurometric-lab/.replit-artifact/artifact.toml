@@ -23,7 +23,7 @@ BASE_PATH = "/"
 
 [services.production]
 build = ["pnpm", "--filter", "@workspace/neurometric-lab", "run", "build"]
-publicDir = "artifacts/neurometric-lab/dist/public"
+publicDir = "artifacts/neurometric-lab/dist"
 serve = "static"
 
 [[services.production.rewrites]]
