@@ -7,6 +7,7 @@ export const patientsTable = pgTable("patients", {
   fechaNacimiento: text("fecha_nacimiento"),
   diagnosis: text("diagnosis"),
   profesionalNombre: text("profesional_nombre"),
+  assignedProfessionalId: integer("assigned_professional_id"),
   franjaEtaria: text("franja_etaria"),
   fechaInicio: text("fecha_inicio"),
   progreso: text("progreso"),

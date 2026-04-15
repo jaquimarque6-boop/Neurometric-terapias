@@ -20,6 +20,7 @@ import GoalLibrary from "@/pages/goal-library";
 import NuevaSesion from "@/pages/nueva-sesion";
 import Agenda from "@/pages/agenda";
 import Usuario from "@/pages/usuario";
+import Usuarios from "@/pages/usuarios";
 import LoginPage from "@/pages/login";
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ function Router() {
       <Route path="/nueva-sesion" component={() => <ProtectedRoute component={NuevaSesion} />} />
       <Route path="/agenda" component={() => <ProtectedRoute component={Agenda} />} />
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
+      <Route path="/usuarios" component={() => <ProtectedRoute component={Usuarios} />} />
       <Route component={NotFound} />
     </Switch>
   );

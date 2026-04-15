@@ -3,8 +3,9 @@ import { db } from "@workspace/db";
 import {
   patientsTable, registrosTable,
   registrosClinicosTable, goalsTable, goalProgressTable,
+  usersTable,
 } from "@workspace/db/schema";
-import { eq, count } from "drizzle-orm";
+import { eq, count, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -23,17 +24,9 @@ function computeClinicalStatus(
   const totalGoals = activeCount + achievedCount;
 
   if (totalGoals === 0) return "Requiere ajuste";
-
-  // High performance with achieved goals → buen progreso
   if (pct >= 0.70) return "Buen progreso";
-
-  // Good trend: decent performance or significant achieved ratio
   if (pct >= 0.45 || (achievedCount > 0 && achievedCount / totalGoals >= 0.4)) return "En progreso";
-
-  // Has active goals but low performance → stagnated
   if (activeCount > 0 && pct > 0) return "Estancado";
-
-  // No performance data or all goals but zero progress
   return "Requiere ajuste";
 }
 
@@ -52,7 +45,6 @@ function computeNextAction(status: ClinicalStatus, activeCount: number, achieved
 }
 
 function computeCurrentFocus(goals: PatientGoal[]): { title: string; area: string } | null {
-  // Prefer "en progreso" → then "activo"
   const inProgress = goals.find(g => g.status === "en progreso");
   const active = goals.find(g => g.status === "activo");
   const target = inProgress ?? active;
@@ -62,75 +54,163 @@ function computeCurrentFocus(goals: PatientGoal[]): { title: string; area: strin
   return { title: shortTitle, area };
 }
 
+// ─── Auth helper ──────────────────────────────────────────────────────────────
+
+function getSessionUser(req: any): { id: number; role: string } | null {
+  if (!req.session?.userId) return null;
+  return { id: req.session.userId, role: req.session.userRole ?? "professional" };
+}
+
+async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typeof goalsTable.$inferSelect[]) {
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(registrosTable)
+    .where(eq(registrosTable.patientId, p.id));
+
+  const patientGoals = allGoals.filter(g => g.patientId === p.id);
+  const activeGoals  = patientGoals.filter(g => g.status === "activo" || g.status === "en progreso");
+  const achievedGoals = patientGoals.filter(g => g.status === "logrado");
+
+  const clinicalStatus = computeClinicalStatus(
+    p.promedioDesempeno as number | null,
+    activeGoals.length,
+    achievedGoals.length,
+  );
+  const currentFocus = computeCurrentFocus(activeGoals);
+  const nextAction = computeNextAction(clinicalStatus, activeGoals.length, achievedGoals.length);
+
+  return {
+    ...p,
+    totalRegistros: Number(value),
+    createdAt: p.createdAt.toISOString(),
+    clinicalStatus,
+    currentFocus,
+    nextAction,
+    activeGoalsCount: activeGoals.length,
+    achievedGoalsCount: achievedGoals.length,
+  };
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-router.get("/patients", async (_req, res) => {
-  const patients = await db.select().from(patientsTable).orderBy(patientsTable.name);
+router.get("/patients", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
 
-  // Batch load all goals once
+  let patients: typeof patientsTable.$inferSelect[];
+  if (sess.role === "admin") {
+    patients = await db.select().from(patientsTable).orderBy(patientsTable.name);
+  } else {
+    // Professional: only see assigned patients
+    patients = await db
+      .select()
+      .from(patientsTable)
+      .where(eq(patientsTable.assignedProfessionalId, sess.id))
+      .orderBy(patientsTable.name);
+  }
+
   const allGoals = await db.select().from(goalsTable);
 
-  const withCounts = await Promise.all(patients.map(async p => {
-    const [{ value }] = await db
-      .select({ value: count() })
-      .from(registrosTable)
-      .where(eq(registrosTable.patientId, p.id));
-
-    const patientGoals = allGoals.filter(g => g.patientId === p.id);
-    const activeGoals  = patientGoals.filter(g => g.status === "activo" || g.status === "en progreso");
-    const achievedGoals = patientGoals.filter(g => g.status === "logrado");
-
-    const clinicalStatus = computeClinicalStatus(
-      p.promedioDesempeno as number | null,
-      activeGoals.length,
-      achievedGoals.length,
-    );
-    const currentFocus = computeCurrentFocus(activeGoals);
-    const nextAction = computeNextAction(clinicalStatus, activeGoals.length, achievedGoals.length);
-
-    return {
-      ...p,
-      totalRegistros: Number(value),
-      createdAt: p.createdAt.toISOString(),
-      clinicalStatus,
-      currentFocus,
-      nextAction,
-      activeGoalsCount: activeGoals.length,
-      achievedGoalsCount: achievedGoals.length,
-    };
-  }));
+  const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
   res.json(withCounts);
 });
 
 router.post("/patients", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const body = req.body;
+
+  // Determine assigned professional
+  let assignedProfessionalId: number | null = null;
+  let profesionalNombre: string | null = body.profesionalNombre ?? null;
+
+  if (sess.role === "admin") {
+    // Admin can pick any user by id
+    if (body.assignedProfessionalId) {
+      assignedProfessionalId = parseInt(body.assignedProfessionalId);
+      // Look up the professional's name if not provided
+      if (!profesionalNombre) {
+        const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
+        profesionalNombre = prof?.name ?? null;
+      }
+    }
+  } else {
+    // Professional auto-assigns themselves
+    assignedProfessionalId = sess.id;
+    if (!profesionalNombre) {
+      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
+      profesionalNombre = prof?.name ?? null;
+    }
+  }
+
   const [patient] = await db.insert(patientsTable).values({
     name: body.name,
     age: body.age ?? null,
     diagnosis: body.diagnosis ?? null,
-    profesionalNombre: body.profesionalNombre ?? null,
+    profesionalNombre,
+    assignedProfessionalId,
     franjaEtaria: body.franjaEtaria ?? null,
     fechaInicio: body.fechaInicio ?? null,
   }).returning();
+
   res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
 });
 
 router.get("/patients/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
   if (!patient) return res.status(404).json({ error: "Patient not found" });
+
+  // Access check
+  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   res.json({ ...patient, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
 });
 
-async function updatePatientById(id: number, body: any, res: any) {
+async function updatePatientById(id: number, body: any, req: any, res: any) {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
   if (!existing) return res.status(404).json({ error: "Patient not found" });
+
+  // Access check
+  if (sess.role !== "admin" && existing.assignedProfessionalId !== sess.id) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
+  // If admin is reassigning professional
+  let assignedProfessionalId = existing.assignedProfessionalId;
+  let profesionalNombre = existing.profesionalNombre;
+
+  if (sess.role === "admin" && body.assignedProfessionalId !== undefined) {
+    if (body.assignedProfessionalId === null || body.assignedProfessionalId === "") {
+      assignedProfessionalId = null;
+      profesionalNombre = null;
+    } else {
+      assignedProfessionalId = parseInt(body.assignedProfessionalId);
+      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
+      profesionalNombre = prof?.name ?? existing.profesionalNombre;
+    }
+  }
+
+  if (body.profesionalNombre !== undefined && sess.role === "admin") {
+    profesionalNombre = body.profesionalNombre ?? null;
+  }
+
   const [updated] = await db.update(patientsTable).set({
     name: body.name ?? existing.name,
     age: body.age ?? existing.age,
     diagnosis: body.diagnosis ?? existing.diagnosis,
-    profesionalNombre: body.profesionalNombre ?? existing.profesionalNombre,
+    profesionalNombre,
+    assignedProfessionalId,
     franjaEtaria: body.franjaEtaria ?? existing.franjaEtaria,
     fechaInicio: body.fechaInicio ?? existing.fechaInicio,
     observaciones: body.observaciones !== undefined ? body.observaciones : existing.observaciones,
@@ -141,24 +221,35 @@ async function updatePatientById(id: number, body: any, res: any) {
     informeEvolucion: body.informeEvolucion !== undefined ? body.informeEvolucion : existing.informeEvolucion,
     informeFamilia: body.informeFamilia !== undefined ? body.informeFamilia : existing.informeFamilia,
   }).where(eq(patientsTable.id, id)).returning();
+
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
 }
 
 router.put("/patients/:id", async (req, res) => {
-  await updatePatientById(parseInt(req.params.id), req.body, res);
+  await updatePatientById(parseInt(req.params.id), req.body, req, res);
 });
 
 router.patch("/patients/:id", async (req, res) => {
-  await updatePatientById(parseInt(req.params.id), req.body, res);
+  await updatePatientById(parseInt(req.params.id), req.body, req, res);
 });
 
 // ─── Clinical Timeline ────────────────────────────────────────────────────────
 router.get("/patients/:id/timeline", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const patientId = parseInt(req.params.id);
+
+  // Access check
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
   const events: any[] = [];
 
-  // 1. Clinical sessions
   const sessions = await db.select().from(registrosClinicosTable)
     .where(eq(registrosClinicosTable.patientId, patientId));
 
@@ -176,7 +267,6 @@ router.get("/patients/:id/timeline", async (req, res) => {
     });
   }
 
-  // 2. Goals — assignment events + progress
   const goals = await db.select().from(goalsTable)
     .where(eq(goalsTable.patientId, patientId));
 
@@ -229,9 +319,7 @@ router.get("/patients/:id/timeline", async (req, res) => {
     }
   }
 
-  // Sort newest first
   events.sort((a, b) => new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime());
-
   res.json(events);
 });
 

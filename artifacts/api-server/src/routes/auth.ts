@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable, professionalsTable } from "@workspace/db/schema";
+import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -13,7 +13,20 @@ declare module "express-session" {
     professionalId: number | null;
     userName: string;
     userEmail: string;
+    userSpecialty: string | null;
   }
+}
+
+function userToJson(u: typeof usersTable.$inferSelect) {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    professionalId: u.professionalId ?? null,
+    specialty: u.specialty ?? null,
+    active: u.active,
+  };
 }
 
 router.post("/auth/login", async (req, res) => {
@@ -27,6 +40,10 @@ router.post("/auth/login", async (req, res) => {
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
+  if (!user.active) {
+    return res.status(403).json({ error: "Usuario inactivo. Contacte al administrador." });
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: "Credenciales incorrectas" });
@@ -37,42 +54,40 @@ router.post("/auth/login", async (req, res) => {
   req.session.professionalId = user.professionalId ?? null;
   req.session.userName = user.name;
   req.session.userEmail = user.email;
+  req.session.userSpecialty = user.specialty ?? null;
 
-  res.json({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    professionalId: user.professionalId,
-  });
+  res.json(userToJson(user));
 });
 
-router.get("/auth/me", (req, res) => {
+router.get("/auth/me", async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: "No autenticado" });
   }
-  res.json({
-    id: req.session.userId,
-    email: req.session.userEmail,
-    name: req.session.userName,
-    role: req.session.userRole,
-    professionalId: req.session.professionalId,
-  });
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId));
+  if (!user || !user.active) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ error: "No autenticado" });
+  }
+  res.json(userToJson(user));
 });
 
 router.patch("/auth/me", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "No autenticado" });
-  const { name } = req.body;
+  const { name, specialty } = req.body;
   if (!name || typeof name !== "string" || !name.trim()) {
     return res.status(400).json({ error: "Nombre requerido" });
   }
   const [updated] = await db
     .update(usersTable)
-    .set({ name: name.trim() })
+    .set({
+      name: name.trim(),
+      specialty: specialty !== undefined ? (specialty?.trim() || null) : undefined,
+    })
     .where(eq(usersTable.id, req.session.userId))
     .returning();
   req.session.userName = updated.name;
-  res.json({ id: updated.id, email: updated.email, name: updated.name, role: updated.role });
+  req.session.userSpecialty = updated.specialty ?? null;
+  res.json(userToJson(updated));
 });
 
 router.post("/auth/logout", (req, res) => {
@@ -82,7 +97,7 @@ router.post("/auth/logout", (req, res) => {
 });
 
 router.post("/auth/register", async (req, res) => {
-  const { email, password, name, role, professionalId } = req.body;
+  const { email, password, name, role, specialty } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: "Email, contraseña y nombre son requeridos" });
   }
@@ -98,31 +113,12 @@ router.post("/auth/register", async (req, res) => {
     passwordHash,
     name,
     role: role ?? "professional",
-    professionalId: professionalId ? parseInt(professionalId) : null,
+    specialty: specialty ?? null,
+    active: true,
+    professionalId: null,
   }).returning();
 
-  res.status(201).json({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    professionalId: user.professionalId,
-  });
-});
-
-router.get("/auth/users", async (req, res) => {
-  if (req.session.userRole !== "admin") {
-    return res.status(403).json({ error: "Solo administradores" });
-  }
-  const users = await db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    name: usersTable.name,
-    role: usersTable.role,
-    professionalId: usersTable.professionalId,
-    createdAt: usersTable.createdAt,
-  }).from(usersTable);
-  res.json(users.map(u => ({ ...u, createdAt: u.createdAt.toISOString() })));
+  res.status(201).json(userToJson(user));
 });
 
 export async function seedAdminIfNeeded() {
@@ -136,6 +132,8 @@ export async function seedAdminIfNeeded() {
     name: "Administrador",
     role: "admin",
     professionalId: null,
+    specialty: null,
+    active: true,
   });
   console.log("Admin user seeded: admin@neurometric.cl / admin1234");
 }

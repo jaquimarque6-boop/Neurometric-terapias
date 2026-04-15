@@ -39,15 +39,17 @@ artifacts-monorepo/
 | Route | File | Description |
 |-------|------|-------------|
 | `/` | `dashboard.tsx` | Panel clínico — stats, latest sessions, patient list |
-| `/patients` | `patients.tsx` | Patient grid with semáforo badges and performance bars |
+| `/patients` | `patients.tsx` | Patient grid with semáforo badges and performance bars (filtered by role) |
 | `/patients/:id` | `patient-profile.tsx` | Full patient ficha with Ficha/Registros/Plan Terapéutico/Línea de tiempo/Sugerencias/Informe tabs |
 | `/registros` | `registros.tsx` | Clinical records CRUD with search/filter |
 | `/objetivos` | `objetivos.tsx` | Therapeutic goals with status toggle (activo/logrado/suspendido) |
 | `/actividades` | `actividades.tsx` | Activity library (70 activities: clínicas + familia) |
-| `/profesionales` | `professionals.tsx` | Professional management |
+| `/profesionales` | `professionals.tsx` | Professional management (legacy professionals table) |
 | `/reportes` | `reportes.tsx` | Stats charts (recharts) |
 | `/sessions` | `sessions.tsx` | Read-only CSV session data table |
 | `/goal-library` | `goal-library.tsx` | Goal bank browser |
+| `/usuarios` | `usuarios.tsx` | User management — admin only: create/edit/deactivate users |
+| `/usuario` | `usuario.tsx` | Mi perfil — current user profile (name/specialty editable) |
 
 ### Database Schema
 

@@ -213,7 +213,15 @@ export default function Patients() {
                       </span>
                     </div>
 
-                    {/* Row 2: Current focus */}
+                    {/* Row 2: Professional badge */}
+                    {patient.profesionalNombre && (
+                      <p className="text-xs text-muted-foreground/70 truncate leading-none flex items-center gap-1">
+                        <UserCircle className="h-3 w-3 shrink-0" />
+                        {patient.profesionalNombre}
+                      </p>
+                    )}
+
+                    {/* Row 3: Current focus */}
                     {focusLine && (
                       <p className="text-xs text-muted-foreground truncate leading-none">
                         {focusLine}

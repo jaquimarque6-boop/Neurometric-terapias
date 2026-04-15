@@ -11,6 +11,7 @@ import {
   BookOpen,
   CalendarDays,
   UserCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,8 +24,11 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/auth-context";
 
-const navItems = [
+type NavItem = { title: string; url: string; icon: React.FC<{ className?: string }>; adminOnly?: boolean };
+
+const navItems: NavItem[] = [
   { title: "Panel",              url: "/",              icon: LayoutDashboard },
   { title: "Pacientes",          url: "/patients",      icon: Users           },
   { title: "Agenda",             url: "/agenda",        icon: CalendarDays    },
@@ -35,11 +39,15 @@ const navItems = [
   { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays    },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope     },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3       },
+  { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,    adminOnly: true },
   { title: "Mi perfil",          url: "/usuario",       icon: UserCircle      },
 ];
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  const visibleItems = navItems.filter(item => !item.adminOnly || user?.role === "admin");
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
@@ -66,7 +74,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="px-4 gap-0.5">
-              {navItems.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive =
                   location === item.url ||
                   (item.url !== "/" && location.startsWith(item.url));
