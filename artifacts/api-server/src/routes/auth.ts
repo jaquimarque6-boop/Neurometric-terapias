@@ -60,6 +60,21 @@ router.get("/auth/me", (req, res) => {
   });
 });
 
+router.patch("/auth/me", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "No autenticado" });
+  const { name } = req.body;
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return res.status(400).json({ error: "Nombre requerido" });
+  }
+  const [updated] = await db
+    .update(usersTable)
+    .set({ name: name.trim() })
+    .where(eq(usersTable.id, req.session.userId))
+    .returning();
+  req.session.userName = updated.name;
+  res.json({ id: updated.id, email: updated.email, name: updated.name, role: updated.role });
+});
+
 router.post("/auth/logout", (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });

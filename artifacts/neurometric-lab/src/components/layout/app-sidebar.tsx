@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   BookOpen,
   CalendarDays,
+  UserCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const navItems = [
   { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays    },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope     },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3       },
+  { title: "Mi perfil",          url: "/usuario",       icon: UserCircle      },
 ];
 
 export function AppSidebar() {

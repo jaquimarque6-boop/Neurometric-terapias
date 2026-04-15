@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
-  BookOpen, Search, Filter, ChevronDown, ChevronRight,
+  BookOpen, Search, Filter, ChevronDown, ChevronRight, ChevronLeft,
   Target, CheckCircle2, User, Sparkles, ClipboardList,
   AlertCircle, X, Check, Archive, Plus, Star, Lightbulb,
   BarChart2, Link2, SortAsc, Wand2, Stethoscope, Home,
@@ -392,6 +392,12 @@ export default function GoalLibrary() {
         <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
             <div>
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Volver al menú principal
+              </button>
               <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <BookOpen className="h-6 w-6 text-primary" />
                 Banco de Objetivos Terapéuticos

@@ -12,8 +12,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
-const BRAND_BLUE = "#0E3A6D";
-const BRAND_TEAL = "#20C7C7";
+const WARM_TERRACOTTA = "#c2855a";
+const WARM_TEAL = "#3a7570";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/70",  bg: "bg-primary/8",  text: "text-primary"      },
@@ -79,9 +79,9 @@ export default function Dashboard() {
   const citasHoyActive = (citasHoy as any[]).filter(c => c.status !== "cancelada");
 
   const quickLinks = [
-    { label: "Pacientes",          icon: Users,        path: "/patients",    color: BRAND_BLUE },
-    { label: "Agenda",             icon: CalendarDays, path: "/agenda",      color: "#C4703A"  },
-    { label: "Banco de Objetivos", icon: BookOpen,     path: "/goal-library",color: BRAND_TEAL },
+    { label: "Pacientes",          icon: Users,        path: "/patients",    color: WARM_TERRACOTTA },
+    { label: "Agenda",             icon: CalendarDays, path: "/agenda",      color: "#C4703A"       },
+    { label: "Banco de Objetivos", icon: BookOpen,     path: "/goal-library",color: WARM_TEAL       },
   ];
 
   const stats = [
@@ -98,7 +98,7 @@ export default function Dashboard() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs text-muted-foreground font-medium capitalize">{todayLabel}</p>
-            <h1 className="text-2xl font-bold mt-0.5 font-display" style={{ color: BRAND_BLUE }}>
+            <h1 className="text-2xl font-bold mt-0.5 font-display text-primary">
               Hola, {firstName}
             </h1>
           </div>
@@ -109,8 +109,8 @@ export default function Dashboard() {
           <button
             onClick={() => navigate("/nueva-sesion")}
             className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
-                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-            style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #1a5ea0 100%)` }}
+                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]
+                       bg-gradient-to-br from-primary to-primary/75"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
               <ClipboardList className="h-4 w-4" />
@@ -124,8 +124,8 @@ export default function Dashboard() {
           <button
             onClick={() => setShowNewPatient(true)}
             className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
-                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-            style={{ background: `linear-gradient(135deg, ${BRAND_TEAL} 0%, #18b3b3 100%)` }}
+                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]
+                       bg-gradient-to-br from-accent to-accent/75"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
               <Plus className="h-4 w-4" />
@@ -145,8 +145,7 @@ export default function Dashboard() {
             </h2>
             <button
               onClick={() => navigate("/agenda")}
-              className="text-xs font-medium flex items-center gap-0.5 transition-colors hover:opacity-75"
-              style={{ color: BRAND_TEAL }}
+              className="text-xs font-medium flex items-center gap-0.5 transition-colors text-accent hover:text-accent/75"
             >
               Ver agenda <ChevronRight className="h-3.5 w-3.5" />
             </button>
@@ -194,8 +193,7 @@ export default function Dashboard() {
                       </div>
                       <button
                         onClick={() => navigate("/nueva-sesion")}
-                        className="shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90 active:scale-95"
-                        style={{ background: BRAND_TEAL }}
+                        className="shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-accent text-white transition-all hover:bg-accent/85 active:scale-95"
                       >
                         <Sparkles className="h-3 w-3" />
                         Iniciar
@@ -205,22 +203,6 @@ export default function Dashboard() {
                 })}
             </div>
           )}
-        </div>
-
-        {/* ── Stats summary ────────────────────────────────────────────────── */}
-        <div>
-          <h2 className="text-sm font-bold text-foreground mb-3">Resumen</h2>
-          <div className="grid grid-cols-3 gap-3">
-            {stats.map(s => (
-              <div key={s.label} className="bg-card rounded-xl border border-border/50 shadow-sm p-4 text-center">
-                <div className={`inline-flex items-center justify-center h-8 w-8 rounded-xl mb-2 ${s.bg}`}>
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-                <p className={`text-2xl font-bold font-display ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* ── Quick access ─────────────────────────────────────────────────── */}
@@ -243,6 +225,22 @@ export default function Dashboard() {
                 <span className="text-xs font-semibold text-foreground leading-tight">{link.label}</span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Stats summary ────────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-sm font-bold text-foreground mb-3">Resumen</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {stats.map(s => (
+              <div key={s.label} className="bg-card rounded-xl border border-border/50 shadow-sm p-4 text-center">
+                <div className={`inline-flex items-center justify-center h-8 w-8 rounded-xl mb-2 ${s.bg}`}>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+                <p className={`text-2xl font-bold font-display ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{s.label}</p>
+              </div>
             ))}
           </div>
         </div>
