@@ -854,7 +854,7 @@ const GOALS: G[] = [
     franjaEtaria:"2-4", franjaEtariaMin:2, franjaEtariaMax:4, nivelDificultad:"básico", estadoBanco:"activo",
     definicionOperativa:"El paciente esperará que el adulto termine su enunciado antes de vocalizar o señalar, en el 75 % de los intercambios de protoconversación observados durante la sesión." },
 
-  { idObjetió:"SC-4-6-TUR-B-01", nombreObjetivo:"Tomar y ceder el turno usando señales no verbales apropiadas",
+  { idObjetivo:"SC-4-6-TUR-B-01", nombreObjetivo:"Tomar y ceder el turno usando señales no verbales apropiadas",
     modulo:"Comunicación Social", area:"Comunicación Social", areaClinica:"comunicación social", subarea:"Turnos conversacionales",
     franjaEtaria:"4-6", franjaEtariaMin:4, franjaEtariaMax:6, nivelDificultad:"básico", estadoBanco:"activo",
     definicionOperativa:"El paciente usará mirada, pausa y gesto de mano para tomar y ceder el turno conversacional de forma apropiada en el 80 % de los intercambios comunicativos observados en sesión." },

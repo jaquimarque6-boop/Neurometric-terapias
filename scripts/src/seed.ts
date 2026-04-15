@@ -22,14 +22,14 @@ async function seed() {
 
   // Seed patients
   const patients = await db.insert(patientsTable).values([
-    { name: "Elena Vasquez", age: 34, email: "e.vasquez@email.com", phone: "(555) 401-1100", diagnosis: "Major Depressive Disorder", status: "active", professionalId: professionals[0].id },
-    { name: "Thomas Park", age: 28, email: "t.park@email.com", phone: "(555) 401-1101", diagnosis: "Generalized Anxiety Disorder", status: "active", professionalId: professionals[0].id },
-    { name: "Maria Santos", age: 45, email: "m.santos@email.com", phone: "(555) 401-1102", diagnosis: "PTSD", status: "active", professionalId: professionals[2].id },
-    { name: "David Kim", age: 19, email: "d.kim@email.com", phone: "(555) 401-1103", diagnosis: "ADHD", status: "active", professionalId: professionals[3].id },
-    { name: "Rachel Moore", age: 52, email: "r.moore@email.com", phone: "(555) 401-1104", diagnosis: "Bipolar Disorder Type II", status: "active", professionalId: professionals[1].id },
-    { name: "Carlos Mendez", age: 38, email: "c.mendez@email.com", phone: "(555) 401-1105", diagnosis: "Social Anxiety Disorder", status: "inactive", professionalId: professionals[0].id },
-    { name: "Aisha Johnson", age: 26, email: "a.johnson@email.com", phone: "(555) 401-1106", diagnosis: "OCD", status: "active", professionalId: professionals[1].id },
-    { name: "Noah Williams", age: 15, email: "n.williams@email.com", phone: "(555) 401-1107", diagnosis: "Autism Spectrum Disorder", status: "active", professionalId: professionals[3].id },
+    { name: "Elena Vasquez", age: 34, diagnosis: "Major Depressive Disorder", assignedProfessionalId: professionals[0].id },
+    { name: "Thomas Park", age: 28, diagnosis: "Generalized Anxiety Disorder", assignedProfessionalId: professionals[0].id },
+    { name: "Maria Santos", age: 45, diagnosis: "PTSD", assignedProfessionalId: professionals[2].id },
+    { name: "David Kim", age: 19, diagnosis: "ADHD", assignedProfessionalId: professionals[3].id },
+    { name: "Rachel Moore", age: 52, diagnosis: "Bipolar Disorder Type II", assignedProfessionalId: professionals[1].id },
+    { name: "Carlos Mendez", age: 38, diagnosis: "Social Anxiety Disorder", assignedProfessionalId: professionals[0].id },
+    { name: "Aisha Johnson", age: 26, diagnosis: "OCD", assignedProfessionalId: professionals[1].id },
+    { name: "Noah Williams", age: 15, diagnosis: "Autism Spectrum Disorder", assignedProfessionalId: professionals[3].id },
   ]).returning();
 
   console.log(`Seeded ${patients.length} patients`);

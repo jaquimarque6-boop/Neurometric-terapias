@@ -9,3 +9,4 @@ export * from "./patient-professionals";
 export * from "./actividades";
 export * from "./users";
 export * from "./citas";
+export * from "./express-sessions";
