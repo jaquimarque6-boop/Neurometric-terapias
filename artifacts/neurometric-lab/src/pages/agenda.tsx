@@ -501,7 +501,7 @@ export default function AgendaPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCreate(false)} disabled={isSaving}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={isSaving} className="text-white" style={{ background: "#0E3A6D" }}>
+            <Button onClick={handleCreate} disabled={isSaving}>
               {isSaving ? "Guardando…" : form.repetirSemanal ? "Crear serie" : "Crear cita"}
             </Button>
           </DialogFooter>
@@ -557,8 +557,7 @@ export default function AgendaPage() {
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1.5 text-white"
-                  style={{ background: "#0E3A6D" }}
+                  className="gap-1.5"
                   onClick={() => setShowEdit(true)}
                 >
                   <Pencil className="h-3.5 w-3.5" /> Editar
@@ -635,7 +634,7 @@ export default function AgendaPage() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setShowEdit(false)} disabled={isEditSaving}>Cancelar</Button>
-              <Button onClick={handleEdit} disabled={isEditSaving} className="text-white" style={{ background: "#0E3A6D" }}>
+              <Button onClick={handleEdit} disabled={isEditSaving}>
                 {isEditSaving ? "Guardando…" : "Guardar cambios"}
               </Button>
             </DialogFooter>

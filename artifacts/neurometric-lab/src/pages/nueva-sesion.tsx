@@ -17,8 +17,8 @@ import { PERFORMANCE_MAP } from "@/components/registro-clinico-form";
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
-const BRAND_BLUE = "#0E3A6D";
-const BRAND_TEAL = "#20C7C7";
+const BRAND_BLUE = "#96402c";
+const BRAND_TEAL = "#1a6360";
 
 const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   lenguaje:      ["Evocación", "Completar frase", "Asociación imagen-palabra"],
@@ -1706,7 +1706,7 @@ export default function NuevaSesion() {
             </Button>
             <Button
               className="flex-1 text-white font-semibold text-base h-12 rounded-xl shadow-md transition-all hover:opacity-90"
-              style={{ background: canSave ? `linear-gradient(90deg, ${BRAND_TEAL} 0%, #18b3b3 100%)` : undefined }}
+              style={{ background: canSave ? `linear-gradient(90deg, ${BRAND_TEAL} 0%, #0f4e4c 100%)` : undefined }}
               disabled={!canSave || isSaving}
               onClick={handleSave}
             >

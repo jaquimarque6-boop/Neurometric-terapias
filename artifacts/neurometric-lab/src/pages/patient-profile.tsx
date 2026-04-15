@@ -982,7 +982,7 @@ export default function PatientProfile() {
                 <button
                   onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-                  style={{ background: "linear-gradient(90deg,#20C7C7 0%,#18b3b3 100%)" }}
+                  style={{ background: "linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 75%, black) 100%)" }}
                 >
                   <Plus className="h-4 w-4" />
                   Nueva sesión
@@ -1145,8 +1145,7 @@ export default function PatientProfile() {
                   <Button
                     onClick={handleSaveAnamnesis}
                     disabled={isSavingAn}
-                    className="gap-2 text-white"
-                    style={{ background: "#0E3A6D" }}
+                    className="gap-2"
                   >
                     <Save className="h-4 w-4" />
                     {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
@@ -1411,7 +1410,7 @@ export default function PatientProfile() {
               <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
                 Cancelar
               </Button>
-              <Button className="flex-1 text-white" style={{ background: "#0E3A6D" }} onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
+              <Button className="flex-1" onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
                 <Save className="h-4 w-4 mr-1.5" /> {isSavingPatient ? "Guardando…" : "Guardar cambios"}
               </Button>
             </div>
@@ -1480,7 +1479,7 @@ export default function PatientProfile() {
               <Button variant="outline" className="flex-1" onClick={() => { stopRecordingEr(); setEditingRegistro(null); }} disabled={isSavingRegistro}>
                 Cancelar
               </Button>
-              <Button className="flex-1 text-white" style={{ background: "#0E3A6D" }} onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
+              <Button className="flex-1" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
                 <Save className="h-4 w-4 mr-1.5" /> {isSavingRegistro ? "Guardando…" : "Guardar cambios"}
               </Button>
             </div>

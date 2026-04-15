@@ -12,8 +12,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
-const WARM_TERRACOTTA = "#c2855a";
-const WARM_TEAL = "#3a7570";
+const WARM_TERRACOTTA = "#96402c";
+const WARM_TEAL = "#1a6360";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/70",  bg: "bg-primary/8",  text: "text-primary"      },
@@ -163,7 +163,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Sin citas programadas para hoy</p>
               <button
                 onClick={() => navigate("/agenda")}
-                className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
+                className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary/15 transition-colors"
               >
                 Ir a la Agenda
               </button>
@@ -218,7 +218,7 @@ export default function Dashboard() {
               >
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
-                  style={{ background: link.color + "18" }}
+                  style={{ background: link.color + "28" }}
                 >
                   <link.icon className="h-5 w-5" style={{ color: link.color }} />
                 </div>
