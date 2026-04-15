@@ -54,14 +54,14 @@ router.post("/registros-clinicos", async (req, res) => {
     recomendacionesHogar: recomendacionesHogar ?? null,
   }).returning();
 
-  res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
+  return res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
 router.get("/registros-clinicos/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const [record] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
   if (!record) return res.status(404).json({ error: "Not found" });
-  res.json(await enrich(record));
+  return res.json(await enrich(record));
 });
 
 router.patch("/registros-clinicos/:id", async (req, res) => {
@@ -83,7 +83,7 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
 
   const [record] = await db.update(registrosClinicosTable).set(updates).where(eq(registrosClinicosTable.id, id)).returning();
   if (!record) return res.status(404).json({ error: "Not found" });
-  res.json(await enrich(record));
+  return res.json(await enrich(record));
 });
 
 router.delete("/registros-clinicos/:id", async (req, res) => {

@@ -37,7 +37,7 @@ router.post("/goals", async (req, res) => {
     targetDate: targetDate ?? null,
     notas: notas ?? null,
   }).returning();
-  res.status(201).json(await enrich(goal));
+  return res.status(201).json(await enrich(goal));
 });
 
 router.patch("/goals/:id", async (req, res) => {
@@ -73,7 +73,7 @@ router.patch("/goals/:id", async (req, res) => {
     });
   }
 
-  res.json(await enrich(goal));
+  return res.json(await enrich(goal));
 });
 
 router.delete("/goals/:id", async (req, res) => {
@@ -121,7 +121,7 @@ router.post("/goals/:id/progress", async (req, res) => {
     registroClinicoId: registroClinicoId ? parseInt(registroClinicoId) : null,
   }).returning();
 
-  res.status(201).json({
+  return res.status(201).json({
     entry: { ...entry, createdAt: entry.createdAt.toISOString() },
     goal: await enrich(updated),
   });
@@ -148,7 +148,7 @@ router.get("/goals/:id/activities", async (req, res) => {
     }
   }
 
-  res.json({
+  return res.json({
     activities: activities.map(a => ({ ...a, createdAt: a.createdAt.toISOString() })),
     libraryEntry,
   });

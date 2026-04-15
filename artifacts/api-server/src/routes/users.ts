@@ -30,7 +30,7 @@ function userToJson(u: typeof usersTable.$inferSelect) {
 router.get("/users", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
-  res.json(users.map(userToJson));
+  return res.json(users.map(userToJson));
 });
 
 // GET /api/users/professionals — list active professionals for selectors
@@ -40,7 +40,7 @@ router.get("/users/professionals", async (req, res) => {
     .select()
     .from(usersTable)
     .where(eq(usersTable.active, true));
-  res.json(
+  return res.json(
     users
       .filter(u => u.role === "professional" || u.role === "admin")
       .map(u => ({ id: u.id, name: u.name, specialty: u.specialty ?? null, role: u.role }))
@@ -73,7 +73,7 @@ router.post("/users", async (req, res) => {
     professionalId: null,
   }).returning();
 
-  res.status(201).json(userToJson(user));
+  return res.status(201).json(userToJson(user));
 });
 
 // PATCH /api/users/:id — update user (any authenticated user)
@@ -99,7 +99,7 @@ router.patch("/users/:id", async (req, res) => {
     .where(eq(usersTable.id, id))
     .returning();
 
-  res.json(userToJson(updated));
+  return res.json(userToJson(updated));
 });
 
 // DELETE /api/users/:id — deactivate user (any authenticated user, cannot deactivate self)
@@ -118,7 +118,7 @@ router.delete("/users/:id", async (req, res) => {
     .returning();
 
   if (!updated) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json(userToJson(updated));
+  return res.json(userToJson(updated));
 });
 
 export default router;

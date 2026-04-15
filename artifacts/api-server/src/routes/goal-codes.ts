@@ -51,7 +51,7 @@ router.post("/goal-codes/generate", async (req, res) => {
 
   const result = generateUniqueCode(params, existingCodes);
 
-  res.json({
+  return res.json({
     ...result,
     params,
     existingWithSamePrefix: existingCodes.filter(c => c.startsWith(result.prefix + "-")).length,
@@ -81,7 +81,7 @@ router.get("/goal-codes/check", async (req, res) => {
 
   const isUnique = libraryConflicts.length === 0 && patientConflicts.length === 0;
 
-  res.json({
+  return res.json({
     code,
     isValid,
     isUnique,

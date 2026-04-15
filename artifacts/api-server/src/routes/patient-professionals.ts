@@ -44,7 +44,7 @@ router.post("/patient-professionals", async (req, res) => {
     patientId: parseInt(patientId),
     professionalId: parseInt(professionalId),
   }).returning();
-  res.status(201).json(await enrich(row));
+  return res.status(201).json(await enrich(row));
 });
 
 router.delete("/patient-professionals/:id", async (req, res) => {

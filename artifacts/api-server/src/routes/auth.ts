@@ -56,7 +56,7 @@ router.post("/auth/login", async (req, res) => {
   req.session.userEmail = user.email;
   req.session.userSpecialty = user.specialty ?? null;
 
-  res.json(userToJson(user));
+  return res.json(userToJson(user));
 });
 
 router.get("/auth/me", async (req, res) => {
@@ -68,7 +68,7 @@ router.get("/auth/me", async (req, res) => {
     req.session.destroy(() => {});
     return res.status(401).json({ error: "No autenticado" });
   }
-  res.json(userToJson(user));
+  return res.json(userToJson(user));
 });
 
 router.patch("/auth/me", async (req, res) => {
@@ -87,7 +87,7 @@ router.patch("/auth/me", async (req, res) => {
     .returning();
   req.session.userName = updated.name;
   req.session.userSpecialty = updated.specialty ?? null;
-  res.json(userToJson(updated));
+  return res.json(userToJson(updated));
 });
 
 router.post("/auth/logout", (req, res) => {
@@ -118,7 +118,7 @@ router.post("/auth/register", async (req, res) => {
     professionalId: null,
   }).returning();
 
-  res.status(201).json(userToJson(user));
+  return res.status(201).json(userToJson(user));
 });
 
 export async function seedAdminIfNeeded() {

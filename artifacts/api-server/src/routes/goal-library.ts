@@ -131,7 +131,7 @@ router.patch("/goal-library/:id", async (req, res) => {
   if (body.nivel3Descripcion !== undefined) updates.nivel3Descripcion = body.nivel3Descripcion;
   const [item] = await db.update(goalLibraryTable).set(updates).where(eq(goalLibraryTable.id, id)).returning();
   if (!item) return res.status(404).json({ error: "Goal not found" });
-  res.json({ ...item, createdAt: item.createdAt.toISOString() });
+  return res.json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
 // ─── Smart suggestions for a patient ─────────────────────────────────────────
@@ -200,7 +200,7 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
     .slice(0, 8)
     .map(({ _score, ...g }) => ({ ...g, createdAt: g.createdAt.toISOString() }));
 
-  res.json(scored);
+  return res.json(scored);
 });
 
 // ─── Assign goal to patient ───────────────────────────────────────────────────
@@ -230,7 +230,7 @@ router.post("/goal-library/:id/assign", async (req, res) => {
     targetDate: body.targetDate ?? null,
   }).returning();
 
-  res.status(201).json({
+  return res.status(201).json({
     ...goal,
     patientName: patient?.name ?? "",
     createdAt: goal.createdAt.toISOString(),

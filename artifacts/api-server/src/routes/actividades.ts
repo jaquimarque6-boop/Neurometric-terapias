@@ -35,7 +35,7 @@ router.post("/actividades", async (req, res) => {
     objetivoNombre: objetivoNombre ?? null,
   }).returning();
 
-  res.status(201).json({ ...act, createdAt: act.createdAt.toISOString() });
+  return res.status(201).json({ ...act, createdAt: act.createdAt.toISOString() });
 });
 
 router.patch("/actividades/:id", async (req, res) => {
@@ -55,7 +55,7 @@ router.patch("/actividades/:id", async (req, res) => {
   if (objetivoNombre !== undefined) updates.objetivoNombre = objetivoNombre;
 
   const [updated] = await db.update(actividadesTable).set(updates).where(eq(actividadesTable.id, id)).returning();
-  res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
 });
 
 router.delete("/actividades/:id", async (req, res) => {
@@ -63,7 +63,7 @@ router.delete("/actividades/:id", async (req, res) => {
   const [existing] = await db.select().from(actividadesTable).where(eq(actividadesTable.id, id));
   if (!existing) return res.status(404).json({ error: "Activity not found" });
   await db.delete(actividadesTable).where(eq(actividadesTable.id, id));
-  res.status(204).send();
+  return res.status(204).send();
 });
 
 export default router;

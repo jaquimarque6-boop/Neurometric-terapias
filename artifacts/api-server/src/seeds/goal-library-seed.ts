@@ -226,7 +226,7 @@ export async function seedGoalLibraryIfNeeded(): Promise<void> {
     .where(inArray(goalLibraryTable.idObjetivo, ids));
 
   const existingIds = new Set(existing.map(r => r.idObjetivo));
-  const toInsert = (SEED_GOALS as any[]).filter(g => !existingIds.has(g.idObjetivo));
+  const toInsert = [...SEED_GOALS].filter(g => !existingIds.has(g.idObjetivo));
 
   if (toInsert.length === 0) {
     console.log(`[seed] Goal library: all ${ids.length} seed goals already present.`);

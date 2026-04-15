@@ -112,7 +112,7 @@ router.get("/patients", async (req, res) => {
   const allGoals = await db.select().from(goalsTable);
 
   const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
-  res.json(withCounts);
+  return res.json(withCounts);
 });
 
 router.post("/patients", async (req, res) => {
@@ -143,7 +143,7 @@ router.post("/patients", async (req, res) => {
     fechaInicio: body.fechaInicio ?? null,
   }).returning();
 
-  res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
+  return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
 });
 
 router.get("/patients/:id", async (req, res) => {
@@ -160,7 +160,7 @@ router.get("/patients/:id", async (req, res) => {
   }
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
-  res.json({ ...patient, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
+  return res.json({ ...patient, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
 });
 
 async function updatePatientById(id: number, body: any, req: any, res: any) {
@@ -212,7 +212,7 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
   }).where(eq(patientsTable.id, id)).returning();
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
-  res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
+  return res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
 }
 
 router.put("/patients/:id", async (req, res) => {
@@ -309,7 +309,7 @@ router.get("/patients/:id/timeline", async (req, res) => {
   }
 
   events.sort((a, b) => new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime());
-  res.json(events);
+  return res.json(events);
 });
 
 export default router;

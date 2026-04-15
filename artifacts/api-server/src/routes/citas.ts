@@ -95,7 +95,7 @@ router.post("/citas", async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error al crear cita" });
+    return res.status(500).json({ error: "Error al crear cita" });
   }
 });
 
@@ -144,7 +144,7 @@ router.put("/citas/:id", async (req, res) => {
     return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error al actualizar cita" });
+    return res.status(500).json({ error: "Error al actualizar cita" });
   }
 });
 
@@ -174,7 +174,7 @@ router.delete("/citas/:id", async (req, res) => {
     return res.json({ ok: true, scope: "solo" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error al cancelar cita" });
+    return res.status(500).json({ error: "Error al cancelar cita" });
   }
 });
 

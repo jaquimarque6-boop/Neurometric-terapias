@@ -76,13 +76,13 @@ Responde con este JSON exacto (sin código markdown):
       parsed = JSON.parse(jsonMatch[0]);
     }
 
-    res.json({
+    return res.json({
       marcoConceptual: parsed.marcoConceptual?.trim() ?? "",
       sugerenciaFamilia: parsed.sugerenciaFamilia?.trim() ?? "",
     });
   } catch (err: any) {
     console.error("goal-guidance error:", err?.message ?? err);
-    res.status(500).json({ error: "Error generating guidance" });
+    return res.status(500).json({ error: "Error generating guidance" });
   }
 });
 
