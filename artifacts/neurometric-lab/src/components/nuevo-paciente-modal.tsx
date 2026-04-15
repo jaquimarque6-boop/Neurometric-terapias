@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/auth-context";
 
 type ProfUser = { id: number; name: string; specialty: string | null; role: string };
 
@@ -22,7 +21,6 @@ export function NuevoPacienteModal({
 }) {
   const queryClient   = useQueryClient();
   const { toast }     = useToast();
-  const { user }      = useAuth();
   const createPatient = useCreatePatient();
 
   const [professionals, setProfessionals] = useState<ProfUser[]>([]);
@@ -54,7 +52,7 @@ export function NuevoPacienteModal({
       diagnosis: form.diagnosis.trim() || undefined,
     };
 
-    if (user?.role === "admin" && form.assignedProfessionalId && form.assignedProfessionalId !== "__none__") {
+    if (form.assignedProfessionalId && form.assignedProfessionalId !== "__none__") {
       body.assignedProfessionalId = parseInt(form.assignedProfessionalId);
     }
 
@@ -121,36 +119,25 @@ export function NuevoPacienteModal({
             />
           </div>
 
-          {/* Admin picks professional; professional sees their own name */}
+          {/* Anyone can pick a professional */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground/80">
-              Profesional asignado{" "}
-              {user?.role !== "admin" && <span className="text-muted-foreground font-normal">(tú)</span>}
-            </label>
-            {user?.role === "admin" ? (
-              <Select
-                value={form.assignedProfessionalId}
-                onValueChange={v => set("assignedProfessionalId", v === "__none__" ? "" : v)}
-              >
-                <SelectTrigger className="bg-muted/50">
-                  <SelectValue placeholder="Sin asignar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
-                  {professionals.map(p => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name}{p.specialty ? ` — ${p.specialty}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value={user?.name ?? ""}
-                disabled
-                className="bg-muted/30 text-muted-foreground"
-              />
-            )}
+            <label className="text-sm font-medium text-foreground/80">Profesional asignado</label>
+            <Select
+              value={form.assignedProfessionalId}
+              onValueChange={v => set("assignedProfessionalId", v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger className="bg-muted/50">
+                <SelectValue placeholder="Sin asignar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin asignar</SelectItem>
+                {professionals.map(p => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.name}{p.specialty ? ` — ${p.specialty}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

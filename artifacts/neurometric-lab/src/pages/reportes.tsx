@@ -171,10 +171,11 @@ export default function Reportes() {
               <thead className="bg-muted/50 text-muted-foreground border-b">
                 <tr>
                   <th className="px-6 py-3 font-medium">Paciente</th>
-                  <th className="px-6 py-3 font-medium text-center">Objetivos activos</th>
+                  <th className="px-6 py-3 font-medium">Profesional tratante</th>
+                  <th className="px-6 py-3 font-medium text-center">Obj. activos</th>
                   <th className="px-6 py-3 font-medium text-center">Logrados</th>
                   <th className="px-6 py-3 font-medium text-center">Registros</th>
-                  <th className="px-6 py-3 font-medium">Promedio desempeño</th>
+                  <th className="px-6 py-3 font-medium">Desempeño</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
@@ -182,6 +183,7 @@ export default function Reportes() {
                   const pGoals = allGoals.filter(g => g.patientName === p.name || (g as any).patientId === p.id);
                   const pReg = allReg.filter(r => r.patientName === p.name);
                   const pct = p.promedioDesempeno != null ? Math.round(p.promedioDesempeno * 100) : null;
+                  const profesional = (p as any).profesionalNombre ?? null;
                   return (
                     <tr key={p.id} className="hover:bg-muted/40/50 transition-colors">
                       <td className="px-6 py-4">
@@ -189,6 +191,9 @@ export default function Reportes() {
                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold font-display">{p.name.charAt(0)}</div>
                           <span className="font-medium text-foreground">{p.name}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground/80">
+                        {profesional ?? <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="px-6 py-4 text-center font-semibold text-teal-600">{pGoals.filter(g => g.status === "activo").length}</td>
                       <td className="px-6 py-4 text-center font-semibold text-emerald-600">{pGoals.filter(g => g.status === "logrado").length}</td>

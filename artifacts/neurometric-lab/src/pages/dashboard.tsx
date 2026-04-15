@@ -5,7 +5,7 @@ import { es } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus, ClipboardList, ChevronRight, BookOpen,
-  Users, Target, CalendarDays, Clock, Sparkles,
+  Users, Users2, Target, CalendarDays, Clock, Sparkles,
   ArrowRight, Calendar,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -82,6 +82,7 @@ export default function Dashboard() {
     { label: "Pacientes",          icon: Users,        path: "/patients",    color: WARM_TERRACOTTA },
     { label: "Agenda",             icon: CalendarDays, path: "/agenda",      color: "#C4703A"       },
     { label: "Banco de Objetivos", icon: BookOpen,     path: "/goal-library",color: WARM_TEAL       },
+    { label: "Usuarios",           icon: Users2,       path: "/usuarios",    color: "#6d5a3c"       },
   ];
 
   const stats = [
@@ -208,7 +209,7 @@ export default function Dashboard() {
         {/* ── Quick access ─────────────────────────────────────────────────── */}
         <div>
           <h2 className="text-sm font-bold text-foreground mb-3">Acceso rápido</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {quickLinks.map(link => (
               <button
                 key={link.label}

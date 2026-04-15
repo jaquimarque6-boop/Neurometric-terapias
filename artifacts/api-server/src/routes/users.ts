@@ -26,9 +26,9 @@ function userToJson(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /api/users — list all users (admin only)
+// GET /api/users — list all users (any authenticated user)
 router.get("/users", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
   res.json(users.map(userToJson));
 });
@@ -47,12 +47,12 @@ router.get("/users/professionals", async (req, res) => {
   );
 });
 
-// POST /api/users — create user (admin only)
+// POST /api/users — create user (any authenticated user)
 router.post("/users", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const { email, password, name, role, specialty } = req.body;
-  if (!email || !password || !name) {
-    return res.status(400).json({ error: "Email, contraseña y nombre son requeridos" });
+  if (!email || !name) {
+    return res.status(400).json({ error: "Email y nombre son requeridos" });
   }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
@@ -60,7 +60,9 @@ router.post("/users", async (req, res) => {
     return res.status(409).json({ error: "Este email ya está registrado" });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  // If no password provided, generate a random unusable one
+  const rawPwd = password?.trim() || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const passwordHash = await bcrypt.hash(rawPwd, 10);
   const [user] = await db.insert(usersTable).values({
     email: email.toLowerCase().trim(),
     passwordHash,
@@ -74,9 +76,9 @@ router.post("/users", async (req, res) => {
   res.status(201).json(userToJson(user));
 });
 
-// PATCH /api/users/:id — update user (admin only)
+// PATCH /api/users/:id — update user (any authenticated user)
 router.patch("/users/:id", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const id = parseInt(req.params.id);
   const { name, email, role, specialty, active, password } = req.body;
 
@@ -100,9 +102,9 @@ router.patch("/users/:id", async (req, res) => {
   res.json(userToJson(updated));
 });
 
-// DELETE /api/users/:id — deactivate user (admin only, cannot deactivate self)
+// DELETE /api/users/:id — deactivate user (any authenticated user, cannot deactivate self)
 router.delete("/users/:id", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const id = parseInt(req.params.id);
 
   if (id === req.session.userId) {

@@ -121,25 +121,14 @@ router.post("/patients", async (req, res) => {
 
   const body = req.body;
 
-  // Determine assigned professional
+  // Determine assigned professional — any user can pick from the dropdown
   let assignedProfessionalId: number | null = null;
   let profesionalNombre: string | null = body.profesionalNombre ?? null;
 
-  if (sess.role === "admin") {
-    // Admin can pick any user by id
-    if (body.assignedProfessionalId) {
-      assignedProfessionalId = parseInt(body.assignedProfessionalId);
-      // Look up the professional's name if not provided
-      if (!profesionalNombre) {
-        const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
-        profesionalNombre = prof?.name ?? null;
-      }
-    }
-  } else {
-    // Professional auto-assigns themselves
-    assignedProfessionalId = sess.id;
+  if (body.assignedProfessionalId) {
+    assignedProfessionalId = parseInt(body.assignedProfessionalId);
     if (!profesionalNombre) {
-      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
+      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
       profesionalNombre = prof?.name ?? null;
     }
   }

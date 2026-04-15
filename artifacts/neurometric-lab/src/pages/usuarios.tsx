@@ -2,14 +2,13 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
-  Eye, EyeOff, ArrowLeft, ShieldCheck, Stethoscope,
+  ArrowLeft, ShieldCheck, Stethoscope,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/auth-context";
 
 const SPECIALTIES = [
   "Fonoaudiología",
@@ -34,13 +33,11 @@ type AppUser = {
 const emptyForm = {
   name: "",
   email: "",
-  password: "",
   role: "professional" as "admin" | "professional",
   specialty: "",
 };
 
 export default function Usuarios() {
-  const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -48,16 +45,9 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [showPwd, setShowPwd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<AppUser & { password: string }>>({});
-
-  // Only admin can access this page
-  if (user && user.role !== "admin") {
-    navigate("/");
-    return null;
-  }
+  const [editForm, setEditForm] = useState<Partial<AppUser>>({});
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -74,8 +64,8 @@ export default function Usuarios() {
   useEffect(() => { fetchUsers(); }, []);
 
   const handleCreate = async () => {
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      toast({ title: "Completa todos los campos obligatorios", variant: "destructive" });
+    if (!form.name.trim() || !form.email.trim()) {
+      toast({ title: "Nombre y email son obligatorios", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -87,7 +77,6 @@ export default function Usuarios() {
         body: JSON.stringify({
           name: form.name.trim(),
           email: form.email.trim(),
-          password: form.password,
           role: form.role,
           specialty: form.specialty || null,
         }),
@@ -121,7 +110,7 @@ export default function Usuarios() {
 
   const startEdit = (u: AppUser) => {
     setEditingId(u.id);
-    setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "" });
+    setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "" });
   };
 
   const cancelEdit = () => { setEditingId(null); setEditForm({}); };
@@ -135,7 +124,6 @@ export default function Usuarios() {
         role: editForm.role,
         specialty: editForm.specialty || null,
       };
-      if (editForm.password?.trim()) payload.password = editForm.password;
 
       const r = await fetch(`/api/users/${id}`, {
         method: "PATCH",
@@ -205,25 +193,6 @@ export default function Usuarios() {
                 <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Contraseña <span className="text-red-400">*</span></label>
-                <div className="relative">
-                  <Input
-                    type={showPwd ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    value={form.password}
-                    onChange={e => set("password", e.target.value)}
-                    className="bg-muted/30 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Rol</label>
                 <select
                   value={form.role}
@@ -250,7 +219,7 @@ export default function Usuarios() {
               <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); }}>Cancelar</Button>
               <Button
                 onClick={handleCreate}
-                disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim()}
+                disabled={saving || !form.name.trim() || !form.email.trim()}
                 className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2"
               >
                 {saving ? "Guardando…" : "Crear usuario"}
@@ -316,16 +285,6 @@ export default function Usuarios() {
                           {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <label className="text-xs font-medium text-muted-foreground">Nueva contraseña (dejar vacío para no cambiar)</label>
-                        <Input
-                          type="password"
-                          placeholder="Nueva contraseña"
-                          value={editForm.password ?? ""}
-                          onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                          className="bg-muted/30 h-8 text-sm"
-                        />
-                      </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
@@ -371,8 +330,7 @@ export default function Usuarios() {
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      {u.id !== user?.id && (
-                        <Button
+                      <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleToggleActive(u)}
@@ -381,7 +339,6 @@ export default function Usuarios() {
                         >
                           {u.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                         </Button>
-                      )}
                     </div>
                   </div>
                 )}
