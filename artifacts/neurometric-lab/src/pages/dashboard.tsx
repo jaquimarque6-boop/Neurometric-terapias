@@ -109,31 +109,31 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => navigate("/nueva-sesion")}
-            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
-                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]
-                       bg-gradient-to-br from-primary to-primary/75"
+            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold shadow-md
+                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
+            style={{ background: `linear-gradient(135deg, ${WARM_TERRACOTTA} 0%, #6b2d1c 100%)`, color: "#fff" }}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: "rgba(255,255,255,0.18)" }}>
               <ClipboardList className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-bold leading-tight">Nueva sesión</p>
-              <p className="text-xs font-normal text-white/70 mt-0.5">Registrar atención</p>
+              <p className="text-xs font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>Registrar atención</p>
             </div>
           </button>
 
           <button
             onClick={() => setShowNewPatient(true)}
-            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold text-white shadow-md
-                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]
-                       bg-gradient-to-br from-accent to-accent/75"
+            className="flex flex-col items-start gap-2 px-5 py-4 rounded-2xl font-semibold shadow-md
+                       transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
+            style={{ background: `linear-gradient(135deg, ${WARM_TEAL} 0%, #0d3d3b 100%)`, color: "#fff" }}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: "rgba(255,255,255,0.18)" }}>
               <Plus className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-bold leading-tight">Nuevo paciente</p>
-              <p className="text-xs font-normal text-white/70 mt-0.5">Agregar al sistema</p>
+              <p className="text-xs font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>Agregar al sistema</p>
             </div>
           </button>
         </div>
