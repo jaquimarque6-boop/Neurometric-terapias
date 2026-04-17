@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { generateUniqueCode } from "../utils/code-generator";
 
 
@@ -12,7 +12,12 @@ router.get("/goal-library", async (req, res) => {
   const { area, subarea, franja, nivel, estado, q, franjaMin, franjaMax } = req.query as Record<string, string>;
 
   let items = await db.select().from(goalLibraryTable)
-    .orderBy(goalLibraryTable.areaClinica, goalLibraryTable.nivelDificultad, goalLibraryTable.idObjetivo);
+    .orderBy(
+      asc(goalLibraryTable.areaClinica),
+      sql`${goalLibraryTable.franjaEtariaMin} ASC NULLS LAST`,
+      asc(goalLibraryTable.nivelDificultad),
+      asc(goalLibraryTable.idObjetivo),
+    );
 
   if (area && area !== "all") {
     items = items.filter(i => i.areaClinica === area || i.area === area);

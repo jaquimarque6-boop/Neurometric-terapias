@@ -243,6 +243,8 @@ const BLOQUE_AREA_COLORS: Record<string, { bg: string; text: string; border: str
   cognición:   { bg: "bg-stone-100",  text: "text-stone-700",   border: "border-stone-200",  dot: "bg-stone-400"   },
 };
 
+const NIVEL_ORDER: Record<string, number> = { "básico": 0, "basico": 0, "intermedio": 1, "avanzado": 2 };
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function GoalLibrary() {
   const { data: library = [], isLoading } = useListGoalLibrary();
@@ -296,6 +298,19 @@ export default function GoalLibrary() {
     const copy = [...filtered];
     if (sortBy === "codigo") {
       copy.sort((a: any, b: any) => (a.idObjetivo ?? "").localeCompare(b.idObjetivo ?? ""));
+    } else {
+      copy.sort((a: any, b: any) => {
+        const areaA = (a.areaClinica ?? a.area ?? "").toLowerCase();
+        const areaB = (b.areaClinica ?? b.area ?? "").toLowerCase();
+        if (areaA !== areaB) return areaA.localeCompare(areaB);
+        const franjaA = a.franjaEtariaMin ?? 999;
+        const franjaB = b.franjaEtariaMin ?? 999;
+        if (franjaA !== franjaB) return franjaA - franjaB;
+        const nivelA = NIVEL_ORDER[a.nivelDificultad?.toLowerCase() ?? ""] ?? 0;
+        const nivelB = NIVEL_ORDER[b.nivelDificultad?.toLowerCase() ?? ""] ?? 0;
+        if (nivelA !== nivelB) return nivelA - nivelB;
+        return (a.idObjetivo ?? "").localeCompare(b.idObjetivo ?? "");
+      });
     }
     return copy;
   }, [filtered, sortBy]);
