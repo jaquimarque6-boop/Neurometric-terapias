@@ -24,7 +24,6 @@ import {
   useListPatientProfessionals,
   useListProfessionals,
   useCreateRegistroClinico,
-  useCreateGoal,
   useUpdateGoal,
   useUpdatePatient,
   useUpdateRegistroClinico,
@@ -34,6 +33,7 @@ import {
   getGetPatientQueryKey,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -657,6 +657,9 @@ export default function PatientProfile() {
   const { data: allGoals = [] }     = useListGoals({ patientId });
   const { data: assignments = [] }  = useListPatientProfessionals({ patientId });
   const { data: professionals = [] } = useListProfessionals();
+
+  const updateGoal = useUpdateGoal();
+  const assignGoalFromLibrary = useAssignGoalToPatient();
 
   const [expanded, setExpanded] = useState<number | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
@@ -1508,27 +1511,28 @@ export default function PatientProfile() {
         </Dialog>
       )}
 
-      {/* Create goal dialog */}
+      {/* Create custom goal dialog */}
       {showGoalForm && (
-        <Dialog open onOpenChange={() => setShowGoalForm(false)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" /> Nuevo objetivo
-              </DialogTitle>
-              <DialogDescription>Define un objetivo terapéutico para {patient.name}.</DialogDescription>
-            </DialogHeader>
-            <GoalFormInline
-              patientId={patientId}
-              onSave={(data) => createGoal.mutate({ data }, {
-                onSuccess: () => { invalidateGoals(); setShowGoalForm(false); toast({ title: "Objetivo creado" }); },
-                onError: () => toast({ title: "Error", variant: "destructive" }),
-              })}
-              isSaving={createGoal.isPending}
-              onClose={() => setShowGoalForm(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <CustomGoalDialog
+          onClose={() => setShowGoalForm(false)}
+          onCreated={(libraryGoal) => {
+            assignGoalFromLibrary.mutate(
+              { id: libraryGoal.id, data: { patientId } },
+              {
+                onSuccess: () => {
+                  invalidateGoals();
+                  setShowGoalForm(false);
+                  toast({ title: "Objetivo creado y asignado al plan terapéutico" });
+                },
+                onError: () => {
+                  invalidateGoals();
+                  setShowGoalForm(false);
+                  toast({ title: "Objetivo creado", description: "Puedes asignarlo desde el banco de objetivos." });
+                },
+              }
+            );
+          }}
+        />
       )}
 
       {/* Progress tracking dialog */}

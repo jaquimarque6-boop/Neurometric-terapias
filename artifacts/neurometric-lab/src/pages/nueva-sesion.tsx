@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -419,6 +420,7 @@ export default function NuevaSesion() {
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
   const [showBanco, setShowBanco]             = useState(false);
+  const [showCustomGoal, setShowCustomGoal]   = useState(false);
   const [bancoArea, setBancoArea]             = useState("");
   const [bancoSubarea, setBancoSubarea]       = useState("");
   const [bancoSearch, setBancoSearch]         = useState("");
@@ -1469,14 +1471,25 @@ export default function NuevaSesion() {
             {/* ── Banco de objetivos ───────────────────────────────────── */}
             <div className="border-t border-border/50">
               {!showBanco ? (
-                <button
-                  className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"
-                  onClick={() => setShowBanco(true)}
-                >
-                  <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground/70 transition-colors" />
-                  Agregar del banco
-                  <BookOpen className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground" />
-                </button>
+                <div className="divide-y divide-border/30">
+                  <button
+                    className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"
+                    onClick={() => setShowBanco(true)}
+                  >
+                    <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground/70 transition-colors" />
+                    Agregar del banco
+                    <BookOpen className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground" />
+                  </button>
+                  {patient && (
+                    <button
+                      className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"
+                      onClick={() => setShowCustomGoal(true)}
+                    >
+                      <Sparkles className="h-4 w-4 text-violet-400 group-hover:text-violet-500 transition-colors" />
+                      Nuevo objetivo personalizado
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="px-5 py-4 space-y-3">
                   {/* Header */}
@@ -1720,6 +1733,19 @@ export default function NuevaSesion() {
         )}
 
       </div>
+
+      {showCustomGoal && (
+        <CustomGoalDialog
+          onClose={() => setShowCustomGoal(false)}
+          onCreated={(libraryGoal) => {
+            setAdHocGoals(prev => {
+              if (prev.find(g => g.id === libraryGoal.id)) return prev;
+              return [...prev, libraryGoal];
+            });
+            setShowCustomGoal(false);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
