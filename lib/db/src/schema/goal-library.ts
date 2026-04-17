@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const goalLibraryTable = pgTable("goal_library", {
   id: serial("id").primaryKey(),
@@ -27,6 +27,8 @@ export const goalLibraryTable = pgTable("goal_library", {
   nivel3Descripcion: text("nivel_3_descripcion"),
   recomendacionClinica: text("recomendacion_clinica"),
   informeTecnico: text("informe_tecnico"),
+  isCustom: boolean("is_custom").notNull().default(false),
+  createdBy: integer("created_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

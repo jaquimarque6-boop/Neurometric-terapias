@@ -10,6 +10,9 @@ const router: IRouter = Router();
 // ─── List goal library with filters ──────────────────────────────────────────
 router.get("/goal-library", async (req, res) => {
   const { area, subarea, franja, nivel, estado, q, franjaMin, franjaMax } = req.query as Record<string, string>;
+  const session = (req as any).session;
+  const userId: number | undefined = session?.userId;
+  const isAdmin = session?.userRole === "admin";
 
   let items = await db.select().from(goalLibraryTable)
     .orderBy(
@@ -18,6 +21,13 @@ router.get("/goal-library", async (req, res) => {
       asc(goalLibraryTable.nivelDificultad),
       asc(goalLibraryTable.idObjetivo),
     );
+
+  // Only show custom goals belonging to the current user (or all for admin)
+  items = items.filter(i => {
+    if (!i.isCustom) return true;
+    if (isAdmin) return true;
+    return i.createdBy === userId;
+  });
 
   if (area && area !== "all") {
     items = items.filter(i => i.areaClinica === area || i.area === area);
@@ -68,6 +78,8 @@ router.get("/goal-library", async (req, res) => {
 // ─── Create goal in library ───────────────────────────────────────────────────
 router.post("/goal-library", async (req, res) => {
   const body = req.body;
+  const session = (req as any).session;
+  const userId: number | undefined = session?.userId;
 
   let idObjetivo = body.idObjetivo || undefined;
   if (!idObjetivo) {
@@ -96,6 +108,8 @@ router.post("/goal-library", async (req, res) => {
     franjaEtariaMax: body.franjaEtariaMax ?? null,
     nivelDificultad: body.nivelDificultad ?? "básico",
     estadoBanco: "activo",
+    isCustom: body.isCustom === true,
+    createdBy: body.isCustom === true ? (userId ?? null) : null,
     definicionOperativa: body.definicionOperativa ?? null,
     actividadesClinicas: body.actividadesClinicas ?? null,
     actividadesFamilia: body.actividadesFamilia ?? null,

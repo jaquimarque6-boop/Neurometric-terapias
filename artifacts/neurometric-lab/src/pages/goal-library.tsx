@@ -774,6 +774,11 @@ export default function GoalLibrary() {
                                           {goal.nivelDificultad.charAt(0).toUpperCase() + goal.nivelDificultad.slice(1)}
                                         </Badge>
                                       )}
+                                      {goal.isCustom && (
+                                        <Badge variant="outline" className="text-xs bg-violet-50 text-violet-700 border-violet-200">
+                                          <Sparkles className="h-3 w-3 mr-1" /> Personalizado
+                                        </Badge>
+                                      )}
                                       {archived && (
                                         <Badge variant="outline" className="text-xs bg-muted text-muted-foreground border-border">
                                           <Archive className="h-3 w-3 mr-1" /> Archivado
@@ -1644,6 +1649,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
           habilidadesRelacionadas: form.habilidadesRelacionadas || null,
           prerequisitos: form.prerequisitos || null,
           estadoBanco: "activo",
+          isCustom: true,
         }),
       });
       if (!res.ok) throw new Error("Error al crear objetivo");
