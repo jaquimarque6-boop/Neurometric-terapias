@@ -152,7 +152,35 @@ Session-based auth using `express-session` + `bcryptjs`.
 - `AuthProvider` + `useAuth()` hook in `artifacts/neurometric-lab/src/contexts/auth-context.tsx`
 - `LoginPage` at `/login` with branded design + demo credentials hint
 - All routes wrapped in `ProtectedRoute` which redirects to `/login` if not authenticated
+- Admin-only routes (`/usuarios`, `/professionals`) use `AdminRoute` — redirects non-admins to `/`
 - App header shows user name + role + logout dropdown menu
+
+### Multi-User Isolation
+
+Roles: `admin` (super_admin) and `professional`.
+
+**Data scoping rules:**
+- **`admin`**: sees all data globally — all patients, all citas, all registros, all users
+- **`professional`**: sees only their own data, scoped by `userId` or `professionalId` in session
+
+**Backend enforcement** (in each route file):
+- `GET /api/patients` — professionals see only patients where `assignedProfessionalId = session.userId`
+- `POST /api/patients` — professionals auto-assigned as patient's professional (`assignedProfessionalId = session.userId`)
+- `GET /api/citas` — professionals see only citas where `professionalId = session.professionalId`
+- `POST /api/citas` — professionals forced to `professionalId = session.professionalId`
+- `GET /api/registros-clinicos` — professionals see only records where `professionalId = session.professionalId`
+- `POST /api/registros-clinicos` — professionals forced to `professionalId = session.professionalId`
+- `GET /api/users`, `POST /api/users` — admin only (uses `requireAdmin()` guard)
+- `GET /api/dashboard/stats` — professionals get counts scoped to their patients
+
+**Frontend enforcement:**
+- Sidebar: `adminOnly: true` on "Usuarios" and "Profesionales" nav items
+- Dashboard "Acceso rápido": "Usuarios" quick link only shown to admins
+- `AdminRoute` component in `App.tsx` redirects non-admins to `/`
+
+**User creation:**
+- Password is REQUIRED when creating users (min 6 chars). Backend rejects without password (no random fallback).
+- Edit form includes optional password change field.
 
 ### Informe Tab (Clinical Report / PDF Export)
 

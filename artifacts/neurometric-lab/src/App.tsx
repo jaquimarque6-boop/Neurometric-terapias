@@ -55,6 +55,30 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) setLocation("/login");
+      else if (user.role !== "admin") setLocation("/");
+    }
+  }, [loading, user, setLocation]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground text-sm animate-pulse">Cargando…</div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "admin") return null;
+
+  return <Component />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -67,12 +91,12 @@ function Router() {
       <Route path="/objetivos" component={() => <ProtectedRoute component={Objetivos} />} />
       <Route path="/actividades" component={() => <ProtectedRoute component={Actividades} />} />
       <Route path="/reportes" component={() => <ProtectedRoute component={Reportes} />} />
-      <Route path="/professionals" component={() => <ProtectedRoute component={Professionals} />} />
+      <Route path="/professionals" component={() => <AdminRoute component={Professionals} />} />
       <Route path="/goal-library" component={() => <ProtectedRoute component={GoalLibrary} />} />
       <Route path="/nueva-sesion" component={() => <ProtectedRoute component={NuevaSesion} />} />
       <Route path="/agenda" component={() => <ProtectedRoute component={Agenda} />} />
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
-      <Route path="/usuarios" component={() => <ProtectedRoute component={Usuarios} />} />
+      <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
       <Route component={NotFound} />
     </Switch>
   );

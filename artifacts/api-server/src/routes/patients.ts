@@ -131,6 +131,11 @@ router.post("/patients", async (req, res) => {
       const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
       profesionalNombre = prof?.name ?? null;
     }
+  } else if (sess.role !== "admin") {
+    // Professionals are automatically assigned as the patient's professional
+    assignedProfessionalId = sess.id;
+    const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
+    profesionalNombre = prof?.name ?? null;
   }
 
   const [patient] = await db.insert(patientsTable).values({

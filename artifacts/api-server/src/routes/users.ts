@@ -26,9 +26,10 @@ function userToJson(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /api/users — list all users (any authenticated user)
+// GET /api/users — list all users (admin only)
 router.get("/users", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
   return res.json(users.map(userToJson));
 });
@@ -47,9 +48,10 @@ router.get("/users/professionals", async (req, res) => {
   );
 });
 
-// POST /api/users — create user (any authenticated user)
+// POST /api/users — create user (admin only)
 router.post("/users", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
   const { email, password, name, role, specialty } = req.body;
   if (!email || !name) {
     return res.status(400).json({ error: "Email y nombre son requeridos" });

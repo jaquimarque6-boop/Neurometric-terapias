@@ -5,6 +5,15 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+function getSessionUser(req: any): { id: number; role: string; professionalId: number | null } | null {
+  if (!req.session?.userId) return null;
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+    professionalId: req.session.professionalId ?? null,
+  };
+}
+
 async function enrich(r: typeof registrosClinicosTable.$inferSelect) {
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, r.patientId));
   let professionalName = r.professionalName;
@@ -21,15 +30,39 @@ async function enrich(r: typeof registrosClinicosTable.$inferSelect) {
 }
 
 router.get("/registros-clinicos", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const patientId = req.query.patientId ? parseInt(req.query.patientId as string) : null;
+
   let records = await db.select().from(registrosClinicosTable).orderBy(registrosClinicosTable.fecha);
+
+  // Role-based isolation: professionals see only their own records
+  if (sess.role !== "admin") {
+    if (sess.professionalId != null) {
+      records = records.filter(r => r.professionalId === sess.professionalId);
+    } else {
+      records = [];
+    }
+  }
+
   if (patientId) records = records.filter(r => r.patientId === patientId);
   const enriched = await Promise.all(records.map(enrich));
-  res.json(enriched);
+  return res.json(enriched);
 });
 
 router.post("/registros-clinicos", async (req, res) => {
-  const { patientId, professionalId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const { patientId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
+  let { professionalId } = req.body;
+
+  // Professionals always get their own professionalId assigned
+  if (sess.role !== "admin" && sess.professionalId != null) {
+    professionalId = sess.professionalId;
+  }
+
   if (!patientId || !fecha) return res.status(400).json({ error: "patientId and fecha are required" });
 
   let patientName: string | null = null;
@@ -58,14 +91,34 @@ router.post("/registros-clinicos", async (req, res) => {
 });
 
 router.get("/registros-clinicos/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
   const [record] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
   if (!record) return res.status(404).json({ error: "Not found" });
+
+  // Access check
+  if (sess.role !== "admin" && sess.professionalId != null && record.professionalId !== sess.professionalId) {
+    return res.status(403).json({ error: "Sin acceso a este registro" });
+  }
+
   return res.json(await enrich(record));
 });
 
 router.patch("/registros-clinicos/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
+  if (!existing) return res.status(404).json({ error: "Not found" });
+
+  // Access check
+  if (sess.role !== "admin" && sess.professionalId != null && existing.professionalId !== sess.professionalId) {
+    return res.status(403).json({ error: "Sin acceso a este registro" });
+  }
+
   const { professionalId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
 
   const updates: Record<string, any> = {};
@@ -87,9 +140,20 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
 });
 
 router.delete("/registros-clinicos/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
+  if (!existing) return res.status(404).json({ error: "Not found" });
+
+  // Access check
+  if (sess.role !== "admin" && sess.professionalId != null && existing.professionalId !== sess.professionalId) {
+    return res.status(403).json({ error: "Sin acceso a este registro" });
+  }
+
   await db.delete(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
-  res.status(204).send();
+  return res.status(204).send();
 });
 
 export default router;

@@ -37,9 +37,9 @@ const navItems: NavItem[] = [
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen        },
   { title: "Actividades",        url: "/actividades",   icon: Sparkles        },
   { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays    },
-  { title: "Profesionales",      url: "/professionals", icon: Stethoscope     },
+  { title: "Profesionales",      url: "/professionals", icon: Stethoscope,    adminOnly: true },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3       },
-  { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck                   },
+  { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,    adminOnly: true },
   { title: "Mi perfil",          url: "/usuario",       icon: UserCircle      },
 ];
 

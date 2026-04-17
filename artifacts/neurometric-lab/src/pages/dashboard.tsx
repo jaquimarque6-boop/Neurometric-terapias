@@ -78,11 +78,13 @@ export default function Dashboard() {
   const sessionsSemana = (citasSemana as any[]).filter(c => c.status !== "cancelada").length;
   const citasHoyActive = (citasHoy as any[]).filter(c => c.status !== "cancelada");
 
+  const isAdmin = user?.role === "admin";
+
   const quickLinks = [
     { label: "Pacientes",          icon: Users,        path: "/patients",    color: WARM_TERRACOTTA },
     { label: "Agenda",             icon: CalendarDays, path: "/agenda",      color: "#C4703A"       },
     { label: "Banco de Objetivos", icon: BookOpen,     path: "/goal-library",color: WARM_TEAL       },
-    { label: "Usuarios",           icon: Users2,       path: "/usuarios",    color: "#6d5a3c"       },
+    ...(isAdmin ? [{ label: "Usuarios", icon: Users2, path: "/usuarios", color: "#6d5a3c" }] : []),
   ];
 
   const stats = [
