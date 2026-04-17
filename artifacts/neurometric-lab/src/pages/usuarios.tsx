@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
-  ArrowLeft, ShieldCheck, Stethoscope,
+  ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ const emptyForm = {
   email: "",
   role: "professional" as "admin" | "professional",
   specialty: "",
+  password: "",
+  confirmPassword: "",
 };
 
 export default function Usuarios() {
@@ -46,8 +48,10 @@ export default function Usuarios() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<AppUser>>({});
+  const [editForm, setEditForm] = useState<Partial<AppUser & { password: string }>>({});
+  const [showEditPwd, setShowEditPwd] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -68,6 +72,18 @@ export default function Usuarios() {
       toast({ title: "Nombre y email son obligatorios", variant: "destructive" });
       return;
     }
+    if (!form.password.trim()) {
+      toast({ title: "La contraseña es obligatoria", variant: "destructive" });
+      return;
+    }
+    if (form.password.trim().length < 6) {
+      toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      toast({ title: "Las contraseñas no coinciden", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const r = await fetch("/api/users", {
@@ -79,6 +95,7 @@ export default function Usuarios() {
           email: form.email.trim(),
           role: form.role,
           specialty: form.specialty || null,
+          password: form.password.trim(),
         }),
       });
       if (!r.ok) {
@@ -110,12 +127,17 @@ export default function Usuarios() {
 
   const startEdit = (u: AppUser) => {
     setEditingId(u.id);
-    setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "" });
+    setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "" });
+    setShowEditPwd(false);
   };
 
-  const cancelEdit = () => { setEditingId(null); setEditForm({}); };
+  const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); };
 
   const saveEdit = async (id: number) => {
+    if (editForm.password && editForm.password.trim().length < 6) {
+      toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -124,6 +146,7 @@ export default function Usuarios() {
         role: editForm.role,
         specialty: editForm.specialty || null,
       };
+      if (editForm.password?.trim()) payload.password = editForm.password.trim();
 
       const r = await fetch(`/api/users/${id}`, {
         method: "PATCH",
@@ -193,6 +216,44 @@ export default function Usuarios() {
                 <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
               </div>
               <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                  Contraseña <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPwd ? "text" : "password"}
+                    placeholder="Mínimo 6 caracteres"
+                    value={form.password}
+                    onChange={e => set("password", e.target.value)}
+                    className="bg-muted/30 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Confirmar contraseña <span className="text-red-400">*</span></label>
+                <div className="relative">
+                  <Input
+                    type={showPwd ? "text" : "password"}
+                    placeholder="Repite la contraseña"
+                    value={form.confirmPassword}
+                    onChange={e => set("confirmPassword", e.target.value)}
+                    className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                  />
+                </div>
+                {form.confirmPassword && form.password !== form.confirmPassword && (
+                  <p className="text-[11px] text-red-500">Las contraseñas no coinciden</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Rol</label>
                 <select
                   value={form.role}
@@ -203,7 +264,7 @@ export default function Usuarios() {
                   <option value="admin">Administrador</option>
                 </select>
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Especialidad</label>
                 <select
                   value={form.specialty}
@@ -216,10 +277,10 @@ export default function Usuarios() {
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2 border-t border-border/40">
-              <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); }}>Cancelar</Button>
               <Button
                 onClick={handleCreate}
-                disabled={saving || !form.name.trim() || !form.email.trim()}
+                disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword}
                 className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2"
               >
                 {saving ? "Guardando…" : "Crear usuario"}
@@ -284,6 +345,28 @@ export default function Usuarios() {
                           <option value="">Sin especificar</option>
                           {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <KeyRound className="h-3 w-3" /> Nueva contraseña (dejar en blanco para no cambiar)
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type={showEditPwd ? "text" : "password"}
+                            placeholder="Nueva contraseña (opcional)"
+                            value={editForm.password ?? ""}
+                            onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                            className="bg-muted/30 h-8 text-sm pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowEditPwd(v => !v)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            tabIndex={-1}
+                          >
+                            {showEditPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2 justify-end">

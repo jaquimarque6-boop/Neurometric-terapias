@@ -54,15 +54,19 @@ router.post("/users", async (req, res) => {
   if (!email || !name) {
     return res.status(400).json({ error: "Email y nombre son requeridos" });
   }
+  if (!password || !password.trim()) {
+    return res.status(400).json({ error: "La contraseña es obligatoria" });
+  }
+  if (password.trim().length < 6) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+  }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
   if (existing.length > 0) {
     return res.status(409).json({ error: "Este email ya está registrado" });
   }
 
-  // If no password provided, generate a random unusable one
-  const rawPwd = password?.trim() || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  const passwordHash = await bcrypt.hash(rawPwd, 10);
+  const passwordHash = await bcrypt.hash(password.trim(), 10);
   const [user] = await db.insert(usersTable).values({
     email: email.toLowerCase().trim(),
     passwordHash,
