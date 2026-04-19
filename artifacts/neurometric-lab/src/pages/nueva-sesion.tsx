@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { PERFORMANCE_MAP } from "@/components/registro-clinico-form";
+
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
@@ -358,35 +358,45 @@ type RowState = {
 };
 
 const ESTADO_OPTIONS = [
-  { value: "logrado",     label: "✅ Logrado"    },
-  { value: "en progreso", label: "🔵 En progreso" },
-  { value: "con ayuda",   label: "🟡 Con ayuda"   },
-  { value: "no logrado",  label: "🔴 No logrado"  },
+  { value: "nuevo",         label: "Nuevo"         },
+  { value: "en proceso",    label: "En proceso"    },
+  { value: "consolidando",  label: "Consolidando"  },
+  { value: "generalizando", label: "Generalizando" },
 ];
 
 const ESTADO_STYLE: Record<string, string> = {
-  "logrado":     "bg-emerald-50 border-emerald-300 text-emerald-800",
-  "en progreso": "bg-amber-50 border-amber-300 text-amber-800",
-  "con ayuda":   "bg-amber-50 border-amber-300 text-amber-800",
-  "no logrado":  "bg-red-50 border-red-300 text-red-800",
+  "nuevo":         "bg-slate-50 border-slate-300 text-slate-700",
+  "en proceso":    "bg-amber-50 border-amber-300 text-amber-800",
+  "consolidando":  "bg-teal-50 border-teal-300 text-teal-800",
+  "generalizando": "bg-emerald-50 border-emerald-300 text-emerald-800",
 };
 
-const ESTADO_BADGE: Record<string, string> = {
-  "logrado":     "bg-emerald-100 text-emerald-700",
-  "en progreso": "bg-amber-100 text-amber-700",
-  "con ayuda":   "bg-amber-100 text-amber-700",
-  "no logrado":  "bg-red-100 text-red-700",
+const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
+  "nuevo":         { bg: "bg-slate-100 text-slate-600",   label: "Nuevo"         },
+  "en proceso":    { bg: "bg-amber-100 text-amber-700",   label: "En proceso"    },
+  "consolidando":  { bg: "bg-teal-100 text-teal-800",     label: "Consolidando"  },
+  "generalizando": { bg: "bg-emerald-100 text-emerald-700", label: "Generalizando" },
 };
 
-function calcAutoEstado(intentos: string, correctas: string): string | null {
-  const i = parseInt(intentos);
-  const c = parseInt(correctas);
-  if (isNaN(i) || isNaN(c) || i === 0) return null;
-  const pct = Math.min(c, i) / i;
-  if (pct >= 0.8) return "logrado";
-  if (pct >= 0.6) return "en progreso";
-  if (pct >= 0.4) return "con ayuda";
-  return "no logrado";
+const CLINICAL_SUGGESTION: Record<string, string> = {
+  "nuevo":         "Iniciar trabajo con este objetivo",
+  "en proceso":    "Continuar y ajustar apoyos",
+  "consolidando":  "Reducir ayudas y aumentar exigencia",
+  "generalizando": "Llevar a nuevos contextos o cerrar objetivo",
+};
+
+const CLINICAL_PERFORMANCE_MAP: Record<string, { label: string; statusNuevo: string; pct: number }> = {
+  "nuevo":         { label: "Nuevo",         statusNuevo: "activo",      pct: 20 },
+  "en proceso":    { label: "En proceso",    statusNuevo: "en progreso", pct: 50 },
+  "consolidando":  { label: "Consolidando",  statusNuevo: "en progreso", pct: 75 },
+  "generalizando": { label: "Generalizando", statusNuevo: "logrado",     pct: 95 },
+};
+
+function inferClinicalEstado(progressPct?: number | null): string {
+  if (!progressPct || progressPct <= 0) return "nuevo";
+  if (progressPct < 60) return "en proceso";
+  if (progressPct < 85) return "consolidando";
+  return "generalizando";
 }
 
 function calcPct(intentos: string, correctas: string): number | null {
@@ -579,7 +589,7 @@ export default function NuevaSesion() {
 
     const initial: Record<number, RowState> = {};
     suggestedGoals.forEach(g => {
-      initial[g.id] = { checked: true, intentos: "", correctas: "", estado: g.status === "en progreso" ? "en progreso" : "en progreso" };
+      initial[g.id] = { checked: true, intentos: "", correctas: "", estado: inferClinicalEstado(g.progressPct) };
     });
     setRows(initial);
   }, [patient, loadingGoals, suggestedGoals]);
@@ -648,7 +658,7 @@ export default function NuevaSesion() {
   };
 
   // ── Row helpers ───────────────────────────────────────────────────────────
-  const defaultRow = (status = "en progreso"): RowState => ({ checked: false, intentos: "", correctas: "", estado: status });
+  const defaultRow = (status = "nuevo"): RowState => ({ checked: false, intentos: "", correctas: "", estado: status });
 
   const setRow = (goalId: number, patch: Partial<RowState>) =>
     setRows(prev => ({ ...prev, [goalId]: { ...(prev[goalId] ?? defaultRow()), ...patch } }));
@@ -659,7 +669,7 @@ export default function NuevaSesion() {
   };
 
   const setAdHocRow = (libId: number, patch: Partial<RowState>) =>
-    setAdHocRows(prev => ({ ...prev, [libId]: { ...(prev[libId] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso" }), ...patch } }));
+    setAdHocRows(prev => ({ ...prev, [libId]: { ...(prev[libId] ?? { checked: true, intentos: "", correctas: "", estado: "nuevo" }), ...patch } }));
 
   const toggleBancoGoal = (id: number) => {
     setBancoSelected(prev => {
@@ -678,18 +688,29 @@ export default function NuevaSesion() {
   const addSelectedGoals = () => {
     const toAdd = bancoFiltered.filter((g: any) => bancoSelected.has(g.id));
     if (toAdd.length === 0) return;
+    let duplicates = 0;
     setAdHocGoals(prev => {
       const existing = new Set(prev.map((g: any) => g.id));
-      return [...prev, ...toAdd.filter((g: any) => !existing.has(g.id))];
+      const newOnes = toAdd.filter((g: any) => !existing.has(g.id));
+      duplicates = toAdd.length - newOnes.length;
+      return [...prev, ...newOnes];
     });
     setAdHocRows(prev => {
       const next = { ...prev };
       toAdd.forEach((g: any) => {
-        next[g.id] = { checked: true, intentos: "", correctas: "", estado: "en progreso" };
+        if (!next[g.id]) {
+          next[g.id] = { checked: true, intentos: "", correctas: "", estado: "nuevo" };
+        }
       });
       return next;
     });
     setBancoSelected(new Set());
+    if (duplicates > 0) {
+      toast({
+        title: duplicates === 1 ? "Este objetivo ya está agregado" : `${duplicates} objetivos ya estaban agregados`,
+        description: "Los objetivos nuevos fueron añadidos a la sesión.",
+      });
+    }
   };
 
   const removeAdHocGoal = (libId: number) => {
@@ -723,7 +744,7 @@ export default function NuevaSesion() {
       if (checkedGoals.length > 0) {
         await Promise.all(checkedGoals.map(goal => {
           const row = rows[goal.id];
-          const map = PERFORMANCE_MAP[row.estado] ?? PERFORMANCE_MAP["en progreso"];
+          const map = CLINICAL_PERFORMANCE_MAP[row.estado] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
           return fetch(`/api/goals/${goal.id}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -742,7 +763,7 @@ export default function NuevaSesion() {
       if (checkedAdHoc.length > 0) {
         await Promise.all(checkedAdHoc.map(async (libGoal) => {
           const row = adHocRows[libGoal.id];
-          const map = PERFORMANCE_MAP[row.estado] ?? PERFORMANCE_MAP["en progreso"];
+          const map = CLINICAL_PERFORMANCE_MAP[row.estado] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
 
           const alreadyAssigned = (goalsRaw as any[]).find((g: any) => g.goalLibraryId === libGoal.id);
           let goalId: number;
@@ -850,8 +871,8 @@ export default function NuevaSesion() {
       }
     };
     const estadoStyle = ESTADO_STYLE[row.estado] ?? "";
-    const pct = calcPct(row.intentos, row.correctas);
-    const autoEstado = calcAutoEstado(row.intentos, row.correctas);
+    const estadoBadge = ESTADO_BADGE[row.estado];
+    const clinicalTip = CLINICAL_SUGGESTION[row.estado];
     const detailKey = isAdHoc ? `adhoc-${goalId}` : `${goalId}`;
     const showDetail = detailOpenFor.has(detailKey);
     const clinicalContent = getClinicalContent(goalMeta?.area, goalMeta?.subarea);
@@ -880,6 +901,11 @@ export default function NuevaSesion() {
               <p className={`text-xs font-medium leading-snug ${row.checked ? "text-foreground" : "text-muted-foreground"}`}>
                 {title}
               </p>
+              {row.checked && estadoBadge && (
+                <span className={`inline-flex items-center text-[10px] rounded-full px-2 py-0.5 font-semibold shrink-0 ${estadoBadge.bg}`}>
+                  {estadoBadge.label}
+                </span>
+              )}
               {isSuggested && (
                 <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-semibold shrink-0"
                   style={{ background: `${BRAND_TEAL}18`, color: BRAND_TEAL }}>
@@ -926,64 +952,40 @@ export default function NuevaSesion() {
         {row.checked && (
           <div className="px-5 pb-4 border-t border-border/50 space-y-3" onClick={e => e.stopPropagation()}>
 
-            {/* Performance grid: Intentos · Correctas · Estado */}
-            {false && (
-              <div className="grid grid-cols-3 gap-2 pt-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Intentos</label>
-                <Input type="number" min={0} placeholder="0"
-                  value={row.intentos}
-                  onChange={e => onSetRow({ intentos: e.target.value })}
-                  className="bg-white h-9 text-sm text-center" />
-              </div>
-                
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Correctas</label>
-                <Input type="number" min={0} placeholder="0"
-                  value={row.correctas}
-                  onChange={e => onSetRow({ correctas: e.target.value })}
-                  className="bg-white h-9 text-sm text-center" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Estado</label>
-                  {autoEstado && autoEstado !== row.estado && (
-                    <button
-                      onClick={() => onSetRow({ estado: autoEstado })}
-                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all hover:opacity-80"
-                      style={{ background: `${BRAND_TEAL}15`, color: BRAND_TEAL }}
-                      title="Aplicar estado sugerido"
-                    >
-                      → {autoEstado}
-                    </button>
-                  )}
-                </div>
-                <Select value={row.estado} onValueChange={v => onSetRow({ estado: v })}>
-                  <SelectTrigger className={`h-9 text-xs border ${estadoStyle}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADO_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            )}
-
-            {/* Performance bar */}
-            {pct !== null && (
+            {/* Estado clínico + sugerencia */}
+            <div className="pt-2 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-1.5 rounded-full transition-all ${pct >= 80 ? "bg-emerald-400" : pct >= 60 ? "bg-teal-400" : pct >= 40 ? "bg-amber-400" : "bg-red-400"}`}
-                    style={{ width: `${Math.min(pct, 100)}%` }}
-                  />
+                <label className="text-xs font-medium text-muted-foreground shrink-0">Estado clínico</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ESTADO_OPTIONS.map(o => {
+                    const badge = ESTADO_BADGE[o.value];
+                    const isActive = row.estado === o.value;
+                    return (
+                      <button
+                        key={o.value}
+                        onClick={() => onSetRow({ estado: o.value })}
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                          isActive
+                            ? `${badge?.bg} border-current ring-1 ring-current/30`
+                            : "bg-muted/60 text-muted-foreground border-border hover:bg-muted"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <span className="text-xs font-bold text-muted-foreground w-9 text-right">{pct}%</span>
               </div>
-            )}
+              {clinicalTip && (
+                <div className="flex items-start gap-1.5 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+                  <span className="text-sm shrink-0">🧠</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wide">Sugerencia clínica</p>
+                    <p className="text-xs text-foreground/80 mt-0.5">{clinicalTip}</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Clinical detail toggle — always available when row is checked */}
             <button
@@ -1285,6 +1287,10 @@ export default function NuevaSesion() {
                                 if (prev.find(a => a.id === g.id)) return prev;
                                 return [...prev, g];
                               });
+                              setAdHocRows(prev => {
+                                if (prev[g.id]) return prev;
+                                return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
+                              });
                             }}
                           >
                             + Agregar
@@ -1317,15 +1323,15 @@ export default function NuevaSesion() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground/80 truncate">{lastWorkedGoal.title}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ESTADO_BADGE[lastWorkedGoal.status] ?? "bg-muted text-muted-foreground"}`}>
-                          {lastWorkedGoal.status}
-                        </span>
-                        {lastWorkedGoal.progressPct != null && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" />
-                            {lastWorkedGoal.progressPct}%
-                          </span>
-                        )}
+                        {(() => {
+                          const ce = inferClinicalEstado(lastWorkedGoal.progressPct);
+                          const b = ESTADO_BADGE[ce];
+                          return (
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
+                              {b?.label ?? ce}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1339,7 +1345,7 @@ export default function NuevaSesion() {
                 </p>
                 <div className="space-y-2">
                   {suggestedGoals.map(goal => {
-                    const row = rows[goal.id] ?? defaultRow(goal.status);
+                    const row = rows[goal.id] ?? defaultRow(inferClinicalEstado(goal.progressPct));
                     return (
                       <button
                         key={goal.id}
@@ -1363,9 +1369,15 @@ export default function NuevaSesion() {
                             {goal.areaClinica ?? goal.category}
                           </p>
                         </div>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${ESTADO_BADGE[goal.status] ?? "bg-muted text-muted-foreground"}`}>
-                          {goal.status}
-                        </span>
+                        {(() => {
+                          const ce = inferClinicalEstado(goal.progressPct);
+                          const b = ESTADO_BADGE[ce];
+                          return (
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
+                              {b?.label ?? ce}
+                            </span>
+                          );
+                        })()}
                       </button>
                     );
                   })}
@@ -1574,7 +1586,7 @@ export default function NuevaSesion() {
                     goalId={goal.id}
                     title={goal.title}
                     subtitle={`${goal.areaClinica ?? goal.category}${goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}${goal.franjaEtaria ? ` · ${goal.franjaEtaria} años` : ""}`}
-                    row={rows[goal.id] ?? defaultRow(goal.status)}
+                    row={rows[goal.id] ?? defaultRow(inferClinicalEstado(goal.progressPct))}
                     onToggle={() => toggleRow(goal.id)}
                     onSetRow={patch => setRow(goal.id, patch)}
                     isSuggested
@@ -1590,7 +1602,7 @@ export default function NuevaSesion() {
                     goalId={libGoal.id}
                     title={libGoal.nombreObjetivo}
                     subtitle={`${libGoal.areaClinica ?? libGoal.area ?? ""}${libGoal.nivelDificultad ? ` · ${libGoal.nivelDificultad}` : ""}${libGoal.franjaEtaria ? ` · ${libGoal.franjaEtaria} años` : ""}`}
-                    row={adHocRows[libGoal.id] ?? { checked: true, intentos: "", correctas: "", estado: "en progreso" }}
+                    row={adHocRows[libGoal.id] ?? { checked: true, intentos: "", correctas: "", estado: "nuevo" }}
                     onToggle={() => setAdHocRow(libGoal.id, { checked: !(adHocRows[libGoal.id]?.checked ?? true) })}
                     onSetRow={patch => setAdHocRow(libGoal.id, patch)}
                     isAdHoc
