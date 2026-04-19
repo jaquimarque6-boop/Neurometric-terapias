@@ -238,6 +238,19 @@ export default function AgendaPage() {
       catch { return false; }
     });
 
+  const openCreateForDay = (day: Date, hour?: number) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    const h = hour !== undefined ? Math.max(START_HOUR, Math.min(END_HOUR - 1, hour)) : 9;
+    const hEnd = Math.min(h + 1, END_HOUR);
+    setForm({
+      ...DEFAULT_FORM,
+      fecha: dateStr,
+      horaInicio: `${String(h).padStart(2, "0")}:00`,
+      horaFin: `${String(hEnd).padStart(2, "0")}:00`,
+    });
+    setShowCreate(true);
+  };
+
   const hoursLabels = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
   const isToday = (d: Date) => isSameDay(d, new Date());
 
@@ -274,7 +287,7 @@ export default function AgendaPage() {
           </div>
           <Button
             size="sm"
-            className="gap-1.5"
+            className="gap-1.5 hidden sm:flex"
             onClick={() => { setForm({ ...DEFAULT_FORM }); setShowCreate(true); }}
           >
             <Plus className="h-4 w-4" /> Nueva cita
@@ -288,9 +301,10 @@ export default function AgendaPage() {
             <div className="sticky top-0 z-10 bg-white border-b border-border/50 flex">
               <div className="w-14 shrink-0" />
               {days.map((day, i) => (
-                <div
+                <button
                   key={i}
-                  className={`flex-1 text-center py-2 border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/5" : ""}`}
+                  onClick={() => openCreateForDay(day)}
+                  className={`flex-1 text-center py-2 border-l border-border/40 first:border-l-0 transition-colors active:bg-primary/10 hover:bg-muted/40 ${isToday(day) ? "bg-primary/5" : ""}`}
                 >
                   <p className={`text-xs font-semibold uppercase tracking-wide ${isToday(day) ? "text-primary" : "text-muted-foreground"}`}>
                     {DAYS_ES[i]}
@@ -301,7 +315,7 @@ export default function AgendaPage() {
                   {isToday(day) && (
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mt-1" />
                   )}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -326,8 +340,15 @@ export default function AgendaPage() {
                 return (
                   <div
                     key={dayIdx}
-                    className={`flex-1 relative border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/[0.02]" : ""}`}
+                    className={`flex-1 relative border-l border-border/40 first:border-l-0 cursor-pointer group/col ${isToday(day) ? "bg-primary/[0.02]" : ""}`}
                     style={{ height: GRID_HEIGHT + 16 }}
+                    onClick={e => {
+                      if ((e.target as HTMLElement).closest("button")) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const relY = e.clientY - rect.top;
+                      const hour = Math.floor(relY / HOUR_PX) + START_HOUR;
+                      openCreateForDay(day, hour);
+                    }}
                   >
                     {/* Hour grid lines */}
                     {hoursLabels.map(h => (
@@ -378,6 +399,16 @@ export default function AgendaPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Mobile floating action button ───────────────────────────────────── */}
+        <button
+          onClick={() => { setForm({ ...DEFAULT_FORM }); setShowCreate(true); }}
+          className="sm:hidden fixed bottom-6 right-5 z-50 flex items-center gap-2 bg-primary text-primary-foreground rounded-full shadow-lg px-5 py-3.5 text-sm font-semibold active:scale-95 transition-transform"
+          aria-label="Nueva cita"
+        >
+          <Plus className="h-5 w-5" />
+          Nueva cita
+        </button>
       </SidebarInset>
 
       {/* ── Create appointment modal ────────────────────────────────────────────── */}
