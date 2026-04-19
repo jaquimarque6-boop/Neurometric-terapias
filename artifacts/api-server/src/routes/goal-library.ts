@@ -16,8 +16,8 @@ router.get("/goal-library", async (req, res) => {
 
   let items = await db.select().from(goalLibraryTable)
     .orderBy(
-      asc(goalLibraryTable.areaClinica),
       sql`${goalLibraryTable.franjaEtariaMin} ASC NULLS LAST`,
+      asc(goalLibraryTable.areaClinica),
       asc(goalLibraryTable.nivelDificultad),
       asc(goalLibraryTable.idObjetivo),
     );

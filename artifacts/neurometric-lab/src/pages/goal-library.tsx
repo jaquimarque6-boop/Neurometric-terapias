@@ -300,12 +300,12 @@ export default function GoalLibrary() {
       copy.sort((a: any, b: any) => (a.idObjetivo ?? "").localeCompare(b.idObjetivo ?? ""));
     } else {
       copy.sort((a: any, b: any) => {
-        const areaA = (a.areaClinica ?? a.area ?? "").toLowerCase();
-        const areaB = (b.areaClinica ?? b.area ?? "").toLowerCase();
-        if (areaA !== areaB) return areaA.localeCompare(areaB);
         const franjaA = a.franjaEtariaMin ?? 999;
         const franjaB = b.franjaEtariaMin ?? 999;
         if (franjaA !== franjaB) return franjaA - franjaB;
+        const areaA = (a.areaClinica ?? a.area ?? "").toLowerCase();
+        const areaB = (b.areaClinica ?? b.area ?? "").toLowerCase();
+        if (areaA !== areaB) return areaA.localeCompare(areaB);
         const nivelA = NIVEL_ORDER[a.nivelDificultad?.toLowerCase() ?? ""] ?? 0;
         const nivelB = NIVEL_ORDER[b.nivelDificultad?.toLowerCase() ?? ""] ?? 0;
         if (nivelA !== nivelB) return nivelA - nivelB;
