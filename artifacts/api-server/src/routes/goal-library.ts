@@ -153,9 +153,24 @@ router.patch("/goal-library/:id", async (req, res) => {
   return res.json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
+// ─── Diagnosis → area keywords ────────────────────────────────────────────────
+const DIAG_KEYWORDS: Record<string, string[]> = {
+  "lenguaje":              ["TEL", "TDL", "retraso del lenguaje", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
+  "habla":                 ["trastorno fonológico", "dislalia", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla", "TEL", "TDL"],
+  "pragmática":            ["TEA", "TDL", "autismo", "pragmática", "social", "conducta"],
+  "cognición":             ["TDAH", "TEA", "atención", "memoria", "ejecutivas", "cognitivo"],
+  "lectoescritura":        ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía"],
+  "motricidad oral":       ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "apraxia", "disartria", "deglución atípica"],
+  "motricidad orofacial":  ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "apraxia", "disartria", "deglución atípica"],
+  "estimulación temprana": ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé"],
+  "voz":                   ["voz", "disfonía", "nódulos", "fonación"],
+};
+
 // ─── Smart suggestions for a patient ─────────────────────────────────────────
 router.get("/patients/:id/suggested-goals", async (req, res) => {
   const patientId = parseInt(req.params.id);
+  const { diagnosis: diagnosisOverride, limit: limitParam } = req.query as Record<string, string>;
+
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Patient not found" });
 
@@ -169,17 +184,18 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
   const franjaRaw = patient.franjaEtaria ?? "";
   const [franjaMin, franjaMax] = franjaRaw.split("-").map(Number);
 
-  const diagnosis = (patient.diagnosis ?? "").toLowerCase();
+  // Allow caller to override the stored diagnosis (e.g. session-specific selection)
+  const diagnosis = (diagnosisOverride ?? patient.diagnosis ?? "").toLowerCase();
+  const resultLimit = limitParam ? parseInt(limitParam) : 10;
 
   const scored = allLibraryGoals
     .filter(g => !assignedLibraryIds.has(g.id))
     .map(g => {
       let score = 0;
 
-      // Age match — prefer min/max integers if available, fall back to parsed text
+      // Age match
       const gMin = g.franjaEtariaMin ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[0]) : null);
       const gMax = g.franjaEtariaMax ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[1]) : null);
-
       if (gMin !== null && gMax !== null && !isNaN(gMin) && !isNaN(gMax)) {
         if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) {
           score += 4;
@@ -191,21 +207,11 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
       }
 
       // Diagnosis keyword match per area
-      const diagKeywords: Record<string, string[]> = {
-        "lenguaje":             ["TEL", "retraso del lenguaje", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
-        "habla":                ["trastorno fonológico", "dislalia", "tartamudez", "fluidez", "articulación", "habla"],
-        "pragmática":           ["TEA", "autismo", "pragmática", "social", "conducta"],
-        "lectoescritura":       ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía"],
-        "cognición":            ["TDAH", "atención", "memoria", "ejecutivas", "cognitivo"],
-        "motricidad orofacial": ["deglución", "orofacial", "praxis", "tono", "respiración"],
-        "estimulación temprana":["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé"],
-      };
-
-      for (const [area, keywords] of Object.entries(diagKeywords)) {
-        if ((g.areaClinica ?? "").toLowerCase() === area) {
-          for (const kw of keywords) {
-            if (diagnosis.includes(kw.toLowerCase())) { score += 3; break; }
-          }
+      if (diagnosis) {
+        const area = (g.areaClinica ?? g.area ?? "").toLowerCase();
+        const keywords = DIAG_KEYWORDS[area] ?? [];
+        for (const kw of keywords) {
+          if (diagnosis.includes(kw.toLowerCase())) { score += 5; break; }
         }
       }
 
@@ -216,7 +222,7 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
     })
     .filter(g => g._score > 0)
     .sort((a, b) => b._score - a._score)
-    .slice(0, 8)
+    .slice(0, resultLimit)
     .map(({ _score, ...g }) => ({ ...g, createdAt: g.createdAt.toISOString() }));
 
   return res.json(scored);

@@ -48,6 +48,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import { DIAGNOSES } from "@/utils/diagnosis-map";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RC = {
@@ -1402,7 +1403,17 @@ export default function PatientProfile() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
-                <Input value={epDiagnosis} onChange={e => setEpDiagnosis(e.target.value)} placeholder="Diagnóstico principal" className="bg-muted/50" />
+                <Select value={epDiagnosis || "__none"} onValueChange={v => setEpDiagnosis(v === "__none" ? "" : v)}>
+                  <SelectTrigger className="bg-muted/50">
+                    <SelectValue placeholder="Seleccionar diagnóstico…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Sin diagnóstico registrado</SelectItem>
+                    {DIAGNOSES.map(d => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/70">Notas generales</label>

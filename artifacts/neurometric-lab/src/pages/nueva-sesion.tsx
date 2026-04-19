@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
-  Mic, MicOff, Check, BookmarkPlus,
+  Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp,
 } from "lucide-react";
+import { DIAGNOSES } from "@/utils/diagnosis-map";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
@@ -419,6 +420,11 @@ export default function NuevaSesion() {
   const [adHocGoals, setAdHocGoals]           = useState<any[]>([]);
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
+  const [sessionDiagnosis, setSessionDiagnosis]   = useState("");
+  const [diagSuggestions, setDiagSuggestions]     = useState<any[]>([]);
+  const [loadingDiagSug, setLoadingDiagSug]       = useState(false);
+  const [showDiagSug, setShowDiagSug]             = useState(true);
+
   const [showBanco, setShowBanco]             = useState(false);
   const [showCustomGoal, setShowCustomGoal]   = useState(false);
   const [bancoArea, setBancoArea]             = useState("");
@@ -588,6 +594,8 @@ export default function NuevaSesion() {
     setDetailCache({});
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
+    setSessionDiagnosis(p.diagnosis ?? "");
+    setDiagSuggestions([]);
   };
 
   // Auto-select patient from URL param once patients list is available
@@ -597,6 +605,20 @@ export default function NuevaSesion() {
     if (found) selectPatient(found);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preselectedId, patients]);
+
+  // ── Fetch diagnosis-based goal suggestions from the library ──────────────────
+  useEffect(() => {
+    if (!patient || !sessionDiagnosis) { setDiagSuggestions([]); return; }
+    let cancelled = false;
+    setLoadingDiagSug(true);
+    const params = new URLSearchParams({ diagnosis: sessionDiagnosis, limit: "12" });
+    fetch(`/api/patients/${patient.id}/suggested-goals?${params}`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled) setDiagSuggestions(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setDiagSuggestions([]); })
+      .finally(() => { if (!cancelled) setLoadingDiagSug(false); });
+    return () => { cancelled = true; };
+  }, [patient?.id, sessionDiagnosis]);
 
   // ── Fetch clinical detail (libraryEntry + activities) for a goal ───────────
   const fetchDetail = async (goalId: number) => {
@@ -1159,7 +1181,6 @@ export default function NuevaSesion() {
                 <p className="text-xs text-muted-foreground pl-1">
                   <strong className="text-foreground/80">{patient.name}</strong>
                   {patient.age && ` · ${patient.age} años`}
-                  {patient.diagnosis && ` · ${patient.diagnosis}`}
                 </p>
               )}
             </div>
@@ -1175,7 +1196,108 @@ export default function NuevaSesion() {
               />
             </div>
           </div>
+          {patient && (
+            <div className="space-y-1.5 border-t border-border/40 pt-3">
+              <label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
+                <Stethoscope className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+                Diagnóstico
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {DIAGNOSES.map(d => {
+                  const active = sessionDiagnosis === d.value;
+                  return (
+                    <button
+                      key={d.value}
+                      onClick={() => setSessionDiagnosis(active ? "" : d.value)}
+                      className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                        active
+                          ? "text-white border-transparent shadow-sm"
+                          : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground/80"
+                      }`}
+                      style={active ? { background: BRAND_TEAL, borderColor: BRAND_TEAL } : {}}
+                    >
+                      {d.value}
+                    </button>
+                  );
+                })}
+              </div>
+              {sessionDiagnosis && (
+                <p className="text-xs text-muted-foreground pl-0.5">
+                  {DIAGNOSES.find(d => d.value === sessionDiagnosis)?.label}
+                </p>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* ── Objetivos sugeridos por diagnóstico ───────────────────────── */}
+        {patient && sessionDiagnosis && (
+          <div className="rounded-2xl border border-violet-200 shadow-sm overflow-hidden bg-violet-50/40">
+            <button
+              className="w-full flex items-center justify-between gap-2 px-5 py-3.5"
+              onClick={() => setShowDiagSug(v => !v)}
+            >
+              <div className="flex items-center gap-2">
+                <Stethoscope className="h-4 w-4 text-violet-500" />
+                <h2 className="text-sm font-bold text-violet-900">Objetivos sugeridos por diagnóstico</h2>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-600 border border-violet-200">
+                  {sessionDiagnosis}
+                </span>
+              </div>
+              {showDiagSug
+                ? <ChevronUp className="h-4 w-4 text-violet-400 shrink-0" />
+                : <ChevronDown className="h-4 w-4 text-violet-400 shrink-0" />}
+            </button>
+
+            {showDiagSug && (
+              <div className="border-t border-violet-100 divide-y divide-violet-100">
+                {loadingDiagSug ? (
+                  <div className="px-5 py-6 text-center text-sm text-muted-foreground">Buscando objetivos…</div>
+                ) : diagSuggestions.length === 0 ? (
+                  <div className="px-5 py-6 text-center text-sm text-muted-foreground">
+                    Sin sugerencias para este diagnóstico y franja etaria.
+                  </div>
+                ) : (
+                  diagSuggestions.map((g: any) => {
+                    const alreadyAdded = adHocGoals.some(a => a.id === g.id);
+                    const alreadyAssigned = (goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id);
+                    return (
+                      <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {g.areaClinica ?? g.area}
+                            {g.nivelDificultad && ` · ${g.nivelDificultad}`}
+                            {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+                          </p>
+                        </div>
+                        {alreadyAssigned ? (
+                          <span className="text-[10px] font-medium text-muted-foreground shrink-0 mt-0.5">Asignado</span>
+                        ) : alreadyAdded ? (
+                          <span className="text-[10px] font-medium shrink-0 mt-0.5" style={{ color: BRAND_TEAL }}>
+                            <Check className="h-3.5 w-3.5 inline" /> Agregado
+                          </span>
+                        ) : (
+                          <button
+                            className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
+                            onClick={() => {
+                              setAdHocGoals(prev => {
+                                if (prev.find(a => a.id === g.id)) return prev;
+                                return [...prev, g];
+                              });
+                            }}
+                          >
+                            + Agregar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Guía de la sesión ─────────────────────────────────────────── */}
         {patient && !loadingGoals && goals.length > 0 && (
