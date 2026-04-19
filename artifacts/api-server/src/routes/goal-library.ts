@@ -107,7 +107,7 @@ router.post("/goal-library", async (req, res) => {
     franjaEtariaMin: body.franjaEtariaMin ?? null,
     franjaEtariaMax: body.franjaEtariaMax ?? null,
     nivelDificultad: body.nivelDificultad ?? "básico",
-    estadoBanco: "activo",
+    estadoBanco: body.estadoBanco ?? "activo",
     isCustom: body.isCustom === true,
     createdBy: body.isCustom === true ? (userId ?? null) : null,
     definicionOperativa: body.definicionOperativa ?? null,

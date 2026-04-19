@@ -75,13 +75,13 @@ export function CustomGoalDialog({ onClose, onCreated }: Props) {
           franjaEtariaMax: franjaMax,
           definicionOperativa: form.descripcion || null,
           nivelDificultad: "básico",
-          estadoBanco: "activo",
+          estadoBanco: "sesion",
           isCustom: true,
         }),
       });
       if (!res.ok) throw new Error("Error al crear objetivo");
       const created: CreatedLibraryGoal = await res.json();
-      toast({ title: "Objetivo personalizado creado", description: `"${created.nombreObjetivo}" agregado al banco.` });
+      toast({ title: "Objetivo creado", description: `"${created.nombreObjetivo}" agregado a la sesión.` });
       onCreated(created);
     } catch (e: any) {
       toast({ title: "Error al crear objetivo", description: e.message, variant: "destructive" });
@@ -98,7 +98,7 @@ export function CustomGoalDialog({ onClose, onCreated }: Props) {
             <Sparkles className="h-5 w-5 text-violet-500" /> Nuevo objetivo personalizado
           </DialogTitle>
           <DialogDescription>
-            Crea un objetivo propio. Quedará guardado en tu banco y disponible para asignar.
+            Crea un objetivo para esta sesión. Puedes guardarlo en el banco después si quieres reutilizarlo.
           </DialogDescription>
         </DialogHeader>
 

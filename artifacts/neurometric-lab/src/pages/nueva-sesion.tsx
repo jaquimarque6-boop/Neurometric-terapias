@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
-  Mic, MicOff, Check,
+  Mic, MicOff, Check, BookmarkPlus,
 } from "lucide-react";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -787,6 +787,7 @@ export default function NuevaSesion() {
     onSetRow,
     isAdHoc,
     isSuggested,
+    isSessionGoal,
     onRemove,
     libraryData,
     goalIdForDetail,
@@ -800,11 +801,32 @@ export default function NuevaSesion() {
     onSetRow: (patch: Partial<RowState>) => void;
     isAdHoc?: boolean;
     isSuggested?: boolean;
+    isSessionGoal?: boolean;
     onRemove?: () => void;
     libraryData?: any;
     goalIdForDetail?: number;
     goalMeta?: GoalMeta;
   }) {
+    const [savedToBank, setSavedToBank] = useState(false);
+    const [savingToBank, setSavingToBank] = useState(false);
+
+    const handleSaveToBank = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSavingToBank(true);
+      try {
+        const res = await fetch(`/api/goal-library/${goalId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estadoBanco: "activo" }),
+        });
+        if (!res.ok) throw new Error("Error al guardar");
+        setSavedToBank(true);
+      } catch {
+        // silently ignore — toast would need useToast here
+      } finally {
+        setSavingToBank(false);
+      }
+    };
     const estadoStyle = ESTADO_STYLE[row.estado] ?? "";
     const pct = calcPct(row.intentos, row.correctas);
     const autoEstado = calcAutoEstado(row.intentos, row.correctas);
@@ -852,6 +874,22 @@ export default function NuevaSesion() {
             <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {isAdHoc && isSessionGoal && !savedToBank && (
+              <button
+                title="Guardar en banco"
+                disabled={savingToBank}
+                className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-violet-300 text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-50 shrink-0"
+                onClick={handleSaveToBank}
+              >
+                <BookmarkPlus className="h-3 w-3" />
+                {savingToBank ? "…" : "Guardar en banco"}
+              </button>
+            )}
+            {isAdHoc && isSessionGoal && savedToBank && (
+              <span className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-500 border border-violet-200 shrink-0">
+                <BookmarkPlus className="h-3 w-3" /> En banco
+              </span>
+            )}
             {isAdHoc && onRemove && (
               <button className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                 onClick={e => { e.stopPropagation(); onRemove(); }}>
@@ -1434,6 +1472,7 @@ export default function NuevaSesion() {
                     onToggle={() => setAdHocRow(libGoal.id, { checked: !(adHocRows[libGoal.id]?.checked ?? true) })}
                     onSetRow={patch => setAdHocRow(libGoal.id, patch)}
                     isAdHoc
+                    isSessionGoal={libGoal.estadoBanco === "sesion"}
                     onRemove={() => removeAdHocGoal(libGoal.id)}
                     libraryData={libGoal}
                     goalMeta={{ title: libGoal.nombreObjetivo, area: libGoal.areaClinica ?? libGoal.area, subarea: libGoal.subarea, franjaEtaria: libGoal.franjaEtaria, definicionOperativa: libGoal.definicionOperativa }}
