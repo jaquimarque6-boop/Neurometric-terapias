@@ -978,7 +978,7 @@ export default function PatientProfile() {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setShowEditPatient(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-border bg-white text-foreground/70 shadow-sm transition-all duration-200 hover:bg-muted/50 hover:border-border active:scale-[0.97]"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-border bg-muted/60 text-foreground/80 shadow-sm transition-all duration-200 hover:bg-muted hover:border-border active:scale-[0.97]"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Editar
@@ -2012,7 +2012,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
                         checkedActs.has(a.id)
                           ? "bg-primary/10 border-primary/30 text-primary font-medium"
-                          : "bg-white border-border text-foreground/80 hover:border-primary/30 hover:bg-primary/[0.02]"
+                          : "bg-muted/50 border-border text-foreground/80 hover:border-primary/30 hover:bg-primary/[0.04]"
                       }`}
                     >
                       {checkedActs.has(a.id)
@@ -2038,7 +2038,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
                       className={`w-full flex items-start gap-2.5 text-left px-3 py-2 rounded-lg border text-sm transition-all ${
                         checkedActs.has(a.id)
                           ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
-                          : "bg-white border-border text-foreground/80 hover:border-emerald-200 hover:bg-emerald-50/50"
+                          : "bg-muted/50 border-border text-foreground/80 hover:border-emerald-200 hover:bg-emerald-50/50"
                       }`}
                     >
                       {checkedActs.has(a.id)
@@ -2969,7 +2969,7 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               activeFilter === opt.value
                 ? "bg-primary text-white border-primary shadow-sm"
-                : "bg-white text-foreground/70 border-border hover:border-primary/40 hover:text-primary"
+                : "bg-muted/60 text-foreground/75 border-border hover:border-primary/40 hover:text-primary hover:bg-muted"
             }`}
           >
             {opt.label}

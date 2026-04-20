@@ -97,7 +97,7 @@ export default function Sessions() {
               <button
                 onClick={() => setPatientFilter("all")}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  patientFilter === "all" ? "bg-primary text-white shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  patientFilter === "all" ? "bg-primary text-white shadow-sm" : "bg-muted/60 text-foreground/70 hover:bg-muted hover:text-foreground/90"
                 }`}
               >
                 Todos
@@ -107,7 +107,7 @@ export default function Sessions() {
                   key={p}
                   onClick={() => setPatientFilter(p)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                    patientFilter === p ? "bg-primary text-white shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    patientFilter === p ? "bg-primary text-white shadow-sm" : "bg-muted/60 text-foreground/70 hover:bg-muted hover:text-foreground/90"
                   }`}
                 >
                   {p}

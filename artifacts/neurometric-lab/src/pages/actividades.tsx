@@ -100,7 +100,7 @@ export default function Actividades() {
               <button
                 key={t.value}
                 onClick={() => setTipoFilter(t.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tipoFilter === t.value ? "bg-white text-primary shadow-sm border border-border/50" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-[0.97] ${tipoFilter === t.value ? "bg-card text-primary shadow-sm border border-border/50 font-semibold" : "bg-muted/40 text-foreground/65 hover:bg-muted hover:text-foreground/85"}`}
               >
                 {t.icon && <t.icon className="h-4 w-4" />}
                 {t.label}

@@ -1214,7 +1214,7 @@ export default function NuevaSesion() {
                       className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                         active
                           ? "text-white border-transparent shadow-sm"
-                          : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground/80"
+                          : "bg-muted/50 border-border/70 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
                       }`}
                       style={active ? { background: BRAND_TEAL, borderColor: BRAND_TEAL } : {}}
                     >
@@ -1448,7 +1448,7 @@ export default function NuevaSesion() {
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                       isOpen
                         ? `${bloque.bg} ${bloque.border} ${bloque.text} ring-2 ring-offset-1 ring-current`
-                        : "bg-white border-border text-foreground/70 hover:border-border"
+                        : "bg-muted/60 border-border text-foreground/75 hover:bg-muted hover:border-border/80"
                     }`}
                   >
                     {bloque.label}

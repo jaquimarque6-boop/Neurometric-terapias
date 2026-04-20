@@ -433,20 +433,20 @@ export default function GoalLibrary() {
           <div className="flex gap-1 p-1 rounded-xl bg-muted mb-5 w-fit">
             <button
               onClick={() => setViewMode("objetivos")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-[0.97] ${
                 viewMode === "objetivos"
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground/80"
+                  ? "bg-card text-foreground shadow-sm font-semibold"
+                  : "text-foreground/60 hover:bg-muted/70 hover:text-foreground/85"
               }`}
             >
               Objetivos
             </button>
             <button
               onClick={() => setViewMode("bloques")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-[0.97] ${
                 viewMode === "bloques"
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground/80"
+                  ? "bg-card text-foreground shadow-sm font-semibold"
+                  : "text-foreground/60 hover:bg-muted/70 hover:text-foreground/85"
               }`}
             >
               Vista clínica
@@ -543,10 +543,10 @@ export default function GoalLibrary() {
             <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={() => setSortBy(s => s === "area" ? "codigo" : "area")}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all active:scale-[0.97] ${
                   sortBy === "codigo"
                     ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-muted/50 text-muted-foreground border-border hover:border-border"
+                    : "bg-muted/60 text-foreground/70 border-border hover:bg-muted hover:text-foreground/85"
                 }`}
                 title="Ordenar por código"
               >
