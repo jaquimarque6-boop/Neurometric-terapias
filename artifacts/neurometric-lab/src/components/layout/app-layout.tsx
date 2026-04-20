@@ -84,7 +84,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               {/* User menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 hover:bg-muted rounded-xl px-2 py-1 transition-colors">
+                  <button className="flex items-center gap-2 bg-muted/60 border border-border/60 hover:bg-muted rounded-xl px-2 py-1.5 transition-colors shadow-sm">
                     <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-accent text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md border-2 border-card">
                       {initials}
                     </div>

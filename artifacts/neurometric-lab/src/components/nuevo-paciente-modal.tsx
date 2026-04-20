@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -7,10 +7,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-
-type ProfUser = { id: number; name: string; specialty: string | null; role: string };
 
 export function NuevoPacienteModal({
   open,
@@ -23,23 +20,13 @@ export function NuevoPacienteModal({
   const { toast }     = useToast();
   const createPatient = useCreatePatient();
 
-  const [professionals, setProfessionals] = useState<ProfUser[]>([]);
-  const [form, setForm] = useState({ name: "", age: "", diagnosis: "", assignedProfessionalId: "" });
+  const [form, setForm] = useState({ name: "", age: "", diagnosis: "" });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  // Fetch user-based professionals list
-  useEffect(() => {
-    if (!open) return;
-    fetch("/api/users/professionals", { credentials: "include" })
-      .then(r => r.ok ? r.json() : [])
-      .then(setProfessionals)
-      .catch(() => {});
-  }, [open]);
 
   const canSave = form.name.trim().length > 0;
 
   const handleClose = () => {
-    setForm({ name: "", age: "", diagnosis: "", assignedProfessionalId: "" });
+    setForm({ name: "", age: "", diagnosis: "" });
     onClose();
   };
 
@@ -51,10 +38,6 @@ export function NuevoPacienteModal({
       age: form.age ? parseInt(form.age) : undefined,
       diagnosis: form.diagnosis.trim() || undefined,
     };
-
-    if (form.assignedProfessionalId && form.assignedProfessionalId !== "__none__") {
-      body.assignedProfessionalId = parseInt(form.assignedProfessionalId);
-    }
 
     createPatient.mutate(
       { data: body as any },
@@ -118,27 +101,6 @@ export function NuevoPacienteModal({
               className="bg-muted/50"
             />
           </div>
-
-          {/* Anyone can pick a professional */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground/80">Profesional asignado</label>
-            <Select
-              value={form.assignedProfessionalId}
-              onValueChange={v => set("assignedProfessionalId", v === "__none__" ? "" : v)}
-            >
-              <SelectTrigger className="bg-muted/50">
-                <SelectValue placeholder="Sin asignar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sin asignar</SelectItem>
-                {professionals.map(p => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.name}{p.specialty ? ` — ${p.specialty}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-border/50">
@@ -146,7 +108,7 @@ export function NuevoPacienteModal({
             Cancelar
           </Button>
           <Button
-            className="flex-1 text-white font-semibold bg-gradient-to-br from-accent to-accent/80"
+            className="flex-1 bg-primary text-white hover:bg-primary/90 font-semibold"
             disabled={!canSave || createPatient.isPending}
             onClick={handleSave}
           >

@@ -988,8 +988,7 @@ export default function PatientProfile() {
                 </button>
                 <button
                   onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-                  style={{ background: "linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 75%, black) 100%)" }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97] bg-primary"
                 >
                   <Plus className="h-4 w-4" />
                   Nueva sesión
@@ -1152,7 +1151,7 @@ export default function PatientProfile() {
                   <Button
                     onClick={handleSaveAnamnesis}
                     disabled={isSavingAn}
-                    className="gap-2"
+                    className="gap-2 bg-primary text-white hover:bg-primary/90"
                   >
                     <Save className="h-4 w-4" />
                     {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
@@ -1427,7 +1426,7 @@ export default function PatientProfile() {
               <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
                 Cancelar
               </Button>
-              <Button className="flex-1" onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
+              <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
                 <Save className="h-4 w-4 mr-1.5" /> {isSavingPatient ? "Guardando…" : "Guardar cambios"}
               </Button>
             </div>
@@ -1496,7 +1495,7 @@ export default function PatientProfile() {
               <Button variant="outline" className="flex-1" onClick={() => { stopRecordingEr(); setEditingRegistro(null); }} disabled={isSavingRegistro}>
                 Cancelar
               </Button>
-              <Button className="flex-1" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
+              <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
                 <Save className="h-4 w-4 mr-1.5" /> {isSavingRegistro ? "Guardando…" : "Guardar cambios"}
               </Button>
             </div>
