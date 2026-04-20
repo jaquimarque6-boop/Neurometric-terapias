@@ -658,7 +658,7 @@ export default function NuevaSesion() {
   };
 
   // ── Row helpers ───────────────────────────────────────────────────────────
-  const defaultRow = (status = "nuevo"): RowState => ({ checked: false, intentos: "", correctas: "", estado: status });
+  const defaultRow = (status = "en proceso"): RowState => ({ checked: false, intentos: "", correctas: "", estado: status });
 
   const setRow = (goalId: number, patch: Partial<RowState>) =>
     setRows(prev => ({ ...prev, [goalId]: { ...(prev[goalId] ?? defaultRow()), ...patch } }));
@@ -743,8 +743,8 @@ export default function NuevaSesion() {
 
       if (checkedGoals.length > 0) {
         await Promise.all(checkedGoals.map(goal => {
-          const row = rows[goal.id];
-          const map = CLINICAL_PERFORMANCE_MAP[row.estado] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
+          const row = rows[goal.id] ?? defaultRow();
+          const map = CLINICAL_PERFORMANCE_MAP[row.estado ?? "en proceso"] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
           return fetch(`/api/goals/${goal.id}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -762,8 +762,8 @@ export default function NuevaSesion() {
 
       if (checkedAdHoc.length > 0) {
         await Promise.all(checkedAdHoc.map(async (libGoal) => {
-          const row = adHocRows[libGoal.id];
-          const map = CLINICAL_PERFORMANCE_MAP[row.estado] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
+          const row = adHocRows[libGoal.id] ?? { checked: true, intentos: "", correctas: "", estado: "en proceso" };
+          const map = CLINICAL_PERFORMANCE_MAP[row.estado ?? "en proceso"] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
 
           const alreadyAssigned = (goalsRaw as any[]).find((g: any) => g.goalLibraryId === libGoal.id);
           let goalId: number;
@@ -1914,6 +1914,10 @@ export default function NuevaSesion() {
             setAdHocGoals(prev => {
               if (prev.find(g => g.id === libraryGoal.id)) return prev;
               return [...prev, libraryGoal];
+            });
+            setAdHocRows(prev => {
+              if (prev[libraryGoal.id]) return prev;
+              return { ...prev, [libraryGoal.id]: { checked: true, intentos: "", correctas: "", estado: "en proceso" } };
             });
             setShowCustomGoal(false);
           }}
