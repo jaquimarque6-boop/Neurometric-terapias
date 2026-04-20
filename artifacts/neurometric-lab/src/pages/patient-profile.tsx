@@ -654,7 +654,10 @@ export default function PatientProfile() {
   const queryClient = useQueryClient();
 
   const { data: patient, isLoading: loadingPatient } = useGetPatient(patientId);
-  const { data: allRegistros = [] } = useListRegistrosClinicos({ patientId });
+  const { data: allRegistros = [] } = useListRegistrosClinicos(
+    { patientId },
+    { query: { refetchOnMount: "always" } },
+  );
   const { data: allGoals = [] }     = useListGoals({ patientId });
   const { data: assignments = [] }  = useListPatientProfessionals({ patientId });
   const { data: professionals = [] } = useListProfessionals();

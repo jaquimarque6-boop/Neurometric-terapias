@@ -808,11 +808,17 @@ export default function NuevaSesion() {
       }
 
       queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey({ patientId: patient.id }) });
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       const n = totalSelected;
       toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
-      if (window.history.length > 1) window.history.back();
-      else navigate(preselectedId ? `/patients/${preselectedId}` : "/");
+      if (preselectedId) {
+        navigate(`/patients/${preselectedId}`);
+      } else if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        navigate("/");
+      }
     } catch (err: any) {
       toast({ title: "Error al guardar la sesión", description: err.message, variant: "destructive" });
     } finally {
