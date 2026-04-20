@@ -6,6 +6,7 @@ export const registrosClinicosTable = pgTable("registros_clinicos", {
   patientName: text("patient_name"),
   professionalId: integer("professional_id"),
   professionalName: text("professional_name"),
+  userId: integer("user_id"),
   fecha: text("fecha").notNull(),
   resumenSesion: text("resumen_sesion"),
   observaciones: text("observaciones"),

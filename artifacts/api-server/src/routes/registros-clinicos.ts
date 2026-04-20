@@ -5,12 +5,18 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-function getSessionUser(req: any): { id: number; role: string; professionalId: number | null } | null {
+function getSessionUser(req: any): {
+  id: number;
+  role: string;
+  professionalId: number | null;
+  userName: string;
+} | null {
   if (!req.session?.userId) return null;
   return {
     id: req.session.userId,
     role: req.session.userRole ?? "professional",
     professionalId: req.session.professionalId ?? null,
+    userName: req.session.userName ?? "",
   };
 }
 
@@ -37,13 +43,9 @@ router.get("/registros-clinicos", async (req, res) => {
 
   let records = await db.select().from(registrosClinicosTable).orderBy(registrosClinicosTable.fecha);
 
-  // Role-based isolation: professionals see only their own records
+  // Role-based isolation: non-admin users see only their own records (by userId)
   if (sess.role !== "admin") {
-    if (sess.professionalId != null) {
-      records = records.filter(r => r.professionalId === sess.professionalId);
-    } else {
-      records = [];
-    }
+    records = records.filter(r => r.userId === sess.id);
   }
 
   if (patientId) records = records.filter(r => r.patientId === patientId);
@@ -56,31 +58,31 @@ router.post("/registros-clinicos", async (req, res) => {
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 
   const { patientId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
-  let { professionalId } = req.body;
-
-  // Professionals always get their own professionalId assigned
-  if (sess.role !== "admin" && sess.professionalId != null) {
-    professionalId = sess.professionalId;
-  }
 
   if (!patientId || !fecha) return res.status(400).json({ error: "patientId and fecha are required" });
 
-  let patientName: string | null = null;
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, parseInt(patientId)));
+  const patientName = patient?.name ?? null;
+
+  // Resolve professionalId and name: use the session user's linked professionalId if available,
+  // otherwise fall back to their name so the record always shows who created it.
+  let professionalId: number | null = sess.professionalId ?? null;
   let professionalName: string | null = null;
 
-  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, parseInt(patientId)));
-  patientName = patient?.name ?? null;
-
   if (professionalId) {
-    const [prof] = await db.select().from(professionalsTable).where(eq(professionalsTable.id, parseInt(professionalId)));
-    professionalName = prof?.name ?? null;
+    const [prof] = await db.select().from(professionalsTable).where(eq(professionalsTable.id, professionalId));
+    professionalName = prof?.name ?? sess.userName;
+  } else {
+    // No linked professional profile — use the logged-in user's name for display
+    professionalName = sess.userName || null;
   }
 
   const [record] = await db.insert(registrosClinicosTable).values({
     patientId: parseInt(patientId),
     patientName,
-    professionalId: professionalId ? parseInt(professionalId) : null,
+    professionalId,
     professionalName,
+    userId: sess.id,
     fecha,
     resumenSesion: resumenSesion ?? null,
     observaciones: observaciones ?? null,
@@ -98,8 +100,8 @@ router.get("/registros-clinicos/:id", async (req, res) => {
   const [record] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
   if (!record) return res.status(404).json({ error: "Not found" });
 
-  // Access check
-  if (sess.role !== "admin" && sess.professionalId != null && record.professionalId !== sess.professionalId) {
+  // Access check: non-admin can only access their own records
+  if (sess.role !== "admin" && record.userId !== sess.id) {
     return res.status(403).json({ error: "Sin acceso a este registro" });
   }
 
@@ -114,8 +116,8 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
   const [existing] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  // Access check
-  if (sess.role !== "admin" && sess.professionalId != null && existing.professionalId !== sess.professionalId) {
+  // Access check: non-admin can only edit their own records
+  if (sess.role !== "admin" && existing.userId !== sess.id) {
     return res.status(403).json({ error: "Sin acceso a este registro" });
   }
 
@@ -147,8 +149,8 @@ router.delete("/registros-clinicos/:id", async (req, res) => {
   const [existing] = await db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.id, id));
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  // Access check
-  if (sess.role !== "admin" && sess.professionalId != null && existing.professionalId !== sess.professionalId) {
+  // Access check: non-admin can only delete their own records
+  if (sess.role !== "admin" && existing.userId !== sess.id) {
     return res.status(403).json({ error: "Sin acceso a este registro" });
   }
 
