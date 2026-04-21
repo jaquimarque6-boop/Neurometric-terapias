@@ -7,6 +7,7 @@ import {
   Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp,
 } from "lucide-react";
 import { DIAGNOSES } from "@/utils/diagnosis-map";
+import { EvalSugerida } from "@/components/eval-sugerida";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
@@ -1227,6 +1228,9 @@ export default function NuevaSesion() {
                 <p className="text-xs text-muted-foreground pl-0.5">
                   {DIAGNOSES.find(d => d.value === sessionDiagnosis)?.label}
                 </p>
+              )}
+              {sessionDiagnosis && (
+                <EvalSugerida diagnosis={sessionDiagnosis} compact />
               )}
             </div>
           )}

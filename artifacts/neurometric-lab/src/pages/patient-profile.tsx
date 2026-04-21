@@ -17,6 +17,7 @@ import {
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
+import { EvalSugerida } from "@/components/eval-sugerida";
 import {
   useGetPatient,
   useListRegistrosClinicos,
@@ -998,9 +999,10 @@ export default function PatientProfile() {
             {patient.diagnosis && (
               <div className="mt-5 flex items-start gap-3 bg-white/60 backdrop-blur-sm border border-primary/10 rounded-xl p-4">
                 <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-0.5">Diagnóstico</p>
                   <p className="text-foreground text-sm">{patient.diagnosis}</p>
+                  <EvalSugerida diagnosis={patient.diagnosis} />
                 </div>
               </div>
             )}
