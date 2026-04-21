@@ -730,6 +730,128 @@ export default function NuevaSesion() {
     setAdHocRows(prev => { const n = { ...prev }; delete n[libId]; return n; });
   };
 
+  // ── Report suggestion builder ──────────────────────────────────────────────
+  const buildResumenSugerido = (): string => {
+    const nombre = patient?.name?.split(" ")[0] ?? "el/la paciente";
+    const edad = patient?.age ? `${patient.age} años` : null;
+    const diag = (sessionDiagnosis ?? "").trim();
+
+    // Diagnosis-specific clinical context
+    type DiagCtx = { area: string; focus: string; progress: string };
+    const DIAG_CTX: Array<{ match: string[]; ctx: DiagCtx }> = [
+      {
+        match: ["tdah", "deficit de atención", "déficit de atención", "hiperactividad"],
+        ctx: {
+          area: "trastorno por déficit de atención e hiperactividad (TDAH)",
+          focus: "regulación atencional, planificación y autorregulación conductual",
+          progress: "Se observó capacidad de sostenimiento atencional dentro de los rangos esperados para las actividades propuestas, con respuesta positiva a las estrategias de estructuración.",
+        },
+      },
+      {
+        match: ["tel", "trastorno específico del lenguaje", "trastorno del lenguaje", "lenguaje"],
+        ctx: {
+          area: "trastorno específico del lenguaje (TEL)",
+          focus: "comprensión verbal, expresión lingüística y organización del discurso",
+          progress: "Se evidenció participación activa en las tareas de comunicación, con respuestas ajustadas al nivel de estimulación lingüística propuesto.",
+        },
+      },
+      {
+        match: ["tea", "espectro autista", "autismo"],
+        ctx: {
+          area: "trastorno del espectro autista (TEA)",
+          focus: "comunicación funcional, interacción social y habilidades pragmáticas",
+          progress: "Se promovieron estrategias de comunicación y participación en el encuadre terapéutico, con énfasis en la intencionalidad comunicativa.",
+        },
+      },
+      {
+        match: ["fonológico", "fonología", "trastorno fonológico"],
+        ctx: {
+          area: "trastorno fonológico",
+          focus: "producción articulatoria, discriminación auditiva y conciencia fonológica",
+          progress: "Se trabajaron patrones de producción con énfasis en la precisión articulatoria y la discriminación de fonemas en contexto.",
+        },
+      },
+      {
+        match: ["dislexia"],
+        ctx: {
+          area: "dislexia",
+          focus: "conciencia fonológica, decodificación lectora y fluidez",
+          progress: "Se realizaron actividades orientadas al fortalecimiento del procesamiento fonológico y lector, favoreciendo la automatización de la lectura.",
+        },
+      },
+      {
+        match: ["habla", "trastorno del habla"],
+        ctx: {
+          area: "trastorno del habla",
+          focus: "producción del habla y articulación",
+          progress: "Se trabajaron aspectos articulatorios con retroalimentación auditiva y visual para favorecer la corrección de los patrones alterados.",
+        },
+      },
+      {
+        match: ["discalculia", "matemática", "cálculo"],
+        ctx: {
+          area: "dificultades en el área del cálculo",
+          focus: "procesamiento numérico, operaciones y razonamiento matemático",
+          progress: "Se trabajaron habilidades numéricas con apoyo de material concreto para favorecer la comprensión de los conceptos abordados.",
+        },
+      },
+    ];
+
+    const diagLower = diag.toLowerCase();
+    const matchedCtx = DIAG_CTX.find(d => d.match.some(m => diagLower.includes(m)))?.ctx ?? {
+      area: diag || "intervención terapéutica",
+      focus: "los objetivos terapéuticos seleccionados",
+      progress: "Se registró participación adecuada al contexto de la sesión y respuesta favorable a las actividades planteadas.",
+    };
+
+    // All checked goals for this session
+    const ESTADO_LABEL: Record<string, string> = {
+      nuevo: "abordaje inicial",
+      "en proceso": "en proceso de adquisición",
+      logrado: "con logro de la conducta esperada",
+      "no logrado": "con dificultades en la ejecución",
+      "no trabajado": "pendiente de abordaje",
+    };
+
+    const checkedGoalsNow  = goals.filter(g => rows[g.id]?.checked);
+    const checkedAdHocNow  = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
+    const allChecked = [
+      ...checkedGoalsNow.map(g => ({ title: g.title, estado: rows[g.id]?.estado ?? "en proceso" })),
+      ...checkedAdHocNow.map(g => ({ title: g.nombreObjetivo ?? g.title, estado: adHocRows[g.id]?.estado ?? "en proceso" })),
+    ];
+
+    // Line 1 — opening
+    const infoPartes = [nombre, ...(edad ? [edad] : [])].join(", ");
+    const line1 = `Se realizó sesión con ${infoPartes}, en el contexto de ${matchedCtx.area}.`;
+
+    // Line 2 — therapeutic focus
+    const focoStr = focoTerapeutico.trim().replace(/\.$/, "").toLowerCase();
+    const line2 = focoStr
+      ? `El foco de la sesión estuvo orientado a ${focoStr}.`
+      : `El trabajo se centró en ${matchedCtx.focus}.`;
+
+    // Line 3 — goals summary
+    let line3 = "";
+    if (allChecked.length === 1) {
+      const g = allChecked[0];
+      line3 = `Se trabajó el objetivo "${g.title}" (${ESTADO_LABEL[g.estado] ?? g.estado}).`;
+    } else if (allChecked.length >= 2) {
+      const displayGoals = allChecked.slice(0, 3);
+      const titles = displayGoals.map(g => `"${g.title}"`).join(", ");
+      const suffix = allChecked.length > 3 ? `, entre otros ${allChecked.length - 3}` : "";
+      const estados = allChecked.map(g => g.estado);
+      const dominant = ["logrado", "en proceso", "nuevo", "no logrado"].find(e =>
+        estados.filter(v => v === e).length > 0
+      ) ?? "en proceso";
+      line3 = `Se trabajaron ${allChecked.length} objetivos: ${titles}${suffix}, con desempeño ${ESTADO_LABEL[dominant] ?? dominant}.`;
+    }
+
+    // Line 4 — progress observation (diagnosis-specific)
+    const line4 = matchedCtx.progress;
+
+    return [line1, line2, line3, line4].filter(Boolean).join(" ");
+  };
+
   const checkedGoals  = goals.filter(g => rows[g.id]?.checked);
   const checkedAdHoc  = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
   const totalSelected = checkedGoals.length + checkedAdHoc.length;
@@ -1882,14 +2004,31 @@ export default function NuevaSesion() {
           <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Notas de sesión <span className="text-muted-foreground font-normal">(opcional)</span></h2>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Resumen</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground">Resumen</label>
+                <button
+                  type="button"
+                  onClick={() => setResumen(buildResumenSugerido())}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all bg-muted/50 hover:bg-muted hover:text-foreground/80"
+                  style={{ color: BRAND_TEAL, borderColor: `${BRAND_TEAL}40` }}
+                  title="Genera un texto sugerido basado en el diagnóstico, objetivos y foco terapéutico de la sesión"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Generar sugerencia
+                </button>
+              </div>
               <Textarea
-                placeholder="Describe lo trabajado en la sesión…"
-                rows={2}
+                placeholder="Describe lo trabajado en la sesión… o usa 'Generar sugerencia' para un punto de partida."
+                rows={4}
                 value={resumen}
                 onChange={e => setResumen(e.target.value)}
-                className="bg-muted/50 resize-none text-sm"
+                className="bg-muted/50 resize-none text-sm leading-relaxed"
               />
+              {resumen.trim().length > 0 && (
+                <p className="text-[10px] text-muted-foreground/60 pl-0.5">
+                  Texto editable — modifícalo libremente antes de guardar.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
