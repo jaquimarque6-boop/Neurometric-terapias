@@ -444,6 +444,7 @@ export default function NuevaSesion() {
   const [bancoSelected, setBancoSelected]     = useState<Set<number>>(new Set());
 
   const [showAllGoals, setShowAllGoals]       = useState(false);
+  const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<number>>(new Set());
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
@@ -548,6 +549,12 @@ export default function NuevaSesion() {
   ]);
   const bancoFiltered = (bancoRaw as any[]).filter(g => !assignedLibraryIds.has(g.id));
 
+  // Filter diag suggestions to exclude already-added or already-assigned goals
+  const visibleDiagSuggestions = diagSuggestions.filter((g: any) =>
+    !adHocGoals.some(a => a.id === g.id) &&
+    !(goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id)
+  );
+
   const filteredPatients = (patients as any[]).filter(p =>
     !patientSearch || p.name.toLowerCase().includes(patientSearch.toLowerCase())
   );
@@ -568,18 +575,21 @@ export default function NuevaSesion() {
       return s;
     };
 
-    return [...goals].sort((a, b) => score(b) - score(a)).slice(0, 3);
-  }, [goals, patient]);
+    return [...goals]
+      .filter(g => !dismissedGoalIds.has(g.id))
+      .sort((a, b) => score(b) - score(a))
+      .slice(0, 3);
+  }, [goals, patient, dismissedGoalIds]);
 
   const lastWorkedGoal = useMemo(
     () => goals.find(g => g.status === "en progreso") ?? goals[0] ?? null,
     [goals],
   );
 
-  // Remaining goals not in suggestions
+  // Remaining goals not in suggestions and not dismissed
   const otherGoals = useMemo(
-    () => goals.filter(g => !suggestedGoals.some(s => s.id === g.id)),
-    [goals, suggestedGoals],
+    () => goals.filter(g => !suggestedGoals.some(s => s.id === g.id) && !dismissedGoalIds.has(g.id)),
+    [goals, suggestedGoals, dismissedGoalIds],
   );
 
   // Auto-check suggested goals once goals load for this patient
@@ -605,6 +615,7 @@ export default function NuevaSesion() {
     setDetailCache({});
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
+    setDismissedGoalIds(new Set());
     setSessionDiagnosis(p.diagnosis ?? "");
     setDiagSuggestions([]);
   };
@@ -939,8 +950,9 @@ export default function NuevaSesion() {
                 <BookmarkPlus className="h-3 w-3" /> En banco
               </span>
             )}
-            {isAdHoc && onRemove && (
+            {onRemove && (
               <button className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                title="Quitar de esta sesión"
                 onClick={e => { e.stopPropagation(); onRemove(); }}>
                 <X className="h-4 w-4" />
               </button>
@@ -1236,6 +1248,35 @@ export default function NuevaSesion() {
           )}
         </div>
 
+        {/* ── Compact session summary strip ────────────────────────────── */}
+        {patient && (
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-xs text-muted-foreground flex-wrap">
+            <span className="font-semibold text-foreground/80">{patient.name}</span>
+            {patient.age && <span>{patient.age} años</span>}
+            <span className="text-border/70">·</span>
+            <span>{fecha}</span>
+            {sessionDiagnosis && (
+              <>
+                <span className="text-border/70">·</span>
+                <span
+                  className="font-semibold px-2 py-0.5 rounded-full text-white text-[10px]"
+                  style={{ background: BRAND_TEAL }}
+                >
+                  {sessionDiagnosis}
+                </span>
+              </>
+            )}
+            {totalSelected > 0 && (
+              <>
+                <span className="text-border/70">·</span>
+                <span className="font-semibold" style={{ color: BRAND_TEAL }}>
+                  {totalSelected} objetivo{totalSelected !== 1 ? "s" : ""} en sesión
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* ── Objetivos sugeridos por diagnóstico ───────────────────────── */}
         {patient && sessionDiagnosis && (
           <div className="rounded-2xl border border-violet-200 shadow-sm overflow-hidden bg-violet-50/40">
@@ -1259,50 +1300,40 @@ export default function NuevaSesion() {
               <div className="border-t border-violet-100 divide-y divide-violet-100">
                 {loadingDiagSug ? (
                   <div className="px-5 py-6 text-center text-sm text-muted-foreground">Buscando objetivos…</div>
-                ) : diagSuggestions.length === 0 ? (
+                ) : visibleDiagSuggestions.length === 0 ? (
                   <div className="px-5 py-6 text-center text-sm text-muted-foreground">
-                    Sin sugerencias para este diagnóstico y franja etaria.
+                    {diagSuggestions.length === 0
+                      ? "Sin sugerencias para este diagnóstico y franja etaria."
+                      : "Todos los objetivos sugeridos ya están agregados a la sesión."}
                   </div>
                 ) : (
-                  diagSuggestions.map((g: any) => {
-                    const alreadyAdded = adHocGoals.some(a => a.id === g.id);
-                    const alreadyAssigned = (goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id);
-                    return (
-                      <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {g.areaClinica ?? g.area}
-                            {g.nivelDificultad && ` · ${g.nivelDificultad}`}
-                            {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
-                          </p>
-                        </div>
-                        {alreadyAssigned ? (
-                          <span className="text-[10px] font-medium text-muted-foreground shrink-0 mt-0.5">Asignado</span>
-                        ) : alreadyAdded ? (
-                          <span className="text-[10px] font-medium shrink-0 mt-0.5" style={{ color: BRAND_TEAL }}>
-                            <Check className="h-3.5 w-3.5 inline" /> Agregado
-                          </span>
-                        ) : (
-                          <button
-                            className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
-                            onClick={() => {
-                              setAdHocGoals(prev => {
-                                if (prev.find(a => a.id === g.id)) return prev;
-                                return [...prev, g];
-                              });
-                              setAdHocRows(prev => {
-                                if (prev[g.id]) return prev;
-                                return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
-                              });
-                            }}
-                          >
-                            + Agregar
-                          </button>
-                        )}
+                  visibleDiagSuggestions.map((g: any) => (
+                    <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {g.areaClinica ?? g.area}
+                          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
+                          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+                        </p>
                       </div>
-                    );
-                  })
+                      <button
+                        className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
+                        onClick={() => {
+                          setAdHocGoals(prev => {
+                            if (prev.find(a => a.id === g.id)) return prev;
+                            return [...prev, g];
+                          });
+                          setAdHocRows(prev => {
+                            if (prev[g.id]) return prev;
+                            return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
+                          });
+                        }}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  ))
                 )}
               </div>
             )}
@@ -1594,6 +1625,10 @@ export default function NuevaSesion() {
                     onToggle={() => toggleRow(goal.id)}
                     onSetRow={patch => setRow(goal.id, patch)}
                     isSuggested
+                    onRemove={() => {
+                      setDismissedGoalIds(prev => new Set([...prev, goal.id]));
+                      setRows(prev => { const n = { ...prev }; delete n[goal.id]; return n; });
+                    }}
                     goalIdForDetail={goal.id}
                     goalMeta={{ title: goal.title, area: goal.areaClinica ?? goal.category, franjaEtaria: goal.franjaEtaria, definicionOperativa: goal.description }}
                   />
@@ -1636,6 +1671,10 @@ export default function NuevaSesion() {
                         row={rows[goal.id] ?? defaultRow(goal.status)}
                         onToggle={() => toggleRow(goal.id)}
                         onSetRow={patch => setRow(goal.id, patch)}
+                        onRemove={() => {
+                          setDismissedGoalIds(prev => new Set([...prev, goal.id]));
+                          setRows(prev => { const n = { ...prev }; delete n[goal.id]; return n; });
+                        }}
                         goalIdForDetail={goal.id}
                         goalMeta={{ title: goal.title, area: goal.areaClinica ?? goal.category, franjaEtaria: goal.franjaEtaria, definicionOperativa: goal.description }}
                       />
