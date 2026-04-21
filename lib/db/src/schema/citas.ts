@@ -13,6 +13,7 @@ export const citasTable = pgTable("citas", {
   tipo: text("tipo").notNull().default("sesion"),
   status: text("status").notNull().default("programada"),
   notas: text("notas"),
+  userId: integer("user_id"),
   serieId: text("serie_id"),
   repetirSemanal: boolean("repetir_semanal").notNull().default(false),
   repetirHasta: text("repetir_hasta"),

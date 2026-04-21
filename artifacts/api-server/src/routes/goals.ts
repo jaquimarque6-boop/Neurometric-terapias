@@ -1,26 +1,73 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalsTable, patientsTable, goalProgressTable, actividadesTable, goalLibraryTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+function getSessionUser(req: any): { id: number; role: string } | null {
+  if (!req.session?.userId) return null;
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+  };
+}
 
 async function enrich(g: typeof goalsTable.$inferSelect) {
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, g.patientId));
   return { ...g, patientName: patient?.name ?? "", createdAt: g.createdAt.toISOString() };
 }
 
+// Resolve the list of patientIds a user may access
+async function accessiblePatientIds(sess: { id: number; role: string }): Promise<number[] | null> {
+  if (sess.role === "admin") return null; // null = unrestricted
+  const patients = await db
+    .select({ id: patientsTable.id })
+    .from(patientsTable)
+    .where(eq(patientsTable.assignedProfessionalId, sess.id));
+  return patients.map(p => p.id);
+}
+
 router.get("/goals", async (req, res) => {
-  const patientId = req.query.patientId ? parseInt(req.query.patientId as string) : null;
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const patientIdParam = req.query.patientId ? parseInt(req.query.patientId as string) : null;
+  const allowed = await accessiblePatientIds(sess);
+
   let goals = await db.select().from(goalsTable).orderBy(goalsTable.createdAt);
-  if (patientId) goals = goals.filter(g => g.patientId === patientId);
+
+  // Scope to professional's own patients
+  if (allowed !== null) {
+    goals = goals.filter(g => allowed.includes(g.patientId));
+  }
+
+  // Further narrow by specific patient if requested
+  if (patientIdParam) {
+    // Check access: professional must own this patient
+    if (allowed !== null && !allowed.includes(patientIdParam)) {
+      return res.status(403).json({ error: "Sin acceso a este paciente" });
+    }
+    goals = goals.filter(g => g.patientId === patientIdParam);
+  }
+
   const enriched = await Promise.all(goals.map(enrich));
   res.json(enriched);
 });
 
 router.post("/goals", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const { patientId, goalLibraryId, codigo, title, description, category, areaClinica, franjaEtaria, nivelDificultad, status, targetDate, fechaAsignacion, notas } = req.body;
   if (!patientId || !title || !category) return res.status(400).json({ error: "patientId, title and category are required" });
+
+  // Access check
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(parseInt(patientId))) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
   const today = new Date().toISOString().split("T")[0];
   const [goal] = await db.insert(goalsTable).values({
     patientId: parseInt(patientId),
@@ -41,11 +88,20 @@ router.post("/goals", async (req, res) => {
 });
 
 router.patch("/goals/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
   const { codigo, title, description, category, areaClinica, franjaEtaria, nivelDificultad, status, targetDate, notas, progressPct } = req.body;
 
   const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
   if (!existing) return res.status(404).json({ error: "Goal not found" });
+
+  // Access check
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(existing.patientId)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
 
   const updates: Record<string, any> = {};
   if (codigo !== undefined) updates.codigo = codigo;
@@ -62,7 +118,6 @@ router.patch("/goals/:id", async (req, res) => {
 
   const [goal] = await db.update(goalsTable).set(updates).where(eq(goalsTable.id, id)).returning();
 
-  // Log status changes automatically
   if (status !== undefined && status !== existing.status) {
     await db.insert(goalProgressTable).values({
       goalId: id,
@@ -77,15 +132,39 @@ router.patch("/goals/:id", async (req, res) => {
 });
 
 router.delete("/goals/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
+  if (!existing) return res.status(404).json({ error: "Goal not found" });
+
+  // Access check
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(existing.patientId)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
+
   await db.delete(goalProgressTable).where(eq(goalProgressTable.goalId, id));
   await db.delete(goalsTable).where(eq(goalsTable.id, id));
   res.status(204).send();
 });
 
-// ─── Progress history ─────────────────────────────────────────────────────────
+// ─── Progress history ──────────────────────────────────────────────────────────
 router.get("/goals/:id/progress", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const goalId = parseInt(req.params.id);
+
+  const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
+  if (!goal) return res.status(404).json({ error: "Goal not found" });
+
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(goal.patientId)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
+
   const entries = await db.select().from(goalProgressTable)
     .where(eq(goalProgressTable.goalId, goalId))
     .orderBy(desc(goalProgressTable.createdAt));
@@ -93,11 +172,19 @@ router.get("/goals/:id/progress", async (req, res) => {
 });
 
 router.post("/goals/:id/progress", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const goalId = parseInt(req.params.id);
   const { nota, statusNuevo, registroClinicoId, progressPct, intentos, correctas } = req.body;
 
   const [existing] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!existing) return res.status(404).json({ error: "Goal not found" });
+
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(existing.patientId)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
 
   const updates: Record<string, any> = {};
   if (statusNuevo && statusNuevo !== existing.status) updates.status = statusNuevo;
@@ -127,11 +214,19 @@ router.post("/goals/:id/progress", async (req, res) => {
   });
 });
 
-// ─── Activities for a goal ────────────────────────────────────────────────────
+// ─── Activities for a goal ─────────────────────────────────────────────────────
 router.get("/goals/:id/activities", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
   const goalId = parseInt(req.params.id);
   const [goal] = await db.select().from(goalsTable).where(eq(goalsTable.id, goalId));
   if (!goal) return res.status(404).json({ error: "Goal not found" });
+
+  const allowed = await accessiblePatientIds(sess);
+  if (allowed !== null && !allowed.includes(goal.patientId)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
 
   let activities: any[] = [];
   let libraryEntry: any = null;

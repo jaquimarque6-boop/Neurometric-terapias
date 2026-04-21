@@ -1,17 +1,16 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { citasTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
-function getSessionUser(req: any): { id: number; role: string; professionalId: number | null } | null {
+function getSessionUser(req: any): { id: number; role: string } | null {
   if (!req.session?.userId) return null;
   return {
     id: req.session.userId,
     role: req.session.userRole ?? "professional",
-    professionalId: req.session.professionalId ?? null,
   };
 }
 
@@ -32,6 +31,7 @@ function generateOccurrences(base: {
   patientId?: number | null;
   professionalId?: number | null;
   repetirHasta?: string | null;
+  userId?: number | null;
 }, serieId: string) {
   const occurrences: typeof base[] = [];
   let current = base.fecha;
@@ -39,10 +39,7 @@ function generateOccurrences(base: {
   let count = 0;
 
   while (current <= limit && count < 104) {
-    occurrences.push({
-      ...base,
-      fecha: current,
-    });
+    occurrences.push({ ...base, fecha: current });
     current = addDays(current, 7);
     count++;
   }
@@ -50,6 +47,7 @@ function generateOccurrences(base: {
   return occurrences.map(o => ({ ...o, serieId, repetirSemanal: true }));
 }
 
+// ─── GET /citas ───────────────────────────────────────────────────────────────
 router.get("/citas", async (req, res) => {
   try {
     const sess = getSessionUser(req);
@@ -58,14 +56,9 @@ router.get("/citas", async (req, res) => {
     const { start, end, patientId } = req.query as Record<string, string>;
     let rows = await db.select().from(citasTable);
 
-    // Role-based isolation: professionals see only their own citas
+    // Role-based isolation: professionals see only their own citas (by userId)
     if (sess.role !== "admin") {
-      if (sess.professionalId != null) {
-        rows = rows.filter(c => c.professionalId === sess.professionalId);
-      } else {
-        // Professional not linked to professionals table — show nothing for safety
-        rows = [];
-      }
+      rows = rows.filter(c => c.userId === sess.id);
     }
 
     if (start && end) {
@@ -82,6 +75,7 @@ router.get("/citas", async (req, res) => {
   }
 });
 
+// ─── POST /citas ──────────────────────────────────────────────────────────────
 router.post("/citas", async (req, res) => {
   try {
     const sess = getSessionUser(req);
@@ -92,12 +86,8 @@ router.post("/citas", async (req, res) => {
       notas, patientId, repetirSemanal, repetirHasta,
     } = req.body;
 
-    let { professionalId } = req.body;
-
-    // For professionals, always use their own professionalId
-    if (sess.role !== "admin") {
-      professionalId = sess.professionalId ?? null;
-    }
+    // professionalId stored for display purposes only; ownership is via userId
+    const professionalId = req.body.professionalId ?? null;
 
     if (!titulo || !fecha || !horaInicio || !horaFin) {
       return res.status(400).json({ error: "Faltan campos requeridos" });
@@ -112,8 +102,11 @@ router.post("/citas", async (req, res) => {
       status,
       notas: notas ?? null,
       patientId: patientId ?? null,
-      professionalId: professionalId ?? null,
+      professionalId: professionalId !== null && professionalId !== undefined
+        ? parseInt(professionalId)
+        : null,
       repetirHasta: repetirHasta ?? null,
+      userId: sess.id,
     };
 
     if (repetirSemanal) {
@@ -131,6 +124,7 @@ router.post("/citas", async (req, res) => {
   }
 });
 
+// ─── PUT /citas/:id ───────────────────────────────────────────────────────────
 router.put("/citas/:id", async (req, res) => {
   try {
     const sess = getSessionUser(req);
@@ -142,8 +136,8 @@ router.put("/citas/:id", async (req, res) => {
     const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
     if (!cita) return res.status(404).json({ error: "Cita no encontrada" });
 
-    // Access check for professionals
-    if (sess.role !== "admin" && sess.professionalId != null && cita.professionalId !== sess.professionalId) {
+    // Access check: professionals can only edit their own citas
+    if (sess.role !== "admin" && cita.userId !== sess.id) {
       return res.status(403).json({ error: "Sin acceso a esta cita" });
     }
 
@@ -165,7 +159,6 @@ router.put("/citas/:id", async (req, res) => {
       const newSerieId = randomUUID();
       const allInSerie = await db.select().from(citasTable).where(eq(citasTable.serieId, cita.serieId));
       const following = allInSerie.filter(c => c.fecha >= cita.fecha);
-
       for (const c of following) {
         await db.update(citasTable).set({ ...updates, serieId: newSerieId }).where(eq(citasTable.id, c.id));
       }
@@ -188,6 +181,7 @@ router.put("/citas/:id", async (req, res) => {
   }
 });
 
+// ─── DELETE /citas/:id ────────────────────────────────────────────────────────
 router.delete("/citas/:id", async (req, res) => {
   try {
     const sess = getSessionUser(req);
@@ -199,8 +193,8 @@ router.delete("/citas/:id", async (req, res) => {
     const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
     if (!cita) return res.status(404).json({ error: "Cita no encontrada" });
 
-    // Access check for professionals
-    if (sess.role !== "admin" && sess.professionalId != null && cita.professionalId !== sess.professionalId) {
+    // Access check: professionals can only cancel their own citas
+    if (sess.role !== "admin" && cita.userId !== sess.id) {
       return res.status(403).json({ error: "Sin acceso a esta cita" });
     }
 
