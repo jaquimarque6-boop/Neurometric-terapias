@@ -25,6 +25,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type NavItem = { title: string; url: string; icon: React.FC<{ className?: string }>; adminOnly?: boolean };
 
@@ -46,11 +47,15 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   const visibleItems = navItems.filter(item => !item.adminOnly || user?.role === "admin");
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar
+      collapsible={isMobile ? "offcanvas" : "none"}
+      className="border-r border-sidebar-border bg-sidebar"
+    >
       <SidebarHeader className="p-6">
         <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-[1.02]">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/20">
