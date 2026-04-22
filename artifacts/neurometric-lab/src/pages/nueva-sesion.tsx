@@ -36,6 +36,77 @@ const PHONEME_GROUPS: { phonemes: string[] }[] = [
   { phonemes: ["/rr/"] },
 ];
 
+// Phoneme → clinical goal suggestions (static templates)
+const PHONEME_GOAL_TEMPLATES: Record<string, string[]> = {
+  "/m/": [
+    "Producir fonemas bilabiales en sílabas directas (/m/, /p/, /b/)",
+    "Discriminar /p/ vs /b/ en pares mínimos",
+    "Usar bilabiales en palabras simples de forma espontánea",
+  ],
+  "/p/": [
+    "Producir fonemas bilabiales en sílabas directas (/m/, /p/, /b/)",
+    "Discriminar /p/ vs /b/ en pares mínimos",
+    "Usar bilabiales en palabras simples de forma espontánea",
+  ],
+  "/b/": [
+    "Producir fonemas bilabiales en sílabas directas (/m/, /p/, /b/)",
+    "Discriminar /p/ vs /b/ en pares mínimos",
+    "Usar bilabiales en palabras simples de forma espontánea",
+  ],
+  "/t/": [
+    "Producir fonemas alveolares en sílabas directas (/t/, /d/, /n/)",
+    "Generalizar alveolares a palabras bisílabas",
+    "Discriminación auditiva de alveolares en contexto",
+  ],
+  "/d/": [
+    "Producir fonemas alveolares en sílabas directas (/t/, /d/, /n/)",
+    "Generalizar alveolares a palabras bisílabas",
+    "Discriminación auditiva de alveolares en contexto",
+  ],
+  "/n/": [
+    "Producir fonemas alveolares en sílabas directas (/t/, /d/, /n/)",
+    "Generalizar alveolares a palabras bisílabas",
+    "Discriminación auditiva de alveolares en contexto",
+  ],
+  "/k/": [
+    "Producir velares en sílabas directas (/k/, /g/)",
+    "Evitar fronting de velares (sustitución por alveolares)",
+    "Usar velares en palabras en posición inicial y final",
+  ],
+  "/g/": [
+    "Producir velares en sílabas directas (/k/, /g/)",
+    "Evitar fronting de velares (sustitución por alveolares)",
+    "Usar velares en palabras en posición inicial y final",
+  ],
+  "/f/": [
+    "Producir /f/ en posición inicial de sílaba",
+    "Generalizar /f/ a frases simples",
+    "Discriminación auditiva /f/ vs /p/",
+  ],
+  "/s/": [
+    "Producir /s/ sin interdentalización en sílabas directas",
+    "Generalizar /s/ correcta a palabras",
+    "Usar /s/ en frases de 3 o más palabras",
+  ],
+  "/ch/": [
+    "Producir la africada /ch/ en sílabas directas",
+    "Generalizar /ch/ en palabras de uso frecuente",
+  ],
+  "/l/": [
+    "Producción correcta de /l/ en sílabas directas",
+    "Generalizar /l/ a palabras y frases",
+  ],
+  "/r/": [
+    "Producir vibrante simple /r/ en sílabas directas",
+    "Usar /r/ simple en palabras en posición intervocálica",
+  ],
+  "/rr/": [
+    "Producir vibrante múltiple /rr/ de forma aislada",
+    "Producir /rr/ en sílabas directas",
+    "Generalizar /rr/ a palabras en posición inicial",
+  ],
+};
+
 const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   lenguaje:      ["Evocación", "Completar frase", "Asociación imagen-palabra"],
   comprensión:   ["Selección múltiple", "Señalamiento", "Secuencias"],
@@ -451,8 +522,7 @@ export default function NuevaSesion() {
 
   // ── TSH phoneme guide ──────────────────────────────────────────────────────
   const [selectedPhoneme, setSelectedPhoneme]     = useState<string | null>(null);
-  const [phonemeGoals, setPhonemeGoals]           = useState<any[]>([]);
-  const [loadingPhonemeGoals, setLoadingPhonemeGoals] = useState(false);
+  const [phonemeAddingIdx, setPhonemeAddingIdx]   = useState<string | null>(null);
 
   const [showBanco, setShowBanco]             = useState(false);
   const [showCustomGoal, setShowCustomGoal]   = useState(false);
@@ -663,40 +733,8 @@ export default function NuevaSesion() {
   // ── Clear phoneme selection when diagnosis changes ─────────────────────────
   useEffect(() => {
     setSelectedPhoneme(null);
-    setPhonemeGoals([]);
+    setPhonemeAddingIdx(null);
   }, [sessionDiagnosis]);
-
-  // ── Fetch goal-library goals matching the selected phoneme ─────────────────
-  useEffect(() => {
-    if (!selectedPhoneme) { setPhonemeGoals([]); return; }
-    let cancelled = false;
-    setLoadingPhonemeGoals(true);
-    const phonemeRaw = selectedPhoneme.replace(/\//g, "").trim();
-    const params = new URLSearchParams({ q: `fonema ${phonemeRaw}`, area: "habla", limit: "8", estado: "activo" });
-    fetch(`/api/goal-library?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-        const results = Array.isArray(data) ? data : (Array.isArray(data?.goals) ? data.goals : []);
-        // If specific results are sparse, also try a broader search
-        if (results.length < 3) {
-          const params2 = new URLSearchParams({ q: phonemeRaw, area: "habla", limit: "8", estado: "activo" });
-          return fetch(`/api/goal-library?${params2}`)
-            .then(r2 => r2.json())
-            .then(data2 => {
-              if (!cancelled) {
-                const r2 = Array.isArray(data2) ? data2 : (Array.isArray(data2?.goals) ? data2.goals : []);
-                const merged = [...results, ...r2.filter((g: any) => !results.find((r: any) => r.id === g.id))];
-                setPhonemeGoals(merged);
-              }
-            });
-        }
-        setPhonemeGoals(results);
-      })
-      .catch(() => { if (!cancelled) setPhonemeGoals([]); })
-      .finally(() => { if (!cancelled) setLoadingPhonemeGoals(false); });
-    return () => { cancelled = true; };
-  }, [selectedPhoneme]);
 
   // ── Fetch clinical detail (libraryEntry + activities) for a goal ───────────
   const fetchDetail = async (goalId: number) => {
@@ -708,6 +746,42 @@ export default function NuevaSesion() {
         setDetailCache(prev => ({ ...prev, [goalId]: data }));
       }
     } catch {}
+  };
+
+  // ── Add a phoneme template goal to the session (creates in library, then adds) ─
+  const addPhonemeGoal = async (title: string, key: string) => {
+    if (phonemeAddingIdx === key) return;
+    if (adHocGoals.some((g: any) => g.nombreObjetivo === title)) return;
+    setPhonemeAddingIdx(key);
+    try {
+      const res = await fetch("/api/goal-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombreObjetivo: title,
+          area: "habla",
+          areaClinica: "habla",
+          subarea: "articulación",
+          nivelDificultad: "básico",
+          estadoBanco: "sesion",
+          isCustom: false,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const created = await res.json();
+      setAdHocGoals(prev => {
+        if (prev.find((a: any) => a.id === created.id)) return prev;
+        return [...prev, created];
+      });
+      setAdHocRows(prev => ({
+        ...prev,
+        [created.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" },
+      }));
+    } catch {
+      // silently ignore — user sees no change
+    } finally {
+      setPhonemeAddingIdx(null);
+    }
   };
 
   type GoalMeta = { title?: string; area?: string; subarea?: string; franjaEtaria?: string; definicionOperativa?: string };
@@ -1513,63 +1587,44 @@ export default function NuevaSesion() {
               </div>
             </div>
 
-            {/* Phoneme-filtered goal suggestions */}
-            {selectedPhoneme && (
+            {/* Phoneme-specific goal suggestions (static templates) */}
+            {selectedPhoneme && (PHONEME_GOAL_TEMPLATES[selectedPhoneme] ?? []).length > 0 && (
               <div className="border-t" style={{ borderColor: `${BRAND_TEAL}20` }}>
                 {/* Sub-header */}
                 <div className="flex items-center gap-2 px-5 py-2.5" style={{ background: `${BRAND_TEAL}10` }}>
                   <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: BRAND_TEAL }} />
                   <span className="text-xs font-semibold text-foreground/80">
-                    Objetivos relacionados con {selectedPhoneme}
+                    Objetivos sugeridos — {selectedPhoneme}
                   </span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">habla · articulación</span>
                 </div>
 
-                {loadingPhonemeGoals ? (
-                  <div className="px-5 py-5 text-center text-sm text-muted-foreground">
-                    Buscando objetivos…
-                  </div>
-                ) : phonemeGoals.filter((g: any) => !assignedLibraryIds.has(g.id)).length === 0 ? (
-                  <div className="px-5 py-5 text-center text-sm text-muted-foreground">
-                    Sin objetivos específicos en la biblioteca para {selectedPhoneme}
-                  </div>
-                ) : (
-                  <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
-                    {phonemeGoals
-                      .filter((g: any) => !assignedLibraryIds.has(g.id))
-                      .slice(0, 6)
-                      .map((g: any) => (
-                        <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-white/50 transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {g.areaClinica ?? g.area}
-                              {g.nivelDificultad && ` · ${g.nivelDificultad}`}
-                              {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
-                            </p>
-                          </div>
+                <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}12` }}>
+                  {(PHONEME_GOAL_TEMPLATES[selectedPhoneme] ?? []).map((title, idx) => {
+                    const key = `${selectedPhoneme}-${idx}`;
+                    const alreadyAdded = adHocGoals.some((g: any) => g.nombreObjetivo === title);
+                    const isAdding = phonemeAddingIdx === key;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 px-5 py-3 hover:bg-white/40 transition-colors">
+                        <p className="flex-1 text-xs font-medium text-foreground leading-snug">{title}</p>
+                        {alreadyAdded ? (
+                          <span className="shrink-0 flex items-center gap-1 text-[10px] font-semibold text-secondary">
+                            <Check className="h-3 w-3" /> Agregado
+                          </span>
+                        ) : (
                           <button
-                            className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors mt-0.5 hover:text-white"
-                            style={{ borderColor: `${BRAND_TEAL}50`, color: BRAND_TEAL }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = BRAND_TEAL; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = BRAND_TEAL; }}
-                            onClick={() => {
-                              setAdHocGoals(prev => {
-                                if (prev.find((a: any) => a.id === g.id)) return prev;
-                                return [...prev, g];
-                              });
-                              setAdHocRows(prev => {
-                                if (prev[g.id]) return prev;
-                                return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
-                              });
-                            }}
+                            disabled={isAdding}
+                            onClick={() => addPhonemeGoal(title, key)}
+                            className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all"
+                            style={{ borderColor: `${BRAND_TEAL}50`, color: isAdding ? BRAND_TEAL : BRAND_TEAL, opacity: isAdding ? 0.6 : 1 }}
                           >
-                            + Agregar
+                            {isAdding ? "…" : "+ Agregar"}
                           </button>
-                        </div>
-                      ))
-                    }
-                  </div>
-                )}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
