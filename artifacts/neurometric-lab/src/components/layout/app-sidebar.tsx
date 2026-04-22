@@ -61,7 +61,7 @@ export function AppSidebar() {
               Neurometric
             </span>
             <span className="text-xs font-medium text-primary tracking-widest uppercase">
-              LABORATORY
+              TERAPIAS
             </span>
           </div>
         </Link>

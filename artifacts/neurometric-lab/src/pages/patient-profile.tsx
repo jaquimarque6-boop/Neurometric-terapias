@@ -401,7 +401,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   textarea{display:none!important}
   .doc-text-area-print{display:block}
   @media print{body{padding:24px 32px}}
-</style></head><body>${content}<div class="footer"><span>Neurometric Lab · Informe de Evolución</span><span>${today}</span></div></body></html>`);
+</style></head><body>${content}<div class="footer"><span>Neurometric Terapias · Informe de Evolución</span><span>${today}</span></div></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };

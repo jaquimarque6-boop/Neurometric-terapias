@@ -38,7 +38,7 @@ export default function LoginPage() {
             <Activity className="h-7 w-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-foreground font-display tracking-tight">
-            Neurometric Lab
+            Neurometric Terapias
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Plataforma clínica de intervención terapéutica</p>
         </div>
