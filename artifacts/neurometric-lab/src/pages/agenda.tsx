@@ -26,7 +26,7 @@ const TOTAL_HOURS = END_HOUR - START_HOUR;
 const GRID_HEIGHT = TOTAL_HOURS * HOUR_PX;
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  sesion:     { bg: "bg-teal-50",   text: "text-teal-800",   border: "border-teal-200",   dot: "bg-teal-500"   },
+  sesion:     { bg: "bg-stone-50",  text: "text-stone-700",  border: "border-stone-200",  dot: "bg-stone-500"  },
   evaluacion: { bg: "bg-rose-50",   text: "text-rose-800",   border: "border-rose-200",   dot: "bg-rose-500"   },
   reunion:    { bg: "bg-amber-50",  text: "text-amber-800",  border: "border-amber-200",  dot: "bg-amber-500"  },
   otro:       { bg: "bg-muted/50",  text: "text-foreground/80",  border: "border-border",  dot: "bg-muted-foreground/40"  },
@@ -273,7 +273,7 @@ export default function AgendaPage() {
       <AppSidebar />
       <SidebarInset className="flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-white shrink-0">
+        <header className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-card shrink-0">
           <SidebarTrigger className="-ml-1" />
           <button
             onClick={() => window.history.back()}
@@ -311,7 +311,7 @@ export default function AgendaPage() {
         <div className="flex-1 overflow-auto">
           <div className="min-w-[700px]">
             {/* Day headers */}
-            <div className="sticky top-0 z-10 bg-white border-b border-border/50 flex">
+            <div className="sticky top-0 z-10 bg-card border-b border-border/50 flex">
               <div className="w-14 shrink-0" />
               {days.map((day, i) => (
                 <button

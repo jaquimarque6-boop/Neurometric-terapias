@@ -113,10 +113,10 @@ const CATEGORIAS = [
 const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   "lenguaje":              { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
   "habla":                 { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200"   },
-  "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "pragmática":            { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
   "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
   "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
-  "cognición":             { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "cognición":             { bg: "bg-yellow-100",  text: "text-yellow-800",  border: "border-yellow-200"  },
   "estimulación temprana": { bg: "bg-stone-200",   text: "text-stone-700",   border: "border-stone-300"   },
 };
 
@@ -1187,7 +1187,7 @@ export default function PatientProfile() {
                         {/* Row: date + title + actions */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="h-8 w-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
+                            <div className="h-8 w-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                               <ClipboardList className="h-4 w-4" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -1760,9 +1760,9 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                   </div>
                 )}
                 {lib?.indicadorTipo && (
-                  <div className="bg-teal-50 border border-teal-100 rounded-xl p-2.5 text-center">
-                    <p className="text-xs font-bold text-teal-700 capitalize">{lib.indicadorTipo}</p>
-                    <p className="text-xs text-teal-600">Indicador</p>
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 text-center">
+                    <p className="text-xs font-bold text-amber-800 capitalize">{lib.indicadorTipo}</p>
+                    <p className="text-xs text-amber-700">Indicador</p>
                   </div>
                 )}
                 {lib?.intentosSugeridos && (
@@ -2088,7 +2088,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
           )}
 
           {/* ── Progress note form ───────────────────────────────────────── */}
-          <div className="space-y-3 border border-border rounded-xl p-4 bg-white">
+          <div className="space-y-3 border border-border rounded-xl p-4 bg-card">
             <p className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" /> Nota de progreso
             </p>
@@ -2226,7 +2226,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
             ) : (
               <div className="space-y-2">
                 {history.map(entry => (
-                  <div key={entry.id} className="bg-white border border-border rounded-xl p-3.5 space-y-2">
+                  <div key={entry.id} className="bg-card border border-border rounded-xl p-3.5 space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-xs text-muted-foreground">{formatTs(entry.createdAt)}</span>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
@@ -2733,7 +2733,7 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
               const ac = getAreaColor(goal.areaClinica);
               const isAssigning = assigning === goal.id;
               return (
-                <div key={goal.id} className="flex items-start gap-3 p-3 bg-white border border-border rounded-xl hover:border-primary/30 hover:bg-primary/2 transition-colors">
+                <div key={goal.id} className="flex items-start gap-3 p-3 bg-card border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-colors">
                   <div className={`shrink-0 text-xs font-mono font-bold px-2 py-1 rounded-lg ${ac.bg} ${ac.text} border ${ac.border} whitespace-nowrap mt-0.5`}>
                     {goal.idObjetivo}
                   </div>
@@ -2789,7 +2789,7 @@ const EVENT_CFG: Record<string, {
   Icon: React.ElementType; label: string;
 }> = {
   sesion: {
-    dot: "bg-teal-500", border: "border-teal-200", bg: "bg-teal-50/60", text: "text-teal-700",
+    dot: "bg-stone-500", border: "border-stone-200", bg: "bg-stone-50/60", text: "text-stone-700",
     Icon: CalendarCheck2, label: "Sesión realizada",
   },
   objetivo_asignado: {

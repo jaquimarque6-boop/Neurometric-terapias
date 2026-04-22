@@ -88,7 +88,7 @@ export default function Goals() {
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border/50 shadow-sm">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Target className="h-6 w-6 text-primary" />
@@ -103,14 +103,14 @@ export default function Goals() {
           {isLoading ? (
             <div className="text-center p-12 text-muted-foreground animate-pulse">Loading treatment plans...</div>
           ) : !groupedGoals || Object.keys(groupedGoals).length === 0 ? (
-            <div className="text-center p-12 bg-white rounded-2xl border border-dashed border-border">
+            <div className="text-center p-12 bg-card rounded-2xl border border-dashed border-border">
               <Target className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-foreground">No active goals</h3>
               <p className="text-muted-foreground mt-1">Create treatment goals for your patients.</p>
             </div>
           ) : (
             Object.entries(groupedGoals).map(([patientName, patientGoals]) => (
-              <Card key={patientName} className="border-border/50 shadow-sm overflow-hidden bg-white">
+              <Card key={patientName} className="border-border/50 shadow-sm overflow-hidden bg-card">
                 <CardHeader className="bg-muted/50 border-b py-4">
                   <CardTitle className="text-lg font-display text-primary flex items-center gap-2">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">
@@ -232,7 +232,7 @@ function CreateGoalSheet() {
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-muted/50 border-l-0 shadow-2xl">
-        <SheetHeader className="bg-white -mx-6 -mt-6 p-6 border-b shadow-sm mb-6">
+        <SheetHeader className="bg-card -mx-6 -mt-6 p-6 border-b shadow-sm mb-6">
           <SheetTitle className="font-display text-2xl text-primary">Treatment Goal</SheetTitle>
           <SheetDescription>
             Define a measurable clinical objective.
@@ -242,7 +242,7 @@ function CreateGoalSheet() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             
-            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
               <FormField
                 control={form.control}
                 name="patientId"
@@ -267,7 +267,7 @@ function CreateGoalSheet() {
               />
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
               <FormField
                 control={form.control}
                 name="title"
@@ -301,7 +301,7 @@ function CreateGoalSheet() {
               />
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

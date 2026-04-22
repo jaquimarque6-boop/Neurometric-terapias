@@ -51,7 +51,7 @@ export default function Professionals() {
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border/50 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border/50 shadow-sm">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Stethoscope className="h-6 w-6 text-primary" />

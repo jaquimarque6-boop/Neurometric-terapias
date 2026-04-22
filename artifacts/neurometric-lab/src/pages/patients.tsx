@@ -32,8 +32,8 @@ const STATUS: Record<
   },
   "En progreso": {
     stripe: BRAND_TEAL,
-    dot: "bg-teal-400",
-    label: "text-teal-600",
+    dot: "bg-amber-400",
+    label: "text-amber-700",
   },
   "Requiere ajuste": {
     stripe: "#f43f5e",
@@ -116,7 +116,7 @@ export default function Patients() {
                 placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-sm w-44 bg-white border-border focus-visible:ring-primary/20"
+                className="pl-8 h-8 text-sm w-44 bg-card border-border focus-visible:ring-primary/20"
               />
             </div>
             <button
@@ -138,7 +138,7 @@ export default function Patients() {
               .map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl border border-border/50 p-4 space-y-3 shadow-sm"
+                  className="bg-card rounded-xl border border-border/50 p-4 space-y-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-4 w-28" />
@@ -182,7 +182,7 @@ export default function Patients() {
                 <div
                   key={patient.id}
                   onClick={() => navigate(`/patients/${patient.id}`)}
-                  className="bg-white rounded-xl border border-border/50 shadow-sm cursor-pointer group
+                  className="bg-card rounded-xl border border-border/50 shadow-sm cursor-pointer group
                              hover:shadow-md hover:border-border transition-all duration-200
                              overflow-hidden flex"
                   style={{ borderLeft: `3px solid ${sc.stripe}` }}

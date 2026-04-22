@@ -90,7 +90,7 @@ export default function Dashboard() {
   const stats = [
     { label: "Pacientes",          value: totalPatients,  icon: Users,        color: "text-primary",   bg: "bg-primary/8"   },
     { label: "Objetivos activos",  value: activeGoals,    icon: Target,       color: "text-amber-600", bg: "bg-amber-50"    },
-    { label: "Citas esta semana",  value: sessionsSemana, icon: CalendarDays, color: "text-teal-600",  bg: "bg-teal-50"     },
+    { label: "Citas esta semana",  value: sessionsSemana, icon: CalendarDays, color: "text-amber-700", bg: "bg-amber-50"    },
   ];
 
   return (

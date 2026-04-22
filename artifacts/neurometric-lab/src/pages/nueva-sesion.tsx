@@ -366,16 +366,16 @@ const ESTADO_OPTIONS = [
 ];
 
 const ESTADO_STYLE: Record<string, string> = {
-  "nuevo":         "bg-slate-50 border-slate-300 text-slate-700",
+  "nuevo":         "bg-stone-50 border-stone-300 text-stone-600",
   "en proceso":    "bg-amber-50 border-amber-300 text-amber-800",
-  "consolidando":  "bg-teal-50 border-teal-300 text-teal-800",
+  "consolidando":  "bg-green-50 border-green-300 text-green-800",
   "generalizando": "bg-emerald-50 border-emerald-300 text-emerald-800",
 };
 
 const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
-  "nuevo":         { bg: "bg-slate-100 text-slate-600",   label: "Nuevo"         },
+  "nuevo":         { bg: "bg-stone-100 text-stone-600",   label: "Nuevo"         },
   "en proceso":    { bg: "bg-amber-100 text-amber-700",   label: "En proceso"    },
-  "consolidando":  { bg: "bg-teal-100 text-teal-800",     label: "Consolidando"  },
+  "consolidando":  { bg: "bg-green-100 text-green-800",   label: "Consolidando"  },
   "generalizando": { bg: "bg-emerald-100 text-emerald-700", label: "Generalizando" },
 };
 
@@ -1138,7 +1138,7 @@ export default function NuevaSesion() {
 
                 {/* Definición operativa */}
                 {(entry?.definicionOperativa) && (
-                  <div className="flex gap-2.5 px-3.5 py-3 bg-white border-b border-border/50">
+                  <div className="flex gap-2.5 px-3.5 py-3 bg-card border-b border-border/50">
                     <ClipboardList className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground/70 mb-0.5">Definición operativa</p>
@@ -1149,11 +1149,11 @@ export default function NuevaSesion() {
 
                 {/* Marco conceptual — static content */}
                 {(clinicalContent?.marcoConceptual || entry?.marcoConceptual) && (
-                  <div className="flex gap-2.5 px-3.5 py-3 bg-teal-50/60 border-b border-teal-100/60">
-                    <Brain className="h-3.5 w-3.5 text-teal-500 shrink-0 mt-0.5" />
+                  <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/60 border-b border-amber-100/60">
+                    <Brain className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-teal-700 mb-1">Marco conceptual</p>
-                      <p className="text-teal-800/80 leading-relaxed">
+                      <p className="font-semibold text-amber-800 mb-1">Marco conceptual</p>
+                      <p className="text-amber-900/80 leading-relaxed">
                         {clinicalContent?.marcoConceptual ?? entry?.marcoConceptual}
                       </p>
                     </div>
@@ -1177,14 +1177,14 @@ export default function NuevaSesion() {
                   const items = [...staticItems, ...extra].slice(0, 4);
                   if (items.length === 0) return null;
                   return (
-                    <div className="flex gap-2.5 px-3.5 py-3 bg-teal-50/40 border-b border-teal-100/60">
-                      <Sparkles className="h-3.5 w-3.5 text-teal-500 shrink-0 mt-0.5" />
+                    <div className="flex gap-2.5 px-3.5 py-3 bg-amber-50/40 border-b border-amber-100/60">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-teal-700 mb-1">Actividades clínicas</p>
+                        <p className="font-semibold text-amber-800 mb-1">Actividades clínicas</p>
                         <ul className="space-y-1.5">
                           {items.map((act: string, i: number) => (
-                            <li key={i} className="flex gap-1.5 text-teal-800/80">
-                              <span className="text-teal-400 shrink-0 mt-0.5">·</span>
+                            <li key={i} className="flex gap-1.5 text-amber-900/80">
+                              <span className="text-amber-500 shrink-0 mt-0.5">·</span>
                               <span className="leading-snug">{act}</span>
                             </li>
                           ))}
@@ -1274,7 +1274,7 @@ export default function NuevaSesion() {
         </div>
 
         {/* ── Card: paciente + fecha ────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-4">
+        <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Paciente */}
             <div className="space-y-1.5 flex-1">
@@ -1546,7 +1546,7 @@ export default function NuevaSesion() {
 
         {/* ── Foco terapéutico ─────────────────────────────────────────── */}
         {patient && (
-          <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-2">
+          <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-2">
             <label className="text-sm font-semibold text-foreground/80">Foco terapéutico</label>
             <Textarea
               placeholder="Ej: trabajar comprensión de consignas y conectores temporales…"
@@ -1709,7 +1709,7 @@ export default function NuevaSesion() {
 
         {/* ── Card: objetivos ───────────────────────────────────────────── */}
         {patient && (
-          <div className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
             {/* Card header */}
             <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">
@@ -1950,7 +1950,7 @@ export default function NuevaSesion() {
                                 alreadyAdded
                                   ? "bg-emerald-50 cursor-default"
                                   : isSelected
-                                  ? "bg-teal-50 hover:bg-teal-50"
+                                  ? "bg-amber-50 hover:bg-amber-50"
                                   : "hover:bg-muted/50"
                               }`}
                               onClick={() => { if (!alreadyAdded) toggleBancoGoal(g.id); }}
@@ -1960,7 +1960,7 @@ export default function NuevaSesion() {
                                 alreadyAdded
                                   ? "bg-emerald-400 border-emerald-400"
                                   : isSelected
-                                  ? "border-teal-500 bg-teal-500"
+                                  ? "border-amber-500 bg-amber-500"
                                   : "border-border"
                               }`}>
                                 {(alreadyAdded || isSelected) && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
@@ -2001,7 +2001,7 @@ export default function NuevaSesion() {
 
         {/* ── Card: notas generales ─────────────────────────────────────── */}
         {patient && (
-          <div className="bg-white rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
+          <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Notas de sesión <span className="text-muted-foreground font-normal">(opcional)</span></h2>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">

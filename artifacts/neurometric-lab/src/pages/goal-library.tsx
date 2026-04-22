@@ -57,10 +57,10 @@ const AREA_LABELS: Record<string, string> = {
 const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   "lenguaje":              { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-200"    },
   "habla":                 { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-200"   },
-  "pragmática":            { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "pragmática":            { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200"  },
   "motricidad orofacial":  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-200"  },
   "lectoescritura":        { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200" },
-  "cognición":             { bg: "bg-teal-100",    text: "text-teal-700",    border: "border-teal-200"    },
+  "cognición":             { bg: "bg-yellow-100",  text: "text-yellow-800",  border: "border-yellow-200"  },
   "estimulación temprana": { bg: "bg-stone-200",   text: "text-stone-700",   border: "border-stone-300"   },
 };
 
@@ -238,7 +238,7 @@ const BLOQUES_POR_AREA = BLOQUES_CLINICOS.reduce((acc, b) => {
 const BLOQUE_AREA_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   comprensión: { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",  dot: "bg-amber-400"   },
   lenguaje:    { bg: "bg-rose-50",    text: "text-rose-700",    border: "border-rose-200",   dot: "bg-rose-400"    },
-  fonología:   { bg: "bg-teal-50",    text: "text-teal-700",    border: "border-teal-200",   dot: "bg-teal-400"    },
+  fonología:   { bg: "bg-amber-50",   text: "text-amber-800",   border: "border-amber-200",  dot: "bg-amber-500"   },
   pragmática:  { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200",dot: "bg-emerald-400" },
   cognición:   { bg: "bg-stone-100",  text: "text-stone-700",   border: "border-stone-200",  dot: "bg-stone-400"   },
 };
@@ -566,7 +566,7 @@ export default function GoalLibrary() {
 
         {/* ── Breadcrumb — only in objetivos mode ──────────────────── */}
         {viewMode === "objetivos" && (areaFilter !== "all") && (
-          <div className="flex items-center gap-1 text-sm flex-wrap bg-white border border-border/50 rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-1 text-sm flex-wrap bg-card border border-border/50 rounded-xl px-4 py-2.5 shadow-sm">
             <button
               onClick={clearFilters}
               className="text-primary/70 hover:text-primary transition-colors font-medium"
@@ -621,7 +621,7 @@ export default function GoalLibrary() {
                       return (
                         <div
                           key={bloque.id}
-                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isOpen ? `ring-2 ring-offset-1 ${ac.border}` : "hover:shadow-md"}`}
+                          className={`bg-card rounded-2xl border shadow-sm overflow-hidden transition-all ${isOpen ? `ring-2 ring-offset-1 ${ac.border}` : "hover:shadow-md"}`}
                         >
                           {/* Card header — clickable */}
                           <button
@@ -661,17 +661,17 @@ export default function GoalLibrary() {
                               </div>
 
                               {/* Guía clínica */}
-                              <div className="px-5 py-4 bg-teal-50/50 border-t border-teal-100/60 space-y-1.5">
-                                <p className="font-semibold text-teal-700 flex items-center gap-1.5">
+                              <div className="px-5 py-4 bg-amber-50/50 border-t border-amber-100/60 space-y-1.5">
+                                <p className="font-semibold text-amber-800 flex items-center gap-1.5">
                                   <Lightbulb className="h-3.5 w-3.5" />
                                   Guía clínica
                                 </p>
-                                <p className="text-teal-800/75 leading-relaxed">{bloque.guia}</p>
+                                <p className="text-amber-900/75 leading-relaxed">{bloque.guia}</p>
                               </div>
 
                               {/* Actividades sugeridas */}
-                              <div className="px-5 py-4 bg-teal-50/40 border-t border-teal-100/60 space-y-2">
-                                <p className="font-semibold text-teal-700 flex items-center gap-1.5">
+                              <div className="px-5 py-4 bg-amber-50/40 border-t border-amber-100/60 space-y-2">
+                                <p className="font-semibold text-amber-800 flex items-center gap-1.5">
                                   <Sparkles className="h-3.5 w-3.5" />
                                   Actividades sugeridas
                                 </p>
@@ -679,7 +679,7 @@ export default function GoalLibrary() {
                                   {bloque.actividades.map(act => (
                                     <span
                                       key={act}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-white border border-teal-200 text-teal-700"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-card border border-amber-200 text-amber-800"
                                     >
                                       {act}
                                     </span>
@@ -824,7 +824,7 @@ export default function GoalLibrary() {
                                 {(goal.indicadorTipo || goal.intentosSugeridos || goal.metaPorcentaje) && (
                                   <div className="flex flex-wrap gap-2">
                                     {goal.indicadorTipo && (
-                                      <div className="bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                      <div className="bg-card border border-rose-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
                                         <Target className="h-3.5 w-3.5 text-rose-400 shrink-0" />
                                         <span className="text-muted-foreground">Indicador de logro:</span>
                                         <span className="font-semibold text-foreground/80">{goal.indicadorTipo}</span>
@@ -838,7 +838,7 @@ export default function GoalLibrary() {
                                       </div>
                                     )}
                                     {goal.metaPorcentaje && (
-                                      <div className="bg-white border border-emerald-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
+                                      <div className="bg-card border border-emerald-200 rounded-lg px-3 py-2 text-xs flex items-center gap-1.5">
                                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                                         <span className="text-muted-foreground">Meta:</span>
                                         <span className="font-semibold text-foreground/80">{goal.metaPorcentaje}</span>
@@ -879,10 +879,10 @@ export default function GoalLibrary() {
 
                                 {/* ── Marco conceptual ────────────────────── */}
                                 {goal.marcoConceptual && (
-                                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+                                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <BookOpen className="h-4 w-4 text-teal-600" />
-                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-widest">Marco Conceptual</p>
+                                      <BookOpen className="h-4 w-4 text-amber-700" />
+                                      <p className="text-xs font-semibold text-amber-800 uppercase tracking-widest">Marco Conceptual</p>
                                     </div>
                                     <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{goal.marcoConceptual}</p>
                                   </div>
@@ -913,7 +913,7 @@ export default function GoalLibrary() {
                                   )}
                                   {goal.prerequisitos && (
                                     <DetailSection
-                                      icon={<ChevronRight className="h-4 w-4 text-teal-500" />}
+                                      icon={<ChevronRight className="h-4 w-4 text-amber-600" />}
                                       title="Prerrequisitos"
                                       content={goal.prerequisitos}
                                     />
@@ -988,7 +988,7 @@ export default function GoalLibrary() {
                   <button
                     key={g.name}
                     onClick={() => setDrillGrupo(g.name)}
-                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all hover:shadow-md active:scale-[0.98] group bg-white ${ac.border}`}
+                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all hover:shadow-md active:scale-[0.98] group bg-card ${ac.border}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -1022,7 +1022,7 @@ export default function GoalLibrary() {
                   <button
                     key={sc.name}
                     onClick={() => { setDrillSubarea(sc.name); setSubareaFilter(sc.name); }}
-                    className={`w-full flex items-center justify-between gap-4 px-5 py-4 rounded-xl border-2 bg-white transition-all hover:shadow-md active:scale-[0.99] group ${ac.border}`}
+                    className={`w-full flex items-center justify-between gap-4 px-5 py-4 rounded-xl border-2 bg-card transition-all hover:shadow-md active:scale-[0.99] group ${ac.border}`}
                   >
                     <span className={`font-semibold text-base ${ac.text}`}>{sc.name}</span>
                     <div className="flex items-center gap-3 shrink-0">
@@ -1062,7 +1062,7 @@ export default function GoalLibrary() {
 
 function DetailSection({ icon, title, content }: { icon: React.ReactNode; title: string; content: string }) {
   return (
-    <div className="bg-white rounded-xl border border-border p-4">
+    <div className="bg-card rounded-xl border border-border p-4">
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">{title}</p>
@@ -1194,7 +1194,7 @@ function GoalActivitiesPanel({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-border p-4 space-y-5">
+    <div className="bg-card rounded-xl border border-border p-4 space-y-5">
       <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-amber-500" />
         Actividades terapéuticas
@@ -1376,7 +1376,7 @@ function ActivityAddForm({
 }) {
   const canSave = form.titulo.trim().length > 0;
   return (
-    <div className="bg-white border border-primary/30 rounded-lg p-3 space-y-2 shadow-sm">
+    <div className="bg-card border border-primary/30 rounded-lg p-3 space-y-2 shadow-sm">
       <Input
         value={form.titulo}
         onChange={e => setForm({ ...form, titulo: e.target.value })}
@@ -1728,7 +1728,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
           {/* Marco conceptual */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground/80 flex items-center gap-1.5">
-              <BookOpen className="h-4 w-4 text-teal-500" />
+              <BookOpen className="h-4 w-4 text-amber-600" />
               Marco conceptual
             </label>
             <Textarea

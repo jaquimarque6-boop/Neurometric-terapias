@@ -91,10 +91,10 @@
   --muted-foreground: 22 14% 38%;
   --muted-border: hsl(33 18% 82%);
 
-  /* Accent: brand teal — deep warm teal */
-  --accent: 176 50% 30%;
+  /* Accent: warm sage — muted natural green */
+  --accent: 155 22% 38%;
   --accent-foreground: 0 0% 100%;
-  --accent-border: hsl(176 50% 22%);
+  --accent-border: hsl(155 22% 30%);
 
   /* Destructive: warm red */
   --destructive: 0 68% 55%;
@@ -124,7 +124,7 @@
 
   /* Chart colors — warm palette */
   --chart-1: 24 54% 50%;   /* terracotta */
-  --chart-2: 176 44% 38%;  /* warm teal */
+  --chart-2: 155 30% 42%;  /* warm sage */
   --chart-3: 25 20% 32%;   /* warm brown */
   --chart-4: 38 72% 55%;   /* warm amber */
   --chart-5: 0 68% 55%;    /* warm red */

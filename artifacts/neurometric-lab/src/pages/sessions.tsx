@@ -40,7 +40,7 @@ function estadoStyle(estado?: string | null) {
   return "bg-muted text-muted-foreground";
 }
 
-const PATIENT_COLORS = ["bg-rose-100 text-rose-700", "bg-teal-100 text-teal-700", "bg-amber-100 text-amber-700", "bg-stone-200 text-stone-700"];
+const PATIENT_COLORS = ["bg-rose-100 text-rose-700", "bg-green-100 text-green-800", "bg-amber-100 text-amber-700", "bg-stone-200 text-stone-700"];
 
 export default function Sessions() {
   const { data: sessions, isLoading } = useListSessions();

@@ -65,7 +65,7 @@ export default function Reportes() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Pacientes", value: patients.length, icon: Users, color: "text-primary bg-primary/10" },
-            { label: "Registros clínicos", value: allReg.length, icon: ClipboardList, color: "text-teal-600 bg-teal-50" },
+            { label: "Registros clínicos", value: allReg.length, icon: ClipboardList, color: "text-amber-700 bg-amber-50" },
             { label: "Objetivos activos", value: allGoals.filter(g => g.status === "activo").length, icon: Target, color: "text-amber-600 bg-amber-100" },
             { label: "Logros", value: allGoals.filter(g => g.status === "logrado").length, icon: TrendingUp, color: "text-emerald-600 bg-emerald-100" },
           ].map(s => (
@@ -138,7 +138,7 @@ export default function Reportes() {
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="pb-4 border-b">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4 text-teal-500" /> Sesiones por paciente
+                <Users className="h-4 w-4 text-amber-600" /> Sesiones por paciente
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
@@ -195,7 +195,7 @@ export default function Reportes() {
                       <td className="px-6 py-4 text-sm text-foreground/80">
                         {profesional ?? <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-6 py-4 text-center font-semibold text-teal-600">{pGoals.filter(g => g.status === "activo").length}</td>
+                      <td className="px-6 py-4 text-center font-semibold text-amber-700">{pGoals.filter(g => g.status === "activo").length}</td>
                       <td className="px-6 py-4 text-center font-semibold text-emerald-600">{pGoals.filter(g => g.status === "logrado").length}</td>
                       <td className="px-6 py-4 text-center">{pReg.length}</td>
                       <td className="px-6 py-4">
