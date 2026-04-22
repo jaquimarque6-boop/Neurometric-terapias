@@ -1,204 +1,106 @@
-import { useState, useMemo } from "react";
-import { Sparkles, Search, Filter, X, Stethoscope, Home } from "lucide-react";
-import { useListActividades } from "@workspace/api-client-react";
+import { ExternalLink, BookOpen, Mic, Brain } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
 
-type Actividad = {
-  id: number; titulo: string; descripcion?: string | null; tipo: string;
-  area?: string | null; subarea?: string | null; franjaEtaria?: string | null;
-  recursos?: string | null; goalLibraryId?: number | null; objetivoNombre?: string | null;
-  createdAt: string;
-};
+const BASE_URL = "https://therapy-spark-toolkit.lovable.app";
 
-const AREA_COLORS: Record<string, string> = {
-  "Lenguaje Expresivo":             "bg-rose-100 text-rose-700",
-  "Lenguaje Comprensivo-Expresivo": "bg-orange-100 text-orange-700",
-  "Lenguaje Funcional":             "bg-amber-100 text-amber-700",
-  "Lenguaje Narrativo":             "bg-amber-100 text-amber-800",
-  "Léxico":                         "bg-amber-100 text-amber-800",
-  "Comprensión":                    "bg-emerald-100 text-emerald-700",
-  "Metalingüística":                "bg-stone-200 text-stone-700",
-  "Semántica":                      "bg-emerald-100 text-emerald-700",
-  "Pragmática":                     "bg-green-100 text-green-700",
-  "Comunicación":                   "bg-lime-100 text-lime-700",
-};
-
-function areaColor(area: string) {
-  return AREA_COLORS[area] ?? "bg-muted text-foreground/70";
-}
+const QUICK_LINKS = [
+  {
+    label: "Lenguaje",
+    href: `${BASE_URL}/?area=lenguaje`,
+    icon: BookOpen,
+    description: "Comprensión, expresión y vocabulario",
+    color: { bg: "bg-rose-50", border: "border-rose-200", icon: "text-rose-500", label: "text-rose-700", desc: "text-rose-500" },
+  },
+  {
+    label: "Fonología",
+    href: `${BASE_URL}/?area=fonologia`,
+    icon: Mic,
+    description: "Fonemas, sílabas y discriminación auditiva",
+    color: { bg: "bg-amber-50", border: "border-amber-200", icon: "text-amber-500", label: "text-amber-700", desc: "text-amber-500" },
+  },
+  {
+    label: "Atención",
+    href: `${BASE_URL}/?area=atencion`,
+    icon: Brain,
+    description: "Foco, memoria y funciones ejecutivas",
+    color: { bg: "bg-violet-50", border: "border-violet-200", icon: "text-violet-500", label: "text-violet-700", desc: "text-violet-500" },
+  },
+];
 
 export default function Actividades() {
-  const { data: actividades = [], isLoading } = useListActividades();
-  const [search, setSearch] = useState("");
-  const [areaFilter, setAreaFilter] = useState("all");
-  const [franjaFilter, setFranjaFilter] = useState("all");
-  const [tipoFilter, setTipoFilter] = useState("all");
-
-  const all = actividades as Actividad[];
-  const areas   = useMemo(() => ["all", ...Array.from(new Set(all.map(a => a.area).filter(Boolean))).sort()], [all]);
-  const franjas = useMemo(() => {
-    const normalized = new Set(all.map(a => a.franjaEtaria).filter(Boolean));
-    return ["all", ...["0-2","3-5","6-8","9-12","13-16","17-20"].filter(f => normalized.has(f))];
-  }, [all]);
-
-  const filtered = useMemo(() => all.filter(a => {
-    const q = search.toLowerCase();
-    const matchSearch = !q ||
-      a.titulo.toLowerCase().includes(q) ||
-      (a.descripcion ?? "").toLowerCase().includes(q) ||
-      (a.area ?? "").toLowerCase().includes(q) ||
-      (a.objetivoNombre ?? "").toLowerCase().includes(q);
-    const matchArea   = areaFilter === "all"   || a.area === areaFilter;
-    const matchFranja = franjaFilter === "all" || a.franjaEtaria === franjaFilter;
-    const matchTipo   = tipoFilter === "all"   || a.tipo === tipoFilter;
-    return matchSearch && matchArea && matchFranja && matchTipo;
-  }), [all, search, areaFilter, franjaFilter, tipoFilter]);
-
-  const grouped = useMemo(() => filtered.reduce((acc, a) => {
-    const key = a.area ?? "Sin área";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(a);
-    return acc;
-  }, {} as Record<string, Actividad[]>), [filtered]);
-
-  const clinicaCount = all.filter(a => a.tipo === "clinica").length;
-  const familiaCount = all.filter(a => a.tipo === "familia").length;
-  const activeFilters = (areaFilter !== "all" ? 1 : 0) + (franjaFilter !== "all" ? 1 : 0) + (tipoFilter !== "all" ? 1 : 0);
-
   return (
     <AppLayout>
-      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500 max-w-2xl mx-auto w-full">
 
-        {/* Header */}
-        <div className="bg-card border border-border/50 rounded-2xl shadow-sm p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+        {/* Hero card */}
+        <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
+          {/* Decorative top bar */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
+
+          <div className="p-6 sm:p-8 flex flex-col items-center text-center gap-5">
+            {/* Icon */}
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+
+            {/* Title & description */}
             <div>
-              <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                Actividades Sugeridas
+              <h1 className="text-2xl font-display font-bold text-foreground">
+                Banco de actividades terapéuticas
               </h1>
-              <p className="text-muted-foreground mt-1">
-                {all.length} actividades · {clinicaCount} clínicas · {familiaCount} para familia
+              <p className="text-muted-foreground mt-2 leading-relaxed max-w-md mx-auto">
+                Accedé a actividades organizadas por área y edad listas para usar en sesión.
               </p>
             </div>
-          </div>
 
-          {/* Tipo tabs */}
-          <div className="flex items-center gap-1.5 mb-4 bg-muted/50 p-1 rounded-xl border border-border/50 w-fit">
-            {[
-              { value: "all", label: "Todas", icon: null },
-              { value: "clinica", label: "Clínicas", icon: Stethoscope },
-              { value: "familia", label: "Para familia", icon: Home },
-            ].map(t => (
-              <button
-                key={t.value}
-                onClick={() => setTipoFilter(t.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-[0.97] ${tipoFilter === t.value ? "bg-card text-primary shadow-sm border border-border/50 font-semibold" : "bg-muted/40 text-foreground/65 hover:bg-muted hover:text-foreground/85"}`}
-              >
-                {t.icon && <t.icon className="h-4 w-4" />}
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar actividades..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-muted/50" />
-              {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/70"><X className="h-4 w-4" /></button>}
-            </div>
-            <Select value={areaFilter} onValueChange={setAreaFilter}>
-              <SelectTrigger className="w-full sm:w-56 bg-muted/50">
-                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Área" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las áreas</SelectItem>
-                {areas.filter(a => a !== "all").map(a => <SelectItem key={a!} value={a!}>{a}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={franjaFilter} onValueChange={setFranjaFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-muted/50">
-                <SelectValue placeholder="Franja etaria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las franjas</SelectItem>
-                {franjas.filter(f => f !== "all").map(f => <SelectItem key={f!} value={f!}>{f} años</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {activeFilters > 0 && (
-              <button onClick={() => { setAreaFilter("all"); setFranjaFilter("all"); setTipoFilter("all"); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 px-3 py-2 rounded-lg hover:bg-muted transition-colors whitespace-nowrap">
-                <X className="h-4 w-4" /> Limpiar ({activeFilters})
-              </button>
-            )}
+            {/* Main CTA */}
+            <a
+              href={BASE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-md transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98]"
+              style={{ background: "linear-gradient(90deg, #E07A5F 0%, #c85a44 100%)" }}
+            >
+              Ver banco de actividades
+              <ExternalLink className="h-4 w-4" />
+            </a>
           </div>
         </div>
 
-        {(search || activeFilters > 0) && (
-          <p className="text-sm text-muted-foreground -mt-2 px-1">
-            Mostrando <span className="font-semibold text-foreground/80">{filtered.length}</span> actividades
+        {/* Quick access section */}
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3 px-1">
+            Acceso rápido por área
           </p>
-        )}
-
-        {/* Content */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-          </div>
-        ) : Object.keys(grouped).length === 0 ? (
-          <div className="py-20 text-center bg-card rounded-2xl border border-dashed border-border">
-            <Sparkles className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-            <p className="font-medium text-foreground/70">No se encontraron actividades</p>
-            <p className="text-muted-foreground text-sm mt-1">Intenta ajustar los filtros.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([area, acts]) => (
-              <div key={area}>
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl mb-3 text-sm font-semibold ${areaColor(area)} border`} style={{ borderColor: "transparent" }}>
-                  {area}
-                  <span className="bg-white/50 text-xs px-1.5 py-0.5 rounded-full">{acts.length}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {QUICK_LINKS.map(({ label, href, icon: Icon, description, color }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`group flex flex-col gap-2 p-4 rounded-xl border ${color.bg} ${color.border} transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.99]`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`h-9 w-9 rounded-lg bg-white/70 flex items-center justify-center shadow-sm`}>
+                    <Icon className={`h-4.5 w-4.5 ${color.icon}`} />
+                  </div>
+                  <ExternalLink className={`h-3.5 w-3.5 ${color.desc} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </div>
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {acts.map(act => (
-                    <Card key={act.id} className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex items-center gap-2">
-                            {act.tipo === "clinica"
-                              ? <div className="h-7 w-7 rounded-lg bg-rose-100 flex items-center justify-center shrink-0"><Stethoscope className="h-3.5 w-3.5 text-rose-600" /></div>
-                              : <div className="h-7 w-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><Home className="h-3.5 w-3.5 text-emerald-600" /></div>
-                            }
-                            <Badge variant="outline" className={`text-xs border-0 ${act.tipo === "clinica" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
-                              {act.tipo === "clinica" ? "Clínica" : "Familia"}
-                            </Badge>
-                          </div>
-                          {act.franjaEtaria && (
-                            <span className="text-xs text-muted-foreground shrink-0">{act.franjaEtaria} años</span>
-                          )}
-                        </div>
-                        <p className="font-medium text-foreground text-sm leading-snug mb-2">{act.titulo}</p>
-                        {act.subarea && <p className="text-xs text-muted-foreground">{act.subarea}</p>}
-                        {act.objetivoNombre && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1 border-t border-border/50 pt-1.5">
-                            Objetivo: {act.objetivoNombre}
-                          </p>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                <div>
+                  <p className={`font-semibold text-sm ${color.label}`}>{label}</p>
+                  <p className={`text-xs mt-0.5 ${color.desc} leading-snug`}>{description}</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
-        )}
+        </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-muted-foreground/60 pb-2">
+          Las actividades se abren en una nueva pestaña del navegador.
+        </p>
+
       </div>
     </AppLayout>
   );
