@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
-  Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp,
+  Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2,
 } from "lucide-react";
 import { DIAGNOSES } from "@/utils/diagnosis-map";
 import { EvalSugerida } from "@/components/eval-sugerida";
@@ -22,6 +22,19 @@ import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
+
+// Phoneme acquisition order — TSH clinical reference
+const PHONEME_GROUPS: { phonemes: string[] }[] = [
+  { phonemes: ["/m/", "/p/", "/b/"] },
+  { phonemes: ["/t/", "/d/", "/n/"] },
+  { phonemes: ["/k/", "/g/"] },
+  { phonemes: ["/f/"] },
+  { phonemes: ["/s/"] },
+  { phonemes: ["/ch/"] },
+  { phonemes: ["/l/"] },
+  { phonemes: ["/r/"] },
+  { phonemes: ["/rr/"] },
+];
 
 const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   lenguaje:      ["Evocación", "Completar frase", "Asociación imagen-palabra"],
@@ -436,6 +449,11 @@ export default function NuevaSesion() {
   const [loadingDiagSug, setLoadingDiagSug]       = useState(false);
   const [showDiagSug, setShowDiagSug]             = useState(true);
 
+  // ── TSH phoneme guide ──────────────────────────────────────────────────────
+  const [selectedPhoneme, setSelectedPhoneme]     = useState<string | null>(null);
+  const [phonemeGoals, setPhonemeGoals]           = useState<any[]>([]);
+  const [loadingPhonemeGoals, setLoadingPhonemeGoals] = useState(false);
+
   const [showBanco, setShowBanco]             = useState(false);
   const [showCustomGoal, setShowCustomGoal]   = useState(false);
   const [bancoArea, setBancoArea]             = useState("");
@@ -641,6 +659,44 @@ export default function NuevaSesion() {
       .finally(() => { if (!cancelled) setLoadingDiagSug(false); });
     return () => { cancelled = true; };
   }, [patient?.id, sessionDiagnosis]);
+
+  // ── Clear phoneme selection when diagnosis changes ─────────────────────────
+  useEffect(() => {
+    setSelectedPhoneme(null);
+    setPhonemeGoals([]);
+  }, [sessionDiagnosis]);
+
+  // ── Fetch goal-library goals matching the selected phoneme ─────────────────
+  useEffect(() => {
+    if (!selectedPhoneme) { setPhonemeGoals([]); return; }
+    let cancelled = false;
+    setLoadingPhonemeGoals(true);
+    const phonemeRaw = selectedPhoneme.replace(/\//g, "").trim();
+    const params = new URLSearchParams({ q: `fonema ${phonemeRaw}`, area: "habla", limit: "8", estado: "activo" });
+    fetch(`/api/goal-library?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        const results = Array.isArray(data) ? data : (Array.isArray(data?.goals) ? data.goals : []);
+        // If specific results are sparse, also try a broader search
+        if (results.length < 3) {
+          const params2 = new URLSearchParams({ q: phonemeRaw, area: "habla", limit: "8", estado: "activo" });
+          return fetch(`/api/goal-library?${params2}`)
+            .then(r2 => r2.json())
+            .then(data2 => {
+              if (!cancelled) {
+                const r2 = Array.isArray(data2) ? data2 : (Array.isArray(data2?.goals) ? data2.goals : []);
+                const merged = [...results, ...r2.filter((g: any) => !results.find((r: any) => r.id === g.id))];
+                setPhonemeGoals(merged);
+              }
+            });
+        }
+        setPhonemeGoals(results);
+      })
+      .catch(() => { if (!cancelled) setPhonemeGoals([]); })
+      .finally(() => { if (!cancelled) setLoadingPhonemeGoals(false); });
+    return () => { cancelled = true; };
+  }, [selectedPhoneme]);
 
   // ── Fetch clinical detail (libraryEntry + activities) for a goal ───────────
   const fetchDetail = async (goalId: number) => {
@@ -1395,6 +1451,126 @@ export default function NuevaSesion() {
                   {totalSelected} objetivo{totalSelected !== 1 ? "s" : ""} en sesión
                 </span>
               </>
+            )}
+          </div>
+        )}
+
+        {/* ── Guía de adquisición de fonemas (TSH) ─────────────────────── */}
+        {patient && sessionDiagnosis === "Dislalia" && (
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}35`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
+            {/* Header */}
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
+              <Volume2 className="h-4 w-4 shrink-0" style={{ color: BRAND_TEAL }} />
+              <h2 className="text-sm font-bold text-foreground">Guía de adquisición de fonemas</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold border" style={{ background: `${BRAND_TEAL}15`, color: BRAND_TEAL, borderColor: `${BRAND_TEAL}30` }}>
+                TSH
+              </span>
+              {selectedPhoneme && (
+                <button
+                  onClick={() => setSelectedPhoneme(null)}
+                  className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Limpiar
+                </button>
+              )}
+            </div>
+
+            {/* Phoneme chips */}
+            <div className="px-5 pt-3.5 pb-4">
+              <p className="text-[10px] text-muted-foreground mb-3 uppercase tracking-wide font-semibold">
+                Orden típico de adquisición — toca un fonema para ver objetivos
+              </p>
+              <div className="flex flex-wrap gap-2 items-center">
+                {PHONEME_GROUPS.map((group, groupIdx) => (
+                  <div key={groupIdx} className="flex items-center gap-1.5">
+                    {groupIdx > 0 && (
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                    )}
+                    {group.phonemes.map(ph => {
+                      const isActive = selectedPhoneme === ph;
+                      return (
+                        <button
+                          key={ph}
+                          onClick={() => setSelectedPhoneme(isActive ? null : ph)}
+                          className={`text-sm font-bold px-3 py-1.5 rounded-full border transition-all select-none ${
+                            isActive
+                              ? "text-white shadow-sm scale-105"
+                              : "text-foreground/75 hover:text-foreground hover:scale-105"
+                          }`}
+                          style={
+                            isActive
+                              ? { background: BRAND_BLUE, borderColor: BRAND_BLUE }
+                              : { background: "white", borderColor: `${BRAND_TEAL}45` }
+                          }
+                        >
+                          {ph}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Phoneme-filtered goal suggestions */}
+            {selectedPhoneme && (
+              <div className="border-t" style={{ borderColor: `${BRAND_TEAL}20` }}>
+                {/* Sub-header */}
+                <div className="flex items-center gap-2 px-5 py-2.5" style={{ background: `${BRAND_TEAL}10` }}>
+                  <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: BRAND_TEAL }} />
+                  <span className="text-xs font-semibold text-foreground/80">
+                    Objetivos relacionados con {selectedPhoneme}
+                  </span>
+                </div>
+
+                {loadingPhonemeGoals ? (
+                  <div className="px-5 py-5 text-center text-sm text-muted-foreground">
+                    Buscando objetivos…
+                  </div>
+                ) : phonemeGoals.filter((g: any) => !assignedLibraryIds.has(g.id)).length === 0 ? (
+                  <div className="px-5 py-5 text-center text-sm text-muted-foreground">
+                    Sin objetivos específicos en la biblioteca para {selectedPhoneme}
+                  </div>
+                ) : (
+                  <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
+                    {phonemeGoals
+                      .filter((g: any) => !assignedLibraryIds.has(g.id))
+                      .slice(0, 6)
+                      .map((g: any) => (
+                        <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-white/50 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {g.areaClinica ?? g.area}
+                              {g.nivelDificultad && ` · ${g.nivelDificultad}`}
+                              {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+                            </p>
+                          </div>
+                          <button
+                            className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors mt-0.5 hover:text-white"
+                            style={{ borderColor: `${BRAND_TEAL}50`, color: BRAND_TEAL }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = BRAND_TEAL; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = BRAND_TEAL; }}
+                            onClick={() => {
+                              setAdHocGoals(prev => {
+                                if (prev.find((a: any) => a.id === g.id)) return prev;
+                                return [...prev, g];
+                              });
+                              setAdHocRows(prev => {
+                                if (prev[g.id]) return prev;
+                                return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
+                              });
+                            }}
+                          >
+                            + Agregar
+                          </button>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
