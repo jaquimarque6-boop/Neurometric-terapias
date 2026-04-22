@@ -30,17 +30,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/5 to-accent/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary shadow-lg shadow-primary/30 mb-4">
-            <Activity className="h-7 w-7 text-white" />
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-primary shadow-lg shadow-primary/30 mb-5">
+            <Activity className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground font-display tracking-tight">
+          <h1 className="text-3xl font-bold text-foreground font-display tracking-tight">
             Neurometric Terapias
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Plataforma clínica de intervención terapéutica</p>
+          <p className="text-muted-foreground text-sm mt-2">Plataforma clínica de intervención terapéutica</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">

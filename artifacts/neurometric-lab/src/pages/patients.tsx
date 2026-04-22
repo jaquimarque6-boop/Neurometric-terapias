@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
-const BRAND_BLUE = "#96402c";
-const BRAND_TEAL = "#1a6360";
+const BRAND_BLUE = "#E07A5F";
+const BRAND_TEAL = "#81B29A";
 
 // ─── Status config (3 display states) ────────────────────────────────────────
 

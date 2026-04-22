@@ -12,8 +12,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 
-const WARM_TERRACOTTA = "#96402c";
-const WARM_TEAL = "#1a6360";
+const WARM_TERRACOTTA = "#E07A5F";
+const WARM_TEAL = "#81B29A";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/70",  bg: "bg-primary/8",  text: "text-primary"      },

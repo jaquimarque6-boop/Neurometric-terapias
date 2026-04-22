@@ -20,8 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 
-const BRAND_BLUE = "#96402c";
-const BRAND_TEAL = "#1a6360";
+const BRAND_BLUE = "#E07A5F";
+const BRAND_TEAL = "#81B29A";
 
 const ACTIVIDADES_POR_AREA: Record<string, string[]> = {
   lenguaje:      ["Evocación", "Completar frase", "Asociación imagen-palabra"],
@@ -1464,7 +1464,7 @@ export default function NuevaSesion() {
 
         {/* ── Guía de la sesión ─────────────────────────────────────────── */}
         {patient && !loadingGoals && goals.length > 0 && (
-          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}30`, background: `linear-gradient(135deg, ${BRAND_TEAL}06 0%, #f0f9ff 100%)` }}>
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}40`, background: `linear-gradient(135deg, ${BRAND_TEAL}10 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
               <Sparkles className="h-4 w-4" style={{ color: BRAND_TEAL }} />
@@ -2074,7 +2074,7 @@ export default function NuevaSesion() {
             </Button>
             <Button
               className="flex-1 text-white font-semibold text-base h-12 rounded-xl shadow-md transition-all hover:opacity-90"
-              style={{ background: canSave ? `linear-gradient(90deg, ${BRAND_TEAL} 0%, #0f4e4c 100%)` : undefined }}
+              style={{ background: canSave ? `linear-gradient(90deg, #E07A5F 0%, #c85a44 100%)` : undefined }}
               disabled={!canSave || isSaving}
               onClick={handleSave}
             >
