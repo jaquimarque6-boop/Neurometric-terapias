@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Brain } from "lucide-react";
-import { DIAGNOSIS_AREAS } from "@/utils/diagnosis-map";
+import { DIAGNOSIS_AREAS, getDiagnosisLabel } from "@/utils/diagnosis-map";
 
 // ─── Guidance data per clinical area ─────────────────────────────────────────
 
@@ -202,7 +202,7 @@ export function EvalSugerida({ diagnosis, defaultOpen = false, compact = false }
             Evaluación sugerida
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
-            {diagnosis}
+            {getDiagnosisLabel(diagnosis)}
           </span>
         </div>
         {open

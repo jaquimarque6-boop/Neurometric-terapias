@@ -49,7 +49,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { DIAGNOSES } from "@/utils/diagnosis-map";
+import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RC = {
@@ -205,7 +205,7 @@ function generarResumenProceso(
   if (enProceso.length > 0)
     txt += ` Actualmente se trabajan ${enProceso.length} objetivo${enProceso.length !== 1 ? "s" : ""} en proceso de adquisición y consolidación.`;
   if (patient.diagnosis)
-    txt += `\n\nDiagnóstico de referencia: ${patient.diagnosis}.`;
+    txt += `\n\nDiagnóstico de referencia: ${getDiagnosisLabel(patient.diagnosis)}.`;
   return txt;
 }
 
@@ -444,7 +444,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                   <h1 className="text-2xl font-bold font-display text-foreground">{patient.name}</h1>
                   <div className="doc-meta flex flex-wrap gap-x-5 gap-y-0.5 mt-2 text-xs text-muted-foreground">
                     {patient.age && <span>Edad: <strong className="text-foreground/80">{patient.age} años</strong></span>}
-                    {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{(patient as any).diagnosis}</strong></span>}
+                    {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{getDiagnosisLabel((patient as any).diagnosis)}</strong></span>}
                     {patient.fechaInicio && <span>Inicio: <strong className="text-foreground/80">{formatFecha(patient.fechaInicio)}</strong></span>}
                     <span>Sesiones: <strong className="text-foreground/80">{totalSessions}</strong></span>
                   </div>
@@ -1001,7 +1001,7 @@ export default function PatientProfile() {
                 <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-0.5">Diagnóstico</p>
-                  <p className="text-foreground text-sm">{patient.diagnosis}</p>
+                  <p className="text-foreground text-sm">{getDiagnosisLabel(patient.diagnosis)}</p>
                   <EvalSugerida diagnosis={patient.diagnosis} />
                 </div>
               </div>

@@ -13,6 +13,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
+import { getDiagnosisLabel } from "@/utils/diagnosis-map";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -176,7 +177,7 @@ export default function Patients() {
               // Focus line: "Area – title" truncated
               const focusLine = focus
                 ? [focus.area, focus.title].filter(Boolean).join(" – ")
-                : (patient.diagnosis ?? null);
+                : (patient.diagnosis ? getDiagnosisLabel(patient.diagnosis) : null);
 
               return (
                 <div
