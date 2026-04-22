@@ -156,12 +156,12 @@ router.patch("/goal-library/:id", async (req, res) => {
 // ─── Diagnosis → area keywords ────────────────────────────────────────────────
 const DIAG_KEYWORDS: Record<string, string[]> = {
   "lenguaje":              ["TEL", "TDL", "retraso del lenguaje", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
-  "habla":                 ["trastorno fonológico", "dislalia", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla", "TEL", "TDL"],
+  "habla":                 ["trastorno fonológico", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla", "TEL", "TDL"],
   "pragmática":            ["TEA", "TDL", "autismo", "pragmática", "social", "conducta"],
   "cognición":             ["TDAH", "TEA", "atención", "memoria", "ejecutivas", "cognitivo"],
   "lectoescritura":        ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía"],
-  "motricidad oral":       ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "apraxia", "disartria", "deglución atípica"],
-  "motricidad orofacial":  ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "apraxia", "disartria", "deglución atípica"],
+  "motricidad oral":       ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
+  "motricidad orofacial":  ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
   "estimulación temprana": ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé"],
   "voz":                   ["voz", "disfonía", "nódulos", "fonación"],
 };

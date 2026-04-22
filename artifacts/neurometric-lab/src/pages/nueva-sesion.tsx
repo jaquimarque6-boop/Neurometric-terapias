@@ -780,10 +780,10 @@ export default function NuevaSesion() {
         },
       },
       {
-        match: ["habla", "trastorno del habla"],
+        match: ["habla", "trastorno del habla", "dislalia", "tsh", "trastornos de los sonidos"],
         ctx: {
-          area: "trastorno del habla",
-          focus: "producción del habla y articulación",
+          area: "trastorno de los sonidos del habla (TSH)",
+          focus: "producción del habla, articulación y sonidos del habla",
           progress: "Se trabajaron aspectos articulatorios con retroalimentación auditiva y visual para favorecer la corrección de los patrones alterados.",
         },
       },

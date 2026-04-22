@@ -142,7 +142,7 @@ const AREA_GUIDANCE: Record<string, AreaGuide> = {
 
 const KEYWORD_AREA_MAP: Array<{ keywords: string[]; area: string }> = [
   { keywords: ["tel", "tdl", "retraso del lenguaje", "disfasia", "léxico", "lenguaje"], area: "lenguaje" },
-  { keywords: ["fonológico", "dislalia", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla"], area: "habla" },
+  { keywords: ["fonológico", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla"], area: "habla" },
   { keywords: ["tea", "autismo", "pragmática", "social"], area: "pragmática" },
   { keywords: ["tdah", "atención", "memoria", "ejecutivas", "cognitivo"], area: "cognición" },
   { keywords: ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía"], area: "lectoescritura" },

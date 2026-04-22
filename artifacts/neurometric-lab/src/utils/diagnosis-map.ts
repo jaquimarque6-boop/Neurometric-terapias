@@ -8,7 +8,7 @@ export const DIAGNOSES: DiagnosisOption[] = [
   { value: "TDL",                  label: "TDL – Trastorno del Desarrollo del Lenguaje" },
   { value: "TEA",                  label: "TEA – Trastorno del Espectro Autista" },
   { value: "TDAH",                 label: "TDAH" },
-  { value: "Dislalia",             label: "Dislalia" },
+  { value: "Dislalia",             label: "TSH (Trastornos de los sonidos del habla)" },
   { value: "Trastorno fonológico", label: "Trastorno fonológico" },
   { value: "Apraxia del habla",    label: "Apraxia del habla" },
   { value: "Disartria",            label: "Disartria" },
@@ -38,5 +38,6 @@ export const DIAGNOSIS_AREAS: Record<string, string[]> = {
 };
 
 export function getDiagnosisLabel(value: string): string {
+  if (value === "Dislalia") return "TSH (Trastornos de los sonidos del habla)";
   return DIAGNOSES.find(d => d.value === value)?.label ?? value;
 }
