@@ -14,8 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
-  Repeat, X, Pencil, AlertCircle, CalendarDays,
+  Repeat, X, Pencil, AlertCircle, CalendarDays, Search, User,
 } from "lucide-react";
+import { useListPatients } from "@workspace/api-client-react";
+import { useAuth } from "@/contexts/auth-context";
 
 const HOUR_PX = 32;
 const START_HOUR = 7;
@@ -96,6 +98,7 @@ const DEFAULT_FORM = {
 export default function AgendaPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
   const days = weekDays(currentMonday);
   const rangeStart = format(currentMonday, "yyyy-MM-dd");
@@ -110,17 +113,13 @@ export default function AgendaPage() {
     },
   });
 
-  const { data: patients = [] } = useQuery<any[]>({
-    queryKey: ["listPatients"],
-    queryFn: async () => {
-      const res = await fetch("/api/patients");
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
+  const { data: patients = [] } = useListPatients();
+
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
   const [isSaving, setIsSaving] = useState(false);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
 
   const [selectedCita, setSelectedCita] = useState<Cita | null>(null);
   const [showEdit, setShowEdit] = useState(false);
@@ -150,15 +149,28 @@ export default function AgendaPage() {
     queryClient.invalidateQueries({ queryKey: ["citas"] });
   };
 
+  const closeCreate = () => {
+    setShowCreate(false);
+    setForm({ ...DEFAULT_FORM });
+    setPatientSearch("");
+    setShowPatientDropdown(false);
+  };
+
   const handleCreate = async () => {
-    if (!form.patientId || !form.fecha || !form.horaInicio || !form.horaFin) {
-      toast({ title: "Selecciona un paciente y completa la fecha y horario", variant: "destructive" });
+    if (!form.patientId) {
+      toast({ title: "Selecciona un paciente para continuar", variant: "destructive" });
+      return;
+    }
+    if (!form.fecha || !form.horaInicio || !form.horaFin) {
+      toast({ title: "Completa la fecha y horario", variant: "destructive" });
       return;
     }
     setIsSaving(true);
     try {
+      const selectedPatient = (patients as any[]).find(p => String(p.id) === String(form.patientId));
+      const titulo = form.titulo.trim() || selectedPatient?.name || "Sesión";
       const body: any = {
-        titulo: form.titulo.trim(),
+        titulo,
         fecha: form.fecha,
         horaInicio: form.horaInicio,
         horaFin: form.horaFin,
@@ -166,8 +178,8 @@ export default function AgendaPage() {
         notas: form.notas || null,
         repetirSemanal: form.repetirSemanal,
         repetirHasta: (form.repetirSemanal && !form.sinFechaFin && form.repetirHasta) ? form.repetirHasta : null,
-        patientId: form.patientId ? parseInt(form.patientId) : null,
-        professionalId: form.professionalId ? parseInt(form.professionalId) : null,
+        patientId: parseInt(form.patientId),
+        professionalId: user?.id ?? null,
       };
       const res = await fetch("/api/citas", {
         method: "POST",
@@ -178,8 +190,7 @@ export default function AgendaPage() {
       const created = await res.json();
       const count = Array.isArray(created) ? created.length : 1;
       toast({ title: count > 1 ? `${count} citas creadas (serie semanal)` : "Cita creada" });
-      setShowCreate(false);
-      setForm({ ...DEFAULT_FORM });
+      closeCreate();
       invalidate();
     } catch {
       toast({ title: "Error al guardar", variant: "destructive" });
@@ -248,6 +259,8 @@ export default function AgendaPage() {
       horaInicio: `${String(h).padStart(2, "0")}:00`,
       horaFin: `${String(hEnd).padStart(2, "0")}:00`,
     });
+    setPatientSearch("");
+    setShowPatientDropdown(false);
     setShowCreate(true);
   };
 
@@ -288,7 +301,7 @@ export default function AgendaPage() {
           <Button
             size="sm"
             className="gap-1.5 hidden sm:flex"
-            onClick={() => { setForm({ ...DEFAULT_FORM }); setShowCreate(true); }}
+            onClick={() => openCreateForDay(new Date())}
           >
             <Plus className="h-4 w-4" /> Nueva cita
           </Button>
@@ -373,6 +386,10 @@ export default function AgendaPage() {
                       const h = heightPx(cita.horaInicio, cita.horaFin);
                       const colors = TIPO_COLORS[cita.tipo] ?? TIPO_COLORS.otro;
                       const durationMins = timeToMinutes(cita.horaFin) - timeToMinutes(cita.horaInicio);
+                      const citaPatient = cita.patientId
+                        ? (patients as any[]).find(p => p.id === cita.patientId)
+                        : null;
+                      const displayName = citaPatient?.name ?? cita.titulo;
                       return (
                         <button
                           key={cita.id}
@@ -382,7 +399,7 @@ export default function AgendaPage() {
                         >
                           <div className="px-1 py-0.5 h-full flex flex-col justify-start">
                             <span className={`text-[10px] font-semibold truncate leading-tight ${colors.text}`}>
-                              {cita.titulo}
+                              {displayName}
                             </span>
                             {h > 24 && (
                               <span className={`text-[9px] leading-none ${colors.text} opacity-50`}>
@@ -402,7 +419,7 @@ export default function AgendaPage() {
 
         {/* ── Mobile floating action button ───────────────────────────────────── */}
         <button
-          onClick={() => { setForm({ ...DEFAULT_FORM }); setShowCreate(true); }}
+          onClick={() => openCreateForDay(new Date())}
           className="sm:hidden fixed bottom-6 right-5 z-50 flex items-center gap-2 bg-primary text-primary-foreground rounded-full shadow-lg px-5 py-3.5 text-sm font-semibold active:scale-95 transition-transform"
           aria-label="Nueva cita"
         >
@@ -412,7 +429,7 @@ export default function AgendaPage() {
       </SidebarInset>
 
       {/* ── Create appointment modal ────────────────────────────────────────────── */}
-      <Dialog open={showCreate} onOpenChange={o => { if (!o && !isSaving) { setShowCreate(false); }}}>
+      <Dialog open={showCreate} onOpenChange={o => { if (!o && !isSaving) closeCreate(); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -420,22 +437,73 @@ export default function AgendaPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-1">
+            {/* Patient selector with search */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground/70">Paciente *</label>
-              <select
-                value={form.patientId}
-                onChange={e => {
-                  const id = e.target.value;
-                  const patient = (patients as any[]).find(p => String(p.id) === id);
-                  setForm(f => ({ ...f, patientId: id, titulo: patient?.name ?? "" }));
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">— Seleccionar paciente —</option>
-                {(patients as any[]).map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              {form.patientId ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-primary/40 bg-primary/5">
+                  <User className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium flex-1">
+                    {(patients as any[]).find(p => String(p.id) === String(form.patientId))?.name ?? "Paciente"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setForm(f => ({ ...f, patientId: "", titulo: "" })); setPatientSearch(""); }}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Buscar paciente…"
+                    value={patientSearch}
+                    onChange={e => { setPatientSearch(e.target.value); setShowPatientDropdown(true); }}
+                    onFocus={() => setShowPatientDropdown(true)}
+                    className="pl-9 text-sm"
+                  />
+                  {showPatientDropdown && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-white shadow-lg max-h-48 overflow-y-auto">
+                      {(patients as any[])
+                        .filter((p: any) =>
+                          !patientSearch || p.name?.toLowerCase().includes(patientSearch.toLowerCase())
+                        )
+                        .map((p: any) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => {
+                              setForm(f => ({ ...f, patientId: String(p.id), titulo: p.name }));
+                              setPatientSearch("");
+                              setShowPatientDropdown(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/60 text-left"
+                          >
+                            <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            {p.name}
+                          </button>
+                        ))}
+                      {(patients as any[]).filter((p: any) =>
+                        !patientSearch || p.name?.toLowerCase().includes(patientSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+                          {(patients as any[]).length === 0
+                            ? "No tienes pacientes asignados"
+                            : "No se encontró ningún paciente"}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!form.patientId && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Obligatorio — selecciona un paciente para guardar la cita
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -531,8 +599,8 @@ export default function AgendaPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowCreate(false)} disabled={isSaving}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={isSaving}>
+            <Button variant="ghost" onClick={closeCreate} disabled={isSaving}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={isSaving || !form.patientId}>
               {isSaving ? "Guardando…" : form.repetirSemanal ? "Crear serie" : "Crear cita"}
             </Button>
           </DialogFooter>
@@ -545,10 +613,27 @@ export default function AgendaPage() {
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 pr-6 text-base">
-                {selectedCita.titulo}
+                {(() => {
+                  const p = selectedCita.patientId ? (patients as any[]).find(pt => pt.id === selectedCita.patientId) : null;
+                  return p ? p.name : selectedCita.titulo;
+                })()}
               </DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-2 pt-1">
+                  {selectedCita.patientId && (() => {
+                    const p = (patients as any[]).find(pt => pt.id === selectedCita.patientId);
+                    return p ? (
+                      <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                        <User className="h-3.5 w-3.5 shrink-0" />
+                        {p.name}
+                        {p.dateOfBirth && (
+                          <span className="text-muted-foreground font-normal">
+                            · {new Date().getFullYear() - new Date(p.dateOfBirth).getFullYear()} años
+                          </span>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5 shrink-0" />
@@ -561,6 +646,9 @@ export default function AgendaPage() {
                     </span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
+                    <Badge variant="outline" className={`text-xs ${TIPO_COLORS[selectedCita.tipo]?.text ?? ""}`}>
+                      {TIPO_LABELS[selectedCita.tipo] ?? selectedCita.tipo}
+                    </Badge>
                     {selectedCita.serieId && (
                       <Badge variant="secondary" className="text-xs gap-1">
                         <Repeat className="h-3 w-3" /> Semanal
