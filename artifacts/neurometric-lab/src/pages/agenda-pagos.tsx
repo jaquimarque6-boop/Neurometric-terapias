@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, CheckCircle2, Wallet, TrendingUp, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Pencil, Wallet, TrendingUp, Receipt, Trash2 } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -40,6 +39,7 @@ const MESES_ES: Record<string, string> = {
 };
 
 function mesLabel(mes: string) {
+  if (!mes || !mes.includes("-")) return mes;
   const [year, month] = mes.split("-");
   return `${MESES_ES[month] ?? month} ${year}`;
 }
@@ -57,7 +57,7 @@ function getCurrentMes() {
 function generateMesOptions() {
   const options: { value: string; label: string }[] = [];
   const now = new Date();
-  for (let i = -3; i <= 6; i++) {
+  for (let i = -6; i <= 3; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     options.push({ value, label: mesLabel(value) });
@@ -74,7 +74,6 @@ type Pago = {
   tipo: string;
   nombreObraSocial?: string | null;
   fecha: string;
-  estado: string;
   notas?: string | null;
 };
 
@@ -87,16 +86,14 @@ const emptyForm = {
   tipo: "particular",
   nombreObraSocial: "",
   fecha: new Date().toISOString().slice(0, 10),
-  estado: "pendiente",
   notas: "",
 };
 
-export default function AgendaPagos() {
+export default function RegistroPagos() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const [filterMes, setFilterMes] = useState<string>(getCurrentMes());
-  const [filterEstado, setFilterEstado] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -117,11 +114,10 @@ export default function AgendaPagos() {
   });
 
   const { data: pagos = [], isLoading } = useQuery<Pago[]>({
-    queryKey: ["pagos", filterMes, filterEstado, filterTipo],
+    queryKey: ["pagos", filterMes, filterTipo],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filterMes) params.set("mes", filterMes);
-      if (filterEstado !== "todos") params.set("estado", filterEstado);
+      if (filterMes && filterMes !== "todos") params.set("mes", filterMes);
       if (filterTipo !== "todos") params.set("tipo", filterTipo);
       const r = await fetch(`${API_BASE}/api/pagos?${params}`, { credentials: "include" });
       if (!r.ok) throw new Error("Error");
@@ -135,14 +131,22 @@ export default function AgendaPagos() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, monto: parseFloat(data.monto), patientId: parseInt(data.patientId) }),
+        body: JSON.stringify({
+          patientId: parseInt(data.patientId),
+          monto: parseFloat(data.monto),
+          mes: data.mes,
+          tipo: data.tipo,
+          nombreObraSocial: data.nombreObraSocial || null,
+          fecha: data.fecha,
+          notas: data.notas || null,
+        }),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
       return r.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pagos"] });
-      toast({ title: "Pago registrado", description: "El pago fue creado correctamente." });
+      toast({ title: "Pago registrado", description: "El cobro fue registrado correctamente." });
       setDialogOpen(false);
       setForm(emptyForm);
     },
@@ -156,9 +160,13 @@ export default function AgendaPagos() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
+          patientId: data.patientId ? parseInt(data.patientId) : undefined,
           monto: data.monto !== undefined ? parseFloat(data.monto) : undefined,
-          patientId: data.patientId !== undefined ? parseInt(data.patientId) : undefined,
+          mes: data.mes,
+          tipo: data.tipo,
+          nombreObraSocial: data.nombreObraSocial || null,
+          fecha: data.fecha,
+          notas: data.notas || null,
         }),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
@@ -204,14 +212,15 @@ export default function AgendaPagos() {
       tipo: pago.tipo,
       nombreObraSocial: pago.nombreObraSocial ?? "",
       fecha: pago.fecha,
-      estado: pago.estado,
       notas: pago.notas ?? "",
     });
     setDialogOpen(true);
   }
 
-  function markAsPaid(pago: Pago) {
-    updateMutation.mutate({ id: pago.id, data: { estado: "pagado" } });
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditTarget(null);
+    setForm(emptyForm);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -227,71 +236,64 @@ export default function AgendaPagos() {
     }
   }
 
-  const totalPagado = pagos.filter(p => p.estado === "pagado").reduce((acc, p) => acc + parseFloat(p.monto), 0);
-  const totalPendiente = pagos.filter(p => p.estado === "pendiente").reduce((acc, p) => acc + parseFloat(p.monto), 0);
-  const countPagado = pagos.filter(p => p.estado === "pagado").length;
-  const countPendiente = pagos.filter(p => p.estado === "pendiente").length;
+  const totalCobrado = pagos.reduce((acc, p) => acc + parseFloat(p.monto), 0);
+  const countParticular = pagos.filter(p => p.tipo === "particular").length;
+  const countObraSocial = pagos.filter(p => p.tipo === "obra_social").length;
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <Wallet className="h-6 w-6 text-primary" />
-              Agenda de Pagos
+              Registro de Pagos
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {filterMes ? mesLabel(filterMes) : "Todos los meses"} · Seguimiento de cobros por paciente
+              {filterMes && filterMes !== "todos" ? mesLabel(filterMes) : "Todos los meses"} · Cobros registrados por paciente
             </p>
           </div>
           <Button onClick={openCreate} className="gap-2 bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4" />
-            Agregar pago
+            Registrar pago
           </Button>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Cobrado</p>
-              <p className="font-bold text-foreground">{formatMonto(totalPagado)}</p>
-              <p className="text-xs text-muted-foreground">{countPagado} pago{countPagado !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Pendiente</p>
-              <p className="font-bold text-foreground">{formatMonto(totalPendiente)}</p>
-              <p className="text-xs text-muted-foreground">{countPendiente} pago{countPendiente !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <TrendingUp className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-bold text-foreground">{formatMonto(totalPagado + totalPendiente)}</p>
+              <p className="text-xs text-muted-foreground">Total cobrado</p>
+              <p className="font-bold text-lg text-foreground leading-tight">{formatMonto(totalCobrado)}</p>
               <p className="text-xs text-muted-foreground">{pagos.length} registro{pagos.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
           <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-rose-100 flex items-center justify-center">
-              <AlertCircle className="h-5 w-5 text-rose-500" />
+            <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+              <Receipt className="h-5 w-5 text-violet-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Por cobrar</p>
-              <p className="font-bold text-rose-600">{countPendiente > 0 ? formatMonto(totalPendiente) : "—"}</p>
-              <p className="text-xs text-muted-foreground">{countPendiente} pendiente{countPendiente !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">Particular</p>
+              <p className="font-bold text-lg text-foreground leading-tight">
+                {formatMonto(pagos.filter(p => p.tipo === "particular").reduce((a, p) => a + parseFloat(p.monto), 0))}
+              </p>
+              <p className="text-xs text-muted-foreground">{countParticular} pago{countParticular !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Obra social</p>
+              <p className="font-bold text-lg text-foreground leading-tight">
+                {formatMonto(pagos.filter(p => p.tipo === "obra_social").reduce((a, p) => a + parseFloat(p.monto), 0))}
+              </p>
+              <p className="text-xs text-muted-foreground">{countObraSocial} pago{countObraSocial !== 1 ? "s" : ""}</p>
             </div>
           </div>
         </div>
@@ -310,17 +312,6 @@ export default function AgendaPagos() {
             </SelectContent>
           </Select>
 
-          <Select value={filterEstado} onValueChange={setFilterEstado}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="pendiente">Pendiente</SelectItem>
-              <SelectItem value="pagado">Pagado</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Select value={filterTipo} onValueChange={setFilterTipo}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Tipo" />
@@ -332,14 +323,14 @@ export default function AgendaPagos() {
             </SelectContent>
           </Select>
 
-          {(filterEstado !== "todos" || filterTipo !== "todos") && (
+          {filterTipo !== "todos" && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setFilterEstado("todos"); setFilterTipo("todos"); }}
+              onClick={() => setFilterTipo("todos")}
               className="text-muted-foreground"
             >
-              Limpiar filtros
+              Limpiar filtro
             </Button>
           )}
         </div>
@@ -351,10 +342,12 @@ export default function AgendaPagos() {
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
             </div>
           ) : pagos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
               <Wallet className="h-12 w-12 text-muted-foreground/30 mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">Sin registros de pago</p>
-              <p className="text-xs text-muted-foreground mt-1">Usá el botón "Agregar pago" para registrar el primero.</p>
+              <p className="text-sm font-medium text-muted-foreground">Sin cobros registrados</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Usá el botón "Registrar pago" para ingresar un cobro realizado.
+              </p>
             </div>
           ) : (
             <Table>
@@ -365,7 +358,6 @@ export default function AgendaPagos() {
                   <TableHead className="font-semibold">Mes</TableHead>
                   <TableHead className="font-semibold">Tipo</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
                   <TableHead className="font-semibold text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -373,8 +365,10 @@ export default function AgendaPagos() {
                 {pagos.map(pago => (
                   <TableRow key={pago.id} className="hover:bg-muted/20 transition-colors">
                     <TableCell className="font-medium">{pago.patientName}</TableCell>
-                    <TableCell className="font-mono font-semibold">{formatMonto(pago.monto)}</TableCell>
-                    <TableCell className="text-muted-foreground">{mesLabel(pago.mes)}</TableCell>
+                    <TableCell className="font-mono font-semibold text-foreground">
+                      {formatMonto(pago.monto)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{mesLabel(pago.mes)}</TableCell>
                     <TableCell>
                       {pago.tipo === "obra_social" ? (
                         <div>
@@ -395,31 +389,7 @@ export default function AgendaPagos() {
                       {new Date(pago.fecha + "T12:00:00").toLocaleDateString("es-CL")}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          pago.estado === "pagado"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 font-medium"
-                            : "border-amber-200 bg-amber-50 text-amber-700 font-medium"
-                        }
-                      >
-                        {pago.estado === "pagado" ? "Pagado" : "Pendiente"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
                       <div className="flex items-center justify-end gap-1">
-                        {pago.estado === "pendiente" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => markAsPaid(pago)}
-                            className="h-8 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            title="Marcar como pagado"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span className="text-xs">Cobrado</span>
-                          </Button>
-                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -449,10 +419,10 @@ export default function AgendaPagos() {
       </div>
 
       {/* Add / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setEditTarget(null); setForm(emptyForm); } else setDialogOpen(true); }}>
+      <Dialog open={dialogOpen} onOpenChange={open => { if (!open) closeDialog(); else setDialogOpen(true); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTarget ? "Editar pago" : "Nuevo pago"}</DialogTitle>
+            <DialogTitle>{editTarget ? "Editar pago" : "Registrar pago"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
             {/* Paciente */}
@@ -467,7 +437,7 @@ export default function AgendaPagos() {
                 </SelectTrigger>
                 <SelectContent>
                   {patientsLoading
-                    ? <SelectItem value="" disabled>Cargando…</SelectItem>
+                    ? <SelectItem value="__loading__" disabled>Cargando…</SelectItem>
                     : patients.map(p => (
                         <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                       ))
@@ -516,7 +486,10 @@ export default function AgendaPagos() {
             {/* Tipo */}
             <div className="space-y-1.5">
               <Label>Tipo de pago</Label>
-              <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v, nombreObraSocial: "" }))}>
+              <Select
+                value={form.tipo}
+                onValueChange={v => setForm(f => ({ ...f, tipo: v, nombreObraSocial: "" }))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -527,7 +500,7 @@ export default function AgendaPagos() {
               </Select>
             </div>
 
-            {/* Nombre obra social */}
+            {/* Nombre obra social (conditional) */}
             {form.tipo === "obra_social" && (
               <div className="space-y-1.5">
                 <Label>Nombre de la obra social</Label>
@@ -538,20 +511,6 @@ export default function AgendaPagos() {
                 />
               </div>
             )}
-
-            {/* Estado */}
-            <div className="space-y-1.5">
-              <Label>Estado</Label>
-              <Select value={form.estado} onValueChange={v => setForm(f => ({ ...f, estado: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pendiente">Pendiente</SelectItem>
-                  <SelectItem value="pagado">Pagado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Notas */}
             <div className="space-y-1.5">
@@ -564,11 +523,7 @@ export default function AgendaPagos() {
             </div>
 
             <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => { setDialogOpen(false); setEditTarget(null); setForm(emptyForm); }}
-              >
+              <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancelar
               </Button>
               <Button
@@ -590,7 +545,8 @@ export default function AgendaPagos() {
             <DialogTitle>Eliminar pago</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            ¿Confirmar eliminación del pago de <strong>{deleteTarget?.patientName}</strong> por{" "}
+            ¿Confirmar eliminación del pago de{" "}
+            <strong>{deleteTarget?.patientName}</strong> por{" "}
             <strong>{deleteTarget ? formatMonto(deleteTarget.monto) : ""}</strong>?
             Esta acción no se puede deshacer.
           </p>

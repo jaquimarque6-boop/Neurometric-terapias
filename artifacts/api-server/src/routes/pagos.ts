@@ -29,16 +29,16 @@ router.get("/pagos", async (req, res) => {
     const sess = getSessionUser(req);
     if (!sess) return res.status(401).json({ error: "No autenticado" });
 
-    const { mes, estado, tipo, patientId } = req.query as Record<string, string>;
+    const { mes, tipo, patientId } = req.query as Record<string, string>;
 
     let rows = await db.select().from(pagosTable).orderBy(pagosTable.fecha);
 
+    // Each user sees only their own payment records
     if (sess.role !== "admin") {
       rows = rows.filter(p => p.userId === sess.id);
     }
 
     if (mes) rows = rows.filter(p => p.mes === mes);
-    if (estado) rows = rows.filter(p => p.estado === estado);
     if (tipo) rows = rows.filter(p => p.tipo === tipo);
     if (patientId) rows = rows.filter(p => p.patientId === parseInt(patientId));
 
@@ -58,7 +58,7 @@ router.post("/pagos", async (req, res) => {
     const sess = getSessionUser(req);
     if (!sess) return res.status(401).json({ error: "No autenticado" });
 
-    const { patientId, monto, mes, tipo = "particular", nombreObraSocial, fecha, estado = "pendiente", notas } = req.body;
+    const { patientId, monto, mes, tipo = "particular", nombreObraSocial, fecha, notas } = req.body;
 
     if (!patientId || monto === undefined || !mes || !fecha) {
       return res.status(400).json({ error: "Faltan campos requeridos: patientId, monto, mes, fecha" });
@@ -71,7 +71,7 @@ router.post("/pagos", async (req, res) => {
       tipo,
       nombreObraSocial: nombreObraSocial ?? null,
       fecha,
-      estado,
+      estado: "pagado",
       notas: notas ?? null,
       userId: sess.id,
     }).returning();
@@ -106,7 +106,6 @@ router.put("/pagos/:id", async (req, res) => {
     if (body.tipo !== undefined) updates.tipo = body.tipo;
     if (body.nombreObraSocial !== undefined) updates.nombreObraSocial = body.nombreObraSocial || null;
     if (body.fecha !== undefined) updates.fecha = body.fecha;
-    if (body.estado !== undefined) updates.estado = body.estado;
     if (body.notas !== undefined) updates.notas = body.notas || null;
 
     const [updated] = await db.update(pagosTable).set(updates).where(eq(pagosTable.id, id)).returning();

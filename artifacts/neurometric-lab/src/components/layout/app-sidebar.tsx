@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
   { title: "Panel",              url: "/",              icon: LayoutDashboard },
   { title: "Pacientes",          url: "/patients",      icon: Users           },
   { title: "Agenda",             url: "/agenda",        icon: CalendarDays    },
-  { title: "Agenda de Pagos",   url: "/agenda-pagos",  icon: Wallet          },
+  { title: "Registro de Pagos", url: "/agenda-pagos",  icon: Wallet          },
   { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList   },
   { title: "Objetivos",          url: "/objetivos",     icon: Target          },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen        },
