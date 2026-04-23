@@ -67,7 +67,7 @@ export const DIFFICULTY_CODES: Record<string, string> = {
 // Subarea options grouped by area for smart dropdowns
 export const AREA_SUBAREAS: Record<string, string[]> = {
   "lenguaje": ["Léxico", "Morfosintaxis", "Comprensión", "Narrativo", "Conectores", "Semántica", "Categorías semánticas", "Morfología", "Metalenguaje"],
-  "habla": ["Articulación", "Procesos fonológicos", "Inteligibilidad", "Fluidez", "Discriminación auditiva"],
+  "habla": ["Articulación", "Procesos fonológicos", "Inteligibilidad", "Fluidez", "Voz", "Higiene vocal", "Discriminación auditiva"],
   "pragmática": ["Comunicación no verbal", "Conversación", "Habilidades conversacionales", "Comunicación intencional", "Adaptación discursiva"],
   "motricidad orofacial": ["Tono muscular", "Praxis", "Respiración"],
   "deglución": ["Deglución"],
