@@ -19,6 +19,7 @@ import Professionals from "@/pages/professionals";
 import GoalLibrary from "@/pages/goal-library";
 import NuevaSesion from "@/pages/nueva-sesion";
 import Agenda from "@/pages/agenda";
+import AgendaPagos from "@/pages/agenda-pagos";
 import Usuario from "@/pages/usuario";
 import Usuarios from "@/pages/usuarios";
 import LoginPage from "@/pages/login";
@@ -95,6 +96,7 @@ function Router() {
       <Route path="/goal-library" component={() => <ProtectedRoute component={GoalLibrary} />} />
       <Route path="/nueva-sesion" component={() => <ProtectedRoute component={NuevaSesion} />} />
       <Route path="/agenda" component={() => <ProtectedRoute component={Agenda} />} />
+      <Route path="/agenda-pagos" component={() => <ProtectedRoute component={AgendaPagos} />} />
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
       <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
       <Route component={NotFound} />

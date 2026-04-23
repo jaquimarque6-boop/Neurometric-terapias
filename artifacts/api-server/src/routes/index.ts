@@ -14,11 +14,13 @@ import authRouter from "./auth";
 import goalGuidanceRouter from "./goal-guidance";
 import citasRouter from "./citas";
 import usersRouter from "./users";
+import pagosRouter from "./pagos";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
 router.use(usersRouter);
+router.use(pagosRouter);
 router.use(healthRouter);
 router.use(patientsRouter);
 router.use(professionalsRouter);
