@@ -14,16 +14,24 @@ export function getProfesion(specialty: string | null | undefined): Profesion {
 }
 
 export const DIAGNOSES_FONO: DiagnosisOption[] = [
-  { value: "TEL",               label: "TEL – Trastorno Específico del Lenguaje" },
-  { value: "TDL",               label: "TDL – Trastorno del Desarrollo del Lenguaje" },
-  { value: "TEA",               label: "TEA – Trastorno del Espectro Autista" },
-  { value: "TDAH",              label: "TDAH" },
-  { value: "TSH",               label: "TSH – Trastorno de los sonidos del habla" },
-  { value: "Apraxia del habla", label: "Apraxia del habla" },
-  { value: "Disartria",         label: "Disartria" },
-  { value: "Tartamudez",        label: "Tartamudez / Disfluencia" },
-  { value: "Voz",               label: "Trastorno de voz (disfonía, nódulos…)" },
-  { value: "Deglución atípica", label: "Deglución atípica" },
+  // Lenguaje
+  { value: "TEL",                   label: "TEL – Trastorno Específico del Lenguaje" },
+  { value: "TDL",                   label: "TDL – Trastorno del Desarrollo del Lenguaje" },
+  { value: "Retraso del lenguaje",  label: "Retraso del lenguaje" },
+  { value: "Retraso madurativo",    label: "Retraso madurativo / del desarrollo" },
+  // Habla y fonología
+  { value: "TSH",                   label: "TSH – Trastorno de los sonidos del habla" },
+  { value: "Trastorno fonológico",  label: "Trastorno fonológico" },
+  { value: "Apraxia del habla",     label: "Apraxia del habla" },
+  { value: "Disartria",             label: "Disartria" },
+  // Fluidez
+  { value: "Tartamudez",            label: "Tartamudez / Disfluencia" },
+  // Neurodesarrollo
+  { value: "TEA",                   label: "TEA – Trastorno del Espectro Autista" },
+  { value: "TDAH",                  label: "TDAH" },
+  // Orofacial y voz
+  { value: "Voz",                   label: "Trastorno de voz (disfonía, nódulos…)" },
+  { value: "Deglución atípica",     label: "Deglución atípica" },
 ];
 
 export const DIAGNOSES_PSICOPED: DiagnosisOption[] = [
