@@ -13,6 +13,7 @@ import {
   Flag, BarChart3, Layers, Search as SearchIcon,
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
+  Brain, Volume2, Utensils, GraduationCap, HelpCircle,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -772,13 +773,18 @@ export default function PatientProfile() {
   };
 
   // ── Anamnesis state ──────────────────────────────────────────────────────
-  const [anMotivo, setAnMotivo]           = useState("");
-  const [anAntecedentes, setAnAntecedentes] = useState("");
-  const [anFamilia, setAnFamilia]         = useState("");
-  const [anEscolaridad, setAnEscolaridad] = useState("");
-  const [anObs, setAnObs]                 = useState("");
-  const [isSavingAn, setIsSavingAn]       = useState(false);
-  const [anDirty, setAnDirty]             = useState(false);
+  const [anMotivo, setAnMotivo]               = useState("");
+  const [anAntecedentes, setAnAntecedentes]   = useState("");
+  const [anFamilia, setAnFamilia]             = useState("");
+  const [anEscolaridad, setAnEscolaridad]     = useState("");
+  const [anObs, setAnObs]                     = useState("");
+  const [anLenguaje, setAnLenguaje]           = useState("");
+  const [anAtencion, setAnAtencion]           = useState("");
+  const [anVoz, setAnVoz]                     = useState("");
+  const [anDeglucion, setAnDeglucion]         = useState("");
+  const [anImpresion, setAnImpresion]         = useState("");
+  const [isSavingAn, setIsSavingAn]           = useState(false);
+  const [anDirty, setAnDirty]                 = useState(false);
 
   useEffect(() => {
     if (patient) {
@@ -787,6 +793,11 @@ export default function PatientProfile() {
       setAnFamilia((patient as any).historiaFamiliar ?? "");
       setAnEscolaridad((patient as any).escolaridad ?? "");
       setAnObs((patient as any).observaciones ?? "");
+      setAnLenguaje((patient as any).lenguajeComunicacion ?? "");
+      setAnAtencion((patient as any).atencionConducta ?? "");
+      setAnVoz((patient as any).vozHabla ?? "");
+      setAnDeglucion((patient as any).deglucion ?? "");
+      setAnImpresion((patient as any).impresionClinica ?? "");
       setAnDirty(false);
     }
   }, [patient?.id]);
@@ -803,6 +814,11 @@ export default function PatientProfile() {
           historiaFamiliar: anFamilia || null,
           escolaridad: anEscolaridad || null,
           observaciones: anObs || null,
+          lenguajeComunicacion: anLenguaje || null,
+          atencionConducta: anAtencion || null,
+          vozHabla: anVoz || null,
+          deglucion: anDeglucion || null,
+          impresionClinica: anImpresion || null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1064,103 +1080,288 @@ export default function PatientProfile() {
 
           {/* ── Anamnesis ───────────────────────────────────────────────── */}
           <TabsContent value="anamnesis" className="mt-6">
-            <Card className="border-border/50 shadow-sm">
-              <CardHeader className="pb-3 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4 text-primary" /> Anamnesis
-                  </CardTitle>
-                  {anDirty && (
-                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> Cambios sin guardar
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-5 space-y-5">
-                {/* Motivo de consulta */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" /> Motivo de consulta
-                  </label>
-                  <Textarea
-                    value={anMotivo}
-                    onChange={e => { setAnMotivo(e.target.value); setAnDirty(true); }}
-                    placeholder="¿Por qué consulta? Describe el motivo principal de consulta y las preocupaciones del paciente o familia…"
-                    rows={3}
-                    className="resize-none text-sm bg-muted/50"
-                  />
-                </div>
+            {(() => {
+              const SECCIONES_ANAMNESIS = [
+                {
+                  key: "motivo",
+                  label: "Motivo de consulta",
+                  icon: <MessageSquare className="h-4 w-4" />,
+                  accent: "border-l-[#E07A5F] bg-[#FEF6EE]",
+                  iconColor: "text-[#C4703A]",
+                  headerBg: "bg-[#FEF6EE] border-b border-[#F3D9C0]",
+                  value: anMotivo,
+                  setter: (v: string) => { setAnMotivo(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Cuál es el motivo principal de consulta?",
+                    "¿Quién realiza la derivación (familia, escuela, médico)?",
+                    "¿Desde cuándo se observa la dificultad?",
+                    "¿Se han realizado intervenciones previas?",
+                  ],
+                  placeholder: "Describe el motivo de consulta, la preocupación principal de la familia y el contexto de derivación…",
+                  usos: ["informe clínico", "ficha escolar", "interconsulta"],
+                },
+                {
+                  key: "antecedentes",
+                  label: "Antecedentes relevantes",
+                  icon: <Activity className="h-4 w-4" />,
+                  accent: "border-l-slate-400 bg-slate-50",
+                  iconColor: "text-slate-500",
+                  headerBg: "bg-slate-50 border-b border-slate-200",
+                  value: anAntecedentes,
+                  setter: (v: string) => { setAnAntecedentes(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Antecedentes del embarazo, parto o período neonatal?",
+                    "¿Hitos del desarrollo motor y del habla-lenguaje?",
+                    "¿Antecedentes médicos, neurológicos o genéticos?",
+                    "¿Antecedentes familiares de dificultades similares?",
+                    "¿Historia familiar: composición, dinámica del hogar?",
+                  ],
+                  placeholder: "Embarazo, parto, hitos del desarrollo, antecedentes médicos, historia familiar relevante…",
+                  usos: ["informe clínico", "interconsulta"],
+                },
+                {
+                  key: "lenguaje",
+                  label: "Lenguaje y comunicación",
+                  icon: <MessageSquare className="h-4 w-4" />,
+                  accent: "border-l-[#81B29A] bg-[#F0F7F4]",
+                  iconColor: "text-[#5A8F7B]",
+                  headerBg: "bg-[#F0F7F4] border-b border-[#C8DFD6]",
+                  value: anLenguaje,
+                  setter: (v: string) => { setAnLenguaje(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Comprende consignas simples y complejas?",
+                    "¿Presenta dificultades en la expresión verbal?",
+                    "¿Cómo es la inteligibilidad del habla?",
+                    "¿Usa lenguaje gestual o sistemas alternativos de comunicación?",
+                    "¿Cómo es la interacción comunicativa con adultos y pares?",
+                  ],
+                  placeholder: "Descripción del perfil comunicativo: comprensión, expresión, inteligibilidad, intención comunicativa…",
+                  usos: ["informe clínico", "ficha escolar"],
+                },
+                {
+                  key: "atencion",
+                  label: "Atención y conducta",
+                  icon: <Brain className="h-4 w-4" />,
+                  accent: "border-l-amber-400 bg-amber-50",
+                  iconColor: "text-amber-600",
+                  headerBg: "bg-amber-50 border-b border-amber-200",
+                  value: anAtencion,
+                  setter: (v: string) => { setAnAtencion(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Mantiene atención durante actividades estructuradas?",
+                    "¿Presenta impulsividad o hiperactividad?",
+                    "¿Cómo es la regulación emocional y el manejo de la frustración?",
+                    "¿Sigue instrucciones y normas de manera consistente?",
+                    "¿Presenta conductas desafiantes, rituales o estereotipias?",
+                  ],
+                  placeholder: "Descripción del perfil atencional y conductual en distintos contextos (sesión, hogar, escuela)…",
+                  usos: ["informe clínico", "interconsulta"],
+                },
+                {
+                  key: "escolaridad",
+                  label: "Escolaridad / Aprendizaje",
+                  icon: <GraduationCap className="h-4 w-4" />,
+                  accent: "border-l-sky-400 bg-sky-50",
+                  iconColor: "text-sky-600",
+                  headerBg: "bg-sky-50 border-b border-sky-200",
+                  value: anEscolaridad,
+                  setter: (v: string) => { setAnEscolaridad(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Curso y establecimiento educacional?",
+                    "¿Rendimiento académico general y en asignaturas específicas?",
+                    "¿Dificultades en lectura, escritura o cálculo?",
+                    "¿Cuenta con apoyos pedagógicos, PIE u otras intervenciones en el colegio?",
+                    "¿Cómo es la adaptación social en el contexto escolar?",
+                  ],
+                  placeholder: "Nivel educativo, rendimiento escolar, dificultades de aprendizaje, apoyos disponibles…",
+                  usos: ["ficha escolar", "informe clínico", "interconsulta"],
+                },
+                {
+                  key: "voz",
+                  label: "Voz y habla",
+                  icon: <Volume2 className="h-4 w-4" />,
+                  accent: "border-l-violet-400 bg-violet-50",
+                  iconColor: "text-violet-600",
+                  headerBg: "bg-violet-50 border-b border-violet-200",
+                  value: anVoz,
+                  setter: (v: string) => { setAnVoz(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Cómo es la calidad vocal (ronquera, disfonía, voz soplada)?",
+                    "¿Presenta cansancio vocal o quiebre de voz?",
+                    "¿Cómo es la articulación de fonemas (omisiones, sustituciones)?",
+                    "¿Presenta fluidez del habla normal (tartamudez, repeticiones)?",
+                    "¿Cómo es la prosodia y la velocidad del habla?",
+                  ],
+                  placeholder: "Calidad de la voz, articulación, fluidez, prosodia y características del habla espontánea…",
+                  usos: ["informe clínico"],
+                },
+                {
+                  key: "deglucion",
+                  label: "Deglución",
+                  icon: <Utensils className="h-4 w-4" />,
+                  accent: "border-l-emerald-500 bg-emerald-50",
+                  iconColor: "text-emerald-600",
+                  headerBg: "bg-emerald-50 border-b border-emerald-200",
+                  value: anDeglucion,
+                  setter: (v: string) => { setAnDeglucion(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Presenta dificultades al tragar sólidos o líquidos?",
+                    "¿Babeo excesivo o residual?",
+                    "¿Antecedentes de aspiración o neumonías a repetición?",
+                    "¿Cómo es la alimentación en casa (texturas, tiempo, preferencias)?",
+                    "¿Postura y tonicidad orofacial en reposo y durante la alimentación?",
+                  ],
+                  placeholder: "Descripción de la función deglutoria, alimentación, presencia de babeo y antecedentes de aspiración…",
+                  usos: ["informe clínico", "interconsulta"],
+                },
+                {
+                  key: "impresion",
+                  label: "Impresión clínica inicial",
+                  icon: <Lightbulb className="h-4 w-4" />,
+                  accent: "border-l-stone-400 bg-stone-50",
+                  iconColor: "text-stone-500",
+                  headerBg: "bg-stone-50 border-b border-stone-200",
+                  value: anImpresion,
+                  setter: (v: string) => { setAnImpresion(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Cuál es la hipótesis diagnóstica preliminar?",
+                    "¿Qué áreas requieren evaluación formal?",
+                    "¿Cómo se presenta el paciente durante la entrevista?",
+                    "¿Factores protectores y de riesgo identificados?",
+                  ],
+                  placeholder: "Hipótesis clínica inicial, áreas a evaluar, presentación en sesión, factores protectores y de riesgo…",
+                  usos: ["informe clínico", "interconsulta"],
+                },
+              ];
 
-                {/* Antecedentes */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5 text-muted-foreground" /> Antecedentes relevantes
-                  </label>
-                  <Textarea
-                    value={anAntecedentes}
-                    onChange={e => { setAnAntecedentes(e.target.value); setAnDirty(true); }}
-                    placeholder="Antecedentes médicos, psicológicos, del desarrollo, intervenciones anteriores…"
-                    rows={3}
-                    className="resize-none text-sm bg-muted/50"
-                  />
-                </div>
+              const completadas = SECCIONES_ANAMNESIS.filter(s => s.value.trim()).length;
+              const total = SECCIONES_ANAMNESIS.length;
+              const pctCompletado = Math.round((completadas / total) * 100);
 
-                {/* Historia familiar */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
-                    <Home className="h-3.5 w-3.5 text-muted-foreground" /> Historia familiar
-                  </label>
-                  <Textarea
-                    value={anFamilia}
-                    onChange={e => { setAnFamilia(e.target.value); setAnDirty(true); }}
-                    placeholder="Composición familiar, dinámica del hogar, factores familiares relevantes…"
-                    rows={3}
-                    className="resize-none text-sm bg-muted/50"
-                  />
-                </div>
+              return (
+                <div className="space-y-4">
+                  {/* Header card with progress */}
+                  <Card className="border-border/50 shadow-sm">
+                    <CardHeader className="pb-3 border-b">
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-2">
+                          <ClipboardList className="h-4 w-4 text-primary" />
+                          <CardTitle className="text-base font-semibold">Anamnesis clínica guiada</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {anDirty && (
+                            <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> Cambios sin guardar
+                            </span>
+                          )}
+                          <Button
+                            onClick={handleSaveAnamnesis}
+                            disabled={isSavingAn}
+                            size="sm"
+                            className="gap-1.5 bg-primary text-white hover:bg-primary/90 h-8 text-xs"
+                          >
+                            <Save className="h-3.5 w-3.5" />
+                            {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
+                          </Button>
+                        </div>
+                      </div>
 
-                {/* Escolaridad */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-muted-foreground" /> Escolaridad
-                  </label>
-                  <Textarea
-                    value={anEscolaridad}
-                    onChange={e => { setAnEscolaridad(e.target.value); setAnDirty(true); }}
-                    placeholder="Nivel educativo, establecimiento, rendimiento escolar, adaptación, apoyos pedagógicos…"
-                    rows={2}
-                    className="resize-none text-sm bg-muted/50"
-                  />
-                </div>
+                      {/* Progress bar */}
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            {completadas} de {total} secciones completadas
+                          </span>
+                          <span className="text-xs font-semibold" style={{ color: pctCompletado === 100 ? "#5A8F7B" : "#C4703A" }}>
+                            {pctCompletado}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${pctCompletado}%`,
+                              backgroundColor: pctCompletado === 100 ? "#81B29A" : "#E07A5F",
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          <span className="text-[10px] text-muted-foreground">Útil para:</span>
+                          {["informe clínico", "ficha escolar", "interconsulta"].map(uso => (
+                            <span key={uso} className="text-[10px] px-2 py-0.5 rounded-full border border-border/60 bg-muted/60 text-muted-foreground">
+                              {uso}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
 
-                {/* Observaciones generales */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1.5">
-                    <Eye className="h-3.5 w-3.5 text-muted-foreground" /> Observaciones generales
-                  </label>
-                  <Textarea
-                    value={anObs}
-                    onChange={e => { setAnObs(e.target.value); setAnDirty(true); }}
-                    placeholder="Otras observaciones clínicas relevantes, aspectos conductuales, contextuales…"
-                    rows={3}
-                    className="resize-none text-sm bg-muted/50"
-                  />
-                </div>
+                  {/* Sections */}
+                  {SECCIONES_ANAMNESIS.map((sec) => {
+                    const filled = sec.value.trim().length > 0;
+                    return (
+                      <Card key={sec.key} className={`border-border/50 shadow-sm border-l-4 ${sec.accent} overflow-hidden`}>
+                        {/* Section header */}
+                        <div className={`flex items-center justify-between px-4 py-2.5 ${sec.headerBg}`}>
+                          <div className="flex items-center gap-2">
+                            <span className={sec.iconColor}>{sec.icon}</span>
+                            <span className="text-sm font-semibold text-foreground/80">{sec.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {sec.usos.map(u => (
+                              <span key={u} className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-background/60 border border-border/40 text-muted-foreground">
+                                {u}
+                              </span>
+                            ))}
+                            {filled
+                              ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                              : <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                            }
+                          </div>
+                        </div>
 
-                {/* Save */}
-                <div className="flex justify-end pt-2 border-t border-border/50">
-                  <Button
-                    onClick={handleSaveAnamnesis}
-                    disabled={isSavingAn}
-                    className="gap-2 bg-primary text-white hover:bg-primary/90"
-                  >
-                    <Save className="h-4 w-4" />
-                    {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
-                  </Button>
+                        <CardContent className="p-4 space-y-3">
+                          {/* Guided questions as visible chips */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {sec.preguntas.map((q, qi) => (
+                              <span
+                                key={qi}
+                                className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md bg-background border border-border/60 text-muted-foreground"
+                              >
+                                <HelpCircle className="h-2.5 w-2.5 shrink-0 opacity-60" />
+                                {q}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Free-text area */}
+                          <Textarea
+                            value={sec.value}
+                            onChange={e => sec.setter(e.target.value)}
+                            placeholder={sec.placeholder}
+                            rows={3}
+                            className="resize-none text-sm bg-background/70 border-border/50"
+                          />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Bottom save */}
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      onClick={handleSaveAnamnesis}
+                      disabled={isSavingAn}
+                      className="gap-2 bg-primary text-white hover:bg-primary/90"
+                    >
+                      <Save className="h-4 w-4" />
+                      {isSavingAn ? "Guardando…" : "Guardar anamnesis"}
+                    </Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              );
+            })()}
           </TabsContent>
 
           {/* ── Registros ───────────────────────────────────────────────── */}

@@ -212,6 +212,11 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
     antecedentes: body.antecedentes !== undefined ? body.antecedentes : existing.antecedentes,
     historiaFamiliar: body.historiaFamiliar !== undefined ? body.historiaFamiliar : existing.historiaFamiliar,
     escolaridad: body.escolaridad !== undefined ? body.escolaridad : existing.escolaridad,
+    lenguajeComunicacion: body.lenguajeComunicacion !== undefined ? body.lenguajeComunicacion : existing.lenguajeComunicacion,
+    atencionConducta: body.atencionConducta !== undefined ? body.atencionConducta : existing.atencionConducta,
+    vozHabla: body.vozHabla !== undefined ? body.vozHabla : existing.vozHabla,
+    deglucion: body.deglucion !== undefined ? body.deglucion : existing.deglucion,
+    impresionClinica: body.impresionClinica !== undefined ? body.impresionClinica : existing.impresionClinica,
     informeEvolucion: body.informeEvolucion !== undefined ? body.informeEvolucion : existing.informeEvolucion,
     informeFamilia: body.informeFamilia !== undefined ? body.informeFamilia : existing.informeFamilia,
   }).where(eq(patientsTable.id, id)).returning();
