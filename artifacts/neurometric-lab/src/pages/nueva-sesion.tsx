@@ -6,7 +6,8 @@ import {
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
   Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2, Lightbulb,
 } from "lucide-react";
-import { DIAGNOSES } from "@/utils/diagnosis-map";
+import { getProfesion, getDiagnosesByProfesion, getBancoAreas } from "@/utils/profession-map";
+import { useAuth } from "@/contexts/auth-context";
 import { EvalSugerida } from "@/components/eval-sugerida";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -456,6 +457,114 @@ const ESTADO_STYLE: Record<string, string> = {
   "generalizando": "bg-emerald-50 border-emerald-300 text-emerald-800",
 };
 
+const BLOQUES_PSICOPED: BloqueSesion[] = [
+  {
+    area: "lectura",
+    label: "Lectura",
+    bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Interés por libros y cuentos con imágenes", "Distingue imágenes de texto", "Escucha cuentos por 2-3 minutos", "Señala objetos en ilustraciones"],
+      "3-5":   ["Reconoce su nombre escrito", "Identifica letras del abecedario", "Conciencia silábica: divide palabras en sílabas", "Asocia letra-sonido de vocales"],
+      "6-8":   ["Decodifica palabras simples (CVCV)", "Lee oraciones cortas con comprensión", "Lectura en voz alta con ritmo y pausa", "Diferencia texto narrativo de imagen"],
+      "9-12":  ["Lectura fluida de textos de nivel escolar", "Comprende texto narrativo con personajes y trama", "Realiza inferencias básicas", "Lectura silenciosa para estudio"],
+      "13-16": ["Comprensión crítica de textos argumentativos", "Detecta idea principal y detalles de apoyo", "Lectura en contexto académico multi-asignatura", "Integra información de dos fuentes escritas"],
+      "17-20": ["Lectura académica y técnica autónoma", "Síntesis y análisis crítico de textos", "Detección de sesgos y argumentos implícitos", "Metacognición lectora avanzada"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular amor por la lectura y conciencia de texto impreso",
+      "3-5":   "Trabajar conciencia fonológica y reconocimiento de letras",
+      "6-8":   "Desarrollar decodificación y fluidez lectora básica",
+      "9-12":  "Trabajar comprensión lectora y estrategias de lectura",
+      "13-16": "Fortalecer comprensión crítica y lectura académica",
+      "17-20": "Desarrollar lectura académica autónoma y metacognición",
+    },
+  },
+  {
+    area: "escritura",
+    label: "Escritura",
+    bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Garabateo intencional con lápiz o crayón", "Sostiene el lápiz con ayuda", "Imita trazos circulares y rectos", "Disfruta de actividades de dibujo libre"],
+      "3-5":   ["Copia su nombre con modelo", "Traza líneas, curvas y círculos", "Diferencia entre dibujo y escritura", "Escribe algunas letras del propio nombre sin modelo"],
+      "6-8":   ["Escribe palabras simples al dictado", "Usa mayúsculas al inicio de oración y nombres propios", "Ortografía natural: m antes de b/p", "Escribe frases de 3 a 5 palabras con sentido"],
+      "9-12":  ["Redacta párrafos con idea principal y detalles", "Aplica tildes en palabras agudas y graves frecuentes", "Planifica texto con borrador y revisión", "Usa conectores para organizar ideas"],
+      "13-16": ["Redacta textos argumentativos de 3+ párrafos", "Aplica ortografía acentual y puntual", "Adapta registro al destinatario del texto", "Revisa y reescribe con criterio propio"],
+      "17-20": ["Escritura académica formal con citas y bibliografía", "Planifica y estructura textos extensos", "Revisión avanzada de coherencia y cohesión", "Producción autónoma de distintos géneros textuales"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular grafomotricidad y trazos básicos",
+      "3-5":   "Trabajar trazos, copia y reconocimiento de letras del nombre",
+      "6-8":   "Desarrollar escritura de palabras y frases simples",
+      "9-12":  "Trabajar redacción, ortografía y organización de textos",
+      "13-16": "Fortalecer escritura argumentativa y ortografía compleja",
+      "17-20": "Desarrollar escritura académica y producción autónoma",
+    },
+  },
+  {
+    area: "cálculo",
+    label: "Cálculo",
+    bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Señala 'uno' y 'muchos'", "Compara objetos: más/menos", "Apila y ordena por tamaño", "Cuenta objetos hasta 3 con apoyo del adulto"],
+      "3-5":   ["Cuenta hasta 10 con correspondencia uno a uno", "Compara cantidades sin contar (subitización)", "Reconoce dígitos del 1 al 5", "Ordena objetos por tamaño, peso o color"],
+      "6-8":   ["Suma y resta hasta 20 con comprensión", "Comprende valor posicional unidades/decenas", "Resuelve problemas simples de una operación con enunciado", "Reconoce y nombra figuras geométricas básicas"],
+      "9-12":  ["Multiplica y divide con dominio de tablas", "Opera con fracciones simples (½, ¼)", "Resuelve problemas matemáticos de dos pasos", "Comprende y calcula porcentajes básicos"],
+      "13-16": ["Opera con números negativos y fracciones complejas", "Álgebra básica: ecuaciones de primer grado", "Geometría: área y perímetro de figuras planas", "Interpreta gráficas y datos estadísticos simples"],
+      "17-20": ["Razonamiento matemático abstracto y algebraico", "Estadística descriptiva e inferencial básica", "Funciones lineales y representación gráfica", "Matemática aplicada a contextos reales y cotidianos"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular concepto de cantidad y pensamiento lógico básico",
+      "3-5":   "Trabajar conteo, correspondencia y comparación de cantidades",
+      "6-8":   "Desarrollar operaciones básicas y resolución de problemas simples",
+      "9-12":  "Trabajar multiplicación, fracciones y problemas de múltiples pasos",
+      "13-16": "Fortalecer álgebra básica, geometría y pensamiento proporcional",
+      "17-20": "Desarrollar razonamiento matemático abstracto y estadístico",
+    },
+  },
+  {
+    area: "funciones-ejecutivas",
+    label: "Funciones ejecutivas",
+    bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Detiene acción ante señal del adulto", "Cambia de actividad con apoyo", "Espera turno en juego de roles simple", "Imita acciones del adulto en secuencia de 2 pasos"],
+      "3-5":   ["Sigue reglas simples de juego de mesa", "Inhibe respuesta impulsiva con apoyo verbal", "Planifica 2 pasos para lograr una meta concreta", "Recuerda 2 instrucciones simples en secuencia"],
+      "6-8":   ["Planifica una tarea de 3-4 pasos sin guía", "Recuerda instrucciones de 3 pasos sin apoyo visual", "Controla la impulsividad en tareas estructuradas", "Monitorea si completó cada paso de la tarea"],
+      "9-12":  ["Organiza materiales y tiempo de estudio básico", "Monitorea y corrige la propia conducta", "Cambia de estrategia cuando la actual no funciona", "Planifica una tarea escolar con anticipación"],
+      "13-16": ["Planifica proyectos de largo plazo con etapas", "Toma decisiones evaluando consecuencias posibles", "Flexibilidad cognitiva ante cambios de regla o contexto", "Autorregula emociones en contexto de exigencia académica"],
+      "17-20": ["Gestión autónoma del tiempo y el estudio", "Estrategias metacognitivas para el aprendizaje", "Planificación y priorización de tareas complejas", "Autorregulación emocional y conductual en contextos exigentes"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular inhibición básica y seguimiento de instrucciones simples",
+      "3-5":   "Trabajar control del impulso, turnos y planificación de 2 pasos",
+      "6-8":   "Desarrollar planificación, seguimiento de instrucciones y monitoreo",
+      "9-12":  "Trabajar organización, autorregulación y flexibilidad cognitiva",
+      "13-16": "Fortalecer planificación, toma de decisiones y metacognición",
+      "17-20": "Desarrollar gestión autónoma del aprendizaje y la conducta",
+    },
+  },
+  {
+    area: "atención-psicoped",
+    label: "Atención",
+    bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Mantiene contacto visual breve con el adulto", "Sigue un objeto con la mirada", "Explora un objeto durante 1–2 minutos", "Responde al nombre de forma consistente"],
+      "3-5":   ["Mantiene atención en tarea de interés por 5 min", "Vuelve a la tarea tras distracción breve", "Sigue una secuencia de 2 pasos", "Reduce distracciones con apoyo ambiental"],
+      "6-8":   ["Mantiene atención en tarea escolar por 10-15 min", "Selecciona información relevante en texto corto", "Ignora distractores comunes con apoyo de rutinas", "Completa una tarea sencilla de inicio a fin"],
+      "9-12":  ["Atención sostenida en tarea académica por 20-25 min", "Alterna entre dos tareas con transición fluida", "Detecta errores propios al revisar el trabajo", "Gestiona distractores con estrategias propias sencillas"],
+      "13-16": ["Mantiene atención en clases largas (40-45 min)", "Filtra información irrelevante en entornos complejos", "Monitorea activamente la comprensión en tiempo real", "Distribuye la atención entre múltiples demandas académicas"],
+      "17-20": ["Atención sostenida en estudio autónomo prolongado", "Gestión avanzada de distractores internos y externos", "Metacognición atencional: reconoce cuándo pierde el hilo", "Adapta el entorno de estudio para optimizar el foco"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular exploración sostenida y respuesta al nombre",
+      "3-5":   "Trabajar atención sostenida y retorno a la tarea",
+      "6-8":   "Desarrollar atención en tareas escolares y gestión de distractores",
+      "9-12":  "Trabajar atención sostenida, alternada y monitoreo propio",
+      "13-16": "Fortalecer atención focalizada y distribución de recursos atencionales",
+      "17-20": "Desarrollar autogestión atencional y metacognición",
+    },
+  },
+];
+
 const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
   "nuevo":         { bg: "bg-stone-100 text-stone-600",   label: "Nuevo"         },
   "en proceso":    { bg: "bg-amber-100 text-amber-700",   label: "En proceso"    },
@@ -496,6 +605,11 @@ export default function NuevaSesion() {
   const search                     = useSearch();
   const { toast }                  = useToast();
   const queryClient                = useQueryClient();
+  const { user }                   = useAuth();
+  const profesion                  = useMemo(() => getProfesion(user?.specialty), [user]);
+  const diagnosisOptions           = useMemo(() => getDiagnosesByProfesion(profesion), [profesion]);
+  const bloquesActivos             = useMemo(() => profesion === "psicopedagogia" ? BLOQUES_PSICOPED : BLOQUES_SESION, [profesion]);
+  const bancoAreaOptions           = useMemo(() => getBancoAreas(profesion), [profesion]);
 
   // Pre-selected patient from URL query: /nueva-sesion?patientId=5
   const preselectedId = useMemo(() => {
@@ -1495,7 +1609,7 @@ export default function NuevaSesion() {
                 Diagnóstico
               </label>
               <div className="flex flex-wrap gap-2">
-                {DIAGNOSES.map(d => {
+                {diagnosisOptions.map(d => {
                   const active = sessionDiagnosis === d.value;
                   return (
                     <button
@@ -1515,7 +1629,7 @@ export default function NuevaSesion() {
               </div>
               {sessionDiagnosis && (
                 <p className="text-xs text-muted-foreground pl-0.5">
-                  {DIAGNOSES.find(d => d.value === sessionDiagnosis)?.label}
+                  {diagnosisOptions.find(d => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis}
                 </p>
               )}
               {sessionDiagnosis && (
@@ -1563,7 +1677,7 @@ export default function NuevaSesion() {
 
             {/* Area chips */}
             <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
-              {BLOQUES_SESION.map(bloque => {
+              {bloquesActivos.map(bloque => {
                 const isOpen = selectedBloque === bloque.area;
                 return (
                   <button
@@ -1583,7 +1697,7 @@ export default function NuevaSesion() {
 
             {/* Expanded block panel */}
             {selectedBloque && (() => {
-              const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
+              const bloque = bloquesActivos.find(b => b.area === selectedBloque);
               if (!bloque) return null;
               const edadLabel     = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
               const habs          = bloque.habilidadesPorFranja[selectedEdad] ?? [];
@@ -2098,7 +2212,7 @@ export default function NuevaSesion() {
                           <SelectValue placeholder="Seleccionar área" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.keys(AREA_SUBAREAS).map(a => (
+                          {bancoAreaOptions.map(a => (
                             <SelectItem key={a} value={a} className="text-xs capitalize">{a.charAt(0).toUpperCase() + a.slice(1)}</SelectItem>
                           ))}
                         </SelectContent>

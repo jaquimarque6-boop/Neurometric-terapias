@@ -51,6 +51,14 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - The "Línea de Tiempo" (Clinical Timeline) provides a visually distinct and filterable chronological view of patient activity.
 - The "Informe" tab supports both "Técnico" (technical) and "Familia" (family) views for reports, with print-ready HTML generation for PDF export.
 
+### Profession-aware Content Filtering
+- The utility `src/utils/profession-map.ts` derives the clinical profession from `user.specialty` string matching ("psicoped"/"pedagog"/"aprendizaje" → psicopedagogia; else fonoaudiologia).
+- `nueva-sesion.tsx` uses the derived profession to:
+  - Show diagnosis chips for the correct discipline (Fonoaudiología: TEL/TDL/TEA/TSH/etc.; Psicopedagogía: Dislexia/Disgrafía/Discalculia/TDAH/etc.)
+  - Show age-developmental skill blocks (BLOQUES_SESION for fono; BLOQUES_PSICOPED for psicoped — Lectura, Escritura, Cálculo, Funciones ejecutivas, Atención)
+  - Filter the banco de objetivos area dropdown to profession-relevant areas (Fono: lenguaje/habla/pragmática/MO/deglución/ET; Psicoped: lectoescritura/cognición)
+- `eval-sugerida.tsx` has evaluation guidance for psicopedagogía-specific areas: funciones ejecutivas, disgrafía, matemáticas, comprensión lectora.
+
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.
 - **Orval**: Used for generating API client hooks and Zod schemas from the OpenAPI specification.
