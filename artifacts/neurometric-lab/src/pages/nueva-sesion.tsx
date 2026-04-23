@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
-  Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2,
+  Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2, Lightbulb,
 } from "lucide-react";
 import { DIAGNOSES } from "@/utils/diagnosis-map";
 import { EvalSugerida } from "@/components/eval-sugerida";
@@ -464,10 +464,10 @@ const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
 };
 
 const CLINICAL_SUGGESTION: Record<string, string> = {
-  "nuevo":         "Iniciar trabajo con este objetivo",
-  "en proceso":    "Continuar y ajustar apoyos",
-  "consolidando":  "Reducir ayudas y aumentar exigencia",
-  "generalizando": "Llevar a nuevos contextos o cerrar objetivo",
+  "nuevo":         "Primera vez que se trabaja este objetivo. Introduce la tarea de forma lúdica y observa la respuesta inicial del paciente.",
+  "en proceso":    "Continuar y ajustar los apoyos según el desempeño observado en sesión. Mantén el nivel de exigencia alcanzable.",
+  "consolidando":  "Reducir las ayudas progresivamente. Aumentar la exigencia en contextos controlados hasta lograr respuesta estable.",
+  "generalizando": "Llevar el objetivo a nuevos contextos y situaciones. Valorar cierre o reformulación del objetivo.",
 };
 
 const CLINICAL_PERFORMANCE_MAP: Record<string, { label: string; statusNuevo: string; pct: number }> = {
@@ -1265,15 +1265,16 @@ export default function NuevaSesion() {
                   })}
                 </div>
               </div>
-              {clinicalTip && (
-                <div className="flex items-start gap-1.5 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
-                  <span className="text-sm shrink-0">🧠</span>
-                  <div>
-                    <p className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wide">Sugerencia clínica</p>
-                    <p className="text-xs text-foreground/80 mt-0.5">{clinicalTip}</p>
-                  </div>
-                </div>
-              )}
+              <div
+                className="flex items-start gap-2 rounded-lg px-3 py-2 border"
+                style={{ background: "#FEF6EE", borderColor: "#F3D9C0" }}
+              >
+                <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "#C4703A" }} />
+                <p className="text-xs leading-snug" style={{ color: "#7C3D12" }}>
+                  <span className="font-semibold" style={{ color: "#92400E" }}>Sugerencia clínica · </span>
+                  {clinicalTip ?? "Registra el desempeño y actualiza el estado clínico del objetivo."}
+                </p>
+              </div>
             </div>
 
             {/* Clinical detail toggle — always available when row is checked */}
