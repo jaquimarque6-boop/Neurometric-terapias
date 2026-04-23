@@ -866,15 +866,15 @@ export default function NuevaSesion() {
     const edad = patient?.age ? `${patient.age} años` : null;
     const diag = (sessionDiagnosis ?? "").trim();
 
-    // Diagnosis-specific clinical context
-    type DiagCtx = { area: string; focus: string; progress: string };
+    type DiagCtx = { area: string; focus: string; progress: string; recomendacion: string };
     const DIAG_CTX: Array<{ match: string[]; ctx: DiagCtx }> = [
       {
         match: ["tdah", "deficit de atención", "déficit de atención", "hiperactividad"],
         ctx: {
           area: "trastorno por déficit de atención e hiperactividad (TDAH)",
           focus: "regulación atencional, planificación y autorregulación conductual",
-          progress: "Se observó capacidad de sostenimiento atencional dentro de los rangos esperados para las actividades propuestas, con respuesta positiva a las estrategias de estructuración.",
+          progress: "El paciente presentó capacidad de sostenimiento atencional adecuada a las actividades propuestas, con respuesta positiva a las estrategias de estructuración utilizadas.",
+          recomendacion: "Se recomienda mantener rutinas predecibles en el entorno familiar y escolar, usando apoyos visuales para las consignas y pausas activas cuando sea necesario.",
         },
       },
       {
@@ -882,7 +882,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "trastorno específico del lenguaje (TEL)",
           focus: "comprensión verbal, expresión lingüística y organización del discurso",
-          progress: "Se evidenció participación activa en las tareas de comunicación, con respuestas ajustadas al nivel de estimulación lingüística propuesto.",
+          progress: "El paciente presentó participación activa en las tareas de comunicación, con respuestas ajustadas al nivel de estimulación lingüística propuesto.",
+          recomendacion: "Se recomienda estimular la comunicación verbal en contextos cotidianos, ampliar el vocabulario mediante lecturas compartidas y reforzar los logros alcanzados durante la semana.",
         },
       },
       {
@@ -890,7 +891,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "trastorno del espectro autista (TEA)",
           focus: "comunicación funcional, interacción social y habilidades pragmáticas",
-          progress: "Se promovieron estrategias de comunicación y participación en el encuadre terapéutico, con énfasis en la intencionalidad comunicativa.",
+          progress: "El paciente presentó estrategias de comunicación funcional activas durante la sesión, con avances en la intencionalidad comunicativa dentro del encuadre terapéutico.",
+          recomendacion: "Se recomienda generalizar los aprendizajes a nuevos contextos y fortalecer las rutinas de interacción social en el entorno familiar.",
         },
       },
       {
@@ -898,7 +900,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "trastorno fonológico",
           focus: "producción articulatoria, discriminación auditiva y conciencia fonológica",
-          progress: "Se trabajaron patrones de producción con énfasis en la precisión articulatoria y la discriminación de fonemas en contexto.",
+          progress: "El paciente presentó un desempeño adecuado en las tareas de producción. Se evidencia trabajo activo en la precisión articulatoria y la discriminación de fonemas en contexto.",
+          recomendacion: "Se recomienda práctica diaria de los sonidos trabajados en entornos naturales, sin presión correctiva explícita y reforzando los intentos positivos.",
         },
       },
       {
@@ -906,7 +909,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "dislexia",
           focus: "conciencia fonológica, decodificación lectora y fluidez",
-          progress: "Se realizaron actividades orientadas al fortalecimiento del procesamiento fonológico y lector, favoreciendo la automatización de la lectura.",
+          progress: "Se evidencian avances en el procesamiento fonológico y lector, con respuesta positiva a las actividades de decodificación propuestas en sesión.",
+          recomendacion: "Se recomienda lectura diaria en voz alta de textos adaptados al nivel del paciente y uso de apoyos visuales para la comprensión lectora.",
         },
       },
       {
@@ -914,7 +918,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "trastorno de los sonidos del habla (TSH)",
           focus: "producción del habla, articulación y sonidos del habla",
-          progress: "Se trabajaron aspectos articulatorios con retroalimentación auditiva y visual para favorecer la corrección de los patrones alterados.",
+          progress: "El paciente presentó trabajo articulatorio con retroalimentación auditiva y visual. Se evidencian avances en la producción de los fonemas trabajados durante la sesión.",
+          recomendacion: "Se recomienda práctica breve y motivadora en casa de los sonidos trabajados, sin corrección directa y celebrando todos los intentos positivos.",
         },
       },
       {
@@ -922,7 +927,8 @@ export default function NuevaSesion() {
         ctx: {
           area: "dificultades en el área del cálculo",
           focus: "procesamiento numérico, operaciones y razonamiento matemático",
-          progress: "Se trabajaron habilidades numéricas con apoyo de material concreto para favorecer la comprensión de los conceptos abordados.",
+          progress: "Se trabajaron habilidades numéricas con apoyo de material concreto. El paciente presentó respuesta favorable a las actividades propuestas.",
+          recomendacion: "Se recomienda reforzar los conceptos trabajados mediante juegos numéricos breves en el entorno familiar.",
         },
       },
     ];
@@ -932,54 +938,72 @@ export default function NuevaSesion() {
       area: diag || "intervención terapéutica",
       focus: "los objetivos terapéuticos seleccionados",
       progress: "Se registró participación adecuada al contexto de la sesión y respuesta favorable a las actividades planteadas.",
+      recomendacion: "Se recomienda reforzar los aprendizajes de la sesión en el entorno cotidiano del paciente.",
     };
 
-    // All checked goals for this session
     const ESTADO_LABEL: Record<string, string> = {
-      nuevo: "abordaje inicial",
-      "en proceso": "en proceso de adquisición",
-      logrado: "con logro de la conducta esperada",
-      "no logrado": "con dificultades en la ejecución",
-      "no trabajado": "pendiente de abordaje",
+      nuevo:         "en abordaje inicial",
+      "en proceso":  "en proceso de adquisición",
+      consolidando:  "en etapa de consolidación",
+      generalizando: "en etapa de generalización",
+      logrado:       "con logro de la conducta esperada",
+      "no logrado":  "con dificultades en la ejecución",
     };
 
-    const checkedGoalsNow  = goals.filter(g => rows[g.id]?.checked);
-    const checkedAdHocNow  = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
+    const checkedGoalsNow = goals.filter(g => rows[g.id]?.checked);
+    const checkedAdHocNow = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
     const allChecked = [
       ...checkedGoalsNow.map(g => ({ title: g.title, estado: rows[g.id]?.estado ?? "en proceso" })),
       ...checkedAdHocNow.map(g => ({ title: g.nombreObjetivo ?? g.title, estado: adHocRows[g.id]?.estado ?? "en proceso" })),
     ];
 
-    // Line 1 — opening
+    // Block 1 — opening context
     const infoPartes = [nombre, ...(edad ? [edad] : [])].join(", ");
     const line1 = `Se realizó sesión con ${infoPartes}, en el contexto de ${matchedCtx.area}.`;
 
-    // Line 2 — therapeutic focus
+    // Block 2 — therapeutic focus
     const focoStr = focoTerapeutico.trim().replace(/\.$/, "").toLowerCase();
     const line2 = focoStr
-      ? `El foco de la sesión estuvo orientado a ${focoStr}.`
-      : `El trabajo se centró en ${matchedCtx.focus}.`;
+      ? `El trabajo estuvo orientado a ${focoStr}.`
+      : `El foco de la sesión se centró en ${matchedCtx.focus}.`;
 
-    // Line 3 — goals summary
-    let line3 = "";
+    // Block 3 — clinical observations (from observaciones field — IMPORTANT)
+    const obsStr = observaciones.trim();
+    const line3obs = obsStr
+      ? `Durante la sesión se observó: ${obsStr.charAt(0).toLowerCase()}${obsStr.slice(1)}${obsStr.endsWith(".") ? "" : "."}`
+      : "";
+
+    // Block 4 — goals worked
+    let line4 = "";
     if (allChecked.length === 1) {
       const g = allChecked[0];
-      line3 = `Se trabajó el objetivo "${g.title}" (${ESTADO_LABEL[g.estado] ?? g.estado}).`;
+      line4 = `Se trabajó el objetivo "${g.title}" (${ESTADO_LABEL[g.estado] ?? g.estado}).`;
     } else if (allChecked.length >= 2) {
       const displayGoals = allChecked.slice(0, 3);
       const titles = displayGoals.map(g => `"${g.title}"`).join(", ");
       const suffix = allChecked.length > 3 ? `, entre otros ${allChecked.length - 3}` : "";
-      const estados = allChecked.map(g => g.estado);
-      const dominant = ["logrado", "en proceso", "nuevo", "no logrado"].find(e =>
-        estados.filter(v => v === e).length > 0
+      const allEstados = allChecked.map(g => g.estado);
+      const dominant = ["consolidando", "generalizando", "en proceso", "nuevo", "no logrado"].find(e =>
+        allEstados.filter(v => v === e).length > 0
       ) ?? "en proceso";
-      line3 = `Se trabajaron ${allChecked.length} objetivos: ${titles}${suffix}, con desempeño ${ESTADO_LABEL[dominant] ?? dominant}.`;
+      line4 = `Se trabajaron ${allChecked.length} objetivos: ${titles}${suffix}. Desempeño predominante: ${ESTADO_LABEL[dominant] ?? dominant}.`;
     }
 
-    // Line 4 — progress observation (diagnosis-specific)
-    const line4 = matchedCtx.progress;
+    // Block 5 — evolution / progress
+    const avanzados = allChecked.filter(g => g.estado === "consolidando" || g.estado === "generalizando");
+    const line5 = avanzados.length > 0
+      ? `Se evidencian avances en: ${avanzados.map(g => `"${g.title}"`).join(", ")}.`
+      : matchedCtx.progress;
 
-    return [line1, line2, line3, line4].filter(Boolean).join(" ");
+    // Block 6 — recommendations
+    const allEstados2 = allChecked.map(g => g.estado);
+    const mostlyAdvanced = allEstados2.filter(e => e === "consolidando" || e === "generalizando").length > allEstados2.length / 2;
+    const recomLine = mostlyAdvanced
+      ? "Se recomienda avanzar hacia la generalización de los logros en contextos naturales y cotidianos."
+      : matchedCtx.recomendacion;
+    const line6 = allChecked.length > 0 ? recomLine : "";
+
+    return [line1, line2, line3obs, line4, line5, line6].filter(Boolean).join(" ");
   };
 
   const checkedGoals  = goals.filter(g => rows[g.id]?.checked);
@@ -1500,6 +1524,142 @@ export default function NuevaSesion() {
           )}
         </div>
 
+        {/* ── Guía por edad y área ─────────────────────────────────────── */}
+        {patient && (
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
+            {/* Header — warm autumn */}
+            <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: "#E8D5C4", background: "#FDF3E9" }}>
+              <Brain className="h-4 w-4" style={{ color: "#C4703A" }} />
+              <h2 className="text-sm font-semibold" style={{ color: "#7C3D12" }}>Guía por edad y área</h2>
+            </div>
+
+            {/* Age range pills */}
+            <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5 items-center">
+              {franjaPaciente && edadPaciente != null && (
+                <span className="text-[11px] font-medium mr-1" style={{ color: "#92400E" }}>
+                  {edadPaciente}a →
+                </span>
+              )}
+              {FRANJAS_EDAD.map(f => {
+                const isPaciente = f.value === franjaPaciente;
+                const isSelected = f.value === selectedEdad;
+                return (
+                  <button
+                    key={f.value}
+                    onClick={() => { setSelectedEdad(f.value); setSelectedBloque(null); }}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                    style={isSelected
+                      ? { background: "#C4703A", borderColor: "#C4703A", color: "white" }
+                      : isPaciente
+                        ? { background: "#FEF3E2", borderColor: "#C4703A", color: "#92400E" }
+                        : { background: "white", borderColor: "#E8D5C4", color: "#92400E" }}
+                  >
+                    {f.label}{isPaciente && !isSelected ? " ·" : ""}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Area chips */}
+            <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
+              {BLOQUES_SESION.map(bloque => {
+                const isOpen = selectedBloque === bloque.area;
+                return (
+                  <button
+                    key={bloque.area}
+                    onClick={() => setSelectedBloque(isOpen ? null : bloque.area)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      isOpen
+                        ? `${bloque.bg} ${bloque.border} ${bloque.text} ring-2 ring-offset-1 ring-current`
+                        : "bg-muted/60 border-border text-foreground/75 hover:bg-muted hover:border-border/80"
+                    }`}
+                  >
+                    {bloque.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Expanded block panel */}
+            {selectedBloque && (() => {
+              const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
+              if (!bloque) return null;
+              const edadLabel     = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
+              const habs          = bloque.habilidadesPorFranja[selectedEdad] ?? [];
+              const acts          = bloque.actividadesClinicasPorFranja?.[selectedEdad];
+              const familia       = bloque.paraLaFamiliaPorFranja?.[selectedEdad];
+              const focoSugerido  = bloque.focoSugeridoPorFranja[selectedEdad] ?? "";
+              return (
+                <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} overflow-hidden`} style={{ background: "white" }}>
+                  <div className={`px-4 py-2.5 border-b ${bloque.border} ${bloque.bg}`}>
+                    <p className={`text-[11px] font-bold uppercase tracking-wide ${bloque.text}`}>
+                      {bloque.label} · {edadLabel}
+                    </p>
+                  </div>
+                  {habs.length === 0 ? (
+                    <div className="px-4 py-6 text-center">
+                      <p className="text-sm text-muted-foreground">Sin contenido clínico para esta franja etaria.</p>
+                      <p className="text-xs text-muted-foreground/40 mt-1">Selecciona otra franja o consulta al supervisor clínico.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Habilidades esperadas</p>
+                        <ul className="space-y-1.5">
+                          {habs.map((h, i) => (
+                            <li key={i} className="flex gap-2 text-sm text-foreground/80">
+                              <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
+                              <span className="leading-snug">{h}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {acts && acts.length > 0 && (
+                        <div className="px-4 py-3 border-t border-border/50">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Actividades clínicas</p>
+                          <ul className="space-y-1.5">
+                            {acts.map((a, i) => (
+                              <li key={i} className="flex gap-2 text-sm text-foreground/80">
+                                <span className="shrink-0 text-orange-400 font-bold mt-0.5">›</span>
+                                <span className="leading-snug">{a}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {familia && familia.length > 0 && (
+                        <div className="px-4 py-3 border-t" style={{ borderColor: "#F3D9C0", background: "#FEF6EE" }}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#92400E" }}>
+                            Para la familia
+                          </p>
+                          <ul className="space-y-1.5">
+                            {familia.map((a, i) => (
+                              <li key={i} className="flex gap-2 text-sm" style={{ color: "#7C3D12" }}>
+                                <span className="shrink-0 font-bold mt-0.5" style={{ color: "#C4703A" }}>·</span>
+                                <span className="leading-snug">{a}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="px-4 py-3 border-t border-border/50">
+                        <button
+                          onClick={() => { setFocoTerapeutico(focoSugerido); setSelectedBloque(null); }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
+                          style={{ background: "#C4703A" }}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Usar en sesión
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {/* ── Compact session summary strip ────────────────────────────── */}
         {patient && (
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-xs text-muted-foreground flex-wrap">
@@ -1530,7 +1690,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía de adquisición de fonemas (TSH) ─────────────────────── */}
-        {patient && sessionDiagnosis === "Dislalia" && (
+        {patient && (sessionDiagnosis === "TSH" || sessionDiagnosis === "Dislalia") && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}35`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
@@ -1788,156 +1948,6 @@ export default function NuevaSesion() {
             />
           </div>
         )}
-
-        {/* ── Guía por edad y área ─────────────────────────────────────── */}
-        {patient && (
-          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
-            {/* Header — warm autumn */}
-            <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: "#E8D5C4", background: "#FDF3E9" }}>
-              <Brain className="h-4 w-4" style={{ color: "#C4703A" }} />
-              <h2 className="text-sm font-semibold" style={{ color: "#7C3D12" }}>Guía por edad y área</h2>
-            </div>
-
-            {/* Age range pills */}
-            <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5 items-center">
-              {franjaPaciente && edadPaciente != null && (
-                <span className="text-[11px] font-medium mr-1" style={{ color: "#92400E" }}>
-                  {edadPaciente}a →
-                </span>
-              )}
-              {FRANJAS_EDAD.map(f => {
-                const isPaciente = f.value === franjaPaciente;
-                const isSelected = f.value === selectedEdad;
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => { setSelectedEdad(f.value); setSelectedBloque(null); }}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
-                    style={isSelected
-                      ? { background: "#C4703A", borderColor: "#C4703A", color: "white" }
-                      : isPaciente
-                        ? { background: "#FEF3E2", borderColor: "#C4703A", color: "#92400E" }
-                        : { background: "white", borderColor: "#E8D5C4", color: "#92400E" }}
-                  >
-                    {f.label}{isPaciente && !isSelected ? " ·" : ""}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Area chips */}
-            <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
-              {BLOQUES_SESION.map(bloque => {
-                const isOpen = selectedBloque === bloque.area;
-                return (
-                  <button
-                    key={bloque.area}
-                    onClick={() => setSelectedBloque(isOpen ? null : bloque.area)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      isOpen
-                        ? `${bloque.bg} ${bloque.border} ${bloque.text} ring-2 ring-offset-1 ring-current`
-                        : "bg-muted/60 border-border text-foreground/75 hover:bg-muted hover:border-border/80"
-                    }`}
-                  >
-                    {bloque.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Expanded block panel */}
-            {selectedBloque && (() => {
-              const bloque = BLOQUES_SESION.find(b => b.area === selectedBloque);
-              if (!bloque) return null;
-              const edadLabel     = FRANJAS_EDAD.find(f => f.value === selectedEdad)?.label ?? selectedEdad;
-              const habs          = bloque.habilidadesPorFranja[selectedEdad] ?? [];
-              const acts          = bloque.actividadesClinicasPorFranja?.[selectedEdad];
-              const familia       = bloque.paraLaFamiliaPorFranja?.[selectedEdad];
-              const focoSugerido  = bloque.focoSugeridoPorFranja[selectedEdad] ?? "";
-              return (
-                <div className={`mx-4 mb-4 rounded-xl border ${bloque.border} overflow-hidden`} style={{ background: "white" }}>
-                  {/* Block title */}
-                  <div className={`px-4 py-2.5 border-b ${bloque.border} ${bloque.bg}`}>
-                    <p className={`text-[11px] font-bold uppercase tracking-wide ${bloque.text}`}>
-                      {bloque.label} · {edadLabel}
-                    </p>
-                  </div>
-
-                  {/* Empty state — no content for this franja */}
-                  {habs.length === 0 ? (
-                    <div className="px-4 py-6 text-center">
-                      <p className="text-sm text-muted-foreground">Sin contenido clínico para esta franja etaria.</p>
-                      <p className="text-xs text-muted-foreground/40 mt-1">Selecciona otra franja o consulta al supervisor clínico.</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Habilidades esperadas */}
-                      <div className="px-4 py-3">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Habilidades esperadas</p>
-                        <ul className="space-y-1.5">
-                          {habs.map((h, i) => (
-                            <li key={i} className="flex gap-2 text-sm text-foreground/80">
-                              <span className={`shrink-0 font-bold mt-0.5 ${bloque.text}`}>·</span>
-                              <span className="leading-snug">{h}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Actividades clínicas — only if present for this franja */}
-                      {acts && acts.length > 0 && (
-                        <div className="px-4 py-3 border-t border-border/50">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Actividades clínicas</p>
-                          <ul className="space-y-1.5">
-                            {acts.map((a, i) => (
-                              <li key={i} className="flex gap-2 text-sm text-foreground/80">
-                                <span className="shrink-0 text-orange-400 font-bold mt-0.5">›</span>
-                                <span className="leading-snug">{a}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Para la familia — only if present for this franja */}
-                      {familia && familia.length > 0 && (
-                        <div className="px-4 py-3 border-t" style={{ borderColor: "#F3D9C0", background: "#FEF6EE" }}>
-                          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#92400E" }}>
-                            Para la familia
-                          </p>
-                          <ul className="space-y-1.5">
-                            {familia.map((a, i) => (
-                              <li key={i} className="flex gap-2 text-sm" style={{ color: "#7C3D12" }}>
-                                <span className="shrink-0 font-bold mt-0.5" style={{ color: "#C4703A" }}>·</span>
-                                <span className="leading-snug">{a}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Usar en sesión button */}
-                      <div className="px-4 py-3 border-t border-border/50">
-                        <button
-                          onClick={() => {
-                            setFocoTerapeutico(focoSugerido);
-                            setSelectedBloque(null);
-                          }}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
-                          style={{ background: "#C4703A" }}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Usar en sesión
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
         {/* ── Card: objetivos ───────────────────────────────────────────── */}
         {patient && (
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">

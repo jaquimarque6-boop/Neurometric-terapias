@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { ChevronDown, ChevronUp, Brain, CheckCircle2, Lightbulb, ClipboardCheck, Eye } from "lucide-react";
 import { DIAGNOSIS_AREAS, getDiagnosisLabel } from "@/utils/diagnosis-map";
-
-// ─── Guidance data per clinical area ─────────────────────────────────────────
 
 interface AreaGuide {
   queEvaluar: string[];
   comoEvaluarlo: string[];
+  indicadoresClinicos: string[];
+  ejemploPractico: string;
 }
 
 const AREA_GUIDANCE: Record<string, AreaGuide> = {
@@ -15,56 +15,84 @@ const AREA_GUIDANCE: Record<string, AreaGuide> = {
       "Comprensión oral",
       "Expresión verbal",
       "Vocabulario receptivo y expresivo",
-      "Morfosintaxis",
+      "Morfosintaxis y estructura oracional",
     ],
     comoEvaluarlo: [
       "Denominación de imágenes",
-      "Seguimiento de consignas",
-      "Relato de lámina o cuento",
-      "Completar frases",
+      "Seguimiento de consignas de 1 a 3 pasos",
+      "Relato de lámina o cuento con apoyo",
+      "Completar frases y analogías verbales",
     ],
+    indicadoresClinicos: [
+      "Vocabulario activo menor al esperado para la edad",
+      "Frases más cortas o simples que las del grupo de referencia",
+      "Omisión de morfemas gramaticales (artículos, plurales, verbos)",
+      "Dificultad para narrar secuencias con coherencia y cohesión",
+    ],
+    ejemploPractico: "Presentar una lámina de escena cotidiana y pedir al paciente que describa lo que ocurre. Observar longitud media del enunciado, variedad léxica, uso de conectores y estructura narrativa. Comparar con normas según edad.",
   },
   "habla": {
     queEvaluar: [
       "Inventario fonético",
-      "Procesos fonológicos",
-      "Inteligibilidad",
-      "Fluidez del habla",
+      "Procesos fonológicos presentes",
+      "Inteligibilidad del habla",
+      "Fluidez y velocidad del habla",
     ],
     comoEvaluarlo: [
       "Repetición de palabras y pseudopalabras",
-      "Denominación espontánea",
-      "Habla conversacional",
-      "Lectura en voz alta (si aplica)",
+      "Denominación espontánea con láminas",
+      "Muestra de habla conversacional",
+      "Lectura en voz alta (si aplica por edad)",
     ],
+    indicadoresClinicos: [
+      "Sustituciones articulatorias en fonemas de adquisición tardía (/r/, /rr/, /s/, /l/)",
+      "Omisiones o distorsiones en posición final o en grupos consonánticos",
+      "Inteligibilidad inferior al 75% para interlocutores no familiares",
+      "Procesos fonológicos no esperados para la franja etaria del paciente",
+    ],
+    ejemploPractico: "Aplicar una prueba de denominación de 30 ítems con variación de posición fonémica (inicial, media, final) y de complejidad silábica. Transcribir fonéticamente las respuestas y comparar con el inventario fonético esperado para la edad.",
   },
   "pragmática": {
     queEvaluar: [
       "Contacto visual y atención conjunta",
-      "Intención comunicativa",
-      "Turnos en conversación",
+      "Intención comunicativa (pedir, comentar, saludar)",
+      "Gestión de turnos conversacionales",
       "Comprensión de situaciones sociales",
     ],
     comoEvaluarlo: [
       "Juego guiado y espontáneo",
-      "Interacción con pares u observador",
+      "Interacción con el terapeuta u observador",
       "Relato de situaciones cotidianas",
-      "Tareas de perspectiva social",
+      "Tareas de perspectiva social (ToM básica)",
     ],
+    indicadoresClinicos: [
+      "Contacto visual pobre, evitativo o excesivo durante la interacción",
+      "Dificultad para iniciar, mantener o cerrar conversaciones",
+      "Turnos comunicativos muy breves o ausentes",
+      "Comentarios no relacionados al tema en curso",
+    ],
+    ejemploPractico: "Proponer juego libre sin guía del terapeuta durante 10 minutos. Registrar si el paciente inicia la interacción, cuántos turnos sostiene, si repara la comunicación cuando no es entendido, y si adapta el mensaje según el contexto.",
   },
   "cognición": {
     queEvaluar: [
       "Atención sostenida y selectiva",
       "Memoria de trabajo",
-      "Funciones ejecutivas básicas",
+      "Control inhibitorio y planificación",
       "Velocidad de procesamiento",
     ],
     comoEvaluarlo: [
-      "Tareas estructuradas con instrucción",
-      "Actividades de secuenciación",
-      "Juegos con reglas simples",
-      "Observación conductual en sesión",
+      "Tareas estructuradas con instrucción verbal",
+      "Actividades de secuenciación de pasos",
+      "Juegos con reglas simples y cambio de regla",
+      "Observación conductual sistemática en sesión",
     ],
+    indicadoresClinicos: [
+      "Tiempo de atención sostenida < 5 min en tarea estructurada (esperado 3-5 años)",
+      "Dificultad para retener y ejecutar instrucciones de 2-3 pasos",
+      "Alta distracción ante estímulos irrelevantes del entorno",
+      "Respuestas impulsivas sin período de reflexión previo",
+    ],
+    ejemploPractico: "Tarea de secuenciación de 3 pasos (colocar ficha, esperar señal, nombrar color). Registrar tiempo de atención sostenida, número de errores por impulsividad, y respuesta a la corrección verbal del terapeuta.",
   },
   "lectoescritura": {
     queEvaluar: [
@@ -74,71 +102,104 @@ const AREA_GUIDANCE: Record<string, AreaGuide> = {
       "Escritura y ortografía",
     ],
     comoEvaluarlo: [
-      "Lectura de palabras y pseudopalabras",
-      "Dictado y copia",
-      "Preguntas sobre texto leído",
-      "Segmentación silábica y fonémica",
+      "Lectura de palabras reales y pseudopalabras",
+      "Dictado de sílabas, palabras y oraciones",
+      "Preguntas literales e inferenciales sobre texto leído",
+      "Segmentación silábica y fonémica con palmadas",
     ],
+    indicadoresClinicos: [
+      "Confusión sistemática de grafemas similares (b/d, p/q, m/n)",
+      "Lectura silábica o subsilábica más allá del nivel esperado para el curso",
+      "Errores ortográficos frecuentes no atribuibles a nivel de escolaridad",
+      "Dificultad marcada en segmentación fonémica (aislar, omitir, invertir fonemas)",
+    ],
+    ejemploPractico: "Lectura en voz alta de un texto breve apropiado al nivel escolar del paciente. Registrar velocidad lectora (palabras por minuto), tipo y frecuencia de errores de decodificación, intentos de autocorrección y comprensión básica del texto.",
   },
   "motricidad oral": {
     queEvaluar: [
-      "Tono y movilidad orofacial",
-      "Función deglutoria",
-      "Praxias orales",
-      "Postura y respiración",
+      "Tono y movilidad de estructuras orofaciales",
+      "Función y patrón deglutorio",
+      "Praxias orales imitativas",
+      "Postura y patrón respiratorio habitual",
     ],
     comoEvaluarlo: [
-      "Observación de masticación y deglución",
-      "Praxias linguales y labiales",
-      "Protocolo miofuncional",
-      "Evaluación postural en reposo",
+      "Observación de masticación y deglución de agua y sólido",
+      "Praxias linguales, labiales y mandibulares ante modelo",
+      "Protocolo de evaluación miofuncional estandarizado",
+      "Evaluación postural en reposo y durante la fonación",
     ],
+    indicadoresClinicos: [
+      "Hipotonía o hipertonía muscular evidente en cara, labios o lengua",
+      "Deglución con proyección lingual anterior o lateral (deglución atípica)",
+      "Dificultad para imitar praxias simples con espejo",
+      "Babeo residual post-deglución o en reposo",
+    ],
+    ejemploPractico: "Protocolo de praxias orofaciales imitativas (5 movimientos de labios, 5 de lengua, 3 de mejillas). Registrar rango de movimiento, simetría, velocidad y precisión de cada praxia. Contrastar con desempeño esperado para la edad.",
   },
   "motricidad orofacial": {
     queEvaluar: [
-      "Tono y movilidad orofacial",
-      "Función deglutoria",
-      "Praxias orales",
-      "Postura y respiración",
+      "Tono y movilidad de estructuras orofaciales",
+      "Función y patrón deglutorio",
+      "Praxias orales imitativas",
+      "Postura y patrón respiratorio habitual",
     ],
     comoEvaluarlo: [
-      "Observación de masticación y deglución",
-      "Praxias linguales y labiales",
-      "Protocolo miofuncional",
-      "Evaluación postural en reposo",
+      "Observación de masticación y deglución de agua y sólido",
+      "Praxias linguales, labiales y mandibulares ante modelo",
+      "Protocolo de evaluación miofuncional estandarizado",
+      "Evaluación postural en reposo y durante la fonación",
     ],
+    indicadoresClinicos: [
+      "Hipotonía o hipertonía muscular evidente en cara, labios o lengua",
+      "Deglución con proyección lingual anterior o lateral (deglución atípica)",
+      "Dificultad para imitar praxias simples con espejo",
+      "Babeo residual post-deglución o en reposo",
+    ],
+    ejemploPractico: "Protocolo de praxias orofaciales imitativas (5 movimientos de labios, 5 de lengua, 3 de mejillas). Registrar rango de movimiento, simetría, velocidad y precisión de cada praxia. Contrastar con desempeño esperado para la edad.",
   },
   "voz": {
     queEvaluar: [
-      "Calidad vocal (soplo, aspereza, tensión)",
+      "Calidad vocal (soplosidad, aspereza, tensión)",
       "Tono e intensidad habitual",
-      "Resonancia",
-      "Hábitos de higiene vocal",
+      "Resonancia y proyección vocal",
+      "Hábitos de higiene y uso vocal",
     ],
     comoEvaluarlo: [
-      "Escucha y descripción de muestra vocal",
-      "Tiempo máximo de fonación (TMF)",
-      "Grabación de lectura espontánea",
+      "Escucha y descripción perceptual de muestra vocal grabada",
+      "Tiempo Máximo de Fonación (TMF) de vocal /a/ sostenida",
+      "Lectura expresiva de texto estándar",
       "Cuestionario de uso y abuso vocal",
     ],
+    indicadoresClinicos: [
+      "Calidad vocal perceptualmente áspera, soplada o tensa al inicio de sesión",
+      "TMF menor a 8 segundos en adultos o menor al percentil 10 para la edad",
+      "Quiebres vocales frecuentes durante el habla espontánea",
+      "Intensidad habitual inadecuada al contexto (voz muy baja o muy alta)",
+    ],
+    ejemploPractico: "Solicitar sostenimiento máximo de vocal /a/ en tres intentos, registrar el mejor tiempo. Grabar 1 minuto de lectura en voz alta y evaluar perceptualmente calidad, intensidad y quiebres. Comparar TMF con valores normativos para edad y sexo.",
   },
   "estimulación temprana": {
     queEvaluar: [
-      "Hitos del desarrollo comunicativo",
+      "Hitos del desarrollo comunicativo y lingüístico",
       "Juego simbólico y funcional",
-      "Comprensión preverbal",
+      "Comprensión preverbal y gestos comunicativos",
       "Intención comunicativa temprana",
     ],
     comoEvaluarlo: [
-      "Observación de juego libre",
-      "Interacción con cuidador principal",
-      "Respuesta a nombre y consignas simples",
-      "Señalización y uso de gestos",
+      "Observación de juego libre con cuidador y con terapeuta",
+      "Interacción con el cuidador principal en situación semi-estructurada",
+      "Respuesta al nombre y seguimiento de consignas simples",
+      "Registro de gestos, señalización y uso comunicativo del llanto y vocalización",
     ],
+    indicadoresClinicos: [
+      "Ausencia de balbuceo canónico (ma-ma, pa-pa) más allá de los 9 meses",
+      "No señala con dedo índice a los 12 meses para mostrar o pedir",
+      "Vocabulario activo inferior a 5 palabras funcionales a los 18 meses",
+      "No sigue consignas simples sin apoyo gestual más allá de los 12 meses",
+    ],
+    ejemploPractico: "Sesión de juego de turnos vocal cara a cara: el terapeuta produce un sonido simple, espera y refuerza cualquier respuesta vocal del bebé. Observar si el paciente mantiene la interacción, imita vocalizaciones y varía sus producciones vocales de forma intencional.",
   },
 };
-
-// ─── Keyword-based fallback for free-text diagnoses ──────────────────────────
 
 const KEYWORD_AREA_MAP: Array<{ keywords: string[]; area: string }> = [
   { keywords: ["tel", "tdl", "retraso del lenguaje", "disfasia", "léxico", "lenguaje"], area: "lenguaje" },
@@ -153,12 +214,8 @@ const KEYWORD_AREA_MAP: Array<{ keywords: string[]; area: string }> = [
 
 function resolveAreas(diagnosis: string): string[] {
   if (!diagnosis) return [];
-
-  // Exact match from DIAGNOSIS_AREAS map first
   const mapped = DIAGNOSIS_AREAS[diagnosis];
   if (mapped && mapped.length > 0) return mapped;
-
-  // Keyword fallback for free-text / partial matches
   const lower = diagnosis.toLowerCase();
   const found: string[] = [];
   for (const { keywords, area } of KEYWORD_AREA_MAP) {
@@ -169,7 +226,84 @@ function resolveAreas(diagnosis: string): string[] {
   return found;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function AreaPanel({ area, guide, compact }: { area: string; guide: AreaGuide; compact: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-amber-200/70 overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-amber-50/80 hover:bg-amber-100/60 transition-colors"
+      >
+        <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">{area}</span>
+        {open
+          ? <ChevronUp className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          : <ChevronDown className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+      </button>
+
+      {open && (
+        <div className={`border-t border-amber-100 ${compact ? "space-y-3 p-3" : "space-y-4 p-4"}`}>
+          {/* Qué evaluar + Cómo evaluarlo */}
+          <div className={compact ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 gap-3"}>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <ClipboardCheck className="h-3 w-3 text-amber-600 shrink-0" />
+                <p className="text-xs font-semibold text-amber-800">Qué evaluar</p>
+              </div>
+              <ul className="space-y-1">
+                {guide.queEvaluar.map(item => (
+                  <li key={item} className="flex items-start gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                    <span className="text-xs text-amber-900/80 leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Eye className="h-3 w-3 text-amber-600 shrink-0" />
+                <p className="text-xs font-semibold text-amber-800">Cómo evaluarlo</p>
+              </div>
+              <ul className="space-y-1">
+                {guide.comoEvaluarlo.map(item => (
+                  <li key={item} className="flex items-start gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                    <span className="text-xs text-amber-900/80 leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Indicadores clínicos */}
+          <div className="rounded-lg bg-amber-50 border border-amber-200/60 p-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <CheckCircle2 className="h-3 w-3 text-amber-700 shrink-0" />
+              <p className="text-xs font-semibold text-amber-800">Indicadores clínicos</p>
+            </div>
+            <ul className="space-y-1">
+              {guide.indicadoresClinicos.map(item => (
+                <li key={item} className="flex items-start gap-1.5">
+                  <span className="shrink-0 text-amber-500 font-bold mt-0.5 text-xs">›</span>
+                  <span className="text-xs text-amber-900/80 leading-snug">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Ejemplo práctico */}
+          <div className="rounded-lg bg-white border border-amber-200/50 p-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Lightbulb className="h-3 w-3 text-amber-600 shrink-0" />
+              <p className="text-xs font-semibold text-amber-800">Aplicación en sesión</p>
+            </div>
+            <p className="text-xs text-amber-900/75 leading-relaxed">{guide.ejemploPractico}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface EvalSugeridaProps {
   diagnosis: string;
@@ -191,7 +325,6 @@ export function EvalSugerida({ diagnosis, defaultOpen = false, compact = false }
 
   return (
     <div className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50/60 overflow-hidden">
-      {/* Header toggle */}
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-amber-100/60 transition-colors"
@@ -211,41 +344,12 @@ export function EvalSugerida({ diagnosis, defaultOpen = false, compact = false }
       </button>
 
       {open && (
-        <div className={`border-t border-amber-100 ${compact ? "px-4 py-3 space-y-4" : "px-4 py-3 space-y-5"}`}>
+        <div className={`border-t border-amber-100 ${compact ? "p-3 space-y-2" : "p-4 space-y-3"}`}>
+          <p className="text-[10px] text-amber-700/70 uppercase tracking-widest font-semibold">
+            Toca un área para ver la guía clínica completa
+          </p>
           {guides.map(({ area, guide }) => (
-            <div key={area}>
-              {guides.length > 1 && (
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-2">
-                  {area}
-                </p>
-              )}
-              <div className={compact ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 gap-3"}>
-                {/* Qué evaluar */}
-                <div>
-                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Qué evaluar</p>
-                  <ul className="space-y-1">
-                    {guide.queEvaluar.map(item => (
-                      <li key={item} className="flex items-start gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                        <span className="text-xs text-amber-900/80 leading-snug">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {/* Cómo evaluarlo */}
-                <div>
-                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Cómo evaluarlo</p>
-                  <ul className="space-y-1">
-                    {guide.comoEvaluarlo.map(item => (
-                      <li key={item} className="flex items-start gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                        <span className="text-xs text-amber-900/80 leading-snug">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <AreaPanel key={area} area={area} guide={guide} compact={compact} />
           ))}
         </div>
       )}

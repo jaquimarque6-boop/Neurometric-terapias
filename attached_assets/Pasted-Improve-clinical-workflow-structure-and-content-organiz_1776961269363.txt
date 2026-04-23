@@ -1,0 +1,113 @@
+Improve clinical workflow, structure and content organization without breaking current functionality.
+
+1. UI REORGANIZATION
+
+Current issue:
+
+- "Guía por edad y área" is visually disconnected from diagnosis and evaluation
+
+Required change:
+
+- Move "Guía por edad y área" closer to:
+  - Diagnóstico
+  - Evaluación sugerida
+- It should appear above or just below "Evaluación sugerida"
+- Maintain clean spacing and hierarchy
+
+Goal:
+Better clinical flow: diagnóstico → evaluación → guía → sesión
+
+---
+
+2. DIAGNÓSTICO UPDATE
+
+Replace outdated terminology:
+
+- Remove: "Dislalia"
+- Add: "TSH (Trastorno de los sonidos del habla)"
+
+Do NOT break:
+
+- existing diagnosis logic
+- filtering or suggestions
+
+---
+
+3. INFORME CLÍNICO (MEJORA DE TEXTO)
+
+Current issue:
+
+- Informe is useful but lacks structured clinical richness
+- Observations are not fully used
+
+Required:
+
+When generating report:
+
+Include:
+
+- Resumen de sesión (editable)
+- Observaciones clínicas (IMPORTANT)
+- Evolución del objetivo
+- Recomendaciones
+
+Add logic:
+
+- Use Observaciones to enrich report text automatically
+- Improve wording to be more professional and clinical
+
+Example tone:
+"Durante la sesión se observó..."
+"El paciente presentó..."
+"Se evidencian avances en..."
+
+Do NOT:
+
+- lock the text (must remain editable)
+
+---
+
+4. EVALUACIÓN SUGERIDA INTERACTIVA
+
+Current issue:
+
+- Evaluation is shown but not actionable
+
+Required:
+
+For each item in "Evaluación sugerida":
+
+- Make it clickable / expandable
+
+On click:
+
+- Show specific evaluation guidance:
+  - Qué evaluar
+  - Cómo evaluarlo
+  - Indicadores clínicos
+  - Ejemplo práctico
+
+Example:
+
+Atención:
+→ Evaluar memoria de trabajo
+→ Evaluar control inhibitorio
+→ Evaluar atención sostenida
+
+Each with:
+
+- breve guía clínica
+- aplicación en sesión
+
+---
+
+5. GENERAL
+
+Do NOT:
+
+- break session saving
+- modify backend structure
+- affect mobile usability
+
+Goal:
+Make the app feel like a real clinical assistant, not just a form.
