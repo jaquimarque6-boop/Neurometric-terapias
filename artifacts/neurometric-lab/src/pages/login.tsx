@@ -103,12 +103,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            <div className="mt-6 pt-5 border-t border-border/50">
-              <p className="text-xs text-muted-foreground text-center">
-                Cuenta de demostración: <span className="font-mono text-foreground/70">admin@neurometric.cl</span> / <span className="font-mono text-foreground/70">admin1234</span>
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
