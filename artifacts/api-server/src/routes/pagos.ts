@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { pagosTable } from "@workspace/db/schema";
-import { patientsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { pagosTable, patientsTable } from "@workspace/db/schema";
+import { eq, and, SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -31,21 +30,42 @@ router.get("/pagos", async (req, res) => {
 
     const { mes, tipo, patientId } = req.query as Record<string, string>;
 
-    let rows = await db.select().from(pagosTable).orderBy(pagosTable.fecha);
+    // Build WHERE conditions at the SQL level — no JS filtering
+    const conditions: SQL[] = [];
+    if (sess.role !== "admin") conditions.push(eq(pagosTable.userId, sess.id));
+    if (mes) conditions.push(eq(pagosTable.mes, mes));
+    if (tipo) conditions.push(eq(pagosTable.tipo, tipo));
+    if (patientId) conditions.push(eq(pagosTable.patientId, parseInt(patientId)));
 
-    // Each user sees only their own payment records
-    if (sess.role !== "admin") {
-      rows = rows.filter(p => p.userId === sess.id);
-    }
+    // Single query with LEFT JOIN for patient name
+    const rows = await db
+      .select({
+        id: pagosTable.id,
+        patientId: pagosTable.patientId,
+        patientName: patientsTable.name,
+        monto: pagosTable.monto,
+        mes: pagosTable.mes,
+        tipo: pagosTable.tipo,
+        nombreObraSocial: pagosTable.nombreObraSocial,
+        fecha: pagosTable.fecha,
+        estado: pagosTable.estado,
+        notas: pagosTable.notas,
+        userId: pagosTable.userId,
+        createdAt: pagosTable.createdAt,
+        updatedAt: pagosTable.updatedAt,
+      })
+      .from(pagosTable)
+      .leftJoin(patientsTable, eq(pagosTable.patientId, patientsTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(pagosTable.fecha);
 
-    if (mes) rows = rows.filter(p => p.mes === mes);
-    if (tipo) rows = rows.filter(p => p.tipo === tipo);
-    if (patientId) rows = rows.filter(p => p.patientId === parseInt(patientId));
-
-    const patients = await db.select({ id: patientsTable.id, name: patientsTable.name }).from(patientsTable);
-    const patientMap = new Map(patients.map(p => [p.id, p.name]));
-
-    return res.json(rows.map(p => ({ ...serializePago(p), patientName: patientMap.get(p.patientId) ?? "—" })));
+    return res.json(rows.map(p => ({
+      ...p,
+      patientName: p.patientName ?? "—",
+      monto: String(p.monto),
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    })));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Error al obtener pagos" });
@@ -64,19 +84,23 @@ router.post("/pagos", async (req, res) => {
       return res.status(400).json({ error: "Faltan campos requeridos: patientId, monto, mes, fecha" });
     }
 
-    const [inserted] = await db.insert(pagosTable).values({
-      patientId: parseInt(patientId),
-      monto: String(monto),
-      mes,
-      tipo,
-      nombreObraSocial: nombreObraSocial ?? null,
-      fecha,
-      estado: "pagado",
-      notas: notas ?? null,
-      userId: sess.id,
-    }).returning();
+    const pid = parseInt(patientId);
+    const [[inserted], [patient]] = await Promise.all([
+      db.insert(pagosTable).values({
+        patientId: pid,
+        monto: String(monto),
+        mes,
+        tipo,
+        nombreObraSocial: nombreObraSocial ?? null,
+        fecha,
+        estado: "pagado",
+        notas: notas ?? null,
+        userId: sess.id,
+      }).returning(),
+      db.select({ name: patientsTable.name }).from(patientsTable).where(eq(patientsTable.id, pid)),
+    ]);
 
-    return res.status(201).json(serializePago(inserted));
+    return res.status(201).json({ ...serializePago(inserted), patientName: patient?.name ?? "—" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Error al crear pago" });
@@ -108,8 +132,12 @@ router.put("/pagos/:id", async (req, res) => {
     if (body.fecha !== undefined) updates.fecha = body.fecha;
     if (body.notas !== undefined) updates.notas = body.notas || null;
 
-    const [updated] = await db.update(pagosTable).set(updates).where(eq(pagosTable.id, id)).returning();
-    return res.json(serializePago(updated));
+    const [[updated], [patient]] = await Promise.all([
+      db.update(pagosTable).set(updates).where(eq(pagosTable.id, id)).returning(),
+      db.select({ name: patientsTable.name }).from(patientsTable)
+        .where(eq(patientsTable.id, updates.patientId ?? pago.patientId)),
+    ]);
+    return res.json({ ...serializePago(updated), patientName: patient?.name ?? "—" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Error al actualizar pago" });

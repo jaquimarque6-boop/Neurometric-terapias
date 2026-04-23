@@ -125,8 +125,15 @@ export default function RegistroPagos() {
     },
   });
 
+  // Instantly update the query cache for all active "pagos" queries,
+  // then refetch in background to stay in sync with the server.
+  function patchCache(updater: (old: Pago[]) => Pago[]) {
+    qc.setQueriesData<Pago[]>({ queryKey: ["pagos"] }, (old) => updater(old ?? []));
+    qc.invalidateQueries({ queryKey: ["pagos"] });
+  }
+
   const createMutation = useMutation({
-    mutationFn: async (data: typeof emptyForm) => {
+    mutationFn: async (data: typeof emptyForm): Promise<Pago> => {
       const r = await fetch(`${API_BASE}/api/pagos`, {
         method: "POST",
         credentials: "include",
@@ -144,9 +151,10 @@ export default function RegistroPagos() {
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
       return r.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pagos"] });
-      toast({ title: "Pago registrado", description: "El cobro fue registrado correctamente." });
+    onSuccess: (newPago) => {
+      // Add the new pago to the cache immediately — no waiting for a refetch
+      patchCache(old => [...old, newPago].sort((a, b) => a.fecha.localeCompare(b.fecha)));
+      toast({ title: "Pago registrado" });
       setDialogOpen(false);
       setForm(emptyForm);
     },
@@ -154,7 +162,7 @@ export default function RegistroPagos() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof emptyForm> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof emptyForm> }): Promise<Pago> => {
       const r = await fetch(`${API_BASE}/api/pagos/${id}`, {
         method: "PUT",
         credentials: "include",
@@ -172,8 +180,9 @@ export default function RegistroPagos() {
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
       return r.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pagos"] });
+    onSuccess: (updated) => {
+      // Replace the edited row in cache immediately
+      patchCache(old => old.map(p => p.id === updated.id ? updated : p));
       toast({ title: "Pago actualizado" });
       setDialogOpen(false);
       setEditTarget(null);
@@ -188,8 +197,9 @@ export default function RegistroPagos() {
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
       return r.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pagos"] });
+    onSuccess: (_, deletedId) => {
+      // Remove the row from cache immediately
+      patchCache(old => old.filter(p => p.id !== deletedId));
       toast({ title: "Pago eliminado" });
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
