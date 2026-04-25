@@ -1,4 +1,4 @@
-import { ExternalLink, BookOpen, Mic, Brain } from "lucide-react";
+import { ExternalLink, BookOpen, Mic, Brain, Lightbulb, FileText } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 
 const BASE_URL = "https://therapy-spark-toolkit.lovable.app";
@@ -12,7 +12,7 @@ const QUICK_LINKS = [
     color: { bg: "bg-rose-50", border: "border-rose-200", icon: "text-rose-500", label: "text-rose-700", desc: "text-rose-500" },
   },
   {
-    label: "Fonología",
+    label: "Fonología / TSH",
     href: `${BASE_URL}/?area=fonologia`,
     icon: Mic,
     description: "Fonemas, sílabas y discriminación auditiva",
@@ -22,8 +22,22 @@ const QUICK_LINKS = [
     label: "Atención",
     href: `${BASE_URL}/?area=atencion`,
     icon: Brain,
-    description: "Foco, memoria y funciones ejecutivas",
+    description: "Foco sostenido y funciones ejecutivas",
     color: { bg: "bg-violet-50", border: "border-violet-200", icon: "text-violet-500", label: "text-violet-700", desc: "text-violet-500" },
+  },
+  {
+    label: "Cognición",
+    href: `${BASE_URL}/?area=cognicion`,
+    icon: Lightbulb,
+    description: "Memoria, razonamiento y resolución de problemas",
+    color: { bg: "bg-sky-50", border: "border-sky-200", icon: "text-sky-500", label: "text-sky-700", desc: "text-sky-500" },
+  },
+  {
+    label: "Lectoescritura",
+    href: `${BASE_URL}/?area=lectoescritura`,
+    icon: FileText,
+    description: "Lectura, escritura y comprensión lectora",
+    color: { bg: "bg-teal-50", border: "border-teal-200", icon: "text-teal-500", label: "text-teal-700", desc: "text-teal-500" },
   },
 ];
 
@@ -72,7 +86,7 @@ export default function Actividades() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3 px-1">
             Acceso rápido por área
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {QUICK_LINKS.map(({ label, href, icon: Icon, description, color }) => (
               <a
                 key={label}

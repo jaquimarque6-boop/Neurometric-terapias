@@ -1,11 +1,27 @@
 import { useState } from "react";
-import { Target, ChevronDown, CheckSquare, Square } from "lucide-react";
+import { Target, ChevronDown, CheckSquare, Square, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+
+const LOVABLE_BASE = "https://therapy-spark-toolkit.lovable.app";
+
+function getLovableUrl(area: string | null | undefined): string {
+  if (!area) return LOVABLE_BASE;
+  const k = area.toLowerCase().trim();
+  if (k.includes("lecto") || k.includes("lectura") || k.includes("escritura")) return `${LOVABLE_BASE}/?area=lectoescritura`;
+  if (k.includes("cogn") || k.includes("ejecut") || k.includes("memo") || k.includes("razon")) return `${LOVABLE_BASE}/?area=cognicion`;
+  if (k.includes("atenc") || k.includes("foco")) return `${LOVABLE_BASE}/?area=atencion`;
+  if (k.includes("hab") || k.includes("fonoló") || k.includes("fonolog") || k.includes("tsh") ||
+      k.includes("apraxi") || k.includes("disartr") || k.includes("degluc") || k.includes("voz") ||
+      k.includes("orofac") || k.includes("motric")) return `${LOVABLE_BASE}/?area=fonologia`;
+  if (k.includes("lenguaje") || k.includes("pragm") || k.includes("estimul") || k.includes("comunicac") ||
+      k.includes("tel") || k.includes("tdl")) return `${LOVABLE_BASE}/?area=lenguaje`;
+  return LOVABLE_BASE;
+}
 
 export type Goal = {
   id: number; patientId: number; goalLibraryId?: number | null;
@@ -118,10 +134,23 @@ export function RegistroForm({
                     <p className={`text-sm font-medium truncate ${checked ? "text-foreground" : "text-muted-foreground"}`}>
                       {goal.title}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {goal.areaClinica ?? goal.category}{goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}
-                      {goal.status === "en progreso" && <span className="ml-1 text-amber-500">· En progreso</span>}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-muted-foreground truncate">
+                        {goal.areaClinica ?? goal.category}{goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}
+                        {goal.status === "en progreso" && <span className="ml-1 text-amber-500">· En progreso</span>}
+                      </p>
+                      <a
+                        href={getLovableUrl(goal.areaClinica ?? goal.category)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary/70 hover:text-primary transition-colors shrink-0"
+                        title="Ver actividades para esta área"
+                      >
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        Actividades
+                      </a>
+                    </div>
                   </div>
                   {checked && (
                     <div onClick={e => e.stopPropagation()}>
