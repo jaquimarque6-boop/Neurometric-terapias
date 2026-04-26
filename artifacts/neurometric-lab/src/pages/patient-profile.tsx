@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -510,10 +510,30 @@ type InformeProps = {
   onSave: (fields: { informeEvolucion?: string; informeFamilia?: string }) => Promise<void>;
 };
 
+type RangoSesiones = "4" | "mes" | "3meses" | "6meses";
+const RANGO_LABELS: Record<RangoSesiones, string> = {
+  "4":      "Últimas 4 sesiones",
+  "mes":    "Último mes",
+  "3meses": "Últimos 3 meses",
+  "6meses": "Últimos 6 meses",
+};
+
+function filtrarPorRango(registros: RC[], rango: RangoSesiones): RC[] {
+  const sorted = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  );
+  if (rango === "4") return sorted.slice(0, 4);
+  const dias = rango === "mes" ? 30 : rango === "3meses" ? 90 : 180;
+  const corte = new Date();
+  corte.setDate(corte.getDate() - dias);
+  return sorted.filter(r => new Date(r.fecha || r.createdAt) >= corte);
+}
+
 function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
   const [view, setView]     = useState<"clinico" | "familia">("clinico");
   const [isSaving, setIsSaving] = useState(false);
+  const [rango, setRango]   = useState<RangoSesiones>("mes");
 
   const initial = parseInformeData(patient.informeEvolucion);
   const [resumen,    setResumen]    = useState(initial.resumen);
@@ -531,9 +551,16 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
     setTextoFamilia((patient as any).informeFamilia ?? "");
   }, [patient.informeEvolucion, (patient as any).informeFamilia]);
 
+  // Sessions filtered to the selected range — used by all Sugerir buttons
+  const filteredRegistros = useMemo(
+    () => filtrarPorRango(registros, rango),
+    [registros, rango]
+  );
+  const sinSesiones = filteredRegistros.length === 0;
+
   const achievedGoals  = goals.filter(g => g.status === "logrado");
   const workingGoals   = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const totalSessions  = registros.length;
+  const totalSessions  = filteredRegistros.length;
 
   const reportGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
   const areaGroups  = reportGoals.reduce<Record<string, Goal[]>>((acc, g) => {
@@ -618,6 +645,32 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
         </div>
       </div>
 
+      {/* ── Session range selector ──────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground font-medium shrink-0">Período para generar:</span>
+        <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs font-medium">
+          {(["4", "mes", "3meses", "6meses"] as RangoSesiones[]).map(r => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRango(r)}
+              className={`px-3 py-1.5 transition-colors whitespace-nowrap ${
+                rango === r
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              {RANGO_LABELS[r]}
+            </button>
+          ))}
+        </div>
+        {sinSesiones && registros.length > 0 && (
+          <span className="text-xs text-amber-600 font-medium">
+            No hay sesiones registradas en el período seleccionado
+          </span>
+        )}
+      </div>
+
       {/* ── INFORME CLÍNICO ──────────────────────────────────────────────────── */}
       {view === "clinico" && (
         <div className="space-y-4">
@@ -645,7 +698,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-section">
                 <DocSection
                   title="Evolución del proceso terapéutico"
-                  onSuggest={() => setResumen(generarResumenProceso(patient, goals, registros))}
+                  onSuggest={() => setResumen(generarResumenProceso(patient, goals, filteredRegistros))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{resumen || "Sin contenido."}</div>
                   <DocTextarea
@@ -661,7 +714,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-section">
                 <DocSection
                   title="Conducta en sesiones"
-                  onSuggest={() => setConducta(generarConductaSesiones(registros, goals))}
+                  onSuggest={() => setConducta(generarConductaSesiones(filteredRegistros, goals))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{conducta || "Sin contenido."}</div>
                   <DocTextarea
@@ -686,7 +739,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                             </h4>
                             <button
                               type="button"
-                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area], registros) }))}
+                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area], filteredRegistros) }))}
                               className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
                             >
                               <Sparkles className="h-2.5 w-2.5" /> Sugerir
@@ -714,7 +767,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-section">
                 <DocSection
                   title="Sugerencias para la familia"
-                  onSuggest={() => setSugerencias(generarSugerenciasFamilia(patient, goals, registros))}
+                  onSuggest={() => setSugerencias(generarSugerenciasFamilia(patient, goals, filteredRegistros))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{sugerencias || "Sin contenido."}</div>
                   <DocTextarea
@@ -806,7 +859,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-section">
                 <DocSection
                   title="Mensaje y sugerencias para la familia"
-                  onSuggest={() => setTextoFamilia(generarSugerenciasFamilia(patient, goals, registros))}
+                  onSuggest={() => setTextoFamilia(generarSugerenciasFamilia(patient, goals, filteredRegistros))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{textoFamilia || "Sin mensaje registrado."}</div>
                   <DocTextarea
