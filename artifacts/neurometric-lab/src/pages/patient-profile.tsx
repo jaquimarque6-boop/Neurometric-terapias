@@ -196,30 +196,124 @@ function generarResumenProceso(
   const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
   const areas     = [...new Set(goals.filter(g => !["archivado", "suspendido"].includes(g.status))
     .map(g => g.areaClinica ?? g.category).filter(Boolean))];
-  let txt = `${patient.name}`;
-  if (patient.age) txt += `, de ${patient.age} años,`;
-  txt += ` ha asistido a ${registros.length} sesión${registros.length !== 1 ? "es" : ""} de intervención terapéutica.`;
+
+  // Collect all observations across sessions (most recent first)
+  const sesionesOrdenadas = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  );
+  const observaciones = sesionesOrdenadas
+    .map(r => r.observaciones).filter(Boolean) as string[];
+  const notas = sesionesOrdenadas
+    .map(r => r.resumenSesion).filter(Boolean) as string[];
+
+  const nombre = patient.name.split(" ")[0];
+
+  let txt = `A lo largo de las ${registros.length} sesión${registros.length !== 1 ? "es" : ""} de intervención terapéutica realizadas`;
+  if (patient.age) txt += ` con ${nombre}, de ${patient.age} años,`;
+  else txt += ` con ${nombre},`;
+
   if (areas.length > 0)
-    txt += ` El trabajo clínico ha abordado las áreas de ${areas.join(", ")}.`;
+    txt += ` se ha abordado el trabajo clínico en las áreas de ${areas.join(", ")}.`;
+  else
+    txt += ` se ha desarrollado el proceso terapéutico de forma sistemática.`;
+
+  // Patterns from observations
+  if (observaciones.length > 0) {
+    // Detect recurring themes across observations
+    const allObs = observaciones.join(" ").toLowerCase();
+    const avances: string[] = [];
+    const dificultades: string[] = [];
+
+    if (/avance|mejora|logr|progres|consolid|generali/.test(allObs))
+      avances.push("avances en las habilidades trabajadas");
+    if (/dificult|costo|apoyo|desafío|persistente|requiere/.test(allObs))
+      dificultades.push("áreas que requieren consolidación continua");
+    if (/constan|regular|sistemát|sostenid/.test(allObs))
+      avances.push("consistencia en la asistencia y participación");
+
+    if (avances.length > 0)
+      txt += ` Se identifican avances en ${avances.join(" y ")}.`;
+    if (dificultades.length > 0)
+      txt += ` Persisten dificultades en ${dificultades.join(" y ")}, sobre las cuales se continúa interviniendo de forma focalizada.`;
+  }
+
+  // Goal progress summary
   if (logrados.length > 0)
-    txt += ` A la fecha se han alcanzado ${logrados.length} objetivo${logrados.length !== 1 ? "s" : ""} terapéutico${logrados.length !== 1 ? "s" : ""}, evidenciando progreso significativo en el proceso.`;
+    txt += ` Se evidencia el alcance de ${logrados.length} objetivo${logrados.length !== 1 ? "s" : ""} terapéutico${logrados.length !== 1 ? "s" : ""} planteado${logrados.length !== 1 ? "s" : ""}, lo que refleja progreso clínicamente significativo en el proceso.`;
   if (enProceso.length > 0)
-    txt += ` Actualmente se trabajan ${enProceso.length} objetivo${enProceso.length !== 1 ? "s" : ""} en proceso de adquisición y consolidación.`;
+    txt += ` El paciente presenta ${enProceso.length} objetivo${enProceso.length !== 1 ? "s" : ""} activo${enProceso.length !== 1 ? "s" : ""} en etapa de adquisición y consolidación.`;
+
+  // Include a real observation excerpt if available
+  if (observaciones.length > 0) {
+    const obs = observaciones[0];
+    txt += `\n\nDe las observaciones clínicas registradas se destaca: "${obs.slice(0, 220)}${obs.length > 220 ? "…" : ""}"`;
+  } else if (notas.length > 0) {
+    const nota = notas[0];
+    txt += `\n\nEn cuanto al desarrollo de las sesiones, se ha registrado: "${nota.slice(0, 220)}${nota.length > 220 ? "…" : ""}"`;
+  }
+
   if (patient.diagnosis)
     txt += `\n\nDiagnóstico de referencia: ${getDiagnosisLabel(patient.diagnosis)}.`;
+
   return txt;
 }
 
 function generarConductaSesiones(registros: RC[]): string {
-  const recientes = [...registros]
-    .sort((a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime())
-    .slice(0, 3);
-  let txt = "El/La paciente se muestra colaborador/a durante las actividades propuestas, respondiendo adecuadamente a las instrucciones y consignas del terapeuta. Se observa motivación frente a las tareas, con períodos de atención sostenida acordes a su etapa de desarrollo.";
-  const conObs = recientes.find(r => r.observaciones);
-  if (conObs?.observaciones) {
-    const obs = conObs.observaciones;
-    txt += `\n\nObservación reciente: "${obs.slice(0, 200)}${obs.length > 200 ? "…" : ""}"`;
+  const sesionesOrdenadas = [...registros].sort(
+    (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
+  );
+
+  // Gather all observations and session notes available
+  const todasObs = sesionesOrdenadas
+    .map(r => r.observaciones).filter(Boolean) as string[];
+  const todasNotas = sesionesOrdenadas
+    .map(r => r.resumenSesion).filter(Boolean) as string[];
+
+  // If there are no observations at all, return a neutral placeholder
+  if (todasObs.length === 0 && todasNotas.length === 0) {
+    return "A lo largo de las sesiones se ha observado una actitud general de participación en las actividades propuestas. Se recomienda completar el campo de observaciones clínicas en cada sesión para enriquecer esta sección con datos específicos del comportamiento del paciente.";
   }
+
+  const allText = [...todasObs, ...todasNotas].join(" ").toLowerCase();
+  const partes: string[] = [];
+
+  // Attention
+  if (/atenci[oó]n|concentra|foco|distrae|disperso/.test(allText)) {
+    if (/buena atenci[oó]n|atenci[oó]n adecuada|sostenida|concentrad/.test(allText))
+      partes.push("Se evidencia un nivel de atención adecuado y sostenido durante las actividades propuestas.");
+    else if (/dificult.*atenci[oó]n|distrae|disperso|atenci[oó]n.*breve/.test(allText))
+      partes.push("Se observan dificultades en la atención sostenida, requiriendo estrategias de apoyo para mantener el foco durante las tareas.");
+    else
+      partes.push("A lo largo de las sesiones se ha observado variabilidad en el nivel atencional del paciente.");
+  } else {
+    partes.push("A lo largo de las sesiones se ha observado participación activa en las actividades propuestas.");
+  }
+
+  // Behavior and response to tasks
+  if (/colabora|disposi|motiva|entusiasmo|actitud positiva/.test(allText))
+    partes.push("El paciente presenta una actitud colaboradora y motivada frente a las consignas del terapeuta.");
+  else if (/resistencia|negativa|dificult.*conducta|conductual/.test(allText))
+    partes.push("Se identifican episodios de resistencia o dificultad conductual ante ciertas tareas, abordados mediante estrategias de apoyo diferenciadas.");
+
+  // Support needs
+  if (/apoyo|ayuda|asistencia|scaffolding|modelado|moldeamiento/.test(allText))
+    partes.push("El paciente requiere apoyo sistemático del terapeuta para la ejecución de tareas de mayor complejidad.");
+  else if (/independiente|aut[oó]nomo|sin apoyo|solo/.test(allText))
+    partes.push("Se observa creciente autonomía en la ejecución de actividades, reduciendo la necesidad de apoyo directo.");
+
+  let txt = partes.join(" ");
+
+  // Attach real observation excerpts (up to 2)
+  const excerpts = todasObs.slice(0, 2);
+  if (excerpts.length > 0) {
+    txt += "\n\n" + excerpts.map((obs, i) =>
+      `${i === 0 ? "De las observaciones registradas se destaca" : "Asimismo"}: "${obs.slice(0, 200)}${obs.length > 200 ? "…" : ""}"`
+    ).join(" ");
+  } else if (todasNotas.length > 0) {
+    const nota = todasNotas[0];
+    txt += `\n\nEn el resumen de sesión se ha registrado: "${nota.slice(0, 200)}${nota.length > 200 ? "…" : ""}"`;
+  }
+
   return txt;
 }
 
@@ -456,10 +550,10 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                 </div>
               </div>
 
-              {/* ── ¿Cómo va el proceso? ─────────────────────────────── */}
+              {/* ── Evolución del proceso terapéutico ────────────────── */}
               <div className="doc-section">
                 <DocSection
-                  title="¿Cómo va el proceso?"
+                  title="Evolución del proceso terapéutico"
                   onSuggest={() => setResumen(generarResumenProceso(patient, goals, registros))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{resumen || "Sin contenido."}</div>
@@ -568,7 +662,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
 
               {/* Stats */}
               <div className="doc-section">
-                <DocSection title="¿Cómo va el proceso?">
+                <DocSection title="Evolución del proceso terapéutico">
                   <div className="doc-stat-grid grid grid-cols-3 gap-3">
                     {[
                       { emoji: "📅", val: totalSessions, label: totalSessions === 1 ? "sesión realizada" : "sesiones realizadas" },
