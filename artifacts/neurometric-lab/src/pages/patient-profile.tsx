@@ -188,6 +188,40 @@ function gPct(status: string, progressPct?: number | null): number {
   return 0;
 }
 
+// ─── Psychopedagogical area detection ────────────────────────────────────────
+const PSICOPED_MATCHERS: Record<string, RegExp> = {
+  atencion:            /atenci[oó]n|concentra|foco|distract|sostenida|atencional/i,
+  comprension:         /comprens|consigna|instruc|inferenci|lectura comprens|comprende/i,
+  memoria:             /memoria|retenci[oó]n|evocaci[oó]n|recordar|mnemo|memoriz/i,
+  funcionesEjecutivas: /ejecutiv|planif|organiz|flexibil|inhibi|autorreg|monitoreo|metacogn/i,
+  lectoescritura:      /lecto|lectura|escritura|leer|escribir|silaba|decodif|ortograf|grafem|lectoescrit/i,
+};
+
+function detectAreasPsicoped(goals: Goal[]): Set<string> {
+  const detected = new Set<string>();
+  const activeGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
+  for (const g of activeGoals) {
+    const haystack = [g.title, g.areaClinica, g.category].filter(Boolean).join(" ");
+    for (const [area, re] of Object.entries(PSICOPED_MATCHERS)) {
+      if (re.test(haystack)) detected.add(area);
+    }
+  }
+  return detected;
+}
+
+const PSICOPED_PROGRESO: Record<string, string> = {
+  atencion:
+    "Se observan avances en la capacidad de sostener la atención en tareas estructuradas, evidenciándose mayor tiempo de foco y menor necesidad de reorientación externa.",
+  comprension:
+    "Se evidencian mejoras en la comprensión de consignas e instrucciones, observándose mayor precisión en la decodificación de enunciados y respuesta pertinente a las demandas de la tarea.",
+  memoria:
+    "Se observa progreso en la retención y evocación de información trabajada en sesión, con mayor consistencia en el recuerdo de contenidos previamente aprendidos.",
+  funcionesEjecutivas:
+    "Se identifican avances en la planificación y organización de la tarea, así como en la flexibilidad cognitiva ante cambios en las consignas y la inhibición de respuestas impulsivas.",
+  lectoescritura:
+    "Se observan mejoras en la precisión y comprensión lectora, con avances en la decodificación de palabras y en la producción escrita con apoyo estructurado.",
+};
+
 function generarResumenProceso(
   patient: { name: string; age?: number | null; diagnosis?: string | null },
   goals: Goal[], registros: RC[]
@@ -197,14 +231,12 @@ function generarResumenProceso(
   const areas     = [...new Set(goals.filter(g => !["archivado", "suspendido"].includes(g.status))
     .map(g => g.areaClinica ?? g.category).filter(Boolean))];
 
-  // Collect all observations across sessions (most recent first)
   const sesionesOrdenadas = [...registros].sort(
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   );
-  const observaciones = sesionesOrdenadas
-    .map(r => r.observaciones).filter(Boolean) as string[];
-  const notas = sesionesOrdenadas
-    .map(r => r.resumenSesion).filter(Boolean) as string[];
+  const observaciones = sesionesOrdenadas.map(r => r.observaciones).filter(Boolean) as string[];
+  const notas         = sesionesOrdenadas.map(r => r.resumenSesion).filter(Boolean) as string[];
+  const allObs        = [...observaciones, ...notas].join(" ").toLowerCase();
 
   const nombre = patient.name.split(" ")[0];
 
@@ -217,20 +249,22 @@ function generarResumenProceso(
   else
     txt += ` se ha desarrollado el proceso terapéutico de forma sistemática.`;
 
-  // Patterns from observations
-  if (observaciones.length > 0) {
-    // Detect recurring themes across observations
-    const allObs = observaciones.join(" ").toLowerCase();
+  // Area-specific psychopedagogical progress sentences
+  const areasDetectadas = detectAreasPsicoped(goals);
+  if (areasDetectadas.size > 0) {
+    txt += "\n\n";
+    for (const area of areasDetectadas) {
+      txt += PSICOPED_PROGRESO[area] + " ";
+    }
+    txt = txt.trimEnd();
+  } else if (observaciones.length > 0) {
+    // Generic observation-based progress when no specific areas detected
     const avances: string[] = [];
     const dificultades: string[] = [];
-
     if (/avance|mejora|logr|progres|consolid|generali/.test(allObs))
       avances.push("avances en las habilidades trabajadas");
     if (/dificult|costo|apoyo|desafío|persistente|requiere/.test(allObs))
       dificultades.push("áreas que requieren consolidación continua");
-    if (/constan|regular|sistemát|sostenid/.test(allObs))
-      avances.push("consistencia en la asistencia y participación");
-
     if (avances.length > 0)
       txt += ` Se identifican avances en ${avances.join(" y ")}.`;
     if (dificultades.length > 0)
@@ -239,11 +273,11 @@ function generarResumenProceso(
 
   // Goal progress summary
   if (logrados.length > 0)
-    txt += ` Se evidencia el alcance de ${logrados.length} objetivo${logrados.length !== 1 ? "s" : ""} terapéutico${logrados.length !== 1 ? "s" : ""} planteado${logrados.length !== 1 ? "s" : ""}, lo que refleja progreso clínicamente significativo en el proceso.`;
+    txt += `\n\nSe evidencia el alcance de ${logrados.length} objetivo${logrados.length !== 1 ? "s" : ""} terapéutico${logrados.length !== 1 ? "s" : ""} planteado${logrados.length !== 1 ? "s" : ""}, lo que refleja progreso clínicamente significativo en el proceso.`;
   if (enProceso.length > 0)
     txt += ` El paciente presenta ${enProceso.length} objetivo${enProceso.length !== 1 ? "s" : ""} activo${enProceso.length !== 1 ? "s" : ""} en etapa de adquisición y consolidación.`;
 
-  // Include a real observation excerpt if available
+  // Real observation excerpt
   if (observaciones.length > 0) {
     const obs = observaciones[0];
     txt += `\n\nDe las observaciones clínicas registradas se destaca: "${obs.slice(0, 220)}${obs.length > 220 ? "…" : ""}"`;
@@ -258,52 +292,67 @@ function generarResumenProceso(
   return txt;
 }
 
-function generarConductaSesiones(registros: RC[]): string {
+function generarConductaSesiones(registros: RC[], goals: Goal[] = []): string {
   const sesionesOrdenadas = [...registros].sort(
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   );
 
-  // Gather all observations and session notes available
-  const todasObs = sesionesOrdenadas
-    .map(r => r.observaciones).filter(Boolean) as string[];
-  const todasNotas = sesionesOrdenadas
-    .map(r => r.resumenSesion).filter(Boolean) as string[];
+  const todasObs   = sesionesOrdenadas.map(r => r.observaciones).filter(Boolean) as string[];
+  const todasNotas = sesionesOrdenadas.map(r => r.resumenSesion).filter(Boolean) as string[];
 
-  // If there are no observations at all, return a neutral placeholder
   if (todasObs.length === 0 && todasNotas.length === 0) {
     return "A lo largo de las sesiones se ha observado una actitud general de participación en las actividades propuestas. Se recomienda completar el campo de observaciones clínicas en cada sesión para enriquecer esta sección con datos específicos del comportamiento del paciente.";
   }
 
   const allText = [...todasObs, ...todasNotas].join(" ").toLowerCase();
+  const areasDetectadas = detectAreasPsicoped(goals);
   const partes: string[] = [];
 
-  // Attention
+  // ── Nivel de atención ──────────────────────────────────────────────────────
   if (/atenci[oó]n|concentra|foco|distrae|disperso/.test(allText)) {
     if (/buena atenci[oó]n|atenci[oó]n adecuada|sostenida|concentrad/.test(allText))
-      partes.push("Se evidencia un nivel de atención adecuado y sostenido durante las actividades propuestas.");
+      partes.push("Se evidencia un nivel de atención adecuado y sostenido durante las actividades propuestas, con capacidad de mantener el foco en tareas estructuradas.");
     else if (/dificult.*atenci[oó]n|distrae|disperso|atenci[oó]n.*breve/.test(allText))
-      partes.push("Se observan dificultades en la atención sostenida, requiriendo estrategias de apoyo para mantener el foco durante las tareas.");
+      partes.push("Se observan dificultades en la atención sostenida, requiriendo estrategias de apoyo frecuentes para mantener el foco durante las tareas propuestas.");
     else
-      partes.push("A lo largo de las sesiones se ha observado variabilidad en el nivel atencional del paciente.");
+      partes.push("A lo largo de las sesiones se ha observado variabilidad en el nivel atencional del paciente, con momentos de foco adecuado alternados con episodios de distracción.");
+  } else if (areasDetectadas.has("atencion")) {
+    partes.push("El trabajo en atención sostenida es uno de los focos principales de la intervención; se han observado fluctuaciones en el nivel atencional según el tipo y duración de la tarea.");
   } else {
     partes.push("A lo largo de las sesiones se ha observado participación activa en las actividades propuestas.");
   }
 
-  // Behavior and response to tasks
-  if (/colabora|disposi|motiva|entusiasmo|actitud positiva/.test(allText))
+  // ── Respuesta a consignas ──────────────────────────────────────────────────
+  if (/comprend.*consigna|sigue.*instruc|responde.*consigna|consigna.*adecuad/.test(allText)) {
+    partes.push("El paciente responde adecuadamente a las consignas e instrucciones, demostrando comprensión de los requerimientos de las tareas.");
+  } else if (areasDetectadas.has("comprension")) {
+    partes.push("Se observa en proceso de mejora la respuesta ante consignas complejas; el paciente requiere en ocasiones reformulación o apoyo visual para comprender la demanda de la tarea.");
+  } else if (/colabora|disposi|motiva|entusiasmo|actitud positiva/.test(allText)) {
     partes.push("El paciente presenta una actitud colaboradora y motivada frente a las consignas del terapeuta.");
-  else if (/resistencia|negativa|dificult.*conducta|conductual/.test(allText))
-    partes.push("Se identifican episodios de resistencia o dificultad conductual ante ciertas tareas, abordados mediante estrategias de apoyo diferenciadas.");
+  } else if (/resistencia|negativa|dificult.*conducta|conductual/.test(allText)) {
+    partes.push("Se identifican episodios de resistencia ante ciertas tareas, abordados mediante estrategias de apoyo diferenciadas y ajuste de la demanda.");
+  }
 
-  // Support needs
-  if (/apoyo|ayuda|asistencia|scaffolding|modelado|moldeamiento/.test(allText))
-    partes.push("El paciente requiere apoyo sistemático del terapeuta para la ejecución de tareas de mayor complejidad.");
-  else if (/independiente|aut[oó]nomo|sin apoyo|solo/.test(allText))
-    partes.push("Se observa creciente autonomía en la ejecución de actividades, reduciendo la necesidad de apoyo directo.");
+  // ── Necesidad de apoyo ─────────────────────────────────────────────────────
+  if (areasDetectadas.has("funcionesEjecutivas")) {
+    if (/organiz|planif|secuencia|paso a paso/.test(allText))
+      partes.push("En tareas que requieren planificación y organización se observa necesidad de apoyo externo mediante estrategias visuales y segmentación de pasos.");
+    else
+      partes.push("El paciente se beneficia del uso de apoyos estructurales (esquemas, listas, rutinas visuales) para la organización y ejecución de las tareas propuestas.");
+  } else if (/apoyo|ayuda|asistencia|modelado|moldeamiento|scaffold/.test(allText)) {
+    partes.push("El paciente requiere apoyo sistemático del terapeuta para la ejecución de tareas de mayor complejidad, respondiendo positivamente al modelado y las pistas verbales.");
+  }
+
+  // ── Autonomía ──────────────────────────────────────────────────────────────
+  if (/independiente|aut[oó]nomo|sin apoyo|por sí solo|solo/.test(allText)) {
+    partes.push("Se observa creciente autonomía en la ejecución de actividades, con reducción progresiva de la necesidad de apoyo directo y mayor iniciativa en la resolución de tareas.");
+  } else if (areasDetectadas.has("lectoescritura") && /fluenci|velocid|precisi/.test(allText)) {
+    partes.push("En el área de lectoescritura se evidencia progreso en la autonomía de ejecución, aunque se mantiene la necesidad de revisión y corrección guiada.");
+  }
 
   let txt = partes.join(" ");
 
-  // Attach real observation excerpts (up to 2)
+  // ── Citas textuales de observaciones reales ────────────────────────────────
   const excerpts = todasObs.slice(0, 2);
   if (excerpts.length > 0) {
     txt += "\n\n" + excerpts.map((obs, i) =>
@@ -350,24 +399,66 @@ function generarNarrativaArea(area: string, areaGoals: Goal[], registros: RC[]):
   return parts.join(" ");
 }
 
+const PSICOPED_SUGERENCIAS: Record<string, string> = {
+  atencion:
+    "• Favorecer espacios con menor distractibilidad al momento de realizar tareas (apagar televisión, reducir ruido ambiental, usar una mesa despejada).\n" +
+    "• Dividir las tareas en pasos cortos, ofreciendo descansos breves entre ellos.\n" +
+    "• Utilizar un reloj o temporizador visual para ayudar a gestionar el tiempo de trabajo.",
+  comprension:
+    "• Al dar instrucciones en casa, usar frases cortas y simples, verificando que el/la niño/a haya comprendido antes de comenzar.\n" +
+    "• Apoyar las explicaciones con imágenes, gestos o ejemplos concretos.\n" +
+    "• Pedir al niño/a que explique con sus propias palabras lo que entendió de la tarea.",
+  memoria:
+    "• Repasar brevemente al final del día lo trabajado en sesión o en el colegio (5 minutos de repaso oral).\n" +
+    "• Usar rutinas visuales (tableros, listas, calendarios) para apoyar la memoria cotidiana.\n" +
+    "• Asociar información nueva con experiencias o cosas conocidas para facilitar el recuerdo.",
+  funcionesEjecutivas:
+    "• Anticipar las actividades del día con antelación para reducir la incertidumbre y organizar los tiempos.\n" +
+    "• Establecer rutinas fijas y predecibles en el hogar (horario de tareas, orden de actividades).\n" +
+    "• Apoyar la planificación mediante listas de pasos o secuencias visuales para tareas complejas.",
+  lectoescritura:
+    "• Realizar lectura acompañada todos los días, aunque sea por 10 a 15 minutos, alternando turnos de lectura con el/la niño/a.\n" +
+    "• Comentar sobre lo leído haciendo preguntas simples de comprensión (¿de qué trataba?, ¿qué pasó?).\n" +
+    "• Facilitar el acceso a libros, cuentos o materiales escritos acordes al nivel e intereses del/la niño/a.",
+};
+
 function generarSugerenciasFamilia(
   patient: { name: string; age?: number | null },
   goals: Goal[], registros: RC[]
 ): string {
   const nombre    = patient.name.split(" ")[0];
-  const enProceso = goals.filter(g => ["activo", "en progreso"].includes(g.status));
   const ultRec    = [...registros].sort(
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   )[0];
+
+  const areasDetectadas = detectAreasPsicoped(goals);
+
   let txt = `Para apoyar el proceso de ${nombre} en casa, les compartimos las siguientes sugerencias:\n\n`;
-  if (enProceso.length > 0) {
+
+  if (areasDetectadas.size > 0) {
+    // Emit area-specific recommendations for each detected area
+    for (const area of areasDetectadas) {
+      const etiquetas: Record<string, string> = {
+        atencion: "Atención",
+        comprension: "Comprensión",
+        memoria: "Memoria",
+        funcionesEjecutivas: "Funciones ejecutivas",
+        lectoescritura: "Lectoescritura",
+      };
+      txt += `${etiquetas[area]}:\n${PSICOPED_SUGERENCIAS[area]}\n\n`;
+    }
+  } else {
+    // Generic fallback
     txt += `• Reforzar en el día a día las habilidades trabajadas en sesión.\n`;
     txt += `• Celebrar los logros de ${nombre}, por pequeños que sean.\n`;
-    txt += `• Mantener rutinas estables y predecibles en el hogar.\n`;
+    txt += `• Mantener rutinas estables y predecibles en el hogar.\n\n`;
   }
+
+  // Always close with therapist's specific home recommendations if available
   if (ultRec?.recomendacionesHogar)
-    txt += `\nActividades sugeridas:\n${ultRec.recomendacionesHogar}`;
-  txt += `\n\nAnte cualquier consulta, estamos disponibles para orientarles.`;
+    txt += `Actividades sugeridas por el/la terapeuta:\n${ultRec.recomendacionesHogar}\n\n`;
+
+  txt += `Ante cualquier consulta, estamos disponibles para orientarles.`;
   return txt;
 }
 
@@ -570,7 +661,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-section">
                 <DocSection
                   title="Conducta en sesiones"
-                  onSuggest={() => setConducta(generarConductaSesiones(registros))}
+                  onSuggest={() => setConducta(generarConductaSesiones(registros, goals))}
                 >
                   <div className="doc-text-area-print doc-text hidden">{conducta || "Sin contenido."}</div>
                   <DocTextarea
