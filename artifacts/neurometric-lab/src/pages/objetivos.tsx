@@ -46,13 +46,13 @@ const CATEGORIAS = [
 
 function statusIcon(status: string) {
   if (status === "logrado") return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
-  if (status === "suspendido") return <X className="h-5 w-5 text-red-400" />;
+  if (status === "suspendido") return <X className="h-5 w-5 text-destructive/70" />;
   return <Circle className="h-5 w-5 text-primary" />;
 }
 
 function statusStyle(status: string) {
   if (status === "logrado") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (status === "suspendido") return "bg-red-100 text-red-700 border-red-200";
+  if (status === "suspendido") return "bg-destructive/10 text-destructive-foreground border-destructive/25";
   return "bg-primary/10 text-primary border-primary/20";
 }
 
@@ -229,7 +229,7 @@ export default function Objetivos() {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => setDeleteId(goal.id)} className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="Eliminar">
+                          <button onClick={() => setDeleteId(goal.id)} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0" title="Eliminar">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -271,7 +271,7 @@ export default function Objetivos() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => {
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => {
               if (deleteId) deleteGoal.mutate({ id: deleteId }, { onSuccess: () => { invalidate(); setDeleteId(null); toast({ title: "Objetivo eliminado" }); } });
             }}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>

@@ -160,7 +160,7 @@ export default function Registros() {
                       <button onClick={() => setEditing(r)} className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Editar">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button onClick={() => setDeleteId(r.id)} className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                      <button onClick={() => setDeleteId(r.id)} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Eliminar">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -220,7 +220,7 @@ export default function Registros() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={() => {
                 if (deleteId) del.mutate({ id: deleteId }, { onSuccess: () => { invalidate(); setDeleteId(null); toast({ title: "Registro eliminado" }); } });
               }}

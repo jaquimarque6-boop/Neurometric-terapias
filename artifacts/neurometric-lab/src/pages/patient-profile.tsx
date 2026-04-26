@@ -124,7 +124,7 @@ const AREA_COLORS: Record<string, { bg: string; text: string; border: string }> 
 const NIVEL_COLORS: Record<string, string> = {
   "básico":     "bg-emerald-100 text-emerald-700 border-emerald-200",
   "intermedio": "bg-amber-100 text-amber-700 border-amber-200",
-  "avanzado":   "bg-red-100 text-red-700 border-red-200",
+  "avanzado":   "bg-orange-100 text-orange-700 border-orange-200",
 };
 
 function getAreaColor(area?: string | null) {
@@ -136,7 +136,7 @@ function semaforoMeta(s?: string | null) {
   if (!s) return { label: "Sin datos", dot: "bg-muted-foreground/40", badge: "bg-muted text-muted-foreground" };
   if (s.includes("🟢")) return { label: "Buen progreso",     dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700" };
   if (s.includes("🟡")) return { label: "En progreso",       dot: "bg-yellow-400",  badge: "bg-yellow-100 text-yellow-700"  };
-  if (s.includes("🔴")) return { label: "Requiere atención", dot: "bg-red-400",     badge: "bg-red-100 text-red-700"        };
+  if (s.includes("🔴")) return { label: "Requiere atención", dot: "bg-destructive/70", badge: "bg-destructive/10 text-destructive-foreground" };
   return { label: s, dot: "bg-muted-foreground/40", badge: "bg-muted text-muted-foreground" };
 }
 
@@ -1831,7 +1831,7 @@ export default function PatientProfile() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/70">Nombre <span className="text-red-400">*</span></label>
+                <label className="text-xs font-semibold text-foreground/70">Nombre <span className="text-primary/60">*</span></label>
                 <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-muted/50" />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -2153,7 +2153,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
                   </span>
                 )}
                 {goal.targetDate && daysRemaining !== null && (
-                  <span className={`flex items-center gap-1 font-medium ${daysRemaining < 0 ? "text-red-500" : daysRemaining <= 14 ? "text-amber-600" : "text-muted-foreground"}`}>
+                  <span className={`flex items-center gap-1 font-medium ${daysRemaining < 0 ? "text-destructive" : daysRemaining <= 14 ? "text-amber-600" : "text-muted-foreground"}`}>
                     <Flag className="h-3 w-3" />
                     Meta: {formatFecha(goal.targetDate)}
                     {daysRemaining >= 0

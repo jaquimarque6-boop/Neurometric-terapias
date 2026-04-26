@@ -208,17 +208,17 @@ export default function Usuarios() {
             <h2 className="font-semibold text-foreground">Crear nuevo usuario</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nombre completo <span className="text-red-400">*</span></label>
+                <label className="text-sm font-medium">Nombre completo <span className="text-primary/60">*</span></label>
                 <Input placeholder="Nombre" value={form.name} onChange={e => set("name", e.target.value)} className="bg-muted/30" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email <span className="text-red-400">*</span></label>
+                <label className="text-sm font-medium">Email <span className="text-primary/60">*</span></label>
                 <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-1.5">
                   <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                  Contraseña <span className="text-red-400">*</span>
+                  Contraseña <span className="text-primary/60">*</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -239,18 +239,18 @@ export default function Usuarios() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Confirmar contraseña <span className="text-red-400">*</span></label>
+                <label className="text-sm font-medium">Confirmar contraseña <span className="text-primary/60">*</span></label>
                 <div className="relative">
                   <Input
                     type={showPwd ? "text" : "password"}
                     placeholder="Repite la contraseña"
                     value={form.confirmPassword}
                     onChange={e => set("confirmPassword", e.target.value)}
-                    className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                    className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/50 focus-visible:ring-destructive/30" : ""}`}
                   />
                 </div>
                 {form.confirmPassword && form.password !== form.confirmPassword && (
-                  <p className="text-[11px] text-red-500">Las contraseñas no coinciden</p>
+                  <p className="text-[11px] text-destructive">Las contraseñas no coinciden</p>
                 )}
               </div>
               <div className="space-y-1.5">

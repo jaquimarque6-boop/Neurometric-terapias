@@ -59,75 +59,75 @@
 }
 
 :root {
-  /* ── Therapeutic Palette — Neurometric Terapias ─────────────────────────── */
+  /* ── Soft Pastel Palette — Neurometric Terapias ──────────────────────────── */
 
-  /* Page background: warm cream #FAF7F5 */
-  --background: 24 30% 97%;
-  /* Main text: warm deep charcoal */
-  --foreground: 25 20% 18%;
+  /* Page background: warm cream #FFF6ED */
+  --background: 30 100% 96%;
+  /* Main text: dark gray #333333 */
+  --foreground: 0 0% 20%;
 
-  /* Cards: soft white with warmth */
-  --card: 30 18% 99%;
-  --card-foreground: 25 20% 18%;
-  --card-border: 30 16% 88%;
+  /* Cards: pure warm white */
+  --card: 32 60% 99%;
+  --card-foreground: 0 0% 20%;
+  --card-border: 30 28% 91%;
 
   /* Popovers / dropdowns */
-  --popover: 30 18% 99%;
-  --popover-foreground: 25 20% 18%;
-  --popover-border: 30 16% 88%;
+  --popover: 32 60% 99%;
+  --popover-foreground: 0 0% 20%;
+  --popover-border: 30 28% 91%;
 
-  /* Primary: Coral #E07A5F */
-  --primary: 13 67% 63%;
-  --primary-foreground: 0 0% 100%;
-  --primary-border: hsl(13 67% 50%);
+  /* Primary: Soft peach #F4A896 — hsl(12 81% 77%) */
+  --primary: 12 81% 77%;
+  --primary-foreground: 12 45% 22%;
+  --primary-border: hsl(12 65% 65%);
 
-  /* Secondary: Mint green #81B29A */
-  --secondary: 151 24% 60%;
-  --secondary-foreground: 0 0% 100%;
-  --secondary-border: hsl(151 24% 48%);
+  /* Secondary: Light pink #F7D6E0 — hsl(342 68% 90%) */
+  --secondary: 342 68% 90%;
+  --secondary-foreground: 342 35% 28%;
+  --secondary-border: hsl(342 50% 78%);
 
-  /* Muted: light warm gray */
-  --muted: 30 14% 93%;
-  --muted-foreground: 25 12% 42%;
-  --muted-border: hsl(30 14% 82%);
+  /* Muted: warm light gray */
+  --muted: 30 30% 94%;
+  --muted-foreground: 25 12% 44%;
+  --muted-border: hsl(30 20% 84%);
 
-  /* Accent: Soft lilac #CDB4DB */
-  --accent: 278 33% 78%;
-  --accent-foreground: 270 28% 22%;
-  --accent-border: hsl(278 33% 64%);
+  /* Accent: Soft green #CDE7BE — hsl(100 42% 83%) */
+  --accent: 100 42% 83%;
+  --accent-foreground: 100 32% 22%;
+  --accent-border: hsl(100 32% 68%);
 
-  /* Destructive: warm red */
-  --destructive: 0 68% 55%;
-  --destructive-foreground: 38 60% 97%;
-  --destructive-border: hsl(0 68% 46%);
+  /* Destructive: soft dusty rose instead of bright red */
+  --destructive: 342 52% 68%;
+  --destructive-foreground: 342 35% 20%;
+  --destructive-border: hsl(342 42% 56%);
 
   /* Borders & inputs */
-  --border: 30 16% 86%;
-  --input: 30 16% 86%;
-  --ring: 13 67% 63%;
+  --border: 30 25% 89%;
+  --input: 30 25% 89%;
+  --ring: 12 70% 76%;
 
-  /* Sidebar: warm off-white */
-  --sidebar: 30 22% 97%;
-  --sidebar-foreground: 25 20% 20%;
-  --sidebar-border: 30 16% 90%;
-  --sidebar-primary: 13 67% 63%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 30 18% 92%;
-  --sidebar-accent-foreground: 25 20% 20%;
-  --sidebar-ring: 13 67% 63%;
+  /* Sidebar: very warm off-white */
+  --sidebar: 30 50% 97%;
+  --sidebar-foreground: 0 0% 22%;
+  --sidebar-border: 30 28% 91%;
+  --sidebar-primary: 12 81% 77%;
+  --sidebar-primary-foreground: 12 45% 22%;
+  --sidebar-accent: 30 30% 93%;
+  --sidebar-accent-foreground: 0 0% 22%;
+  --sidebar-ring: 12 70% 76%;
 
-  /* Button outline / badge outline */
-  --button-outline: hsl(278 28% 62%);
-  --badge-outline: hsl(278 28% 62%);
+  /* Button / badge outline */
+  --button-outline: hsl(12 60% 68%);
+  --badge-outline: hsl(12 60% 68%);
 
-  --radius: 0.75rem;
+  --radius: 0.875rem;
 
-  /* Chart colors — therapeutic palette */
-  --chart-1: 13 67% 63%;   /* coral */
-  --chart-2: 151 24% 60%;  /* mint */
-  --chart-3: 278 33% 78%;  /* lilac */
-  --chart-4: 37 79% 75%;   /* peach */
-  --chart-5: 25 20% 40%;   /* warm brown */
+  /* Chart colors — soft pastel palette */
+  --chart-1: 12 81% 77%;   /* peach */
+  --chart-2: 100 42% 68%;  /* soft green */
+  --chart-3: 342 68% 82%;  /* light pink */
+  --chart-4: 30 70% 78%;   /* warm apricot */
+  --chart-5: 0 0% 44%;     /* neutral gray */
 }
 
 @layer base {
@@ -159,15 +159,14 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: hsl(30 20% 80%);
+  background-color: hsl(30 28% 82%);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(24 30% 70%);
+  background-color: hsl(12 40% 74%);
 }
 
 /* ── Filter chip system ──────────────────────────────────────────────────── */
-/* Base chip: used for all filter/tag buttons that are not using Button component */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -202,10 +201,10 @@
   color: hsl(var(--primary-foreground));
 }
 
-/* Segment control: pill-shaped toggle group (used inside muted containers) */
+/* Segment control */
 .seg-ctrl-item {
   padding: 0.375rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.15s ease;
@@ -223,17 +222,17 @@
 .seg-ctrl-item-active {
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.07);
   font-weight: 600;
 }
 
 /* Utility gradients */
 @layer utilities {
   .bg-clinical-gradient {
-    @apply bg-gradient-to-br from-primary/5 via-primary/8 to-accent/5;
+    @apply bg-gradient-to-br from-primary/8 via-secondary/10 to-accent/8;
   }
   .bg-card-gradient {
-    @apply bg-gradient-to-b from-card to-muted/40;
+    @apply bg-gradient-to-b from-card to-muted/30;
   }
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;

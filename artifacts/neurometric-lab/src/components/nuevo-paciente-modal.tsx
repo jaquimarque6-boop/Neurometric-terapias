@@ -66,7 +66,7 @@ export function NuevoPacienteModal({
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground/80">
-              Nombre <span className="text-red-400">*</span>
+              Nombre <span className="text-primary/60">*</span>
             </label>
             <Input
               placeholder="Nombre completo"

@@ -655,7 +655,7 @@ export default function AgendaPage() {
                       </Badge>
                     )}
                     {selectedCita.status === "cancelada" && (
-                      <Badge variant="outline" className="text-xs text-red-600 border-red-200">Cancelada</Badge>
+                      <Badge variant="outline" className="text-xs text-destructive border-destructive/30">Cancelada</Badge>
                     )}
                   </div>
                   {selectedCita.notas && (

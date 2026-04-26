@@ -104,7 +104,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                     onClick={handleLogout}
                   >
                     <LogOut className="h-4 w-4 mr-2" />
