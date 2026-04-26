@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
   { title: "Panel",              url: "/",              icon: LayoutDashboard },
   { title: "Pacientes",          url: "/patients",      icon: Users           },
   { title: "Agenda",             url: "/agenda",        icon: CalendarDays    },
-  { title: "Registro de Pagos", url: "/agenda-pagos",  icon: Wallet          },
+  { title: "Registro de Pagos",  url: "/agenda-pagos",  icon: Wallet          },
   { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList   },
   { title: "Objetivos",          url: "/objetivos",     icon: Target          },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen        },
@@ -58,29 +58,30 @@ export function AppSidebar() {
       collapsible={isMobile ? "offcanvas" : "none"}
       className="border-r border-sidebar-border bg-sidebar"
     >
-      <SidebarHeader className="p-6">
-        <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-[1.02]">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/20">
-            <Activity className="h-6 w-6 text-primary-foreground" />
+      {/* Logo */}
+      <SidebarHeader className="px-5 py-6 border-b border-sidebar-border/60">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/25">
+            <Activity className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-display text-lg font-bold tracking-tight text-foreground leading-tight">
+          <div className="flex flex-col leading-none">
+            <span className="font-display text-base font-semibold tracking-tight text-foreground">
               Neurometric
             </span>
-            <span className="text-xs font-medium text-primary tracking-widest uppercase">
-              TERAPIAS
+            <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase mt-0.5">
+              Terapias
             </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="pt-3 pb-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-6 mb-2 uppercase tracking-widest">
+          <SidebarGroupLabel className="text-[10px] font-semibold text-muted-foreground/60 px-5 mb-1 uppercase tracking-widest">
             Plataforma Clínica
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="px-4 gap-0.5">
+            <SidebarMenu className="px-3 gap-0.5">
               {visibleItems.map((item) => {
                 const isActive =
                   location === item.url ||
@@ -91,19 +92,19 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       className={`
-                        rounded-xl transition-all duration-200 h-10
+                        rounded-xl transition-all duration-150 h-9
                         ${isActive
-                          ? "bg-primary/10 text-primary font-semibold hover:bg-primary/15"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"}
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-sidebar-foreground/60 hover:bg-muted hover:text-sidebar-foreground"}
                       `}
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3">
                         <item.icon
-                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground/70"}`}
                         />
                         <span className="text-sm">{item.title}</span>
                         {isActive && (
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                         )}
                       </Link>
                     </SidebarMenuButton>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..800;1,9..40,400..800&family=Inter:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Inter:wght@300..600&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -59,75 +59,75 @@
 }
 
 :root {
-  /* ── Soft Pastel Palette — Neurometric Terapias ──────────────────────────── */
+  /* ── Design System — Neurometric Terapias ──────────────────────────────── */
 
-  /* Page background: warm cream #FFF6ED */
-  --background: 30 100% 96%;
-  /* Main text: dark gray #333333 */
+  /* Page background: warm white */
+  --background: 30 60% 98%;
+  /* Main text: soft dark #333333 */
   --foreground: 0 0% 20%;
 
-  /* Cards: pure warm white */
-  --card: 32 60% 99%;
+  /* Cards: pure white */
+  --card: 0 0% 100%;
   --card-foreground: 0 0% 20%;
-  --card-border: 30 28% 91%;
+  --card-border: 30 20% 92%;
 
   /* Popovers / dropdowns */
-  --popover: 32 60% 99%;
+  --popover: 0 0% 100%;
   --popover-foreground: 0 0% 20%;
-  --popover-border: 30 28% 91%;
+  --popover-border: 30 20% 92%;
 
-  /* Primary: Soft peach #F4A896 — hsl(12 81% 77%) */
-  --primary: 12 81% 77%;
-  --primary-foreground: 12 45% 22%;
-  --primary-border: hsl(12 65% 65%);
+  /* Primary: Coral peach #E07A5F — hsl(14 66% 62%) */
+  --primary: 14 66% 62%;
+  --primary-foreground: 0 0% 100%;
+  --primary-border: hsl(14 55% 52%);
 
   /* Secondary: Light pink #F7D6E0 — hsl(342 68% 90%) */
   --secondary: 342 68% 90%;
   --secondary-foreground: 342 35% 28%;
   --secondary-border: hsl(342 50% 78%);
 
-  /* Muted: warm light gray */
-  --muted: 30 30% 94%;
-  --muted-foreground: 25 12% 44%;
-  --muted-border: hsl(30 20% 84%);
+  /* Muted: very soft warm gray */
+  --muted: 30 25% 95%;
+  --muted-foreground: 25 10% 48%;
+  --muted-border: hsl(30 18% 87%);
 
-  /* Accent: Soft green #CDE7BE — hsl(100 42% 83%) */
-  --accent: 100 42% 83%;
-  --accent-foreground: 100 32% 22%;
-  --accent-border: hsl(100 32% 68%);
+  /* Accent: Sage green #5C8D76 — hsl(152 21% 46%) */
+  --accent: 152 21% 46%;
+  --accent-foreground: 0 0% 100%;
+  --accent-border: hsl(152 18% 38%);
 
-  /* Destructive: soft dusty rose instead of bright red */
-  --destructive: 342 52% 68%;
-  --destructive-foreground: 342 35% 20%;
-  --destructive-border: hsl(342 42% 56%);
+  /* Destructive: soft dusty rose */
+  --destructive: 342 52% 64%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-border: hsl(342 42% 52%);
 
   /* Borders & inputs */
-  --border: 30 25% 89%;
-  --input: 30 25% 89%;
-  --ring: 12 70% 76%;
+  --border: 30 18% 90%;
+  --input: 30 18% 90%;
+  --ring: 14 55% 65%;
 
-  /* Sidebar: very warm off-white */
-  --sidebar: 30 50% 97%;
+  /* Sidebar: clean white */
+  --sidebar: 0 0% 100%;
   --sidebar-foreground: 0 0% 22%;
-  --sidebar-border: 30 28% 91%;
-  --sidebar-primary: 12 81% 77%;
-  --sidebar-primary-foreground: 12 45% 22%;
-  --sidebar-accent: 30 30% 93%;
+  --sidebar-border: 30 18% 92%;
+  --sidebar-primary: 14 66% 62%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 30 30% 96%;
   --sidebar-accent-foreground: 0 0% 22%;
-  --sidebar-ring: 12 70% 76%;
+  --sidebar-ring: 14 55% 65%;
 
   /* Button / badge outline */
-  --button-outline: hsl(12 60% 68%);
-  --badge-outline: hsl(12 60% 68%);
+  --button-outline: hsl(14 50% 65%);
+  --badge-outline: hsl(14 50% 65%);
 
   --radius: 0.875rem;
 
-  /* Chart colors — soft pastel palette */
-  --chart-1: 12 81% 77%;   /* peach */
-  --chart-2: 100 42% 68%;  /* soft green */
+  /* Chart colors — clinical pastel palette */
+  --chart-1: 14 66% 62%;   /* coral peach */
+  --chart-2: 152 21% 52%;  /* sage green */
   --chart-3: 342 68% 82%;  /* light pink */
-  --chart-4: 30 70% 78%;   /* warm apricot */
-  --chart-5: 0 0% 44%;     /* neutral gray */
+  --chart-4: 30 70% 75%;   /* warm apricot */
+  --chart-5: 0 0% 52%;     /* neutral gray */
 }
 
 @layer base {
@@ -137,14 +137,16 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-size: 15px;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     @apply tracking-tight;
+    font-weight: 600;
   }
 
-  /* Remove default tap highlight on mobile — use custom active states instead */
+  /* Remove default tap highlight */
   button, a, [role="button"] {
     -webkit-tap-highlight-color: transparent;
   }
@@ -152,18 +154,18 @@
 
 /* Warm scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: hsl(30 28% 82%);
+  background-color: hsl(30 25% 85%);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(12 40% 74%);
+  background-color: hsl(14 35% 72%);
 }
 
 /* ── Filter chip system ──────────────────────────────────────────────────── */
@@ -171,13 +173,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0.375rem 0.875rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
   border: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.6);
-  color: hsl(var(--foreground) / 0.75);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground) / 0.65);
   transition: all 0.15s ease;
   cursor: pointer;
   user-select: none;
@@ -185,20 +187,19 @@
 }
 .chip:hover {
   background: hsl(var(--muted));
-  color: hsl(var(--foreground) / 0.9);
-  border-color: hsl(var(--border) / 0.8);
+  color: hsl(var(--foreground) / 0.85);
 }
 .chip:active {
   transform: scale(0.97);
 }
 .chip-active {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  border-color: var(--primary-border);
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.35);
+  font-weight: 600;
 }
 .chip-active:hover {
-  background: hsl(var(--primary) / 0.9);
-  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary) / 0.18);
 }
 
 /* Segment control */
@@ -208,7 +209,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.15s ease;
-  color: hsl(var(--foreground) / 0.6);
+  color: hsl(var(--foreground) / 0.55);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -222,19 +223,24 @@
 .seg-ctrl-item-active {
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.07);
+  box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.06);
   font-weight: 600;
 }
 
 /* Utility gradients */
 @layer utilities {
   .bg-clinical-gradient {
-    @apply bg-gradient-to-br from-primary/8 via-secondary/10 to-accent/8;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.07) 0%, hsl(var(--secondary) / 0.09) 50%, hsl(var(--accent) / 0.06) 100%);
   }
   .bg-card-gradient {
-    @apply bg-gradient-to-b from-card to-muted/30;
+    @apply bg-gradient-to-b from-card to-muted/20;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+  /* Subtle card hover lift */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
   }
 }
