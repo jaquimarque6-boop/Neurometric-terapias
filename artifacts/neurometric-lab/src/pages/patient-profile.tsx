@@ -36,6 +36,7 @@ import {
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
+import { AIObjetivosDialog } from "@/components/ai-objetivos-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -993,6 +994,7 @@ export default function PatientProfile() {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
   const [showBankDialog, setShowBankDialog] = useState(false);
+  const [showAIObjetivos, setShowAIObjetivos] = useState(false);
   const [isSavingRC, setIsSavingRC] = useState(false);
 
   // Edit patient
@@ -1801,6 +1803,14 @@ export default function PatientProfile() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setShowAIObjetivos(true)}
+                  className="h-9 text-sm border-primary/40 text-primary hover:bg-primary/5 gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Sugerir con IA
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowBankDialog(true)}
                   className="h-9 text-sm border-primary/30 text-primary hover:bg-primary/5"
                 >
@@ -2069,6 +2079,16 @@ export default function PatientProfile() {
               }
             );
           }}
+        />
+      )}
+
+      {/* AI-suggested objectives dialog */}
+      {showAIObjetivos && (
+        <AIObjetivosDialog
+          open={showAIObjetivos}
+          onClose={() => setShowAIObjetivos(false)}
+          patientId={patientId}
+          patientName={patient?.name ?? ""}
         />
       )}
 

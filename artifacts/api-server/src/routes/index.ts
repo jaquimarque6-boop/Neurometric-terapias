@@ -16,6 +16,7 @@ import citasRouter from "./citas";
 import usersRouter from "./users";
 import pagosRouter from "./pagos";
 import aiInformeRouter from "./ai-informe";
+import aiObjetivosRouter from "./ai-objetivos";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(goalCodesRouter);
 router.use(goalGuidanceRouter);
 router.use(citasRouter);
 router.use(aiInformeRouter);
+router.use(aiObjetivosRouter);
 
 export default router;
