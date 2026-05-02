@@ -107,13 +107,20 @@ Devuelve un JSON con exactamente estas claves:
 }`;
 
   try {
-    const openai = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-    });
+    const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_API_KEY
+      ? "https://api.openai.com/v1"
+      : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const model = process.env.OPENAI_API_KEY ? "gpt-4o" : "gpt-5.4";
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "No hay clave de API de OpenAI configurada." });
+    }
+
+    const openai = new OpenAI({ apiKey, baseURL });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
