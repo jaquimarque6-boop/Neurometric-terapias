@@ -6,6 +6,7 @@ import { pool } from "@workspace/db";
 import router from "./routes";
 import { seedAdminIfNeeded } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
+import { seedFromSupabaseIfNeeded } from "./seeds/supabase-migration-seed";
 
 const PgSession = connectPgSimple(session);
 
@@ -40,5 +41,6 @@ app.use("/api", router);
 
 seedAdminIfNeeded().catch(console.error);
 seedGoalLibraryIfNeeded().catch(console.error);
+seedFromSupabaseIfNeeded().catch(console.error);
 
 export default app;
