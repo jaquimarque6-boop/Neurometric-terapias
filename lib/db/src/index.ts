@@ -6,12 +6,14 @@ const { Pool } = pg;
 
 function buildPool(): pg.Pool {
   if (process.env.PGHOST && process.env.PGDATABASE) {
+    const isLocal = process.env.PGHOST === "helium" || process.env.PGHOST === "localhost" || process.env.PGHOST === "127.0.0.1";
     return new Pool({
       host: process.env.PGHOST,
       port: parseInt(process.env.PGPORT ?? "5432"),
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
       database: process.env.PGDATABASE,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
     });
   }
   if (!process.env.DATABASE_URL) {
