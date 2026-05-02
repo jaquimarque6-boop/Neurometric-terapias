@@ -541,6 +541,10 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initial.areas);
   const [sugerencias, setSugerencias] = useState(initial.sugerencias);
   const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [pendingAIResult, setPendingAIResult] = useState<null | { resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string }>(null);
+  const [showAIConfirm, setShowAIConfirm] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const d = parseInformeData(patient.informeEvolucion);
@@ -577,6 +581,45 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       const informeEvolucion = JSON.stringify({ v: 4, resumen, conducta, areas: areaTexts, sugerencias });
       await onSave({ informeEvolucion, informeFamilia: textoFamilia });
     } finally { setIsSaving(false); }
+  };
+
+  const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
+    if (result.resumen) setResumen(result.resumen);
+    if (result.conducta) setConducta(result.conducta);
+    if (result.areas && Object.keys(result.areas).length > 0) setAreaTexts(result.areas);
+    if (result.sugerencias) setSugerencias(result.sugerencias);
+    setPendingAIResult(null);
+    setShowAIConfirm(false);
+    toast({ title: "Informe generado", description: "El contenido fue aplicado. Puedes editarlo libremente antes de guardar." });
+  };
+
+  const handleGenerateAI = async () => {
+    setIsGeneratingAI(true);
+    try {
+      const resp = await fetch("/api/ai/informe-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId: patient.id, rango }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        toast({ title: "Error al generar", description: (err as any).error ?? "Intenta de nuevo.", variant: "destructive" });
+        return;
+      }
+      const result = await resp.json();
+      const hasContent = resumen.trim() || conducta.trim() || sugerencias.trim() || Object.values(areaTexts).some(v => v.trim());
+      if (hasContent) {
+        setPendingAIResult(result);
+        setShowAIConfirm(true);
+      } else {
+        applyAIResult(result);
+      }
+    } catch {
+      toast({ title: "Error de conexión", description: "No se pudo contactar al servidor.", variant: "destructive" });
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   const handlePrint = () => {
@@ -639,6 +682,24 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               Para familias
             </button>
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleGenerateAI}
+            disabled={isGeneratingAI}
+            className="h-8 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/60"
+          >
+            {isGeneratingAI ? (
+              <>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                Generando…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5" /> Generar con IA
+              </>
+            )}
+          </Button>
           <Button size="sm" variant="outline" onClick={handlePrint} className="h-8 gap-1.5 text-xs">
             <Printer className="h-3.5 w-3.5" /> Exportar PDF
           </Button>
@@ -881,6 +942,28 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
           </div>
         </div>
       )}
+
+      {/* ── Confirmación de reemplazo con IA ─────────────────────────────────── */}
+      <Dialog open={showAIConfirm} onOpenChange={setShowAIConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> ¿Reemplazar contenido?
+            </DialogTitle>
+            <DialogDescription>
+              El informe ya tiene contenido guardado. ¿Deseas reemplazarlo con el texto generado por IA? Podrás editarlo antes de guardar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button size="sm" variant="outline" onClick={() => { setPendingAIResult(null); setShowAIConfirm(false); }}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={() => pendingAIResult && applyAIResult(pendingAIResult)} className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" /> Sí, reemplazar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

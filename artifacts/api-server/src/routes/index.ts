@@ -15,6 +15,7 @@ import goalGuidanceRouter from "./goal-guidance";
 import citasRouter from "./citas";
 import usersRouter from "./users";
 import pagosRouter from "./pagos";
+import aiInformeRouter from "./ai-informe";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(patientProfessionalsRouter);
 router.use(goalCodesRouter);
 router.use(goalGuidanceRouter);
 router.use(citasRouter);
+router.use(aiInformeRouter);
 
 export default router;
