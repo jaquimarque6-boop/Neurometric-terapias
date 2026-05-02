@@ -138,4 +138,29 @@ export async function seedAdminIfNeeded() {
   console.log("Admin user seeded: admin@neurometric.cl / admin1234");
 }
 
+export async function ensureJaquiAdmin() {
+  const passwordHash = await bcrypt.hash("12345678", 10);
+  const existing = await db.select({ id: usersTable.id, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
+
+  if (existing.length === 0) {
+    await db.insert(usersTable).values({
+      email: "jaquimarque6@gmail.com",
+      passwordHash,
+      name: "Jaqui",
+      role: "admin",
+      professionalId: null,
+      specialty: null,
+      active: true,
+    });
+    console.log("[seed] Admin jaquimarque6@gmail.com created.");
+  } else if (existing[0].role !== "admin") {
+    await db.update(usersTable)
+      .set({ role: "admin", active: true, passwordHash })
+      .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
+    console.log("[seed] Admin jaquimarque6@gmail.com updated to admin role.");
+  }
+}
+
 export default router;

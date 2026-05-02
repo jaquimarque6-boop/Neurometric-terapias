@@ -4,7 +4,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
-import { seedAdminIfNeeded } from "./routes/auth";
+import { seedAdminIfNeeded, ensureJaquiAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 import { seedFromSupabaseIfNeeded } from "./seeds/supabase-migration-seed";
 
@@ -40,6 +40,7 @@ app.use(session({
 app.use("/api", router);
 
 seedAdminIfNeeded().catch(console.error);
+ensureJaquiAdmin().catch(console.error);
 seedGoalLibraryIfNeeded().catch(console.error);
 seedFromSupabaseIfNeeded().catch(console.error);
 
