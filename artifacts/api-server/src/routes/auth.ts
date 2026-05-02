@@ -163,4 +163,30 @@ export async function ensureJaquiAdmin() {
   }
 }
 
+export async function ensureTempAdmin() {
+  const email = "admin@neurometric.com";
+  const passwordHash = await bcrypt.hash("12345678", 10);
+  const existing = await db.select({ id: usersTable.id, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+
+  if (existing.length === 0) {
+    await db.insert(usersTable).values({
+      email,
+      passwordHash,
+      name: "Admin",
+      role: "admin",
+      professionalId: null,
+      specialty: null,
+      active: true,
+    });
+    console.log("[seed] Admin admin@neurometric.com created.");
+  } else {
+    await db.update(usersTable)
+      .set({ role: "admin", active: true, passwordHash })
+      .where(eq(usersTable.email, email));
+    console.log("[seed] Admin admin@neurometric.com ensured.");
+  }
+}
+
 export default router;
