@@ -5,6 +5,7 @@ import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
   Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2, Lightbulb,
+  RefreshCw, CheckCircle2,
 } from "lucide-react";
 import { getProfesion, getDiagnosesByProfesion, getBancoAreas } from "@/utils/profession-map";
 import { useAuth } from "@/contexts/auth-context";
@@ -647,6 +648,15 @@ export default function NuevaSesion() {
 
   const [showAllGoals, setShowAllGoals]       = useState(false);
   const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<number>>(new Set());
+
+  // ── AI session suggestions ─────────────────────────────────────────────
+  const [showAISesion, setShowAISesion]       = useState(false);
+  const [loadingAISesion, setLoadingAISesion] = useState(false);
+  const [aiSesionList, setAiSesionList]       = useState<Array<{ title: string; areaClinica: string; category: string; nivelDificultad?: string; rationale?: string }>>([]);
+  const [aiSesionEdits, setAiSesionEdits]     = useState<Record<number, string>>({});
+  const [addingAiIdx, setAddingAiIdx]         = useState<Set<number>>(new Set());
+  const [addedAiIdx, setAddedAiIdx]           = useState<Set<number>>(new Set());
+
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
@@ -820,6 +830,11 @@ export default function NuevaSesion() {
     setDismissedGoalIds(new Set());
     setSessionDiagnosis(p.diagnosis ?? "");
     setDiagSuggestions([]);
+    setShowAISesion(false);
+    setAiSesionList([]);
+    setAiSesionEdits({});
+    setAddingAiIdx(new Set());
+    setAddedAiIdx(new Set());
   };
 
   // Auto-select patient from URL param once patients list is available
@@ -972,6 +987,80 @@ export default function NuevaSesion() {
   const removeAdHocGoal = (libId: number) => {
     setAdHocGoals(prev => prev.filter(g => g.id !== libId));
     setAdHocRows(prev => { const n = { ...prev }; delete n[libId]; return n; });
+  };
+
+  // ── AI session suggestion helpers ──────────────────────────────────────────
+  const fetchAISesionSuggestions = async () => {
+    if (!patient) return;
+    setShowAISesion(true);
+    setLoadingAISesion(true);
+    setAiSesionList([]);
+    setAiSesionEdits({});
+    setAddingAiIdx(new Set());
+    setAddedAiIdx(new Set());
+    try {
+      const resp = await fetch("/api/ai/objetivos-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId: patient.id, mode: "sesion" }),
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error((e as any).error ?? "Error al generar sugerencias");
+      }
+      const data = await resp.json();
+      setAiSesionList(data.objetivos ?? []);
+    } catch (err: any) {
+      toast({ title: "Error al generar sugerencias", description: err.message, variant: "destructive" });
+      setShowAISesion(false);
+    } finally {
+      setLoadingAISesion(false);
+    }
+  };
+
+  const addAISuggestion = async (idx: number) => {
+    const sug = aiSesionList[idx];
+    if (!sug || addingAiIdx.has(idx) || addedAiIdx.has(idx)) return;
+    const title = (aiSesionEdits[idx] ?? sug.title).trim();
+    if (!title) return;
+
+    setAddingAiIdx(prev => new Set([...prev, idx]));
+    try {
+      const res = await fetch("/api/goal-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombreObjetivo: title,
+          area: sug.areaClinica ?? sug.category ?? "general",
+          areaClinica: sug.areaClinica ?? sug.category ?? "general",
+          nivelDificultad: sug.nivelDificultad ?? "básico",
+          estadoBanco: "sesion",
+          isCustom: true,
+        }),
+      });
+      if (!res.ok) throw new Error("Error al crear objetivo");
+      const created = await res.json();
+      setAdHocGoals(prev => {
+        if (prev.find(g => g.id === created.id)) return prev;
+        return [...prev, created];
+      });
+      setAdHocRows(prev => ({
+        ...prev,
+        [created.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" },
+      }));
+      setAddedAiIdx(prev => new Set([...prev, idx]));
+    } catch {
+      toast({ title: "Error al agregar el objetivo", variant: "destructive" });
+    } finally {
+      setAddingAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
+    }
+  };
+
+  const dismissAISuggestion = (idx: number) => {
+    setAiSesionList(prev => prev.filter((_, i) => i !== idx));
+    setAiSesionEdits(prev => { const n = { ...prev }; delete n[idx]; return n; });
+    setAddedAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
   };
 
   // ── Report suggestion builder ──────────────────────────────────────────────
@@ -2067,8 +2156,8 @@ export default function NuevaSesion() {
         {patient && (
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
             {/* Card header */}
-            <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
+            <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground shrink-0">
                 Trabajo en sesión
                 {totalSelected > 0 && (
                   <span
@@ -2079,7 +2168,149 @@ export default function NuevaSesion() {
                   </span>
                 )}
               </h2>
+              <button
+                onClick={loadingAISesion ? undefined : fetchAISesionSuggestions}
+                disabled={loadingAISesion}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shrink-0"
+                style={{
+                  color: BRAND_BLUE,
+                  borderColor: `${BRAND_BLUE}40`,
+                  background: showAISesion ? `${BRAND_BLUE}08` : "transparent",
+                }}
+              >
+                {loadingAISesion
+                  ? <span className="h-3 w-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+                  : <Sparkles className="h-3.5 w-3.5" />
+                }
+                {loadingAISesion ? "Analizando…" : "Sugerir objetivos para esta sesión"}
+              </button>
             </div>
+
+            {/* ── AI session suggestion panel ─────────────────────────── */}
+            {showAISesion && (
+              <div className="border-b border-border/50">
+                {loadingAISesion ? (
+                  <div className="px-5 py-6 flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" />
+                    Analizando historial clínico, objetivos y sesiones recientes…
+                  </div>
+                ) : aiSesionList.length === 0 ? (
+                  <div className="px-5 py-5 text-center text-sm text-muted-foreground">
+                    No se pudieron generar sugerencias para esta sesión.
+                    <button onClick={fetchAISesionSuggestions} className="ml-2 underline hover:no-underline">
+                      Reintentar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="px-5 pt-3 pb-4 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        Sugerencias IA para hoy
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={fetchAISesionSuggestions}
+                          className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground/70 transition-colors"
+                        >
+                          <RefreshCw className="h-2.5 w-2.5" /> Regenerar
+                        </button>
+                        <button
+                          onClick={() => setShowAISesion(false)}
+                          className="text-muted-foreground hover:text-foreground/70 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {aiSesionList.map((sug, idx) => {
+                      const isAdded   = addedAiIdx.has(idx);
+                      const isAdding  = addingAiIdx.has(idx);
+                      const editVal   = aiSesionEdits[idx] ?? sug.title;
+                      return (
+                        <div
+                          key={idx}
+                          className={`rounded-xl border px-3.5 py-3 transition-all ${
+                            isAdded
+                              ? "border-emerald-200 bg-emerald-50/60"
+                              : "border-border/60 bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              {/* Editable title */}
+                              <input
+                                type="text"
+                                value={editVal}
+                                disabled={isAdded}
+                                onChange={e => setAiSesionEdits(prev => ({ ...prev, [idx]: e.target.value }))}
+                                className="w-full text-sm font-medium bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus:ring-0 p-0"
+                              />
+                              {/* Badges + rationale */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {sug.areaClinica && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/8 text-primary/80 capitalize">
+                                    {sug.areaClinica}
+                                  </span>
+                                )}
+                                {sug.nivelDificultad && (
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
+                                    sug.nivelDificultad === "avanzado"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : sug.nivelDificultad === "intermedio"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-emerald-100 text-emerald-700"
+                                  }`}>
+                                    {sug.nivelDificultad}
+                                  </span>
+                                )}
+                                {sug.rationale && (
+                                  <span className="text-[10px] text-muted-foreground italic leading-tight">
+                                    {sug.rationale}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                              {isAdded ? (
+                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Agregado
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => addAISuggestion(idx)}
+                                  disabled={isAdding || !editVal.trim()}
+                                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-all disabled:opacity-50"
+                                  style={{ background: isAdding ? `${BRAND_TEAL}80` : BRAND_TEAL }}
+                                >
+                                  {isAdding
+                                    ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                                    : <Plus className="h-3 w-3" />
+                                  }
+                                  {isAdding ? "" : "Agregar"}
+                                </button>
+                              )}
+                              {!isAdded && (
+                                <button
+                                  onClick={() => dismissAISuggestion(idx)}
+                                  className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                                  title="Descartar sugerencia"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {loadingGoals ? (
               <div className="px-5 py-10 text-center text-sm text-muted-foreground animate-pulse">

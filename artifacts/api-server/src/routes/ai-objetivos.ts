@@ -66,8 +66,9 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 
-  const { patientId } = req.body as { patientId: number };
+  const { patientId, mode = "plan" } = req.body as { patientId: number; mode?: "plan" | "sesion" };
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
+  const isSesion = mode === "sesion";
 
   // ── Fetch all data in parallel ──────────────────────────────────────────
   const [
@@ -180,28 +181,14 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
     : null;
 
   // ── Build the prompt ───────────────────────────────────────────────────
-  const systemPrompt = `Eres un asistente clínico especializado en terapias del neurodesarrollo.
-Tu tarea es proponer objetivos terapéuticos nuevos, clínicamente válidos y medibles, basados EXCLUSIVAMENTE en los datos reales del paciente.
-${buildDisciplineGuidance(discipline)}
-
-Reglas estrictas:
-- No repitas objetivos que ya están activos en el plan.
-- No inventes datos que no estén en el contexto.
-- Los objetivos deben ser específicos, funcionales y directamente aplicables en sesión.
-- Calibra la dificultad según el nivel de desempeño actual del paciente.
-- Propón objetivos para el PRÓXIMO PASO lógico en el proceso terapéutico.
-- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`;
-
-  const userPrompt = `Propón objetivos terapéuticos nuevos para el siguiente paciente.
-
-═══════════════════════════════════════
+  const sharedContext = `═══════════════════════════════════════
 DATOS DEL PACIENTE
 ═══════════════════════════════════════
 ${patientCtx}
 Profesional: ${professionals.map(p => `${p.name} (${p.specialty})`).join(", ") || patient.profesionalNombre || "No registrado"}
 
 ═══════════════════════════════════════
-OBJETIVOS ACTIVOS ACTUALES (NO repetir)
+OBJETIVOS ACTIVOS EN EL PLAN
 ═══════════════════════════════════════
 ${goalsCtx}
 
@@ -218,7 +205,63 @@ ${progressCtx}` : ""}
 ${perfCtx ? `═══════════════════════════════════════
 DESEMPEÑO POR OBJETIVO EN SESIONES
 ═══════════════════════════════════════
-${perfCtx}` : ""}
+${perfCtx}` : ""}`;
+
+  const systemPrompt = isSesion
+    ? `Eres un asistente clínico especializado en terapias del neurodesarrollo.
+Tu tarea es sugerir entre 1 y 3 objetivos PRÁCTICOS para trabajar HOY en sesión, basándote EXCLUSIVAMENTE en el historial real del paciente.
+${buildDisciplineGuidance(discipline)}
+
+Reglas estrictas:
+- Los objetivos deben ser directamente trabajables en la sesión de HOY — no son de largo plazo.
+- Priorizá objetivos "en progreso" o que necesitan refuerzo según el historial reciente.
+- Si hay objetivos con bajo desempeño reciente, sugería continuar con esos.
+- Si los objetivos activos tienen buen progreso, podés sugerir el siguiente paso lógico.
+- No inventes datos que no estén en el contexto.
+- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`
+    : `Eres un asistente clínico especializado en terapias del neurodesarrollo.
+Tu tarea es proponer objetivos terapéuticos nuevos, clínicamente válidos y medibles, basados EXCLUSIVAMENTE en los datos reales del paciente.
+${buildDisciplineGuidance(discipline)}
+
+Reglas estrictas:
+- No repitas objetivos que ya están activos en el plan.
+- No inventes datos que no estén en el contexto.
+- Los objetivos deben ser específicos, funcionales y directamente aplicables en sesión.
+- Calibra la dificultad según el nivel de desempeño actual del paciente.
+- Propón objetivos para el PRÓXIMO PASO lógico en el proceso terapéutico.
+- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`;
+
+  const userPrompt = isSesion
+    ? `Sugerí entre 1 y 3 objetivos prácticos para trabajar HOY en sesión con este paciente.
+
+${sharedContext}
+
+═══════════════════════════════════════
+INSTRUCCIÓN
+═══════════════════════════════════════
+Devuelve entre 1 y 3 objetivos prácticos para HOY. Deben ser concretos y trabajables en una sola sesión.
+Prioridad: objetivos en progreso con bajo desempeño reciente > objetivos activos sin trabajar recientemente > siguiente paso lógico.
+
+Para cada objetivo devuelve exactamente este JSON:
+
+{
+  "objetivos": [
+    {
+      "title": "Objetivo corto, concreto y trabajable hoy. Describe la conducta observable.",
+      "areaClinica": "fonología",
+      "category": "habla",
+      "nivelDificultad": "inicial",
+      "rationale": "Breve justificación clínica (1 oración) de por qué trabajar esto HOY basada en el historial."
+    }
+  ]
+}
+
+nivelDificultad debe ser exactamente uno de: "inicial", "intermedio", "avanzado".
+areaClinica y category: en minúsculas, acordes a la disciplina.
+NO incluyas campos adicionales. Máximo 3 objetivos.`
+    : `Propón objetivos terapéuticos nuevos para el siguiente paciente.
+
+${sharedContext}
 
 ═══════════════════════════════════════
 INSTRUCCIÓN
@@ -259,7 +302,7 @@ areaClinica y category: en minúsculas, acordes a la disciplina.`;
 
     const openai = new OpenAI({ apiKey, baseURL });
 
-    console.log(`[ai-objetivos] paciente=${patientId} disciplina=${discipline} sesiones=${recentRC.length} objetivos_actuales=${activeGoals.length} modelo=${model}`);
+    console.log(`[ai-objetivos] paciente=${patientId} modo=${mode} disciplina=${discipline} sesiones=${recentRC.length} objetivos_actuales=${activeGoals.length} modelo=${model}`);
 
     const response = await openai.chat.completions.create({
       model,
