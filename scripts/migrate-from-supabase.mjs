@@ -1,11 +1,16 @@
 import pg from '/home/runner/workspace/node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/index.js';
 
 const SUPABASE_URL = 'https://taczpgaryiphxnoniftl.supabase.co';
-const SUPABASE_KEY = 'sb_secret_Tli_kcI_WnxLS3nFVLabww_olV0davl';
-const LOCAL_DB = process.env.DATABASE_URL;
-
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhY3pwZ2FyeWlwaHhub25pZnRsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY3OTE4MSwiZXhwIjoyMDkzMjU1MTgxfQ.fPS8B3oIsF6YbUAkjlyTCSCQAADhiWWAfn_i-3cHxfU';
 const { Pool } = pg;
-const local = new Pool({ connectionString: LOCAL_DB });
+const local = new Pool({
+  host: process.env.PGHOST,
+  port: parseInt(process.env.PGPORT || '5432'),
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
+  ssl: false,
+});
 
 async function fetchAll(table) {
   let rows = [];
