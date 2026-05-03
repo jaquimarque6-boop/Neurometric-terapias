@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "iu4AuGTRVdYj7hyd11zrx"
+uri = "file://neurometric_terapias_backup_final.tar.gz"
+type = "unspecified"
+title = "neurometric_terapias_backup_final.sql — Backup completo (comprimido)"
