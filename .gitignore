@@ -47,3 +47,14 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Database backups
+*.sql
+*.tar.gz
+*.tar
+*.dump
