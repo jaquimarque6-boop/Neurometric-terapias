@@ -37,6 +37,7 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { AIObjetivosDialog } from "@/components/ai-objetivos-dialog";
+import { AIPerfilClinicoPanel } from "@/components/ai-perfil-clinico-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1619,6 +1620,15 @@ export default function PatientProfile() {
                       </div>
                     </CardHeader>
                   </Card>
+
+                  {/* ── AI Perfil Clínico ─────────────────────────────── */}
+                  <AIPerfilClinicoPanel
+                    patientId={patientId}
+                    onApplyToImpresion={(text) => {
+                      setAnImpresion(text);
+                      setAnDirty(true);
+                    }}
+                  />
 
                   {/* Sections */}
                   {SECCIONES_ANAMNESIS.map((sec) => {

@@ -17,6 +17,7 @@ import usersRouter from "./users";
 import pagosRouter from "./pagos";
 import aiInformeRouter from "./ai-informe";
 import aiObjetivosRouter from "./ai-objetivos";
+import aiPerfilClinicoRouter from "./ai-perfil-clinico";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(goalGuidanceRouter);
 router.use(citasRouter);
 router.use(aiInformeRouter);
 router.use(aiObjetivosRouter);
+router.use(aiPerfilClinicoRouter);
 
 export default router;
