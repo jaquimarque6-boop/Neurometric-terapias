@@ -649,13 +649,18 @@ export default function NuevaSesion() {
   const [showAllGoals, setShowAllGoals]       = useState(false);
   const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<number>>(new Set());
 
-  // ── AI session suggestions ─────────────────────────────────────────────
-  const [showAISesion, setShowAISesion]       = useState(false);
-  const [loadingAISesion, setLoadingAISesion] = useState(false);
-  const [aiSesionList, setAiSesionList]       = useState<Array<{ title: string; areaClinica: string; category: string; nivelDificultad?: string; rationale?: string }>>([]);
-  const [aiSesionEdits, setAiSesionEdits]     = useState<Record<number, string>>({});
-  const [addingAiIdx, setAddingAiIdx]         = useState<Set<number>>(new Set());
-  const [addedAiIdx, setAddedAiIdx]           = useState<Set<number>>(new Set());
+  // ── AI sesión-IA: perfil + objetivos + actividades + recomendaciones ──────
+  const [showAISesionIA, setShowAISesionIA]       = useState(false);
+  const [loadingAISesionIA, setLoadingAISesionIA] = useState(false);
+  const [aiSesionIA, setAiSesionIA]               = useState<{
+    perfilClinico: string;
+    objetivos: Array<{ title: string; areaClinica: string; nivelDificultad?: string; rationale?: string }>;
+    actividades: string[];
+    recomendaciones: string;
+  } | null>(null);
+  const [aiIAObjEdits, setAiIAObjEdits]           = useState<Record<number, string>>({});
+  const [addingAiIAIdx, setAddingAiIAIdx]         = useState<Set<number>>(new Set());
+  const [addedAiIAIdx, setAddedAiIAIdx]           = useState<Set<number>>(new Set());
 
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
@@ -830,11 +835,11 @@ export default function NuevaSesion() {
     setDismissedGoalIds(new Set());
     setSessionDiagnosis(p.diagnosis ?? "");
     setDiagSuggestions([]);
-    setShowAISesion(false);
-    setAiSesionList([]);
-    setAiSesionEdits({});
-    setAddingAiIdx(new Set());
-    setAddedAiIdx(new Set());
+    setShowAISesionIA(false);
+    setAiSesionIA(null);
+    setAiIAObjEdits({});
+    setAddingAiIAIdx(new Set());
+    setAddedAiIAIdx(new Set());
   };
 
   // Auto-select patient from URL param once patients list is available
@@ -989,52 +994,59 @@ export default function NuevaSesion() {
     setAdHocRows(prev => { const n = { ...prev }; delete n[libId]; return n; });
   };
 
-  // ── AI session suggestion helpers ──────────────────────────────────────────
-  const fetchAISesionSuggestions = async () => {
+  // ── AI sesión-IA helpers ───────────────────────────────────────────────────
+  const fetchAISesionIA = async () => {
     if (!patient) return;
-    setShowAISesion(true);
-    setLoadingAISesion(true);
-    setAiSesionList([]);
-    setAiSesionEdits({});
-    setAddingAiIdx(new Set());
-    setAddedAiIdx(new Set());
+    setShowAISesionIA(true);
+    setLoadingAISesionIA(true);
+    setAiSesionIA(null);
+    setAiIAObjEdits({});
+    setAddingAiIAIdx(new Set());
+    setAddedAiIAIdx(new Set());
     try {
-      const resp = await fetch("/api/ai/objetivos-suggest", {
+      const resp = await fetch("/api/ai/sesion-ia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ patientId: patient.id, mode: "sesion" }),
+        body: JSON.stringify({
+          patientId: patient.id,
+          focoTerapeutico: focoTerapeutico || undefined,
+          sessionDiagnosis: sessionDiagnosis || undefined,
+          observaciones: observaciones || undefined,
+          selectedArea: selectedBloque || undefined,
+        }),
       });
       if (!resp.ok) {
         const e = await resp.json().catch(() => ({}));
-        throw new Error((e as any).error ?? "Error al generar sugerencias");
+        throw new Error((e as any).error ?? "Error al generar análisis");
       }
       const data = await resp.json();
-      setAiSesionList(data.objetivos ?? []);
+      setAiSesionIA(data);
     } catch (err: any) {
-      toast({ title: "Error al generar sugerencias", description: err.message, variant: "destructive" });
-      setShowAISesion(false);
+      toast({ title: "Error al generar análisis con IA", description: err.message, variant: "destructive" });
+      setShowAISesionIA(false);
     } finally {
-      setLoadingAISesion(false);
+      setLoadingAISesionIA(false);
     }
   };
 
-  const addAISuggestion = async (idx: number) => {
-    const sug = aiSesionList[idx];
-    if (!sug || addingAiIdx.has(idx) || addedAiIdx.has(idx)) return;
-    const title = (aiSesionEdits[idx] ?? sug.title).trim();
+  const addAISesionIAObj = async (idx: number) => {
+    if (!aiSesionIA) return;
+    const sug = aiSesionIA.objetivos[idx];
+    if (!sug || addingAiIAIdx.has(idx) || addedAiIAIdx.has(idx)) return;
+    const title = (aiIAObjEdits[idx] ?? sug.title).trim();
     if (!title) return;
 
-    setAddingAiIdx(prev => new Set([...prev, idx]));
+    setAddingAiIAIdx(prev => new Set([...prev, idx]));
     try {
       const res = await fetch("/api/goal-library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nombreObjetivo: title,
-          area: sug.areaClinica ?? sug.category ?? "general",
-          areaClinica: sug.areaClinica ?? sug.category ?? "general",
-          nivelDificultad: sug.nivelDificultad ?? "básico",
+          area: sug.areaClinica ?? "general",
+          areaClinica: sug.areaClinica ?? "general",
+          nivelDificultad: sug.nivelDificultad ?? "inicial",
           estadoBanco: "sesion",
           isCustom: true,
         }),
@@ -1049,18 +1061,12 @@ export default function NuevaSesion() {
         ...prev,
         [created.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" },
       }));
-      setAddedAiIdx(prev => new Set([...prev, idx]));
+      setAddedAiIAIdx(prev => new Set([...prev, idx]));
     } catch {
       toast({ title: "Error al agregar el objetivo", variant: "destructive" });
     } finally {
-      setAddingAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
+      setAddingAiIAIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
     }
-  };
-
-  const dismissAISuggestion = (idx: number) => {
-    setAiSesionList(prev => prev.filter((_, i) => i !== idx));
-    setAiSesionEdits(prev => { const n = { ...prev }; delete n[idx]; return n; });
-    setAddedAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
   };
 
   // ── Report suggestion builder ──────────────────────────────────────────────
@@ -2003,7 +2009,7 @@ export default function NuevaSesion() {
             >
               <div className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-violet-500" />
-                <h2 className="text-sm font-bold text-violet-900">Objetivos sugeridos por diagnóstico</h2>
+                <h2 className="text-sm font-bold text-violet-900">Sugerencias según diagnóstico</h2>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-600 border border-violet-200">
                   {sessionDiagnosis}
                 </span>
@@ -2169,54 +2175,57 @@ export default function NuevaSesion() {
                 )}
               </h2>
               <button
-                onClick={loadingAISesion ? undefined : fetchAISesionSuggestions}
-                disabled={loadingAISesion}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shrink-0"
+                onClick={loadingAISesionIA ? undefined : fetchAISesionIA}
+                disabled={loadingAISesionIA}
+                className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border-2 transition-all shrink-0 shadow-sm active:scale-[0.98]"
                 style={{
-                  color: BRAND_BLUE,
-                  borderColor: `${BRAND_BLUE}40`,
-                  background: showAISesion ? `${BRAND_BLUE}08` : "transparent",
+                  color: "white",
+                  borderColor: "transparent",
+                  background: loadingAISesionIA
+                    ? `${BRAND_BLUE}90`
+                    : `linear-gradient(90deg, ${BRAND_BLUE} 0%, #c85a44 100%)`,
                 }}
               >
-                {loadingAISesion
-                  ? <span className="h-3 w-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
-                  : <Sparkles className="h-3.5 w-3.5" />
+                {loadingAISesionIA
+                  ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  : <Sparkles className="h-4 w-4" />
                 }
-                {loadingAISesion ? "Analizando…" : "Sugerir objetivos para esta sesión"}
+                {loadingAISesionIA ? "Analizando perfil…" : "Generar perfil, objetivos y actividades con IA"}
               </button>
             </div>
 
-            {/* ── AI session suggestion panel ─────────────────────────── */}
-            {showAISesion && (
+            {/* ── AI sesión-IA panel ───────────────────────────────────── */}
+            {showAISesionIA && (
               <div className="border-b border-border/50">
-                {loadingAISesion ? (
-                  <div className="px-5 py-6 flex items-center gap-3 text-sm text-muted-foreground">
-                    <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" />
-                    Analizando historial clínico, objetivos y sesiones recientes…
+                {loadingAISesionIA ? (
+                  <div className="px-5 py-8 flex flex-col items-center gap-3 text-sm text-muted-foreground">
+                    <span className="h-6 w-6 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
+                    <span>Analizando perfil, historial y objetivos del paciente…</span>
                   </div>
-                ) : aiSesionList.length === 0 ? (
+                ) : !aiSesionIA ? (
                   <div className="px-5 py-5 text-center text-sm text-muted-foreground">
-                    No se pudieron generar sugerencias para esta sesión.
-                    <button onClick={fetchAISesionSuggestions} className="ml-2 underline hover:no-underline">
+                    No se pudo generar el análisis.
+                    <button onClick={fetchAISesionIA} className="ml-2 underline hover:no-underline">
                       Reintentar
                     </button>
                   </div>
                 ) : (
-                  <div className="px-5 pt-3 pb-4 space-y-2.5">
+                  <div className="px-5 pt-4 pb-5 space-y-4">
+                    {/* Header con regenerar y cerrar */}
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
-                        <Sparkles className="h-3 w-3 inline mr-1" />
-                        Sugerencias IA para hoy
+                      <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: BRAND_BLUE }}>
+                        <Sparkles className="h-3 w-3" />
+                        Sugerencias IA según perfil
                       </p>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={fetchAISesionSuggestions}
+                          onClick={fetchAISesionIA}
                           className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground/70 transition-colors"
                         >
                           <RefreshCw className="h-2.5 w-2.5" /> Regenerar
                         </button>
                         <button
-                          onClick={() => setShowAISesion(false)}
+                          onClick={() => setShowAISesionIA(false)}
                           className="text-muted-foreground hover:text-foreground/70 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -2224,89 +2233,121 @@ export default function NuevaSesion() {
                       </div>
                     </div>
 
-                    {aiSesionList.map((sug, idx) => {
-                      const isAdded   = addedAiIdx.has(idx);
-                      const isAdding  = addingAiIdx.has(idx);
-                      const editVal   = aiSesionEdits[idx] ?? sug.title;
-                      return (
-                        <div
-                          key={idx}
-                          className={`rounded-xl border px-3.5 py-3 transition-all ${
-                            isAdded
-                              ? "border-emerald-200 bg-emerald-50/60"
-                              : "border-border/60 bg-muted/30"
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              {/* Editable title */}
-                              <input
-                                type="text"
-                                value={editVal}
-                                disabled={isAdded}
-                                onChange={e => setAiSesionEdits(prev => ({ ...prev, [idx]: e.target.value }))}
-                                className="w-full text-sm font-medium bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus:ring-0 p-0"
-                              />
-                              {/* Badges + rationale */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                {sug.areaClinica && (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/8 text-primary/80 capitalize">
-                                    {sug.areaClinica}
-                                  </span>
-                                )}
-                                {sug.nivelDificultad && (
-                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
-                                    sug.nivelDificultad === "avanzado"
-                                      ? "bg-orange-100 text-orange-700"
-                                      : sug.nivelDificultad === "intermedio"
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-emerald-100 text-emerald-700"
-                                  }`}>
-                                    {sug.nivelDificultad}
-                                  </span>
-                                )}
-                                {sug.rationale && (
-                                  <span className="text-[10px] text-muted-foreground italic leading-tight">
-                                    {sug.rationale}
-                                  </span>
-                                )}
+                    {/* 🧠 Perfil clínico */}
+                    {aiSesionIA.perfilClinico && (
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 flex items-center gap-1.5">
+                          🧠 Perfil clínico
+                        </p>
+                        <p className="text-sm text-blue-900/85 leading-relaxed">{aiSesionIA.perfilClinico}</p>
+                      </div>
+                    )}
+
+                    {/* 🎯 Objetivos */}
+                    {aiSesionIA.objetivos.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/60 flex items-center gap-1.5">
+                          🎯 Objetivos para hoy
+                        </p>
+                        {aiSesionIA.objetivos.map((obj, idx) => {
+                          const isAdded  = addedAiIAIdx.has(idx);
+                          const isAdding = addingAiIAIdx.has(idx);
+                          const editVal  = aiIAObjEdits[idx] ?? obj.title;
+                          return (
+                            <div
+                              key={idx}
+                              className={`rounded-xl border px-3.5 py-3 transition-all ${
+                                isAdded
+                                  ? "border-emerald-200 bg-emerald-50/60"
+                                  : "border-border/60 bg-white/70"
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  <input
+                                    type="text"
+                                    value={editVal}
+                                    disabled={isAdded}
+                                    onChange={e => setAiIAObjEdits(prev => ({ ...prev, [idx]: e.target.value }))}
+                                    className="w-full text-sm font-medium bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus:ring-0 p-0"
+                                  />
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {obj.areaClinica && (
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/8 text-primary/80 capitalize">
+                                        {obj.areaClinica}
+                                      </span>
+                                    )}
+                                    {obj.nivelDificultad && (
+                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
+                                        obj.nivelDificultad === "avanzado"
+                                          ? "bg-orange-100 text-orange-700"
+                                          : obj.nivelDificultad === "intermedio"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-emerald-100 text-emerald-700"
+                                      }`}>
+                                        {obj.nivelDificultad}
+                                      </span>
+                                    )}
+                                    {obj.rationale && (
+                                      <span className="text-[10px] text-muted-foreground italic leading-tight">
+                                        {obj.rationale}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="shrink-0 mt-0.5">
+                                  {isAdded ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                                      <CheckCircle2 className="h-3.5 w-3.5" /> Agregado
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => addAISesionIAObj(idx)}
+                                      disabled={isAdding || !editVal.trim()}
+                                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-all disabled:opacity-50"
+                                      style={{ background: isAdding ? `${BRAND_TEAL}80` : BRAND_TEAL }}
+                                    >
+                                      {isAdding
+                                        ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                                        : <Plus className="h-3 w-3" />
+                                      }
+                                      {isAdding ? "" : "Agregar"}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                            {/* Action buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                              {isAdded ? (
-                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                                  <CheckCircle2 className="h-3.5 w-3.5" /> Agregado
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => addAISuggestion(idx)}
-                                  disabled={isAdding || !editVal.trim()}
-                                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-all disabled:opacity-50"
-                                  style={{ background: isAdding ? `${BRAND_TEAL}80` : BRAND_TEAL }}
-                                >
-                                  {isAdding
-                                    ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                                    : <Plus className="h-3 w-3" />
-                                  }
-                                  {isAdding ? "" : "Agregar"}
-                                </button>
-                              )}
-                              {!isAdded && (
-                                <button
-                                  onClick={() => dismissAISuggestion(idx)}
-                                  className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                                  title="Descartar sugerencia"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {/* 🧩 Actividades */}
+                    {aiSesionIA.actividades.length > 0 && (
+                      <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-3 space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 flex items-center gap-1.5">
+                          🧩 Actividades prácticas
+                        </p>
+                        <ul className="space-y-1.5">
+                          {aiSesionIA.actividades.map((act, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-violet-900/85">
+                              <span className="shrink-0 font-bold text-violet-400 mt-0.5">·</span>
+                              <span className="leading-snug">{act}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 📌 Recomendaciones */}
+                    {aiSesionIA.recomendaciones && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 flex items-center gap-1.5">
+                          📌 Recomendaciones
+                        </p>
+                        <p className="text-sm text-amber-900/85 leading-relaxed">{aiSesionIA.recomendaciones}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

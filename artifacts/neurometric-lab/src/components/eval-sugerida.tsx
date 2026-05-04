@@ -420,7 +420,7 @@ export function EvalSugerida({ diagnosis, defaultOpen = false, compact = false }
         <div className="flex items-center gap-2">
           <Brain className="h-3.5 w-3.5 text-amber-700 shrink-0" />
           <span className="text-xs font-bold text-amber-900 tracking-wide uppercase">
-            Evaluación sugerida
+            Orientación clínica sugerida
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
             {getDiagnosisLabel(diagnosis)}
