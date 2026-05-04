@@ -53,7 +53,15 @@ export const BANCO_AREAS_FONO = [
 ];
 
 export const BANCO_AREAS_PSICOPED = [
-  "lectoescritura", "cognición",
+  "cognición",
+  "lectoescritura",
+  "comprensión lectora",
+  "producción escrita",
+  "matemática",
+  "memoria",
+  "funciones ejecutivas",
+  "estrategias de aprendizaje",
+  "atención",
 ];
 
 export function getBancoAreas(profesion: Profesion): string[] {

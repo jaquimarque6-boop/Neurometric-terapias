@@ -162,8 +162,14 @@ const DIAG_KEYWORDS: Record<string, string[]> = {
   "lectoescritura":        ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía", "discalculia", "comprensión lectora", "dificultades de aprendizaje"],
   "motricidad oral":       ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
   "motricidad orofacial":  ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
-  "estimulación temprana": ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé", "TEL", "TDL"],
-  "voz":                   ["voz", "disfonía", "nódulos", "fonación"],
+  "estimulación temprana":     ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé", "TEL", "TDL"],
+  "voz":                       ["voz", "disfonía", "nódulos", "fonación"],
+  "comprensión lectora":       ["dislexia", "comprensión lectora", "lectura", "dificultades de aprendizaje", "dificultades lectoras"],
+  "producción escrita":        ["disgrafía", "producción escrita", "escritura", "dislexia", "dificultades de aprendizaje"],
+  "matemática":                ["discalculia", "matemática", "cálculo", "dificultades de aprendizaje", "TDAH"],
+  "memoria":                   ["TDAH", "memoria", "funciones ejecutivas", "dificultades atencionales", "TEA"],
+  "estrategias de aprendizaje":["dificultades de aprendizaje", "metacognición", "TDAH", "funciones ejecutivas", "dislexia"],
+  "atención":                  ["TDAH", "dificultades atencionales", "atención", "TEA", "funciones ejecutivas"],
 };
 
 // ─── Age group definitions ─────────────────────────────────────────────────────

@@ -23,6 +23,157 @@ function trunc(s: string | null | undefined, max = 300): string {
   return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
+// ─── Fono prompts ─────────────────────────────────────────────────────────────
+
+function buildFonoSystemPrompt(): string {
+  return `Sos un asistente clínico especializado en fonoaudiología y terapias del neurodesarrollo.
+Tu tarea es generar un análisis clínico breve para orientar la sesión de hoy.
+
+Reglas estrictas:
+- NO uses etiquetas diagnósticas como TEA, TDAH, TEL, etc. Describí funcionalmente.
+- Basate EXCLUSIVAMENTE en los datos provistos — no inventés información.
+- El análisis debe ser práctico y orientado a la sesión de hoy.
+- Todo el contenido en español argentino (voseo, rioplatense).
+- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`;
+}
+
+function buildFonoUserPrompt(
+  patientCtx: string,
+  goalsCtx: string,
+  sessionsCtx: string,
+  sessionContext: string,
+  profLabel: string,
+): string {
+  return `Generá un análisis clínico para orientar la sesión de HOY con este paciente.
+
+═══════════════════════════════════════
+DATOS DEL PACIENTE
+═══════════════════════════════════════
+${patientCtx}
+Profesional: ${profLabel}
+
+═══════════════════════════════════════
+OBJETIVOS ACTIVOS
+═══════════════════════════════════════
+${goalsCtx}
+
+═══════════════════════════════════════
+SESIONES RECIENTES
+═══════════════════════════════════════
+${sessionsCtx}
+
+${sessionContext ? `═══════════════════════════════════════
+CONTEXTO DE ESTA SESIÓN
+═══════════════════════════════════════
+${sessionContext}` : ""}
+
+═══════════════════════════════════════
+INSTRUCCIÓN
+═══════════════════════════════════════
+Devolvé exactamente este JSON:
+
+{
+  "perfilClinico": "Párrafo breve (2-3 oraciones) describiendo el perfil funcional actual del paciente sin etiquetas diagnósticas. Mencioná edad, áreas de fortaleza y áreas de dificultad observadas.",
+  "objetivos": [
+    {
+      "title": "Objetivo concreto y trabajable en esta sesión",
+      "areaClinica": "área en minúsculas",
+      "nivelDificultad": "inicial|intermedio|avanzado",
+      "rationale": "Una oración justificando por qué trabajar esto hoy"
+    }
+  ],
+  "actividades": [
+    "Descripción breve de actividad práctica para realizar en sesión hoy"
+  ],
+  "recomendaciones": "1-2 oraciones con orientaciones para el terapeuta o la familia, basadas en el perfil y los objetivos propuestos."
+}
+
+Reglas:
+- perfilClinico: sin etiquetas diagnósticas, funcional y descriptivo.
+- objetivos: entre 2 y 3. Deben ser trabajables en UNA sesión.
+- actividades: exactamente 3. Concretas, breves, directamente aplicables hoy.
+- recomendaciones: breves, prácticas, orientadas al contexto real del paciente.
+- nivelDificultad: exactamente "inicial", "intermedio" o "avanzado".`;
+}
+
+// ─── Psicopedagogía prompts ───────────────────────────────────────────────────
+
+function buildPsicopedSystemPrompt(): string {
+  return `Sos un asistente clínico especializado en psicopedagogía y dificultades del aprendizaje escolar.
+Tu tarea es generar un análisis psicopedagógico breve para orientar la sesión de hoy.
+
+Marco conceptual que debés usar:
+- Describí SIEMPRE desde un perfil de aprendizaje funcional: procesos involucrados, nivel de adquisición, recursos y apoyos disponibles.
+- NO uses etiquetas diagnósticas como Dislexia, TDAH, TEA, etc. Describí funcionalmente cómo aprende el estudiante.
+- Usá terminología psicopedagógica: procesos de aprendizaje, estrategias cognitivas, nivel de adquisición, zona de desarrollo próximo, andamiaje, mediación, metacognición, transferencia, automatización.
+- Los objetivos deben ser MEDIBLES, contextualizados en el ámbito escolar cuando corresponda, y orientados a los procesos de aprendizaje.
+- Las actividades deben incluir: tareas estructuradas paso a paso, materiales escolares reales (texto del libro, ejercicio de la carpeta, hoja de matemática) y criterios de evaluación observables.
+- Basate EXCLUSIVAMENTE en los datos provistos — no inventés información.
+- Todo el contenido en español argentino (voseo, rioplatense).
+- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`;
+}
+
+function buildPsicopedUserPrompt(
+  patientCtx: string,
+  goalsCtx: string,
+  sessionsCtx: string,
+  sessionContext: string,
+  profLabel: string,
+): string {
+  return `Generá un análisis psicopedagógico para orientar la sesión de HOY con este estudiante.
+
+═══════════════════════════════════════
+DATOS DEL ESTUDIANTE
+═══════════════════════════════════════
+${patientCtx}
+Profesional: ${profLabel}
+
+═══════════════════════════════════════
+OBJETIVOS ACTIVOS
+═══════════════════════════════════════
+${goalsCtx}
+
+═══════════════════════════════════════
+SESIONES RECIENTES
+═══════════════════════════════════════
+${sessionsCtx}
+
+${sessionContext ? `═══════════════════════════════════════
+CONTEXTO DE ESTA SESIÓN
+═══════════════════════════════════════
+${sessionContext}` : ""}
+
+═══════════════════════════════════════
+INSTRUCCIÓN
+═══════════════════════════════════════
+Devolvé exactamente este JSON:
+
+{
+  "perfilClinico": "Párrafo breve (2-3 oraciones) describiendo el perfil de aprendizaje funcional del estudiante: procesos involucrados, nivel de adquisición actual, estrategias cognitivas que usa, recursos y apoyos disponibles. Sin etiquetas diagnósticas.",
+  "objetivos": [
+    {
+      "title": "Objetivo medible y contextualizado en el aprendizaje escolar",
+      "areaClinica": "área en minúsculas (ej: comprensión lectora, producción escrita, matemática, memoria, funciones ejecutivas, estrategias de aprendizaje)",
+      "nivelDificultad": "inicial|intermedio|avanzado",
+      "rationale": "Una oración explicando el nivel de adquisición actual y por qué este objetivo es el próximo paso de andamiaje"
+    }
+  ],
+  "actividades": [
+    "Descripción de actividad estructurada con: (1) material escolar real o tarea concreta, (2) pasos secuenciados de la consigna, (3) criterio observable de logro"
+  ],
+  "recomendaciones": "1-2 oraciones con estrategias de mediación o andamiaje para continuar en el hogar o en el aula, expresadas en lenguaje accesible para la familia o docente."
+}
+
+Reglas:
+- perfilClinico: funcional, sin diagnósticos, usá términos como 'nivel de adquisición', 'proceso de automatización', 'zona de desarrollo próximo'.
+- objetivos: entre 2 y 3. Medibles, escolares, con verbo de acción observable.
+- actividades: exactamente 3. Cada una debe tener material concreto, pasos y criterio de logro.
+- recomendaciones: orientadas a la mediación y el andamiaje en contexto cotidiano.
+- nivelDificultad: exactamente "inicial", "intermedio" o "avanzado".`;
+}
+
+// ─── Main endpoint ────────────────────────────────────────────────────────────
+
 router.post("/ai/sesion-ia", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
@@ -33,15 +184,19 @@ router.post("/ai/sesion-ia", async (req, res) => {
     sessionDiagnosis,
     observaciones,
     selectedArea,
+    profesion,
   } = req.body as {
     patientId: number;
     focoTerapeutico?: string;
     sessionDiagnosis?: string;
     observaciones?: string;
     selectedArea?: string;
+    profesion?: string;
   };
 
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
+
+  const isPsicoped = profesion === "psicopedagogia";
 
   const [
     [patient],
@@ -105,7 +260,9 @@ router.post("/ai/sesion-ia", async (req, res) => {
         const pct = lastPct ?? g.progressPct ?? (g.status === "logrado" ? 100 : g.status === "en progreso" ? 55 : 20);
         return `- [${g.status} ${pct}%] "${g.title}" (área: ${g.areaClinica ?? g.category})`;
       }).join("\n")
-    : "Sin objetivos activos actualmente.";
+    : isPsicoped
+      ? "Sin objetivos de aprendizaje activos actualmente."
+      : "Sin objetivos activos actualmente.";
 
   const sessionsCtx = recentRC.length > 0
     ? recentRC.map((r, i) => {
@@ -117,72 +274,31 @@ router.post("/ai/sesion-ia", async (req, res) => {
     : "Sin sesiones registradas.";
 
   const sessionContext = [
-    sessionDiagnosis ? `Diagnóstico de sesión indicado por el terapeuta: ${sessionDiagnosis}` : null,
-    selectedArea ? `Área seleccionada para hoy: ${selectedArea}` : null,
-    focoTerapeutico ? `Foco terapéutico indicado: ${focoTerapeutico}` : null,
-    observaciones ? `Observaciones previas del terapeuta: ${observaciones}` : null,
+    sessionDiagnosis
+      ? isPsicoped
+        ? `Perfil / área de intervención indicada: ${sessionDiagnosis}`
+        : `Diagnóstico de sesión indicado por el terapeuta: ${sessionDiagnosis}`
+      : null,
+    selectedArea ? `Área de trabajo seleccionada para hoy: ${selectedArea}` : null,
+    focoTerapeutico
+      ? isPsicoped
+        ? `Foco de intervención psicopedagógica indicado: ${focoTerapeutico}`
+        : `Foco terapéutico indicado: ${focoTerapeutico}`
+      : null,
+    observaciones ? `Observaciones del profesional: ${observaciones}` : null,
   ].filter(Boolean).join("\n");
 
-  const systemPrompt = `Sos un asistente clínico especializado en terapias del neurodesarrollo (fonoaudiología, psicopedagogía, terapia ocupacional).
-Tu tarea es generar un análisis clínico breve para orientar la sesión de hoy.
+  const profLabel = professionals.map(p => `${p.name} (${p.specialty})`).join(", ")
+    || patient.profesionalNombre
+    || "No registrado";
 
-Reglas estrictas:
-- NO uses etiquetas diagnósticas como TEA, TDAH, TEL, etc. Describí funcionalmente.
-- Basate EXCLUSIVAMENTE en los datos provistos — no inventés información.
-- El análisis debe ser práctico y orientado a la sesión de hoy.
-- Todo el contenido en español argentino (voseo, rioplatense).
-- Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`;
+  const systemPrompt = isPsicoped
+    ? buildPsicopedSystemPrompt()
+    : buildFonoSystemPrompt();
 
-  const userPrompt = `Generá un análisis clínico para orientar la sesión de HOY con este paciente.
-
-═══════════════════════════════════════
-DATOS DEL PACIENTE
-═══════════════════════════════════════
-${patientCtx}
-Profesional: ${professionals.map(p => `${p.name} (${p.specialty})`).join(", ") || patient.profesionalNombre || "No registrado"}
-
-═══════════════════════════════════════
-OBJETIVOS ACTIVOS
-═══════════════════════════════════════
-${goalsCtx}
-
-═══════════════════════════════════════
-SESIONES RECIENTES
-═══════════════════════════════════════
-${sessionsCtx}
-
-${sessionContext ? `═══════════════════════════════════════
-CONTEXTO DE ESTA SESIÓN
-═══════════════════════════════════════
-${sessionContext}` : ""}
-
-═══════════════════════════════════════
-INSTRUCCIÓN
-═══════════════════════════════════════
-Devolvé exactamente este JSON:
-
-{
-  "perfilClinico": "Párrafo breve (2-3 oraciones) describiendo el perfil funcional actual del paciente sin etiquetas diagnósticas. Mencioná edad, áreas de fortaleza y áreas de dificultad observadas.",
-  "objetivos": [
-    {
-      "title": "Objetivo concreto y trabajable en esta sesión",
-      "areaClinica": "área en minúsculas",
-      "nivelDificultad": "inicial|intermedio|avanzado",
-      "rationale": "Una oración justificando por qué trabajar esto hoy"
-    }
-  ],
-  "actividades": [
-    "Descripción breve de actividad práctica para realizar en sesión hoy"
-  ],
-  "recomendaciones": "1-2 oraciones con orientaciones para el terapeuta o la familia, basadas en el perfil y los objetivos propuestos."
-}
-
-Reglas:
-- perfilClinico: sin etiquetas diagnósticas, funcional y descriptivo.
-- objetivos: entre 2 y 3. Deben ser trabajables en UNA sesión.
-- actividades: exactamente 3. Concretas, breves, directamente aplicables hoy.
-- recomendaciones: breves, prácticas, orientadas al contexto real del paciente.
-- nivelDificultad: exactamente "inicial", "intermedio" o "avanzado".`;
+  const userPrompt = isPsicoped
+    ? buildPsicopedUserPrompt(patientCtx, goalsCtx, sessionsCtx, sessionContext, profLabel)
+    : buildFonoUserPrompt(patientCtx, goalsCtx, sessionsCtx, sessionContext, profLabel);
 
   try {
     const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
@@ -195,7 +311,7 @@ Reglas:
 
     const openai = new OpenAI({ apiKey, baseURL });
 
-    console.log(`[ai-sesion-ia] paciente=${patientId} area=${selectedArea ?? "—"} diagnóstico=${sessionDiagnosis ?? "—"} modelo=${model}`);
+    console.log(`[ai-sesion-ia] paciente=${patientId} area=${selectedArea ?? "—"} profesion=${profesion ?? "fono"} diagnóstico=${sessionDiagnosis ?? "—"} modelo=${model}`);
 
     const response = await openai.chat.completions.create({
       model,
