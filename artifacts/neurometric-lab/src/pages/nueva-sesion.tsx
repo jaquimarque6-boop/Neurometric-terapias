@@ -601,6 +601,45 @@ function calcPct(intentos: string, correctas: string): number | null {
   return Math.round((Math.min(c, i) / i) * 100);
 }
 
+// ─── Fila de objetivo sugerido por diagnóstico ────────────────────────────────
+function DiagGoalRow({
+  g,
+  tier,
+  onAdd,
+}: {
+  g: any;
+  tier?: "adecuado" | "inferior" | "superior";
+  onAdd: () => void;
+}) {
+  const borderColor =
+    tier === "inferior" ? "border-amber-200 hover:bg-amber-50/40"
+    : tier === "superior" ? "border-sky-200 hover:bg-sky-50/40"
+    : "border-violet-100 hover:bg-violet-50/60";
+  const btnColor =
+    tier === "inferior" ? "border-amber-300 text-amber-700 hover:bg-amber-100"
+    : tier === "superior" ? "border-sky-300 text-sky-700 hover:bg-sky-100"
+    : "border-violet-300 text-violet-600 hover:bg-violet-100";
+
+  return (
+    <div className={`flex items-start gap-3 px-5 py-3 transition-colors border-b last:border-0 ${borderColor}`}>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          {g.areaClinica ?? g.area}
+          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
+          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+        </p>
+      </div>
+      <button
+        className={`shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors mt-0.5 ${btnColor}`}
+        onClick={onAdd}
+      >
+        + Agregar
+      </button>
+    </div>
+  );
+}
+
 export default function NuevaSesion() {
   const [, navigate]               = useLocation();
   const search                     = useSearch();
@@ -797,6 +836,11 @@ export default function NuevaSesion() {
     !(goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id)
   );
 
+  // Group by age tier returned from the API
+  const diagAdecuado  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "adecuado");
+  const diagInferior  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "inferior");
+  const diagSuperior  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "superior");
+
   const filteredPatients = (patients as any[]).filter(p =>
     !patientSearch || p.name.toLowerCase().includes(patientSearch.toLowerCase())
   );
@@ -888,7 +932,7 @@ export default function NuevaSesion() {
     if (!patient || !effectiveDiagnosis) { setDiagSuggestions([]); return; }
     let cancelled = false;
     setLoadingDiagSug(true);
-    const params = new URLSearchParams({ diagnosis: effectiveDiagnosis, limit: "12" });
+    const params = new URLSearchParams({ diagnosis: effectiveDiagnosis, limit: "30" });
     fetch(`/api/patients/${patient.id}/suggested-goals?${params}`)
       .then(r => r.json())
       .then(data => { if (!cancelled) setDiagSuggestions(Array.isArray(data) ? data : []); })
@@ -2080,7 +2124,7 @@ export default function NuevaSesion() {
             </button>
 
             {showDiagSug && (
-              <div className="border-t border-violet-100 divide-y divide-violet-100">
+              <div className="border-t border-violet-100">
                 {loadingDiagSug ? (
                   <div className="px-5 py-6 text-center text-sm text-muted-foreground">Buscando objetivos…</div>
                 ) : visibleDiagSuggestions.length === 0 ? (
@@ -2090,33 +2134,63 @@ export default function NuevaSesion() {
                       : "Todos los objetivos sugeridos ya están agregados a la sesión."}
                   </div>
                 ) : (
-                  visibleDiagSuggestions.map((g: any) => (
-                    <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {g.areaClinica ?? g.area}
-                          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
-                          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
-                        </p>
+                  <div className="divide-y divide-violet-100">
+                    {/* ── Nivel adecuado ── */}
+                    {diagAdecuado.length > 0 && (
+                      <div>
+                        <div className="px-5 pt-3 pb-1 flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-violet-700">
+                            ✓ Nivel adecuado
+                          </span>
+                          {patient?.age && (
+                            <span className="text-[10px] text-violet-500 font-medium">
+                              — {patient.age} años
+                            </span>
+                          )}
+                        </div>
+                        {diagAdecuado.map((g: any) => (
+                          <DiagGoalRow key={g.id} g={g} onAdd={() => {
+                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
+                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
+                          }} />
+                        ))}
                       </div>
-                      <button
-                        className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
-                        onClick={() => {
-                          setAdHocGoals(prev => {
-                            if (prev.find(a => a.id === g.id)) return prev;
-                            return [...prev, g];
-                          });
-                          setAdHocRows(prev => {
-                            if (prev[g.id]) return prev;
-                            return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
-                          });
-                        }}
-                      >
-                        + Agregar
-                      </button>
-                    </div>
-                  ))
+                    )}
+
+                    {/* ── Nivel inferior (apoyo) ── */}
+                    {diagInferior.length > 0 && (
+                      <div>
+                        <div className="px-5 pt-3 pb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                            ↓ Nivel inferior — como apoyo
+                          </span>
+                        </div>
+                        {diagInferior.map((g: any) => (
+                          <DiagGoalRow key={g.id} g={g} tier="inferior" onAdd={() => {
+                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
+                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
+                          }} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* ── Nivel superior (extensión) ── */}
+                    {diagSuperior.length > 0 && (
+                      <div>
+                        <div className="px-5 pt-3 pb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-sky-600">
+                            ↑ Nivel superior — extensión opcional
+                          </span>
+                        </div>
+                        {diagSuperior.map((g: any) => (
+                          <DiagGoalRow key={g.id} g={g} tier="superior" onAdd={() => {
+                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
+                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
+                          }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

@@ -155,16 +155,55 @@ router.patch("/goal-library/:id", async (req, res) => {
 
 // ─── Diagnosis → area keywords ────────────────────────────────────────────────
 const DIAG_KEYWORDS: Record<string, string[]> = {
-  "lenguaje":              ["TEL", "TDL", "retraso del lenguaje", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
+  "lenguaje":              ["TEL", "TDL", "retraso del lenguaje", "retraso madurativo", "disfasia", "lenguaje", "léxico", "narrativo", "expresivo", "comprensivo"],
   "habla":                 ["trastorno fonológico", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "tartamudez", "fluidez", "articulación", "habla", "TEL", "TDL"],
   "pragmática":            ["TEA", "TDL", "autismo", "pragmática", "social", "conducta"],
-  "cognición":             ["TDAH", "TEA", "atención", "memoria", "ejecutivas", "cognitivo"],
-  "lectoescritura":        ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía"],
+  "cognición":             ["TDAH", "TEA", "atención", "memoria", "ejecutivas", "funciones ejecutivas", "dificultades atencionales", "cognitivo", "discalculia"],
+  "lectoescritura":        ["dislexia", "lectura", "escritura", "lectoescritura", "disgrafía", "discalculia", "comprensión lectora", "dificultades de aprendizaje"],
   "motricidad oral":       ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
   "motricidad orofacial":  ["deglución", "orofacial", "praxis", "tono", "respiración", "dislalia", "tsh", "trastornos de los sonidos", "apraxia", "disartria", "deglución atípica"],
-  "estimulación temprana": ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé"],
+  "estimulación temprana": ["retraso madurativo", "retraso del desarrollo", "estimulación", "temprana", "bebé", "TEL", "TDL"],
   "voz":                   ["voz", "disfonía", "nódulos", "fonación"],
 };
+
+// ─── Age group definitions ─────────────────────────────────────────────────────
+const AGE_GROUPS = [
+  { min: 0,  max: 2,  label: "0–2"   },
+  { min: 3,  max: 5,  label: "3–5"   },
+  { min: 6,  max: 8,  label: "6–8"   },
+  { min: 9,  max: 12, label: "9–12"  },
+  { min: 13, max: 16, label: "13–16" },
+  { min: 17, max: 99, label: "17+"   },
+] as const;
+
+function getPatientGroupIdx(age: number): number {
+  for (let i = 0; i < AGE_GROUPS.length; i++) {
+    if (age >= AGE_GROUPS[i].min && age <= AGE_GROUPS[i].max) return i;
+  }
+  return AGE_GROUPS.length - 1;
+}
+
+function getGoalGroupIdx(gMin: number | null, gMax: number | null): number {
+  if (gMin === null || gMax === null) return -1;
+  const mid = (gMin + gMax) / 2;
+  for (let i = 0; i < AGE_GROUPS.length; i++) {
+    if (mid >= AGE_GROUPS[i].min && mid <= AGE_GROUPS[i].max) return i;
+  }
+  return -1;
+}
+
+function computeAgeTier(
+  goalGroupIdx: number,
+  patientGroupIdx: number,
+): "adecuado" | "inferior" | "superior" | null {
+  if (goalGroupIdx === -1) return null;       // goal has no franja — handled separately
+  if (patientGroupIdx === -1) return null;   // patient has no age — no tier
+  const diff = goalGroupIdx - patientGroupIdx;
+  if (diff === 0)  return "adecuado";
+  if (diff === -1) return "inferior";
+  if (diff === 1)  return "superior";
+  return null; // too far away
+}
 
 // ─── Smart suggestions for a patient ─────────────────────────────────────────
 router.get("/patients/:id/suggested-goals", async (req, res) => {
@@ -181,51 +220,72 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
     .where(eq(goalLibraryTable.estadoBanco, "activo"));
 
   const patientAge = patient.age ? parseInt(String(patient.age)) : null;
-  const franjaRaw = patient.franjaEtaria ?? "";
-  const [franjaMin, franjaMax] = franjaRaw.split("-").map(Number);
+  const patientGroupIdx = patientAge !== null ? getPatientGroupIdx(patientAge) : -1;
 
-  // Allow caller to override the stored diagnosis (e.g. session-specific selection)
+  // Allow caller to override the stored diagnosis
   const diagnosis = (diagnosisOverride ?? patient.diagnosis ?? "").toLowerCase();
-  const resultLimit = limitParam ? parseInt(limitParam) : 10;
+  const limitPerTier = limitParam ? Math.ceil(parseInt(limitParam) / 3) : 8;
 
-  const scored = allLibraryGoals
+  // Tag each goal with age tier + diagnosis score
+  const tagged = allLibraryGoals
     .filter(g => !assignedLibraryIds.has(g.id))
     .map(g => {
-      let score = 0;
-
-      // Age match
       const gMin = g.franjaEtariaMin ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[0]) : null);
       const gMax = g.franjaEtariaMax ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[1]) : null);
-      if (gMin !== null && gMax !== null && !isNaN(gMin) && !isNaN(gMax)) {
-        if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) {
-          score += 4;
-        } else if (!isNaN(franjaMin) && !isNaN(franjaMax)) {
-          const overlapMin = Math.max(franjaMin, gMin);
-          const overlapMax = Math.min(franjaMax, gMax);
-          if (overlapMax >= overlapMin) score += 3;
-        }
-      }
+      const goalGroupIdx = getGoalGroupIdx(gMin, gMax);
+      const hasNoFranja = gMin === null && gMax === null;
 
-      // Diagnosis keyword match per area
+      // Age tier: goals with no franja are age-neutral → "adecuado" if diagnosis matches
+      const ageTier = hasNoFranja
+        ? "adecuado" as const
+        : computeAgeTier(goalGroupIdx, patientGroupIdx);
+
+      // Diagnosis relevance score
+      let diagScore = 0;
       if (diagnosis) {
         const area = (g.areaClinica ?? g.area ?? "").toLowerCase();
         const keywords = DIAG_KEYWORDS[area] ?? [];
         for (const kw of keywords) {
-          if (diagnosis.includes(kw.toLowerCase())) { score += 5; break; }
+          if (diagnosis.includes(kw.toLowerCase())) { diagScore = 1; break; }
         }
       }
 
-      // Prefer básico for young patients
-      if (patientAge !== null && patientAge <= 4 && g.nivelDificultad === "básico") score += 1;
-
-      return { ...g, _score: score };
+      return { ...g, ageTier, diagScore, _hasNoFranja: hasNoFranja };
     })
-    .filter(g => g._score > 0)
-    .sort((a, b) => b._score - a._score)
-    .slice(0, resultLimit)
-    .map(({ _score, ...g }) => ({ ...g, createdAt: g.createdAt.toISOString() }));
+    .filter(g => {
+      // Must match diagnosis if one is provided (skip if no diagnosis: show age-tier only)
+      if (diagnosis && g.diagScore === 0) return false;
+      // Must have a valid age tier
+      return g.ageTier !== null;
+    });
 
-  return res.json(scored);
+  // Sort within each tier: diagnosis match first, then by nivelDificultad order
+  const NIVEL_ORDER: Record<string, number> = { "básico": 0, "intermedio": 1, "avanzado": 2 };
+  const sorted = tagged.sort((a, b) => {
+    // Tier order: adecuado → inferior → superior
+    const TIER_ORDER: Record<string, number> = { "adecuado": 0, "inferior": 1, "superior": 2 };
+    const tierDiff = (TIER_ORDER[a.ageTier!] ?? 3) - (TIER_ORDER[b.ageTier!] ?? 3);
+    if (tierDiff !== 0) return tierDiff;
+    // Within tier: higher diagnosis score first
+    if (b.diagScore !== a.diagScore) return b.diagScore - a.diagScore;
+    // Then by difficulty level
+    return (NIVEL_ORDER[a.nivelDificultad] ?? 1) - (NIVEL_ORDER[b.nivelDificultad] ?? 1);
+  });
+
+  // Cap per tier
+  const tierCounts: Record<string, number> = {};
+  const result = sorted
+    .filter(g => {
+      const tier = g.ageTier!;
+      tierCounts[tier] = (tierCounts[tier] ?? 0) + 1;
+      return tierCounts[tier] <= limitPerTier;
+    })
+    .map(({ diagScore, _hasNoFranja, ...g }) => ({
+      ...g,
+      createdAt: g.createdAt.toISOString(),
+    }));
+
+  return res.json(result);
 });
 
 // ─── Assign goal to patient ───────────────────────────────────────────────────
