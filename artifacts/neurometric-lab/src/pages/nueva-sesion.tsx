@@ -766,6 +766,25 @@ export default function NuevaSesion() {
     g => g.status === "activo" || g.status === "en progreso"
   );
 
+  // ── Registros clínicos previos del paciente ────────────────────────────────
+  const { data: registrosRaw = [] } = useQuery({
+    queryKey: ["nueva-sesion-registros", patient?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/registros-clinicos?patientId=${patient!.id}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!patient,
+  });
+
+  const lastRegistro = useMemo(() => {
+    const list = registrosRaw as any[];
+    if (!list.length) return null;
+    return [...list].sort((a, b) =>
+      new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+    )[0];
+  }, [registrosRaw]);
+
   const assignedLibraryIds = new Set([
     ...(goalsRaw as any[]).map((g: any) => g.goalLibraryId).filter(Boolean),
     ...adHocGoals.map(g => g.id),
@@ -2104,84 +2123,64 @@ export default function NuevaSesion() {
           </div>
         )}
 
-        {/* ── Guía de la sesión ─────────────────────────────────────────── */}
-        {patient && !loadingGoals && goals.length > 0 && (
-          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}40`, background: `linear-gradient(135deg, ${BRAND_TEAL}10 0%, #faf7f5 100%)` }}>
+        {/* ── Resumen de sesión anterior ────────────────────────────────── */}
+        {patient && (
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}40`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
-              <Sparkles className="h-4 w-4" style={{ color: BRAND_TEAL }} />
-              <h2 className="text-sm font-bold text-foreground">Guía de la sesión</h2>
+              <ClipboardList className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+              <h2 className="text-sm font-bold text-foreground">Resumen de sesión anterior</h2>
+              {lastRegistro?.fecha && (
+                <span className="ml-auto text-[10px] text-muted-foreground font-medium">
+                  {new Date(lastRegistro.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                </span>
+              )}
             </div>
 
-            <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
-              {/* Last session summary */}
-              {lastWorkedGoal && (
-                <div className="px-5 py-3.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Sesión anterior</p>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground/80 truncate">{lastWorkedGoal.title}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {(() => {
-                          const ce = inferClinicalEstado(lastWorkedGoal.progressPct);
-                          const b = ESTADO_BADGE[ce];
-                          return (
-                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
-                              {b?.label ?? ce}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Suggested objectives */}
-              <div className="px-5 py-3.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">
-                  Trabajo en sesión 
+            <div className="px-5 py-4 space-y-3">
+              {!lastRegistro ? (
+                <p className="text-sm text-muted-foreground italic">
+                  No hay resumen previo registrado para este paciente.
                 </p>
-                <div className="space-y-2">
-                  {suggestedGoals.map(goal => {
-                    const row = rows[goal.id] ?? defaultRow(inferClinicalEstado(goal.progressPct));
-                    return (
-                      <button
-                        key={goal.id}
-                        className="w-full flex items-center gap-3 text-left rounded-xl px-3.5 py-2.5 transition-all hover:shadow-sm"
-                        style={{
-                          background: row.checked ? `${BRAND_TEAL}12` : "white",
-                          border: `1.5px solid ${row.checked ? BRAND_TEAL + "40" : "#e2e8f0"}`,
-                        }}
-                        onClick={() => toggleRow(goal.id)}
-                      >
-                        <div className="shrink-0">
-                          {row.checked
-                            ? <CheckSquare className="h-4.5 w-4.5" style={{ color: BRAND_TEAL }} />
-                            : <Square className="h-4.5 w-4.5 text-muted-foreground/40" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium leading-snug ${row.checked ? "text-foreground" : "text-muted-foreground"}`}>
-                            {goal.title}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {goal.areaClinica ?? goal.category}
-                          </p>
-                        </div>
-                        {(() => {
-                          const ce = inferClinicalEstado(goal.progressPct);
-                          const b = ESTADO_BADGE[ce];
-                          return (
-                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
-                              {b?.label ?? ce}
-                            </span>
-                          );
-                        })()}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              ) : (
+                <>
+                  {lastRegistro.resumenSesion && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Resumen
+                      </p>
+                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
+                        {lastRegistro.resumenSesion}
+                      </p>
+                    </div>
+                  )}
+                  {lastRegistro.observaciones && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Observaciones clínicas
+                      </p>
+                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
+                        {lastRegistro.observaciones}
+                      </p>
+                    </div>
+                  )}
+                  {lastRegistro.recomendacionesHogar && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Próximos pasos / Recomendaciones
+                      </p>
+                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
+                        {lastRegistro.recomendacionesHogar}
+                      </p>
+                    </div>
+                  )}
+                  {!lastRegistro.resumenSesion && !lastRegistro.observaciones && !lastRegistro.recomendacionesHogar && (
+                    <p className="text-sm text-muted-foreground italic">
+                      No hay resumen previo registrado para este paciente.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}
