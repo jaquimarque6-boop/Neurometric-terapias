@@ -1,7 +1,7 @@
 import pg from '/home/runner/workspace/node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/index.js';
 
-const SUPABASE_URL = 'https://taczpgaryiphxnoniftl.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhY3pwZ2FyeWlwaHhub25pZnRsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY3OTE4MSwiZXhwIjoyMDkzMjU1MTgxfQ.fPS8B3oIsF6YbUAkjlyTCSCQAADhiWWAfn_i-3cHxfU';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const { Pool } = pg;
 const local = new Pool({
   host: process.env.PGHOST,
