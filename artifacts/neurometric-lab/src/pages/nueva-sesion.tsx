@@ -631,6 +631,7 @@ export default function NuevaSesion() {
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
   const [sessionDiagnosis, setSessionDiagnosis]   = useState("");
+  const [diagOtroText, setDiagOtroText]           = useState("");
   const [diagSuggestions, setDiagSuggestions]     = useState<any[]>([]);
   const [loadingDiagSug, setLoadingDiagSug]       = useState(false);
   const [showDiagSug, setShowDiagSug]             = useState(true);
@@ -686,6 +687,11 @@ export default function NuevaSesion() {
       setSelectedBloque(null);
     }
   }, [franjaPaciente]);
+
+  // ── Effective diagnosis: "Otro" uses free-text, otherwise the chip value ──
+  const effectiveDiagnosis = sessionDiagnosis === "Otro"
+    ? diagOtroText.trim()
+    : sessionDiagnosis;
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -833,7 +839,15 @@ export default function NuevaSesion() {
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
     setDismissedGoalIds(new Set());
-    setSessionDiagnosis(p.diagnosis ?? "");
+    const savedDiag = p.diagnosis ?? "";
+    const knownVals = diagnosisOptions.map((d: any) => d.value);
+    if (savedDiag && !knownVals.includes(savedDiag)) {
+      setSessionDiagnosis("Otro");
+      setDiagOtroText(savedDiag);
+    } else {
+      setSessionDiagnosis(savedDiag);
+      setDiagOtroText("");
+    }
     setDiagSuggestions([]);
     setShowAISesionIA(false);
     setAiSesionIA(null);
@@ -852,17 +866,17 @@ export default function NuevaSesion() {
 
   // ── Fetch diagnosis-based goal suggestions from the library ──────────────────
   useEffect(() => {
-    if (!patient || !sessionDiagnosis) { setDiagSuggestions([]); return; }
+    if (!patient || !effectiveDiagnosis) { setDiagSuggestions([]); return; }
     let cancelled = false;
     setLoadingDiagSug(true);
-    const params = new URLSearchParams({ diagnosis: sessionDiagnosis, limit: "12" });
+    const params = new URLSearchParams({ diagnosis: effectiveDiagnosis, limit: "12" });
     fetch(`/api/patients/${patient.id}/suggested-goals?${params}`)
       .then(r => r.json())
       .then(data => { if (!cancelled) setDiagSuggestions(Array.isArray(data) ? data : []); })
       .catch(() => { if (!cancelled) setDiagSuggestions([]); })
       .finally(() => { if (!cancelled) setLoadingDiagSug(false); });
     return () => { cancelled = true; };
-  }, [patient?.id, sessionDiagnosis]);
+  }, [patient?.id, effectiveDiagnosis]);
 
   // ── Clear phoneme selection when diagnosis changes ─────────────────────────
   useEffect(() => {
@@ -1011,7 +1025,7 @@ export default function NuevaSesion() {
         body: JSON.stringify({
           patientId: patient.id,
           focoTerapeutico: focoTerapeutico || undefined,
-          sessionDiagnosis: sessionDiagnosis || undefined,
+          sessionDiagnosis: effectiveDiagnosis || undefined,
           observaciones: observaciones || undefined,
           selectedArea: selectedBloque || undefined,
         }),
@@ -1073,7 +1087,7 @@ export default function NuevaSesion() {
   const buildResumenSugerido = (): string => {
     const nombre = patient?.name?.split(" ")[0] ?? "el/la paciente";
     const edad = patient?.age ? `${patient.age} años` : null;
-    const diag = (sessionDiagnosis ?? "").trim();
+    const diag = effectiveDiagnosis.trim();
 
     type DiagCtx = { area: string; focus: string; progress: string; recomendacion: string };
     const DIAG_CTX: Array<{ match: string[]; ctx: DiagCtx }> = [
@@ -1703,17 +1717,28 @@ export default function NuevaSesion() {
                 <Stethoscope className="h-4 w-4" style={{ color: BRAND_TEAL }} />
                 Diagnóstico
               </label>
-              <div className="flex flex-wrap gap-2">
-                {diagnosisOptions.map(d => {
+              <div
+                className="flex flex-wrap gap-1.5 rounded-xl border border-border/50 bg-muted/20 p-2.5"
+                style={{ maxHeight: "11rem", overflowY: "auto" }}
+              >
+                {diagnosisOptions.map((d: any) => {
                   const active = sessionDiagnosis === d.value;
                   return (
                     <button
                       key={d.value}
-                      onClick={() => setSessionDiagnosis(active ? "" : d.value)}
+                      onClick={() => {
+                        if (active) {
+                          setSessionDiagnosis("");
+                          setDiagOtroText("");
+                        } else {
+                          setSessionDiagnosis(d.value);
+                          if (d.value !== "Otro") setDiagOtroText("");
+                        }
+                      }}
                       className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                         active
                           ? "text-white border-transparent shadow-sm"
-                          : "bg-muted/50 border-border/70 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
+                          : "bg-white/80 border-border/60 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
                       }`}
                       style={active ? { background: BRAND_TEAL, borderColor: BRAND_TEAL } : {}}
                     >
@@ -1722,13 +1747,29 @@ export default function NuevaSesion() {
                   );
                 })}
               </div>
-              {sessionDiagnosis && (
+
+              {/* Texto libre cuando se selecciona "Otro" */}
+              {sessionDiagnosis === "Otro" && (
+                <input
+                  type="text"
+                  value={diagOtroText}
+                  onChange={e => setDiagOtroText(e.target.value)}
+                  placeholder="Especificar diagnóstico…"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-border/60 bg-white/80 outline-none focus:ring-2 focus:border-transparent"
+                  style={{ "--tw-ring-color": BRAND_TEAL } as any}
+                  autoFocus
+                />
+              )}
+
+              {effectiveDiagnosis && (
                 <p className="text-xs text-muted-foreground pl-0.5">
-                  {diagnosisOptions.find(d => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis}
+                  {sessionDiagnosis === "Otro"
+                    ? effectiveDiagnosis
+                    : (diagnosisOptions.find((d: any) => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis)}
                 </p>
               )}
-              {sessionDiagnosis && (
-                <EvalSugerida diagnosis={sessionDiagnosis} compact />
+              {effectiveDiagnosis && (
+                <EvalSugerida diagnosis={effectiveDiagnosis} compact />
               )}
             </div>
           )}
@@ -1877,14 +1918,14 @@ export default function NuevaSesion() {
             {patient.age && <span>{patient.age} años</span>}
             <span className="text-border/70">·</span>
             <span>{fecha}</span>
-            {sessionDiagnosis && (
+            {effectiveDiagnosis && (
               <>
                 <span className="text-border/70">·</span>
                 <span
                   className="font-semibold px-2 py-0.5 rounded-full text-white text-[10px]"
                   style={{ background: BRAND_TEAL }}
                 >
-                  {sessionDiagnosis}
+                  {effectiveDiagnosis}
                 </span>
               </>
             )}
@@ -1900,7 +1941,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía de adquisición de fonemas (TSH) ─────────────────────── */}
-        {patient && (sessionDiagnosis === "TSH" || sessionDiagnosis === "Dislalia") && (
+        {patient && (effectiveDiagnosis === "TSH" || effectiveDiagnosis === "Dislalia") && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}35`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
@@ -2001,7 +2042,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Objetivos sugeridos por diagnóstico ───────────────────────── */}
-        {patient && sessionDiagnosis && (
+        {patient && effectiveDiagnosis && (
           <div className="rounded-2xl border border-violet-200 shadow-sm overflow-hidden bg-violet-50/40">
             <button
               className="w-full flex items-center justify-between gap-2 px-5 py-3.5"
@@ -2011,7 +2052,7 @@ export default function NuevaSesion() {
                 <Stethoscope className="h-4 w-4 text-violet-500" />
                 <h2 className="text-sm font-bold text-violet-900">Sugerencias según diagnóstico</h2>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-600 border border-violet-200">
-                  {sessionDiagnosis}
+                  {effectiveDiagnosis}
                 </span>
               </div>
               {showDiagSug
