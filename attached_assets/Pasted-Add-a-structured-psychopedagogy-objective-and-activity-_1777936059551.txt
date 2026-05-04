@@ -1,0 +1,144 @@
+Add a structured psychopedagogy objective and activity bank to the app.
+
+Goal:
+Provide ready-to-use clinical content for psychopedagogical intervention.
+
+---
+
+1. Add the following areas:
+
+- Comprensión lectora
+- Producción escrita
+- Atención
+- Funciones ejecutivas
+- Memoria
+- Matemática
+- Estrategias de aprendizaje
+
+---
+
+2. Add objective bank (psychopedagogical, measurable):
+
+COMPRENSIÓN LECTORA:
+
+- Identificar idea principal en textos breves con apoyo visual en 4/5 intentos
+- Responder preguntas literales luego de lectura guiada en 4/5 oportunidades
+- Inferir información simple a partir de pistas del texto en 3/5 intentos
+- Reconocer personajes y secuencia narrativa en cuentos cortos
+- Diferenciar información relevante vs irrelevante en un párrafo breve
+
+PRODUCCIÓN ESCRITA:
+
+- Escribir oraciones simples con estructura sujeto-verbo-objeto en 4/5 intentos
+- Organizar ideas en secuencia lógica (inicio–desarrollo–cierre)
+- Reducir errores ortográficos frecuentes en palabras cotidianas
+- Copiar texto breve manteniendo legibilidad
+- Producir texto breve (3–4 oraciones) a partir de imagen
+
+ATENCIÓN:
+
+- Mantener atención sostenida durante 10 minutos en tarea estructurada
+- Seguir consignas de 2 pasos sin ayuda
+- Reducir distracciones externas durante actividad
+- Completar tarea sin abandonarla
+- Responder a señales de inicio y cierre
+
+FUNCIONES EJECUTIVAS:
+
+- Planificar pasos para resolver una tarea simple
+- Organizar materiales antes de iniciar actividad
+- Inhibir respuestas impulsivas en 4/5 intentos
+- Revisar producción antes de finalizar
+- Cambiar de estrategia si la inicial falla
+
+MEMORIA:
+
+- Recordar secuencias de 3 elementos
+- Evocar información trabajada previamente
+- Retener consignas simples
+- Asociar imágenes y palabras
+- Recordar instrucciones luego de intervalo breve
+
+MATEMÁTICA:
+
+- Resolver sumas simples con apoyo visual
+- Comprender relación número-cantidad hasta 20
+- Identificar patrones simples
+- Resolver problemas básicos con guía
+- Organizar información numérica
+
+---
+
+3. Add activity bank (structured, practical):
+
+Each activity must include:
+
+- Nombre
+- Área trabajada
+- Objetivo
+- Materiales
+- Procedimiento paso a paso
+- Variante simple
+- Variante compleja
+
+Examples:
+
+ACTIVIDAD: Detectives del texto
+Área: Comprensión lectora
+Objetivo: Identificar idea principal
+Materiales: Texto breve
+Procedimiento: Leer, subrayar ideas clave
+Variante simple: elegir opción
+Variante compleja: justificar respuesta
+
+ACTIVIDAD: Armo la oración
+Área: Producción escrita
+Objetivo: Estructuración sintáctica
+Materiales: palabras sueltas
+Procedimiento: ordenar palabras
+Variante simple: 3 palabras
+Variante compleja: 5 palabras
+
+ACTIVIDAD: Encuentra el error
+Área: Atención
+Objetivo: Atención selectiva
+Materiales: hoja con distractores
+Procedimiento: marcar errores
+Variante simple: pocos estímulos
+Variante compleja: muchos estímulos
+
+ACTIVIDAD: Planifico y hago
+Área: Funciones ejecutivas
+Objetivo: planificación
+Materiales: tarea estructurada
+Procedimiento: ordenar pasos antes de ejecutar
+
+ACTIVIDAD: Memoria visual
+Área: Memoria
+Objetivo: retención
+Materiales: tarjetas
+Procedimiento: recordar pares
+
+---
+
+4. Integrate with AI:
+
+- AI must use this bank before generating new content
+- AI should adapt suggestions based on:
+  - age
+  - area
+  - performance
+  - session context
+
+---
+
+5. Do NOT:
+
+- remove existing data
+- overwrite current objectives
+- generate generic content without using the bank
+
+---
+
+Goal:
+Turn the app into a clinically useful tool for psychopedagogical practice with structured objectives and real session-ready activities.

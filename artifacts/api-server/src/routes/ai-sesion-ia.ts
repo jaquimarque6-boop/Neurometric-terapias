@@ -10,6 +10,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
+import { getTopActivitiesByArea, formatActivitiesForPrompt } from "../data/psicoped-activity-bank";
 
 const router: IRouter = Router();
 
@@ -119,6 +120,7 @@ function buildPsicopedUserPrompt(
   sessionsCtx: string,
   sessionContext: string,
   profLabel: string,
+  activitiesCtx: string,
 ): string {
   return `Generá un análisis psicopedagógico para orientar la sesión de HOY con este estudiante.
 
@@ -143,6 +145,12 @@ CONTEXTO DE ESTA SESIÓN
 ═══════════════════════════════════════
 ${sessionContext}` : ""}
 
+${activitiesCtx ? `═══════════════════════════════════════
+BANCO DE ACTIVIDADES DISPONIBLES
+(Usá estas actividades como base — adaptalas a la edad, nivel y contexto del estudiante. No las copiés textualmente; reformulalas en función del perfil actual.)
+═══════════════════════════════════════
+${activitiesCtx}` : ""}
+
 ═══════════════════════════════════════
 INSTRUCCIÓN
 ═══════════════════════════════════════
@@ -159,7 +167,7 @@ Devolvé exactamente este JSON:
     }
   ],
   "actividades": [
-    "Descripción de actividad estructurada con: (1) material escolar real o tarea concreta, (2) pasos secuenciados de la consigna, (3) criterio observable de logro"
+    "Nombre de la actividad (del banco si aplica): descripción adaptada con (1) material concreto o tarea escolar real, (2) pasos secuenciados de la consigna, (3) criterio observable de logro"
   ],
   "recomendaciones": "1-2 oraciones con estrategias de mediación o andamiaje para continuar en el hogar o en el aula, expresadas en lenguaje accesible para la familia o docente."
 }
@@ -167,7 +175,7 @@ Devolvé exactamente este JSON:
 Reglas:
 - perfilClinico: funcional, sin diagnósticos, usá términos como 'nivel de adquisición', 'proceso de automatización', 'zona de desarrollo próximo'.
 - objetivos: entre 2 y 3. Medibles, escolares, con verbo de acción observable.
-- actividades: exactamente 3. Cada una debe tener material concreto, pasos y criterio de logro.
+- actividades: exactamente 3. Preferí actividades del banco adaptadas al perfil. Cada una con nombre, material concreto, pasos y criterio de logro.
 - recomendaciones: orientadas a la mediación y el andamiaje en contexto cotidiano.
 - nivelDificultad: exactamente "inicial", "intermedio" o "avanzado".`;
 }
@@ -296,8 +304,24 @@ router.post("/ai/sesion-ia", async (req, res) => {
     ? buildPsicopedSystemPrompt()
     : buildFonoSystemPrompt();
 
+  // For psicoped: look up relevant activities from the bank based on selected area
+  let activitiesCtx = "";
+  if (isPsicoped) {
+    // Determine which areas to pull activities for
+    const areaKey = selectedArea?.toLowerCase().trim() ?? "";
+    const bankAreas: string[] = [];
+    if (areaKey) bankAreas.push(areaKey);
+    // Also pull from the active goals' areas (up to 2 additional)
+    for (const g of activeGoals.slice(0, 2)) {
+      const ga = (g.areaClinica ?? g.category ?? "").toLowerCase().trim();
+      if (ga && !bankAreas.includes(ga)) bankAreas.push(ga);
+    }
+    const allActivities = bankAreas.flatMap(a => getTopActivitiesByArea(a, 2));
+    activitiesCtx = formatActivitiesForPrompt(allActivities);
+  }
+
   const userPrompt = isPsicoped
-    ? buildPsicopedUserPrompt(patientCtx, goalsCtx, sessionsCtx, sessionContext, profLabel)
+    ? buildPsicopedUserPrompt(patientCtx, goalsCtx, sessionsCtx, sessionContext, profLabel, activitiesCtx)
     : buildFonoUserPrompt(patientCtx, goalsCtx, sessionsCtx, sessionContext, profLabel);
 
   try {
