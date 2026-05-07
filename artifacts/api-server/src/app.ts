@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import session from "express-session";
 import path from "path";
+import fs from "fs";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
@@ -41,8 +42,9 @@ app.use(session({
 
 app.use("/api", router);
 
-const frontendDist = path.resolve(process.cwd(), "../neurometric-lab/dist");
+const frontendDist = path.resolve(process.cwd(), "artifacts/neurometric-lab/dist");
 console.log("[static] serving frontend from", frontendDist);
+console.log("[static] index exists?", fs.existsSync(path.join(frontendDist, "index.html")));
 app.use(express.static(frontendDist));
 app.use((req, res, next) => {
   if (req.path.startsWith("/api")) return next();
