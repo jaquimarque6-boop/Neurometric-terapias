@@ -30,7 +30,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Wallet, TrendingUp, Receipt, Trash2 } from "lucide-react";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const MESES_ES: Record<string, string> = {
   "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
@@ -107,7 +106,7 @@ export default function RegistroPagos() {
   const { data: patients = [], isLoading: patientsLoading } = useQuery<Patient[]>({
     queryKey: ["patients-list"],
     queryFn: async () => {
-      const r = await fetch(`${API_BASE}/api/patients`, { credentials: "include" });
+      const r = await fetch("/api/patients", { credentials: "include" });
       if (!r.ok) throw new Error("Error");
       return r.json();
     },
@@ -119,7 +118,7 @@ export default function RegistroPagos() {
       const params = new URLSearchParams();
       if (filterMes && filterMes !== "todos") params.set("mes", filterMes);
       if (filterTipo !== "todos") params.set("tipo", filterTipo);
-      const r = await fetch(`${API_BASE}/api/pagos?${params}`, { credentials: "include" });
+      const r = await fetch(`/api/pagos?${params}`, { credentials: "include" });
       if (!r.ok) throw new Error("Error");
       return r.json();
     },
@@ -134,7 +133,7 @@ export default function RegistroPagos() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof emptyForm): Promise<Pago> => {
-      const r = await fetch(`${API_BASE}/api/pagos`, {
+      const r = await fetch("/api/pagos", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -163,7 +162,7 @@ export default function RegistroPagos() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<typeof emptyForm> }): Promise<Pago> => {
-      const r = await fetch(`${API_BASE}/api/pagos/${id}`, {
+      const r = await fetch(`/api/pagos/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -193,7 +192,7 @@ export default function RegistroPagos() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const r = await fetch(`${API_BASE}/api/pagos/${id}`, { method: "DELETE", credentials: "include" });
+      const r = await fetch(`/api/pagos/${id}`, { method: "DELETE", credentials: "include" });
       if (!r.ok) throw new Error((await r.json()).error ?? "Error");
       return r.json();
     },
