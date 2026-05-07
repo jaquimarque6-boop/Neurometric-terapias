@@ -1,12 +1,14 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import session from "express-session";
+import path from "path";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 import { seedFromSupabaseIfNeeded } from "./seeds/supabase-migration-seed";
+import { runMigrations } from "./db-migrate";
 
 const PgSession = connectPgSimple(session);
 
@@ -39,10 +41,25 @@ app.use(session({
 
 app.use("/api", router);
 
-seedAdminIfNeeded().catch(console.error);
-ensureJaquiAdmin().catch(console.error);
-ensureTempAdmin().catch(console.error);
-seedGoalLibraryIfNeeded().catch(console.error);
-seedFromSupabaseIfNeeded().catch(console.error);
+const frontendDist = path.resolve(process.cwd(), "../neurometric-lab/dist");
+console.log("[static] serving frontend from", frontendDist);
+app.use(express.static(frontendDist));
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  res.sendFile(path.join(frontendDist, "index.html"));
+});
+
+(async () => {
+  try {
+    await runMigrations();
+  } catch (e) {
+    console.error("[migrate] Error running migrations:", e);
+  }
+  seedAdminIfNeeded().catch(console.error);
+  ensureJaquiAdmin().catch(console.error);
+  ensureTempAdmin().catch(console.error);
+  seedGoalLibraryIfNeeded().catch(console.error);
+  seedFromSupabaseIfNeeded().catch(console.error);
+})();
 
 export default app;
