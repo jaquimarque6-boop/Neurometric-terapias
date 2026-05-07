@@ -1,4 +1,8 @@
 import app from "./app";
+import path from "path";
+
+console.log("[server] index.cjs starting — cwd:", process.cwd());
+console.log("[server] __filename:", typeof __filename !== "undefined" ? __filename : "(ESM — no __filename)");
 
 const rawPort = process.env["PORT"];
 
