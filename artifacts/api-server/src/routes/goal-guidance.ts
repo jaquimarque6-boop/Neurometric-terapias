@@ -3,11 +3,6 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
-
 router.post("/goal-guidance", async (req, res) => {
   const {
     title,
@@ -52,6 +47,13 @@ Responde con este JSON exacto (sin código markdown):
 {"marcoConceptual": "...", "sugerenciaFamilia": "• Actividad 1.\n• Actividad 2."}`;
 
   try {
+    const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_API_KEY
+      ? "https://api.openai.com/v1"
+      : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    if (!apiKey) return res.status(500).json({ error: "No hay clave de API de OpenAI configurada." });
+    const openai = new OpenAI({ apiKey, baseURL });
+
     const completion = await openai.chat.completions.create({
       model: "gpt-5-mini",
       max_completion_tokens: 8192,
