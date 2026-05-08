@@ -45,10 +45,24 @@ app.use("/api", router);
 const frontendDist = path.resolve(process.cwd(), "artifacts/neurometric-lab/dist");
 console.log("[static] serving frontend from", frontendDist);
 console.log("[static] index exists?", fs.existsSync(path.join(frontendDist, "index.html")));
+console.log("[static] assets exist?", fs.existsSync(path.join(frontendDist, "assets")));
 app.use(express.static(frontendDist));
+app.get("/", (_req, res) => {
+  res.sendFile("index.html", { root: frontendDist }, (err) => {
+    if (err) {
+      console.error("[static] GET / sendFile error:", err.message);
+      res.status(500).json({ error: "Frontend not built", path: frontendDist, indexExists: fs.existsSync(path.join(frontendDist, "index.html")) });
+    }
+  });
+});
 app.use((req, res, next) => {
   if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(frontendDist, "index.html"));
+  res.sendFile("index.html", { root: frontendDist }, (err) => {
+    if (err) {
+      console.error("[static] SPA fallback sendFile error:", err.message);
+      res.status(500).json({ error: "Frontend not built", path: frontendDist, indexExists: fs.existsSync(path.join(frontendDist, "index.html")) });
+    }
+  });
 });
 
 (async () => {
