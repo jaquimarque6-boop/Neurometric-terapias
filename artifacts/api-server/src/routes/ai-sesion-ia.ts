@@ -7,8 +7,9 @@ import {
   registrosClinicosTable,
   patientProfessionalsTable,
   professionalsTable,
+  usersTable,
 } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import OpenAI from "openai";
 import { getTopActivitiesByArea, formatActivitiesForPrompt } from "../data/psicoped-activity-bank";
 
@@ -349,6 +350,11 @@ router.post("/ai/sesion-ia", async (req, res) => {
 
     const text = response.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text);
+
+    db.update(usersTable)
+      .set({ aiUsageCount: sql`${usersTable.aiUsageCount} + 1` })
+      .where(eq(usersTable.id, sess.userId))
+      .catch(() => {});
 
     return res.json({
       perfilClinico: parsed.perfilClinico ?? "",
