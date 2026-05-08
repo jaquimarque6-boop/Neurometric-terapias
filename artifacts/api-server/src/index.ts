@@ -1,10 +1,18 @@
 import app from "./app";
 
-console.log("[server] index.cjs starting — cwd:", process.cwd());
-console.log("[server] __filename:", typeof __filename !== "undefined" ? __filename : "(ESM — no __filename)");
+process.on("uncaughtException", (err) => {
+  console.error("[UNCAUGHT EXCEPTION]", err?.stack ?? err);
+});
 
-const PORT = Number(process.env.PORT) || 3000;
+process.on("unhandledRejection", (reason) => {
+  console.error("[UNHANDLED REJECTION]", reason);
+});
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server listening on port ${PORT}`);
+const rawPort = process.env["PORT"];
+const port = rawPort ? Number(rawPort) : 3000;
+
+console.log(`[server] starting — PORT=${port} cwd=${process.cwd()}`);
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server listening on port ${port}`);
 });
