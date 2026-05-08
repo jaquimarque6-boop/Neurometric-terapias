@@ -2,6 +2,8 @@
 
 # compiled output
 dist
+!artifacts/neurometric-lab/dist
+!artifacts/neurometric-lab/dist/**
 tmp
 out-tsc
 *.tsbuildinfo
