@@ -51,10 +51,15 @@ console.log("[static] serving frontend from", frontendDist);
 
 app.use(express.static(frontendDist));
 
-app.get("*", (req, res, next) => {
+app.use((req, res, next) => {
   if (req.path.startsWith("/api")) return next();
 
-  res.sendFile(path.join(frontendDist, "index.html"));
+  res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+    if (err && !res.headersSent) {
+      console.error("[static] sendFile error:", err.message, "| path:", frontendDist);
+      res.status(503).send("Frontend no disponible: " + err.message);
+    }
+  });
 });
 
 (async () => {
