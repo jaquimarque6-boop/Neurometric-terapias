@@ -42,12 +42,22 @@ app.use(session({
 
 app.use("/api", router);
 
-const frontendDist = path.resolve(
-  process.cwd(),
-  "artifacts/neurometric-lab/dist"
-);
+// process.argv[1] = absolute path of the running script (Node always resolves it)
+// e.g. /opt/render/project/src/artifacts/api-server/dist/index.cjs
+// 2 niveles arriba de dist/ → artifacts/ → neurometric-lab/dist
+const _scriptDir = path.dirname(path.resolve(process.argv[1] ?? ""));
+const _frontendByScript = path.resolve(_scriptDir, "..", "..", "neurometric-lab", "dist");
+// fallback: cwd (funciona si Root Directory = raíz del repo)
+const _frontendByCwd = path.resolve(process.cwd(), "artifacts", "neurometric-lab", "dist");
 
+const frontendDist = fs.existsSync(path.join(_frontendByScript, "index.html"))
+  ? _frontendByScript
+  : _frontendByCwd;
+
+console.log("[static] script dir:", _scriptDir);
+console.log("[static] cwd:", process.cwd());
 console.log("[static] serving frontend from", frontendDist);
+console.log("[static] index.html exists?", fs.existsSync(path.join(frontendDist, "index.html")));
 
 app.use(express.static(frontendDist));
 
