@@ -42,35 +42,19 @@ app.use(session({
 
 app.use("/api", router);
 
-const frontendDist = path.resolve(process.cwd(), "artifacts/neurometric-lab/dist");
-const indexHtml = path.join(frontendDist, "index.html");
-console.log("[static] cwd:", process.cwd());
+const frontendDist = path.resolve(
+  process.cwd(),
+  "artifacts/neurometric-lab/dist"
+);
+
 console.log("[static] serving frontend from", frontendDist);
-console.log("[static] index exists?", fs.existsSync(indexHtml));
-console.log("[static] assets exist?", fs.existsSync(path.join(frontendDist, "assets")));
 
 app.use(express.static(frontendDist));
 
-app.use((req, res, next) => {
+app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
-  if (!fs.existsSync(indexHtml)) {
-    console.error("[static] index.html NOT FOUND at", indexHtml);
-    res.status(503).send(
-      `<h1>Frontend no compilado</h1><p>Buscando en: ${indexHtml}</p>` +
-      `<p>cwd: ${process.cwd()}</p>`
-    );
-    return;
-  }
-  fs.readFile(indexHtml, (err, data) => {
-    if (err) {
-      console.error("[static] readFile error:", err.message);
-      res.status(500).send(`<h1>Error leyendo index.html</h1><p>${err.message}</p>`);
-      return;
-    }
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache");
-    res.end(data);
-  });
+
+  res.sendFile(path.join(frontendDist, "index.html"));
 });
 
 (async () => {
