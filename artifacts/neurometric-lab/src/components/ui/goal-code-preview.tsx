@@ -10,6 +10,7 @@ import {
   type CodePreviewParams,
 } from "@/utils/goal-code-generator";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/api";
 
 interface GoalCodePreviewProps {
   params: CodePreviewParams;
@@ -40,7 +41,7 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/goal-codes/check?code=${encodeURIComponent(value)}`);
+        const res = await fetch(`${API_BASE}/api/goal-codes/check?code=${encodeURIComponent(value)}`, { credentials: "include" });
         if (!res.ok) return;
         const data = await res.json();
         setUniqueStatus(data.isUnique ? "ok" : "duplicate");
@@ -61,7 +62,7 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
       if (onGenerate) {
         code = await onGenerate();
       } else {
-        const res = await fetch("/api/goal-codes/generate", {
+        const res = await fetch(`${API_BASE}/api/goal-codes/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),

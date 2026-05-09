@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
+import { API_BASE } from "@/lib/api";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -503,7 +504,7 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
   },
   {
     area: "cálculo",
-    label: "Matemática",
+    label: "Cálculo",
     bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",
     habilidadesPorFranja: {
       "0-2":   ["Señala 'uno' y 'muchos'", "Compara objetos: más/menos", "Apila y ordena por tamaño", "Cuenta objetos hasta 3 con apoyo del adulto"],
@@ -564,90 +565,6 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "17-20": "Desarrollar autogestión atencional y metacognición",
     },
   },
-  {
-    area: "memoria",
-    label: "Memoria",
-    bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700",
-    habilidadesPorFranja: {
-      "0-2":   ["Reconoce personas y objetos familiares tras demora", "Anticipa rutinas conocidas (baño, comida)", "Busca objeto escondido debajo de un paño", "Imita acciones vistas en el momento"],
-      "3-5":   ["Recuerda 2–3 objetos escondidos en secuencia", "Sigue instrucciones de 2 pasos sin apoyo visual", "Narra eventos simples de su día con ayuda", "Recuerda el nombre de 5 compañeros o personajes familiares"],
-      "6-8":   ["Recuerda instrucciones de 3 pasos sin apoyo", "Memoriza poemas o canciones cortas", "Recuerda información central de un cuento leído", "Evoca contenidos vistos en clase el día anterior"],
-      "9-12":  ["Utiliza estrategias de memoria (repetición, agrupación)", "Recuerda contenido académico tras 24 horas", "Memoriza tablas de multiplicar y reglas ortográficas", "Evoca secuencias de pasos en resolución de problemas"],
-      "13-16": ["Aplica estrategias de memorización activa (mapas, acrónimos)", "Retiene y organiza información de múltiples fuentes", "Memoria prospectiva: recuerda compromisos y entregas", "Transfiere conocimiento aprendido a situaciones nuevas"],
-      "17-20": ["Gestiona la carga de memoria de trabajo en tareas complejas", "Construye esquemas de conocimiento integrado", "Revisa y consolida aprendizajes de forma autónoma", "Metacognición de memoria: identifica cuándo necesita repasar"],
-    },
-    focoSugeridoPorFranja: {
-      "0-2":   "Estimular memoria episódica y anticipación de rutinas",
-      "3-5":   "Trabajar memoria de trabajo y seguimiento de instrucciones",
-      "6-8":   "Desarrollar memoria auditiva y recuperación de información escolar",
-      "9-12":  "Trabajar estrategias de memoria y consolidación de contenidos académicos",
-      "13-16": "Fortalecer memorización activa, memoria prospectiva y metacognición",
-      "17-20": "Desarrollar gestión autónoma de la memoria en contexto académico",
-    },
-  },
-  {
-    area: "comprensión-lectora",
-    label: "Comprensión lectora",
-    bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700",
-    habilidadesPorFranja: {
-      "0-2":   ["Comprende el mensaje de imágenes y libros ilustrados", "Señala elementos al pedírselos en un cuento", "Anticipa el final de una historia conocida", "Responde con gestos a preguntas sobre el cuento"],
-      "3-5":   ["Responde preguntas literales sobre un cuento narrado", "Identifica personaje principal y situación", "Predice qué pasará a continuación", "Relaciona el cuento con experiencias propias"],
-      "6-8":   ["Identifica personajes, lugar, problema y resolución", "Responde preguntas inferenciales básicas (¿por qué?)", "Distingue hechos de opiniones en texto simple", "Comprende vocabulario de nivel escolar en contexto"],
-      "9-12":  ["Detecta la idea principal de un párrafo", "Realiza inferencias sobre motivaciones de personajes", "Resume un texto con sus propias palabras", "Identifica relaciones de causa-efecto en texto expositivo"],
-      "13-16": ["Analiza la estructura argumentativa de textos", "Distingue información relevante de irrelevante", "Integra información de dos fuentes escritas distintas", "Evalúa la intención del autor y el punto de vista"],
-      "17-20": ["Lectura crítica con análisis de sesgos e implicancias", "Comprensión profunda de textos académicos y técnicos", "Síntesis de múltiples textos sobre un mismo tema", "Metacognición lectora: monitorea y ajusta la comprensión"],
-    },
-    focoSugeridoPorFranja: {
-      "0-2":   "Estimular comprensión de narrativas visuales y anticipación",
-      "3-5":   "Trabajar comprensión literal y predicción en cuentos narrados",
-      "6-8":   "Desarrollar comprensión inferencial y vocabulario en contexto",
-      "9-12":  "Trabajar idea principal, inferencias y resumen en textos escolares",
-      "13-16": "Fortalecer análisis de textos argumentativos y pensamiento crítico",
-      "17-20": "Desarrollar lectura crítica y metacognición lectora autónoma",
-    },
-  },
-  {
-    area: "producción-escrita",
-    label: "Producción escrita",
-    bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700",
-    habilidadesPorFranja: {
-      "0-2":   ["Garabateo intencional para comunicar un mensaje", "Imita trazos del adulto con intención simbólica", "Señala su 'escritura' y verbaliza qué dice", "Diferencia dibujo de escritura en producciones propias"],
-      "3-5":   ["Dicta oraciones simples a un adulto para que las escriba", "Copia su nombre con modelo visible", "Narra un evento en 2–3 oraciones con apoyo", "Intenta escribir palabras de forma fonológica (escritura inventada)"],
-      "6-8":   ["Escribe oraciones completas con sentido", "Usa mayúsculas al inicio y punto al final", "Narra un evento personal en 3–4 oraciones seguidas", "Escribe un párrafo simple con idea principal y un detalle"],
-      "9-12":  ["Redacta párrafos con introducción, desarrollo y cierre", "Usa conectores temporales y causales (porque, entonces, luego)", "Planifica el escrito con lluvia de ideas o esquema previo", "Revisa y corrige el borrador con criterio ortográfico y de sentido"],
-      "13-16": ["Redacta textos argumentativos de 3+ párrafos con tesis y fundamentos", "Adapta el registro y vocabulario al destinatario y propósito", "Utiliza citas, ejemplos y evidencias en textos académicos", "Revisa la coherencia, cohesión y pertinencia del texto"],
-      "17-20": ["Produce textos académicos complejos de forma autónoma", "Planifica, redacta y revisa textos extensos con estructura clara", "Domina diferentes géneros textuales (informe, ensayo, reseña)", "Escritura reflexiva con autocorrección y reescritura crítica"],
-    },
-    focoSugeridoPorFranja: {
-      "0-2":   "Estimular intención comunicativa escrita y diferenciación escritura-dibujo",
-      "3-5":   "Trabajar dictado de oraciones y escritura inventada con apoyo",
-      "6-8":   "Desarrollar escritura de párrafos simples y uso de convenciones básicas",
-      "9-12":  "Trabajar redacción con estructura, conectores y proceso de revisión",
-      "13-16": "Fortalecer escritura argumentativa, registro y cohesión textual",
-      "17-20": "Desarrollar escritura académica autónoma y metacognición escritural",
-    },
-  },
-  {
-    area: "estrategias-aprendizaje",
-    label: "Estrategias de aprendizaje",
-    bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700",
-    habilidadesPorFranja: {
-      "0-2":   ["Explora materiales por ensayo y error", "Repite acciones que producen un resultado", "Imita estrategias del adulto en juego", "Persiste en la tarea hasta lograr el objetivo"],
-      "3-5":   ["Ordena objetos por categorías con apoyo", "Usa el contexto para adivinar el significado de palabras", "Pide ayuda cuando no sabe cómo resolver algo", "Anticipa lo que va a hacer antes de empezar"],
-      "6-8":   ["Usa agenda o lista para organizar tareas del día", "Repite en voz alta información para memorizarla", "Pide que le expliquen de otra forma si no entiende", "Divide una tarea grande en pasos más pequeños"],
-      "9-12":  ["Resume información clave con palabras propias", "Usa mapas conceptuales o cuadros sinópticos", "Identifica cuándo comprendió o no un texto", "Planifica el tiempo de estudio para una evaluación"],
-      "13-16": ["Selecciona y aplica la estrategia más adecuada según la tarea", "Autoevalúa el rendimiento y ajusta el enfoque", "Aplica mnemotecnias, acrónimos o asociaciones para memorizar", "Utiliza fuentes múltiples y organiza la información"],
-      "17-20": ["Metacognición avanzada: regula el propio aprendizaje en tiempo real", "Evalúa la efectividad de las estrategias usadas y las mejora", "Transfiere estrategias a nuevas disciplinas y contextos", "Enseña estrategias a otros como forma de consolidar el aprendizaje"],
-    },
-    focoSugeridoPorFranja: {
-      "0-2":   "Estimular exploración activa y persistencia en la tarea",
-      "3-5":   "Trabajar clasificación, anticipación y petición de ayuda",
-      "6-8":   "Desarrollar organización de tareas, repetición y división en pasos",
-      "9-12":  "Trabajar resumen, mapas conceptuales y planificación del estudio",
-      "13-16": "Fortalecer selección estratégica, autoevaluación y mnemotecnias",
-      "17-20": "Desarrollar metacognición avanzada y transferencia de estrategias",
-    },
-  },
 ];
 
 const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
@@ -685,45 +602,6 @@ function calcPct(intentos: string, correctas: string): number | null {
   return Math.round((Math.min(c, i) / i) * 100);
 }
 
-// ─── Fila de objetivo sugerido por diagnóstico ────────────────────────────────
-function DiagGoalRow({
-  g,
-  tier,
-  onAdd,
-}: {
-  g: any;
-  tier?: "adecuado" | "inferior" | "superior";
-  onAdd: () => void;
-}) {
-  const borderColor =
-    tier === "inferior" ? "border-amber-200 hover:bg-amber-50/40"
-    : tier === "superior" ? "border-sky-200 hover:bg-sky-50/40"
-    : "border-violet-100 hover:bg-violet-50/60";
-  const btnColor =
-    tier === "inferior" ? "border-amber-300 text-amber-700 hover:bg-amber-100"
-    : tier === "superior" ? "border-sky-300 text-sky-700 hover:bg-sky-100"
-    : "border-violet-300 text-violet-600 hover:bg-violet-100";
-
-  return (
-    <div className={`flex items-start gap-3 px-5 py-3 transition-colors border-b last:border-0 ${borderColor}`}>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {g.areaClinica ?? g.area}
-          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
-          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
-        </p>
-      </div>
-      <button
-        className={`shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors mt-0.5 ${btnColor}`}
-        onClick={onAdd}
-      >
-        + Agregar
-      </button>
-    </div>
-  );
-}
-
 export default function NuevaSesion() {
   const [, navigate]               = useLocation();
   const search                     = useSearch();
@@ -754,7 +632,6 @@ export default function NuevaSesion() {
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
   const [sessionDiagnosis, setSessionDiagnosis]   = useState("");
-  const [diagOtroText, setDiagOtroText]           = useState("");
   const [diagSuggestions, setDiagSuggestions]     = useState<any[]>([]);
   const [loadingDiagSug, setLoadingDiagSug]       = useState(false);
   const [showDiagSug, setShowDiagSug]             = useState(true);
@@ -773,18 +650,13 @@ export default function NuevaSesion() {
   const [showAllGoals, setShowAllGoals]       = useState(false);
   const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<number>>(new Set());
 
-  // ── AI sesión-IA: perfil + objetivos + actividades + recomendaciones ──────
-  const [showAISesionIA, setShowAISesionIA]       = useState(false);
-  const [loadingAISesionIA, setLoadingAISesionIA] = useState(false);
-  const [aiSesionIA, setAiSesionIA]               = useState<{
-    perfilClinico: string;
-    objetivos: Array<{ title: string; areaClinica: string; nivelDificultad?: string; rationale?: string }>;
-    actividades: string[];
-    recomendaciones: string;
-  } | null>(null);
-  const [aiIAObjEdits, setAiIAObjEdits]           = useState<Record<number, string>>({});
-  const [addingAiIAIdx, setAddingAiIAIdx]         = useState<Set<number>>(new Set());
-  const [addedAiIAIdx, setAddedAiIAIdx]           = useState<Set<number>>(new Set());
+  // ── AI session suggestions ─────────────────────────────────────────────
+  const [showAISesion, setShowAISesion]       = useState(false);
+  const [loadingAISesion, setLoadingAISesion] = useState(false);
+  const [aiSesionList, setAiSesionList]       = useState<Array<{ title: string; areaClinica: string; category: string; nivelDificultad?: string; rationale?: string }>>([]);
+  const [aiSesionEdits, setAiSesionEdits]     = useState<Record<number, string>>({});
+  const [addingAiIdx, setAddingAiIdx]         = useState<Set<number>>(new Set());
+  const [addedAiIdx, setAddedAiIdx]           = useState<Set<number>>(new Set());
 
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
@@ -810,11 +682,6 @@ export default function NuevaSesion() {
       setSelectedBloque(null);
     }
   }, [franjaPaciente]);
-
-  // ── Effective diagnosis: "Otro" uses free-text, otherwise the chip value ──
-  const effectiveDiagnosis = sessionDiagnosis === "Otro"
-    ? diagOtroText.trim()
-    : sessionDiagnosis;
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -864,7 +731,7 @@ export default function NuevaSesion() {
   const { data: goalsRaw = [], isLoading: loadingGoals } = useQuery({
     queryKey: ["nueva-sesion-goals", patient?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/goals?patientId=${patient.id}`);
+      const res = await fetch(`${API_BASE}/api/goals?patientId=${patient.id}`, { credentials: "include" });
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -878,7 +745,7 @@ export default function NuevaSesion() {
       if (bancoArea) params.append("area", bancoArea);
       if (bancoSubarea) params.append("subarea", bancoSubarea);
       if (bancoSearch.trim()) params.append("q", bancoSearch.trim());
-      const res = await fetch(`/api/goal-library?${params}`);
+      const res = await fetch(`${API_BASE}/api/goal-library?${params}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -888,25 +755,6 @@ export default function NuevaSesion() {
   const goals = (goalsRaw as any[]).filter(
     g => g.status === "activo" || g.status === "en progreso"
   );
-
-  // ── Registros clínicos previos del paciente ────────────────────────────────
-  const { data: registrosRaw = [] } = useQuery({
-    queryKey: ["nueva-sesion-registros", patient?.id],
-    queryFn: async () => {
-      const res = await fetch(`/api/registros-clinicos?patientId=${patient!.id}`, { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!patient,
-  });
-
-  const lastRegistro = useMemo(() => {
-    const list = registrosRaw as any[];
-    if (!list.length) return null;
-    return [...list].sort((a, b) =>
-      new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-    )[0];
-  }, [registrosRaw]);
 
   const assignedLibraryIds = new Set([
     ...(goalsRaw as any[]).map((g: any) => g.goalLibraryId).filter(Boolean),
@@ -919,11 +767,6 @@ export default function NuevaSesion() {
     !adHocGoals.some(a => a.id === g.id) &&
     !(goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id)
   );
-
-  // Group by age tier returned from the API
-  const diagAdecuado  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "adecuado");
-  const diagInferior  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "inferior");
-  const diagSuperior  = visibleDiagSuggestions.filter((g: any) => g.ageTier === "superior");
 
   const filteredPatients = (patients as any[]).filter(p =>
     !patientSearch || p.name.toLowerCase().includes(patientSearch.toLowerCase())
@@ -986,21 +829,13 @@ export default function NuevaSesion() {
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
     setDismissedGoalIds(new Set());
-    const savedDiag = p.diagnosis ?? "";
-    const knownVals = diagnosisOptions.map((d: any) => d.value);
-    if (savedDiag && !knownVals.includes(savedDiag)) {
-      setSessionDiagnosis("Otro");
-      setDiagOtroText(savedDiag);
-    } else {
-      setSessionDiagnosis(savedDiag);
-      setDiagOtroText("");
-    }
+    setSessionDiagnosis(p.diagnosis ?? "");
     setDiagSuggestions([]);
-    setShowAISesionIA(false);
-    setAiSesionIA(null);
-    setAiIAObjEdits({});
-    setAddingAiIAIdx(new Set());
-    setAddedAiIAIdx(new Set());
+    setShowAISesion(false);
+    setAiSesionList([]);
+    setAiSesionEdits({});
+    setAddingAiIdx(new Set());
+    setAddedAiIdx(new Set());
   };
 
   // Auto-select patient from URL param once patients list is available
@@ -1013,17 +848,17 @@ export default function NuevaSesion() {
 
   // ── Fetch diagnosis-based goal suggestions from the library ──────────────────
   useEffect(() => {
-    if (!patient || !effectiveDiagnosis) { setDiagSuggestions([]); return; }
+    if (!patient || !sessionDiagnosis) { setDiagSuggestions([]); return; }
     let cancelled = false;
     setLoadingDiagSug(true);
-    const params = new URLSearchParams({ diagnosis: effectiveDiagnosis, limit: "30" });
-    fetch(`/api/patients/${patient.id}/suggested-goals?${params}`)
+    const params = new URLSearchParams({ diagnosis: sessionDiagnosis, limit: "12" });
+    fetch(`${API_BASE}/api/patients/${patient.id}/suggested-goals?${params}`)
       .then(r => r.json())
       .then(data => { if (!cancelled) setDiagSuggestions(Array.isArray(data) ? data : []); })
       .catch(() => { if (!cancelled) setDiagSuggestions([]); })
       .finally(() => { if (!cancelled) setLoadingDiagSug(false); });
     return () => { cancelled = true; };
-  }, [patient?.id, effectiveDiagnosis]);
+  }, [patient?.id, sessionDiagnosis]);
 
   // ── Clear phoneme selection when diagnosis changes ─────────────────────────
   useEffect(() => {
@@ -1035,7 +870,7 @@ export default function NuevaSesion() {
   const fetchDetail = async (goalId: number) => {
     if (detailCache[goalId]) return;
     try {
-      const res = await fetch(`/api/goals/${goalId}/activities`);
+      const res = await fetch(`${API_BASE}/api/goals/${goalId}/activities`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setDetailCache(prev => ({ ...prev, [goalId]: data }));
@@ -1049,7 +884,7 @@ export default function NuevaSesion() {
     if (adHocGoals.some((g: any) => g.nombreObjetivo === title)) return;
     setPhonemeAddingIdx(key);
     try {
-      const res = await fetch("/api/goal-library", {
+      const res = await fetch(`${API_BASE}/api/goal-library`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1155,60 +990,52 @@ export default function NuevaSesion() {
     setAdHocRows(prev => { const n = { ...prev }; delete n[libId]; return n; });
   };
 
-  // ── AI sesión-IA helpers ───────────────────────────────────────────────────
-  const fetchAISesionIA = async () => {
+  // ── AI session suggestion helpers ──────────────────────────────────────────
+  const fetchAISesionSuggestions = async () => {
     if (!patient) return;
-    setShowAISesionIA(true);
-    setLoadingAISesionIA(true);
-    setAiSesionIA(null);
-    setAiIAObjEdits({});
-    setAddingAiIAIdx(new Set());
-    setAddedAiIAIdx(new Set());
+    setShowAISesion(true);
+    setLoadingAISesion(true);
+    setAiSesionList([]);
+    setAiSesionEdits({});
+    setAddingAiIdx(new Set());
+    setAddedAiIdx(new Set());
     try {
-      const resp = await fetch("/api/ai/sesion-ia", {
+      const resp = await fetch(`${API_BASE}/api/ai/objetivos-suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          patientId: patient.id,
-          focoTerapeutico: focoTerapeutico || undefined,
-          sessionDiagnosis: effectiveDiagnosis || undefined,
-          observaciones: observaciones || undefined,
-          selectedArea: selectedBloque || undefined,
-          profesion,
-        }),
+        body: JSON.stringify({ patientId: patient.id, mode: "sesion" }),
       });
       if (!resp.ok) {
         const e = await resp.json().catch(() => ({}));
-        throw new Error((e as any).error ?? "Error al generar análisis");
+        throw new Error((e as any).error ?? "Error al generar sugerencias");
       }
       const data = await resp.json();
-      setAiSesionIA(data);
+      setAiSesionList(data.objetivos ?? []);
     } catch (err: any) {
-      toast({ title: "Error al generar análisis con IA", description: err.message, variant: "destructive" });
-      setShowAISesionIA(false);
+      toast({ title: "Error al generar sugerencias", description: err.message, variant: "destructive" });
+      setShowAISesion(false);
     } finally {
-      setLoadingAISesionIA(false);
+      setLoadingAISesion(false);
     }
   };
 
-  const addAISesionIAObj = async (idx: number) => {
-    if (!aiSesionIA) return;
-    const sug = aiSesionIA.objetivos[idx];
-    if (!sug || addingAiIAIdx.has(idx) || addedAiIAIdx.has(idx)) return;
-    const title = (aiIAObjEdits[idx] ?? sug.title).trim();
+  const addAISuggestion = async (idx: number) => {
+    const sug = aiSesionList[idx];
+    if (!sug || addingAiIdx.has(idx) || addedAiIdx.has(idx)) return;
+    const title = (aiSesionEdits[idx] ?? sug.title).trim();
     if (!title) return;
 
-    setAddingAiIAIdx(prev => new Set([...prev, idx]));
+    setAddingAiIdx(prev => new Set([...prev, idx]));
     try {
-      const res = await fetch("/api/goal-library", {
+      const res = await fetch(`${API_BASE}/api/goal-library`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nombreObjetivo: title,
-          area: sug.areaClinica ?? "general",
-          areaClinica: sug.areaClinica ?? "general",
-          nivelDificultad: sug.nivelDificultad ?? "inicial",
+          area: sug.areaClinica ?? sug.category ?? "general",
+          areaClinica: sug.areaClinica ?? sug.category ?? "general",
+          nivelDificultad: sug.nivelDificultad ?? "básico",
           estadoBanco: "sesion",
           isCustom: true,
         }),
@@ -1223,19 +1050,25 @@ export default function NuevaSesion() {
         ...prev,
         [created.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" },
       }));
-      setAddedAiIAIdx(prev => new Set([...prev, idx]));
+      setAddedAiIdx(prev => new Set([...prev, idx]));
     } catch {
       toast({ title: "Error al agregar el objetivo", variant: "destructive" });
     } finally {
-      setAddingAiIAIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
+      setAddingAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
     }
+  };
+
+  const dismissAISuggestion = (idx: number) => {
+    setAiSesionList(prev => prev.filter((_, i) => i !== idx));
+    setAiSesionEdits(prev => { const n = { ...prev }; delete n[idx]; return n; });
+    setAddedAiIdx(prev => { const n = new Set(prev); n.delete(idx); return n; });
   };
 
   // ── Report suggestion builder ──────────────────────────────────────────────
   const buildResumenSugerido = (): string => {
     const nombre = patient?.name?.split(" ")[0] ?? "el/la paciente";
     const edad = patient?.age ? `${patient.age} años` : null;
-    const diag = effectiveDiagnosis.trim();
+    const diag = (sessionDiagnosis ?? "").trim();
 
     type DiagCtx = { area: string; focus: string; progress: string; recomendacion: string };
     const DIAG_CTX: Array<{ match: string[]; ctx: DiagCtx }> = [
@@ -1387,7 +1220,7 @@ export default function NuevaSesion() {
     if (!canSave) return;
     setIsSaving(true);
     try {
-      const rcRes = await fetch("/api/registros-clinicos", {
+      const rcRes = await fetch(`${API_BASE}/api/registros-clinicos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1404,7 +1237,7 @@ export default function NuevaSesion() {
         await Promise.all(checkedGoals.map(goal => {
           const row = rows[goal.id] ?? defaultRow();
           const map = CLINICAL_PERFORMANCE_MAP[row.estado ?? "en proceso"] ?? CLINICAL_PERFORMANCE_MAP["en proceso"];
-          return fetch(`/api/goals/${goal.id}/progress`, {
+          return fetch(`${API_BASE}/api/goals/${goal.id}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1430,7 +1263,7 @@ export default function NuevaSesion() {
           if (alreadyAssigned) {
             goalId = alreadyAssigned.id;
           } else {
-            const assignRes = await fetch("/api/goals", {
+            const assignRes = await fetch(`${API_BASE}/api/goals`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1451,7 +1284,7 @@ export default function NuevaSesion() {
             goalId = newGoal.id;
           }
 
-          await fetch(`/api/goals/${goalId}/progress`, {
+          await fetch(`${API_BASE}/api/goals/${goalId}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1516,7 +1349,7 @@ export default function NuevaSesion() {
       e.stopPropagation();
       setSavingToBank(true);
       try {
-        const res = await fetch(`/api/goal-library/${goalId}`, {
+        const res = await fetch(`${API_BASE}/api/goal-library/${goalId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ estadoBanco: "activo" }),
@@ -1865,28 +1698,17 @@ export default function NuevaSesion() {
                 <Stethoscope className="h-4 w-4" style={{ color: BRAND_TEAL }} />
                 Diagnóstico
               </label>
-              <div
-                className="flex flex-wrap gap-1.5 rounded-xl border border-border/50 bg-muted/20 p-2.5"
-                style={{ maxHeight: "11rem", overflowY: "auto" }}
-              >
-                {diagnosisOptions.map((d: any) => {
+              <div className="flex flex-wrap gap-2">
+                {diagnosisOptions.map(d => {
                   const active = sessionDiagnosis === d.value;
                   return (
                     <button
                       key={d.value}
-                      onClick={() => {
-                        if (active) {
-                          setSessionDiagnosis("");
-                          setDiagOtroText("");
-                        } else {
-                          setSessionDiagnosis(d.value);
-                          if (d.value !== "Otro") setDiagOtroText("");
-                        }
-                      }}
+                      onClick={() => setSessionDiagnosis(active ? "" : d.value)}
                       className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                         active
                           ? "text-white border-transparent shadow-sm"
-                          : "bg-white/80 border-border/60 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
+                          : "bg-muted/50 border-border/70 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
                       }`}
                       style={active ? { background: BRAND_TEAL, borderColor: BRAND_TEAL } : {}}
                     >
@@ -1895,29 +1717,13 @@ export default function NuevaSesion() {
                   );
                 })}
               </div>
-
-              {/* Texto libre cuando se selecciona "Otro" */}
-              {sessionDiagnosis === "Otro" && (
-                <input
-                  type="text"
-                  value={diagOtroText}
-                  onChange={e => setDiagOtroText(e.target.value)}
-                  placeholder="Especificar diagnóstico…"
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-border/60 bg-white/80 outline-none focus:ring-2 focus:border-transparent"
-                  style={{ "--tw-ring-color": BRAND_TEAL } as any}
-                  autoFocus
-                />
-              )}
-
-              {effectiveDiagnosis && (
+              {sessionDiagnosis && (
                 <p className="text-xs text-muted-foreground pl-0.5">
-                  {sessionDiagnosis === "Otro"
-                    ? effectiveDiagnosis
-                    : (diagnosisOptions.find((d: any) => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis)}
+                  {diagnosisOptions.find(d => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis}
                 </p>
               )}
-              {effectiveDiagnosis && (
-                <EvalSugerida diagnosis={effectiveDiagnosis} compact />
+              {sessionDiagnosis && (
+                <EvalSugerida diagnosis={sessionDiagnosis} compact />
               )}
             </div>
           )}
@@ -2066,14 +1872,14 @@ export default function NuevaSesion() {
             {patient.age && <span>{patient.age} años</span>}
             <span className="text-border/70">·</span>
             <span>{fecha}</span>
-            {effectiveDiagnosis && (
+            {sessionDiagnosis && (
               <>
                 <span className="text-border/70">·</span>
                 <span
                   className="font-semibold px-2 py-0.5 rounded-full text-white text-[10px]"
                   style={{ background: BRAND_TEAL }}
                 >
-                  {effectiveDiagnosis}
+                  {sessionDiagnosis}
                 </span>
               </>
             )}
@@ -2089,7 +1895,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía de adquisición de fonemas (TSH) ─────────────────────── */}
-        {patient && (effectiveDiagnosis === "TSH" || effectiveDiagnosis === "Dislalia") && (
+        {patient && (sessionDiagnosis === "TSH" || sessionDiagnosis === "Dislalia") && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}35`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
@@ -2190,7 +1996,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Objetivos sugeridos por diagnóstico ───────────────────────── */}
-        {patient && effectiveDiagnosis && (
+        {patient && sessionDiagnosis && (
           <div className="rounded-2xl border border-violet-200 shadow-sm overflow-hidden bg-violet-50/40">
             <button
               className="w-full flex items-center justify-between gap-2 px-5 py-3.5"
@@ -2198,9 +2004,9 @@ export default function NuevaSesion() {
             >
               <div className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-violet-500" />
-                <h2 className="text-sm font-bold text-violet-900">Sugerencias según diagnóstico</h2>
+                <h2 className="text-sm font-bold text-violet-900">Objetivos sugeridos por diagnóstico</h2>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-600 border border-violet-200">
-                  {effectiveDiagnosis}
+                  {sessionDiagnosis}
                 </span>
               </div>
               {showDiagSug
@@ -2209,7 +2015,7 @@ export default function NuevaSesion() {
             </button>
 
             {showDiagSug && (
-              <div className="border-t border-violet-100">
+              <div className="border-t border-violet-100 divide-y divide-violet-100">
                 {loadingDiagSug ? (
                   <div className="px-5 py-6 text-center text-sm text-muted-foreground">Buscando objetivos…</div>
                 ) : visibleDiagSuggestions.length === 0 ? (
@@ -2219,127 +2025,117 @@ export default function NuevaSesion() {
                       : "Todos los objetivos sugeridos ya están agregados a la sesión."}
                   </div>
                 ) : (
-                  <div className="divide-y divide-violet-100">
-                    {/* ── Nivel adecuado ── */}
-                    {diagAdecuado.length > 0 && (
-                      <div>
-                        <div className="px-5 pt-3 pb-1 flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-violet-700">
-                            ✓ Nivel adecuado
-                          </span>
-                          {patient?.age && (
-                            <span className="text-[10px] text-violet-500 font-medium">
-                              — {patient.age} años
-                            </span>
-                          )}
-                        </div>
-                        {diagAdecuado.map((g: any) => (
-                          <DiagGoalRow key={g.id} g={g} onAdd={() => {
-                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
-                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
-                          }} />
-                        ))}
+                  visibleDiagSuggestions.map((g: any) => (
+                    <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {g.areaClinica ?? g.area}
+                          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
+                          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+                        </p>
                       </div>
-                    )}
-
-                    {/* ── Nivel inferior (apoyo) ── */}
-                    {diagInferior.length > 0 && (
-                      <div>
-                        <div className="px-5 pt-3 pb-1">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
-                            ↓ Nivel inferior — como apoyo
-                          </span>
-                        </div>
-                        {diagInferior.map((g: any) => (
-                          <DiagGoalRow key={g.id} g={g} tier="inferior" onAdd={() => {
-                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
-                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
-                          }} />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* ── Nivel superior (extensión) ── */}
-                    {diagSuperior.length > 0 && (
-                      <div>
-                        <div className="px-5 pt-3 pb-1">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-sky-600">
-                            ↑ Nivel superior — extensión opcional
-                          </span>
-                        </div>
-                        {diagSuperior.map((g: any) => (
-                          <DiagGoalRow key={g.id} g={g} tier="superior" onAdd={() => {
-                            setAdHocGoals(prev => prev.find(a => a.id === g.id) ? prev : [...prev, g]);
-                            setAdHocRows(prev => prev[g.id] ? prev : { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } });
-                          }} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      <button
+                        className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
+                        onClick={() => {
+                          setAdHocGoals(prev => {
+                            if (prev.find(a => a.id === g.id)) return prev;
+                            return [...prev, g];
+                          });
+                          setAdHocRows(prev => {
+                            if (prev[g.id]) return prev;
+                            return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
+                          });
+                        }}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  ))
                 )}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Resumen de sesión anterior ────────────────────────────────── */}
-        {patient && (
-          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}40`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
+        {/* ── Guía de la sesión ─────────────────────────────────────────── */}
+        {patient && !loadingGoals && goals.length > 0 && (
+          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}40`, background: `linear-gradient(135deg, ${BRAND_TEAL}10 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
-              <ClipboardList className="h-4 w-4" style={{ color: BRAND_TEAL }} />
-              <h2 className="text-sm font-bold text-foreground">Resumen de sesión anterior</h2>
-              {lastRegistro?.fecha && (
-                <span className="ml-auto text-[10px] text-muted-foreground font-medium">
-                  {new Date(lastRegistro.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
-                </span>
-              )}
+              <Sparkles className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+              <h2 className="text-sm font-bold text-foreground">Guía de la sesión</h2>
             </div>
 
-            <div className="px-5 py-4 space-y-3">
-              {!lastRegistro ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No hay resumen previo registrado para este paciente.
-                </p>
-              ) : (
-                <>
-                  {lastRegistro.resumenSesion && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Resumen
-                      </p>
-                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
-                        {lastRegistro.resumenSesion}
-                      </p>
+            <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
+              {/* Last session summary */}
+              {lastWorkedGoal && (
+                <div className="px-5 py-3.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Sesión anterior</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground/80 truncate">{lastWorkedGoal.title}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {(() => {
+                          const ce = inferClinicalEstado(lastWorkedGoal.progressPct);
+                          const b = ESTADO_BADGE[ce];
+                          return (
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
+                              {b?.label ?? ce}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
-                  )}
-                  {lastRegistro.observaciones && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Observaciones clínicas
-                      </p>
-                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
-                        {lastRegistro.observaciones}
-                      </p>
-                    </div>
-                  )}
-                  {lastRegistro.recomendacionesHogar && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Próximos pasos / Recomendaciones
-                      </p>
-                      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">
-                        {lastRegistro.recomendacionesHogar}
-                      </p>
-                    </div>
-                  )}
-                  {!lastRegistro.resumenSesion && !lastRegistro.observaciones && !lastRegistro.recomendacionesHogar && (
-                    <p className="text-sm text-muted-foreground italic">
-                      No hay resumen previo registrado para este paciente.
-                    </p>
-                  )}
-                </>
+                  </div>
+                </div>
               )}
+
+              {/* Suggested objectives */}
+              <div className="px-5 py-3.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">
+                  Trabajo en sesión 
+                </p>
+                <div className="space-y-2">
+                  {suggestedGoals.map(goal => {
+                    const row = rows[goal.id] ?? defaultRow(inferClinicalEstado(goal.progressPct));
+                    return (
+                      <button
+                        key={goal.id}
+                        className="w-full flex items-center gap-3 text-left rounded-xl px-3.5 py-2.5 transition-all hover:shadow-sm"
+                        style={{
+                          background: row.checked ? `${BRAND_TEAL}12` : "white",
+                          border: `1.5px solid ${row.checked ? BRAND_TEAL + "40" : "#e2e8f0"}`,
+                        }}
+                        onClick={() => toggleRow(goal.id)}
+                      >
+                        <div className="shrink-0">
+                          {row.checked
+                            ? <CheckSquare className="h-4.5 w-4.5" style={{ color: BRAND_TEAL }} />
+                            : <Square className="h-4.5 w-4.5 text-muted-foreground/40" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium leading-snug ${row.checked ? "text-foreground" : "text-muted-foreground"}`}>
+                            {goal.title}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {goal.areaClinica ?? goal.category}
+                          </p>
+                        </div>
+                        {(() => {
+                          const ce = inferClinicalEstado(goal.progressPct);
+                          const b = ESTADO_BADGE[ce];
+                          return (
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
+                              {b?.label ?? ce}
+                            </span>
+                          );
+                        })()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2374,57 +2170,54 @@ export default function NuevaSesion() {
                 )}
               </h2>
               <button
-                onClick={loadingAISesionIA ? undefined : fetchAISesionIA}
-                disabled={loadingAISesionIA}
-                className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border-2 transition-all shrink-0 shadow-sm active:scale-[0.98]"
+                onClick={loadingAISesion ? undefined : fetchAISesionSuggestions}
+                disabled={loadingAISesion}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shrink-0"
                 style={{
-                  color: "white",
-                  borderColor: "transparent",
-                  background: loadingAISesionIA
-                    ? `${BRAND_BLUE}90`
-                    : `linear-gradient(90deg, ${BRAND_BLUE} 0%, #c85a44 100%)`,
+                  color: BRAND_BLUE,
+                  borderColor: `${BRAND_BLUE}40`,
+                  background: showAISesion ? `${BRAND_BLUE}08` : "transparent",
                 }}
               >
-                {loadingAISesionIA
-                  ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  : <Sparkles className="h-4 w-4" />
+                {loadingAISesion
+                  ? <span className="h-3 w-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+                  : <Sparkles className="h-3.5 w-3.5" />
                 }
-                {loadingAISesionIA ? "Analizando perfil…" : "Generar perfil, objetivos y actividades con IA"}
+                {loadingAISesion ? "Analizando…" : "Sugerir objetivos para esta sesión"}
               </button>
             </div>
 
-            {/* ── AI sesión-IA panel ───────────────────────────────────── */}
-            {showAISesionIA && (
+            {/* ── AI session suggestion panel ─────────────────────────── */}
+            {showAISesion && (
               <div className="border-b border-border/50">
-                {loadingAISesionIA ? (
-                  <div className="px-5 py-8 flex flex-col items-center gap-3 text-sm text-muted-foreground">
-                    <span className="h-6 w-6 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
-                    <span>Analizando perfil, historial y objetivos del paciente…</span>
+                {loadingAISesion ? (
+                  <div className="px-5 py-6 flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" />
+                    Analizando historial clínico, objetivos y sesiones recientes…
                   </div>
-                ) : !aiSesionIA ? (
+                ) : aiSesionList.length === 0 ? (
                   <div className="px-5 py-5 text-center text-sm text-muted-foreground">
-                    No se pudo generar el análisis.
-                    <button onClick={fetchAISesionIA} className="ml-2 underline hover:no-underline">
+                    No se pudieron generar sugerencias para esta sesión.
+                    <button onClick={fetchAISesionSuggestions} className="ml-2 underline hover:no-underline">
                       Reintentar
                     </button>
                   </div>
                 ) : (
-                  <div className="px-5 pt-4 pb-5 space-y-4">
-                    {/* Header con regenerar y cerrar */}
+                  <div className="px-5 pt-3 pb-4 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: BRAND_BLUE }}>
-                        <Sparkles className="h-3 w-3" />
-                        Sugerencias IA según perfil
+                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        Sugerencias IA para hoy
                       </p>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={fetchAISesionIA}
+                          onClick={fetchAISesionSuggestions}
                           className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground/70 transition-colors"
                         >
                           <RefreshCw className="h-2.5 w-2.5" /> Regenerar
                         </button>
                         <button
-                          onClick={() => setShowAISesionIA(false)}
+                          onClick={() => setShowAISesion(false)}
                           className="text-muted-foreground hover:text-foreground/70 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -2432,121 +2225,89 @@ export default function NuevaSesion() {
                       </div>
                     </div>
 
-                    {/* 🧠 Perfil clínico */}
-                    {aiSesionIA.perfilClinico && (
-                      <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 space-y-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 flex items-center gap-1.5">
-                          🧠 Perfil clínico
-                        </p>
-                        <p className="text-sm text-blue-900/85 leading-relaxed">{aiSesionIA.perfilClinico}</p>
-                      </div>
-                    )}
-
-                    {/* 🎯 Objetivos */}
-                    {aiSesionIA.objetivos.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/60 flex items-center gap-1.5">
-                          🎯 Objetivos para hoy
-                        </p>
-                        {aiSesionIA.objetivos.map((obj, idx) => {
-                          const isAdded  = addedAiIAIdx.has(idx);
-                          const isAdding = addingAiIAIdx.has(idx);
-                          const editVal  = aiIAObjEdits[idx] ?? obj.title;
-                          return (
-                            <div
-                              key={idx}
-                              className={`rounded-xl border px-3.5 py-3 transition-all ${
-                                isAdded
-                                  ? "border-emerald-200 bg-emerald-50/60"
-                                  : "border-border/60 bg-white/70"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div className="flex-1 min-w-0 space-y-1.5">
-                                  <input
-                                    type="text"
-                                    value={editVal}
-                                    disabled={isAdded}
-                                    onChange={e => setAiIAObjEdits(prev => ({ ...prev, [idx]: e.target.value }))}
-                                    className="w-full text-sm font-medium bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus:ring-0 p-0"
-                                  />
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {obj.areaClinica && (
-                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/8 text-primary/80 capitalize">
-                                        {obj.areaClinica}
-                                      </span>
-                                    )}
-                                    {obj.nivelDificultad && (
-                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
-                                        obj.nivelDificultad === "avanzado"
-                                          ? "bg-orange-100 text-orange-700"
-                                          : obj.nivelDificultad === "intermedio"
-                                          ? "bg-amber-100 text-amber-700"
-                                          : "bg-emerald-100 text-emerald-700"
-                                      }`}>
-                                        {obj.nivelDificultad}
-                                      </span>
-                                    )}
-                                    {obj.rationale && (
-                                      <span className="text-[10px] text-muted-foreground italic leading-tight">
-                                        {obj.rationale}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="shrink-0 mt-0.5">
-                                  {isAdded ? (
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                                      <CheckCircle2 className="h-3.5 w-3.5" /> Agregado
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => addAISesionIAObj(idx)}
-                                      disabled={isAdding || !editVal.trim()}
-                                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-all disabled:opacity-50"
-                                      style={{ background: isAdding ? `${BRAND_TEAL}80` : BRAND_TEAL }}
-                                    >
-                                      {isAdding
-                                        ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                                        : <Plus className="h-3 w-3" />
-                                      }
-                                      {isAdding ? "" : "Agregar"}
-                                    </button>
-                                  )}
-                                </div>
+                    {aiSesionList.map((sug, idx) => {
+                      const isAdded   = addedAiIdx.has(idx);
+                      const isAdding  = addingAiIdx.has(idx);
+                      const editVal   = aiSesionEdits[idx] ?? sug.title;
+                      return (
+                        <div
+                          key={idx}
+                          className={`rounded-xl border px-3.5 py-3 transition-all ${
+                            isAdded
+                              ? "border-emerald-200 bg-emerald-50/60"
+                              : "border-border/60 bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              {/* Editable title */}
+                              <input
+                                type="text"
+                                value={editVal}
+                                disabled={isAdded}
+                                onChange={e => setAiSesionEdits(prev => ({ ...prev, [idx]: e.target.value }))}
+                                className="w-full text-sm font-medium bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-70 focus:ring-0 p-0"
+                              />
+                              {/* Badges + rationale */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {sug.areaClinica && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/8 text-primary/80 capitalize">
+                                    {sug.areaClinica}
+                                  </span>
+                                )}
+                                {sug.nivelDificultad && (
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${
+                                    sug.nivelDificultad === "avanzado"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : sug.nivelDificultad === "intermedio"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-emerald-100 text-emerald-700"
+                                  }`}>
+                                    {sug.nivelDificultad}
+                                  </span>
+                                )}
+                                {sug.rationale && (
+                                  <span className="text-[10px] text-muted-foreground italic leading-tight">
+                                    {sug.rationale}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
 
-                    {/* 🧩 Actividades */}
-                    {aiSesionIA.actividades.length > 0 && (
-                      <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-3 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 flex items-center gap-1.5">
-                          🧩 Actividades prácticas
-                        </p>
-                        <ul className="space-y-1.5">
-                          {aiSesionIA.actividades.map((act, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-violet-900/85">
-                              <span className="shrink-0 font-bold text-violet-400 mt-0.5">·</span>
-                              <span className="leading-snug">{act}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* 📌 Recomendaciones */}
-                    {aiSesionIA.recomendaciones && (
-                      <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 space-y-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 flex items-center gap-1.5">
-                          📌 Recomendaciones
-                        </p>
-                        <p className="text-sm text-amber-900/85 leading-relaxed">{aiSesionIA.recomendaciones}</p>
-                      </div>
-                    )}
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                              {isAdded ? (
+                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Agregado
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => addAISuggestion(idx)}
+                                  disabled={isAdding || !editVal.trim()}
+                                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-all disabled:opacity-50"
+                                  style={{ background: isAdding ? `${BRAND_TEAL}80` : BRAND_TEAL }}
+                                >
+                                  {isAdding
+                                    ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                                    : <Plus className="h-3 w-3" />
+                                  }
+                                  {isAdding ? "" : "Agregar"}
+                                </button>
+                              )}
+                              {!isAdded && (
+                                <button
+                                  onClick={() => dismissAISuggestion(idx)}
+                                  className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                                  title="Descartar sugerencia"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

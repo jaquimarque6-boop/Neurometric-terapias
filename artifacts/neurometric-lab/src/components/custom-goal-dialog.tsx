@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
+import { API_BASE } from "@/lib/api";
 
 const CATEGORIAS = [
   "lenguaje", "habla", "cognición", "pragmática",
@@ -62,7 +63,7 @@ export function CustomGoalDialog({ onClose, onCreated }: Props) {
     if (!form.nombreObjetivo.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/goal-library", {
+      const res = await fetch(`${API_BASE}/api/goal-library`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

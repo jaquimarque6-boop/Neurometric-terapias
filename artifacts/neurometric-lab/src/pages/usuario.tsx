@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import { API_BASE } from "@/lib/api";
 
 export default function Usuario() {
   const { user } = useAuth();
@@ -23,7 +24,7 @@ export default function Usuario() {
     if (!name.trim()) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -37,7 +37,6 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { AIObjetivosDialog } from "@/components/ai-objetivos-dialog";
-import { AIPerfilClinicoPanel } from "@/components/ai-perfil-clinico-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +52,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
+import { API_BASE } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RC = {
@@ -598,7 +598,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   const handleGenerateAI = async () => {
     setIsGeneratingAI(true);
     try {
-      const resp = await fetch("/api/ai/informe-generate", {
+      const resp = await fetch(`${API_BASE}/api/ai/informe-generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -1073,7 +1073,7 @@ export default function PatientProfile() {
     if (!epName.trim()) return;
     setIsSavingPatient(true);
     try {
-      const res = await fetch(`/api/patients/${patientId}`, {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1129,7 +1129,7 @@ export default function PatientProfile() {
   const handleSaveAnamnesis = async () => {
     setIsSavingAn(true);
     try {
-      const res = await fetch(`/api/patients/${patientId}`, {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1157,7 +1157,7 @@ export default function PatientProfile() {
   };
 
   const handleSaveInforme = async (fields: { informeEvolucion?: string; informeFamilia?: string }) => {
-    const res = await fetch(`/api/patients/${patientId}`, {
+    const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fields),
@@ -1182,7 +1182,7 @@ export default function PatientProfile() {
   const handleSaveRegistro = async (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => {
     setIsSavingRC(true);
     try {
-      const rcRes = await fetch("/api/registros-clinicos", {
+      const rcRes = await fetch(`${API_BASE}/api/registros-clinicos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(d.registro),
@@ -1194,7 +1194,7 @@ export default function PatientProfile() {
         await Promise.all(d.goalUpdates.map(({ goalId, performance }) => {
           const map = PERFORMANCE_MAP[performance];
           if (!map) return Promise.resolve();
-          return fetch(`/api/goals/${goalId}/progress`, {
+          return fetch(`${API_BASE}/api/goals/${goalId}/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1224,7 +1224,7 @@ export default function PatientProfile() {
     setIsSavingRegistro(true);
     stopRecordingEr();
     try {
-      const res = await fetch(`/api/registros-clinicos/${editingRegistro.id}`, {
+      const res = await fetch(`${API_BASE}/api/registros-clinicos/${editingRegistro.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1620,15 +1620,6 @@ export default function PatientProfile() {
                       </div>
                     </CardHeader>
                   </Card>
-
-                  {/* ── AI Perfil Clínico ─────────────────────────────── */}
-                  <AIPerfilClinicoPanel
-                    patientId={patientId}
-                    onApplyToImpresion={(text) => {
-                      setAnImpresion(text);
-                      setAnDirty(true);
-                    }}
-                  />
 
                   {/* Sections */}
                   {SECCIONES_ANAMNESIS.map((sec) => {
@@ -2154,7 +2145,7 @@ function GoalCard({ goal, onCycle, onProgress, muted = false }: {
   const { data: actData } = useQuery<{ activities: any[]; libraryEntry: any | null }>({
     queryKey: ["goal-activities", goal.id],
     queryFn: async () => {
-      const res = await fetch(`/api/goals/${goal.id}/activities`);
+      const res = await fetch(`${API_BASE}/api/goals/${goal.id}/activities`, { credentials: "include" });
       if (!res.ok) throw new Error("Error");
       return res.json();
     },
@@ -2441,7 +2432,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   const { data: historyRaw = [], isLoading: loadingHistory, refetch } = useQuery<ProgressEntry[]>({
     queryKey: ["goal-progress", goal.id],
     queryFn: async () => {
-      const res = await fetch(`/api/goals/${goal.id}/progress`);
+      const res = await fetch(`${API_BASE}/api/goals/${goal.id}/progress`, { credentials: "include" });
       if (!res.ok) throw new Error("Error cargando historial");
       return res.json();
     },
@@ -2451,7 +2442,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   const { data: actData } = useQuery<{ activities: any[]; libraryEntry: any | null }>({
     queryKey: ["goal-activities", goal.id],
     queryFn: async () => {
-      const res = await fetch(`/api/goals/${goal.id}/activities`);
+      const res = await fetch(`${API_BASE}/api/goals/${goal.id}/activities`, { credentials: "include" });
       if (!res.ok) throw new Error("Error");
       return res.json();
     },
@@ -2482,7 +2473,7 @@ function GoalProgressDialog({ goal, registros, onClose, onUpdated }: {
   const addProgress = useMutation({
     mutationFn: async () => {
       const finalNota = buildFinalNota();
-      const res = await fetch(`/api/goals/${goal.id}/progress`, {
+      const res = await fetch(`${API_BASE}/api/goals/${goal.id}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2832,7 +2823,7 @@ function SuggestionsTab({ patientId, patientName, onAssigned }: {
   const { data: suggestions = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["patient-suggested-goals", patientId],
     queryFn: async () => {
-      const res = await fetch(`/api/patients/${patientId}/suggested-goals`);
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/suggested-goals`, { credentials: "include" });
       if (!res.ok) throw new Error("Error cargando sugerencias");
       return res.json();
     },
@@ -2965,7 +2956,7 @@ function GoalFormInline({ patientId, onSave, isSaving, onClose }: {
   };
 
   const handleGenerate = async () => {
-    const res = await fetch("/api/goal-codes/generate", {
+    const res = await fetch(`${API_BASE}/api/goal-codes/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(codeParams),
@@ -3176,7 +3167,7 @@ function AddFromBankDialog({ patientId, existingGoalLibraryIds, onClose, onAssig
   const { data: libraryRaw = [], isLoading } = useQuery<any[]>({
     queryKey: ["goal-library-bank"],
     queryFn: async () => {
-      const res = await fetch("/api/goal-library?estado=activo");
+      const res = await fetch(`${API_BASE}/api/goal-library?estado=activo`, { credentials: "include" });
       if (!res.ok) throw new Error("Error cargando banco");
       return res.json();
     },
@@ -3478,7 +3469,7 @@ function ClinicalTimeline({ patientId }: { patientId: number }) {
   const { data: events = [], isLoading, isError } = useQuery<TimelineEvent[]>({
     queryKey: ["patient-timeline", patientId],
     queryFn: async () => {
-      const res = await fetch(`/api/patients/${patientId}/timeline`);
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/timeline`, { credentials: "include" });
       if (!res.ok) throw new Error("Error al cargar timeline");
       return res.json();
     },

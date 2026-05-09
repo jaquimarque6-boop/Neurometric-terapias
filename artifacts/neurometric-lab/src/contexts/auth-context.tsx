@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE } from "@/lib/api";
 
 export type AuthUser = {
   id: number;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchMe = async () => {
     try {
-      const r = await fetch("/api/auth/me", { credentials: "include" });
+      const r = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
       if (r.ok) {
         const data = await r.json();
         if (data?.id) setUser(data);
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
     // Clear ALL cached query data so next user starts fresh
     queryClient.clear();
     setUser(null);

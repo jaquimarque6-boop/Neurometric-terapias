@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/api";
 
 const SPECIALTIES = [
   "Fonoaudiología",
@@ -58,7 +59,7 @@ export default function Usuarios() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const r = await fetch("/api/users", { credentials: "include" });
+      const r = await fetch(`${API_BASE}/api/users`, { credentials: "include" });
       if (r.ok) setUsers(await r.json());
     } finally {
       setLoading(false);
@@ -86,7 +87,7 @@ export default function Usuarios() {
     }
     setSaving(true);
     try {
-      const r = await fetch("/api/users", {
+      const r = await fetch(`${API_BASE}/api/users`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +114,7 @@ export default function Usuarios() {
   };
 
   const handleToggleActive = async (u: AppUser) => {
-    const r = await fetch(`/api/users/${u.id}`, {
+    const r = await fetch(`${API_BASE}/api/users/${u.id}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -148,7 +149,7 @@ export default function Usuarios() {
       };
       if (editForm.password?.trim()) payload.password = editForm.password.trim();
 
-      const r = await fetch(`/api/users/${id}`, {
+      const r = await fetch(`${API_BASE}/api/users/${id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

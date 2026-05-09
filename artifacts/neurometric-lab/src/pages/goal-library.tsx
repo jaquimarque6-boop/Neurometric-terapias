@@ -32,6 +32,7 @@ import {
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { getGrupo, getGrupos, getSubareas } from "@/config/goal-taxonomy";
+import { API_BASE } from "@/lib/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const AREAS_CLINICAS = [
@@ -1109,7 +1110,7 @@ function GoalActivitiesPanel({
   const { data: activities = [], isLoading } = useQuery<Actividad[]>({
     queryKey: qKey,
     queryFn: async () => {
-      const res = await fetch(`/api/actividades?goalLibraryId=${goalLibraryId}`);
+      const res = await fetch(`${API_BASE}/api/actividades?goalLibraryId=${goalLibraryId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Error al cargar actividades");
       return res.json();
     },
@@ -1122,7 +1123,7 @@ function GoalActivitiesPanel({
 
   const createMut = useMutation({
     mutationFn: async (tipo: "clinica" | "familia") => {
-      const res = await fetch("/api/actividades", {
+      const res = await fetch(`${API_BASE}/api/actividades`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1149,7 +1150,7 @@ function GoalActivitiesPanel({
 
   const updateMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/actividades/${id}`, {
+      const res = await fetch(`${API_BASE}/api/actividades/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1171,7 +1172,7 @@ function GoalActivitiesPanel({
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/actividades/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/actividades/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Error al eliminar");
     },
     onSuccess: () => {
@@ -1589,7 +1590,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
   const handleAreaChange = (v: string) => setForm(f => ({ ...f, areaClinica: v, subarea: "", codigo: "" }));
 
   useEffect(() => {
-    fetch("/api/goal-codes/generate", {
+    fetch(`${API_BASE}/api/goal-codes/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ areaClinica: "lenguaje", nivelDificultad: "básico" }),
@@ -1609,7 +1610,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
   };
 
   const handleGenerate = async () => {
-    const res = await fetch("/api/goal-codes/generate", {
+    const res = await fetch(`${API_BASE}/api/goal-codes/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(codeParams),
@@ -1622,7 +1623,7 @@ function NewLibraryGoalDialog({ onClose, onCreated }: {
     if (!form.nombreObjetivo.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/goal-library", {
+      const res = await fetch(`${API_BASE}/api/goal-library`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

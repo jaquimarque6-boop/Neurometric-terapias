@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListGoalsQueryKey } from "@workspace/api-client-react";
+import { API_BASE } from "@/lib/api";
 
 type SuggestedGoal = {
   title: string;
@@ -73,7 +74,7 @@ export function AIObjetivosDialog({ open, onClose, patientId, patientName }: Pro
     setSelected(new Set());
     setAddedIds(new Set());
     try {
-      const resp = await fetch("/api/ai/objetivos-suggest", {
+      const resp = await fetch(`${API_BASE}/api/ai/objetivos-suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -115,7 +116,7 @@ export function AIObjetivosDialog({ open, onClose, patientId, patientName }: Pro
     for (const [idx, g] of toAdd.entries()) {
       const originalIdx = suggestions.indexOf(g);
       try {
-        const resp = await fetch("/api/goals", {
+        const resp = await fetch(`${API_BASE}/api/goals`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

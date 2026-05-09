@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useListPatients } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/auth-context";
+import { API_BASE } from "@/lib/api";
 
 const HOUR_PX = 32;
 const START_HOUR = 7;
@@ -107,7 +108,7 @@ export default function AgendaPage() {
   const { data: citas = [], isLoading } = useQuery<Cita[]>({
     queryKey: ["citas", rangeStart, rangeEnd],
     queryFn: async () => {
-      const res = await fetch(`/api/citas?start=${rangeStart}&end=${rangeEnd}`);
+      const res = await fetch(`${API_BASE}/api/citas?start=${rangeStart}&end=${rangeEnd}`, { credentials: "include" });
       if (!res.ok) throw new Error("Error al cargar citas");
       return res.json();
     },
@@ -181,7 +182,7 @@ export default function AgendaPage() {
         patientId: parseInt(form.patientId),
         professionalId: user?.id ?? null,
       };
-      const res = await fetch("/api/citas", {
+      const res = await fetch(`${API_BASE}/api/citas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -203,7 +204,7 @@ export default function AgendaPage() {
     if (!selectedCita) return;
     setIsEditSaving(true);
     try {
-      const res = await fetch(`/api/citas/${selectedCita.id}`, {
+      const res = await fetch(`${API_BASE}/api/citas/${selectedCita.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scope: editScope, ...editForm }),
@@ -224,7 +225,7 @@ export default function AgendaPage() {
     if (!selectedCita) return;
     setIsCancelling(true);
     try {
-      const res = await fetch(`/api/citas/${selectedCita.id}?scope=${cancelScope}`, {
+      const res = await fetch(`${API_BASE}/api/citas/${selectedCita.id}?scope=${cancelScope}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Error");

@@ -11,6 +11,7 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
+import { API_BASE } from "@/lib/api";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/60",   bg: "bg-primary/10",   text: "text-primary"       },
@@ -37,7 +38,7 @@ export default function Dashboard() {
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ["listPatients"],
     queryFn: async () => {
-      const res = await fetch("/api/patients");
+      const res = await fetch(`${API_BASE}/api/patients`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -46,7 +47,7 @@ export default function Dashboard() {
   const { data: goals = [] } = useQuery<any[]>({
     queryKey: ["listGoals"],
     queryFn: async () => {
-      const res = await fetch("/api/goals");
+      const res = await fetch(`${API_BASE}/api/goals`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -55,7 +56,7 @@ export default function Dashboard() {
   const { data: citasHoy = [], isLoading: loadingCitas } = useQuery<any[]>({
     queryKey: ["citas", today, today],
     queryFn: async () => {
-      const res = await fetch(`/api/citas?start=${today}&end=${today}`);
+      const res = await fetch(`${API_BASE}/api/citas?start=${today}&end=${today}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -64,7 +65,7 @@ export default function Dashboard() {
   const { data: citasSemana = [] } = useQuery<any[]>({
     queryKey: ["citas", weekStart, weekEnd],
     queryFn: async () => {
-      const res = await fetch(`/api/citas?start=${weekStart}&end=${weekEnd}`);
+      const res = await fetch(`${API_BASE}/api/citas?start=${weekStart}&end=${weekEnd}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
