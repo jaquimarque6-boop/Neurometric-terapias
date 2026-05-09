@@ -10,11 +10,9 @@ const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 // Prepend backend base URL to relative paths so calls from Netlify reach Render.
-// import.meta.env is replaced at build time by Vite.
-const _apiBase: string =
-  typeof import.meta !== "undefined" && (import.meta as Record<string, unknown>).env
-    ? String(((import.meta as Record<string, unknown>).env as Record<string, unknown>)["VITE_API_URL"] ?? "").replace(/\/$/, "")
-    : "";
+// MUST use dot notation (import.meta.env.VITE_API_URL) — Vite only replaces
+// dot-notation env access at build time; bracket notation is NOT replaced.
+const _apiBase: string = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 function toAbsoluteUrl(input: RequestInfo | URL): RequestInfo | URL {
   if (typeof input === "string" && input.startsWith("/") && _apiBase) {

@@ -95,7 +95,10 @@ async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typ
 
 router.get("/patients", async (req, res) => {
   const sess = getSessionUser(req);
-  if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!sess) {
+    console.log(`[GET /api/patients] 401 — sin sesión (cookie: ${req.headers.cookie ? "presente" : "ausente"}, origin: ${req.headers.origin ?? "none"})`);
+    return res.status(401).json({ error: "No autenticado" });
+  }
 
   let patients: typeof patientsTable.$inferSelect[];
   if (sess.role === "admin") {
@@ -112,6 +115,7 @@ router.get("/patients", async (req, res) => {
   const allGoals = await db.select().from(goalsTable);
 
   const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
+  console.log(`[GET /api/patients] userId=${sess.id} role=${sess.role} → devolviendo ${withCounts.length} pacientes`);
   return res.json(withCounts);
 });
 
