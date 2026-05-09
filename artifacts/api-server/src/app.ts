@@ -56,15 +56,26 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const pgSessionStore = new PgSession({
+  pool,
+  tableName: "express_sessions",
+  createTableIfMissing: true,
+  errorLog: (...args: unknown[]) => console.error("[session-store ERROR]", ...args),
+});
+
+pgSessionStore.on?.("disconnect", () => console.error("[session-store] PostgreSQL disconnected"));
+pgSessionStore.on?.("connect",    () => console.log("[session-store] PostgreSQL connected"));
+
 app.use(session({
-  store: new PgSession({
-    pool,
-    tableName: "express_sessions",
-    createTableIfMissing: true,
-  }),
+  store: pgSessionStore,
   secret: process.env.SESSION_SECRET ?? "neurometric-secret-key-2024",
   resave: false,
   saveUninitialized: false,
+  // proxy: true — explicitly trust X-Forwarded-Proto from Render's reverse proxy.
+  // Belt-and-suspenders alongside app.set("trust proxy", 1).
+  // Without this, express-session may NOT emit Set-Cookie when secure:true
+  // because it sees the raw HTTP connection to Render's container (not HTTPS).
+  proxy: true,
   cookie: {
     secure: true,
     httpOnly: true,
