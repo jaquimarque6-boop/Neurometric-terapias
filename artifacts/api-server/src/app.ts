@@ -13,6 +13,7 @@ const PgSession = connectPgSimple(session);
 const isProduction = process.env.NODE_ENV === "production";
 
 const ALLOWED_ORIGINS = [
+  "https://neurometrict.netlify.app",
   "https://neurometric-terapias-backend.onrender.com",
   "http://localhost:3000",
   "http://localhost:5173",
