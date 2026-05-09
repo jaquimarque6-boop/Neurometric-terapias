@@ -60,7 +60,20 @@ export default function Usuarios() {
     setLoading(true);
     try {
       const r = await fetch(`${API_BASE}/api/users`, { credentials: "include" });
-      if (r.ok) setUsers(await r.json());
+      if (r.ok) {
+        setUsers(await r.json());
+      } else {
+        const err = await r.json().catch(() => ({}));
+        console.error(`[usuarios] GET /api/users → ${r.status}`, err);
+        toast({
+          title: `Error al cargar usuarios (${r.status})`,
+          description: err.error ?? "Verificá que tengas rol administrador.",
+          variant: "destructive",
+        });
+      }
+    } catch (e) {
+      console.error("[usuarios] fetch error:", e);
+      toast({ title: "Error de conexión al servidor", variant: "destructive" });
     } finally {
       setLoading(false);
     }
