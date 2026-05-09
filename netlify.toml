@@ -1,0 +1,13 @@
+[build]
+  command   = "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/neurometric-lab run build"
+  publish   = "artifacts/neurometric-lab/dist"
+
+[build.environment]
+  NODE_VERSION    = "20"
+  PNPM_VERSION    = "9"
+  VITE_API_URL    = "https://neurometric-terapias-backend.onrender.com"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
