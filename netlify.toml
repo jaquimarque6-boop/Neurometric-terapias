@@ -1,5 +1,5 @@
 [build]
-  command = ""pnpm --filter @workspace/neurometric-lab build"
+  command = "pnpm --filter @workspace/neurometric-lab build"
   publish = "artifacts/neurometric-lab/dist"
 
 [build.environment]
