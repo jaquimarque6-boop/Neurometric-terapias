@@ -111,6 +111,10 @@ export default function LoginPage() {
         </div>
 
       </div>
+
+      <p className="text-center text-[11px] text-muted-foreground/40 mt-8 tracking-widest uppercase">
+        VERSION NUEVA REAL
+      </p>
     </div>
   );
 }
