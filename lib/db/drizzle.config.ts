@@ -9,7 +9,9 @@ function getDbUrl(): string {
     const port = process.env.PGPORT ?? "5432";
     const db = process.env.PGDATABASE;
     const auth = password ? `${user}:${password}` : user;
-    return `postgresql://${auth}@${host}:${port}/${db}?sslmode=require`;
+    const isLocal = host === "helium" || host === "localhost" || host === "127.0.0.1";
+    const sslMode = isLocal ? "sslmode=disable" : "sslmode=require";
+    return `postgresql://${auth}@${host}:${port}/${db}?${sslMode}`;
   }
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL, ensure the database is provisioned");

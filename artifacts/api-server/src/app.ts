@@ -44,6 +44,8 @@ app.use(cors({
       ALLOWED_ORIGINS.includes(origin) ||
       /\.netlify\.app$/.test(origin) ||
       /\.onrender\.com$/.test(origin) ||
+      /\.replit\.dev$/.test(origin) ||
+      /\.replit\.app$/.test(origin) ||
       /^https?:\/\/localhost(:\d+)?$/.test(origin)
     ) {
       return callback(null, true);
