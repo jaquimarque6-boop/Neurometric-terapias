@@ -2,8 +2,9 @@
 
 # compiled output
 dist
-!artifacts/neurometric-lab/dist
-!artifacts/neurometric-lab/dist/**
+**/dist
+node_modules
+**/node_modules
 !artifacts/api-server/dist
 !artifacts/api-server/dist/**
 tmp
@@ -11,9 +12,6 @@ out-tsc
 *.tsbuildinfo
 .expo
 .expo-shared
-
-# dependencies
-node_modules
 
 # IDEs and editors
 /.idea
