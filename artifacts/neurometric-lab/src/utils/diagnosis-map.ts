@@ -22,8 +22,12 @@ export const DIAGNOSES: DiagnosisOption[] = [
   { value: "Voz",                         label: "Trastorno de voz (disfonía, nódulos…)" },
   { value: "Dificultades de aprendizaje", label: "Dificultades de aprendizaje" },
   { value: "Dificultades atencionales",   label: "Dificultades atencionales" },
-  { value: "Comprensión lectora",         label: "Problemas de comprensión lectora" },
+  { value: "Comprensión lectora",         label: "Dificultades de comprensión lectora" },
+  { value: "Producción escrita",          label: "Dificultades de producción escrita" },
   { value: "Funciones ejecutivas",        label: "Dificultades en funciones ejecutivas" },
+  { value: "Memoria",                     label: "Dificultades de memoria" },
+  { value: "Matemática",                  label: "Dificultades en matemática" },
+  { value: "Estrategias de aprendizaje",  label: "Dificultades en estrategias de aprendizaje" },
 ];
 
 export const DIAGNOSIS_AREAS: Record<string, string[]> = {
@@ -47,7 +51,11 @@ export const DIAGNOSIS_AREAS: Record<string, string[]> = {
   "Dificultades de aprendizaje": ["lectoescritura", "cognición"],
   "Dificultades atencionales":   ["cognición"],
   "Comprensión lectora":         ["lectoescritura"],
+  "Producción escrita":          ["lectoescritura"],
   "Funciones ejecutivas":        ["cognición"],
+  "Memoria":                     ["cognición"],
+  "Matemática":                  ["lectoescritura"],
+  "Estrategias de aprendizaje":  ["cognición"],
 };
 
 export function getDiagnosisLabel(value: string): string {

@@ -565,6 +565,48 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "17-20": "Desarrollar autogestión atencional y metacognición",
     },
   },
+  {
+    area: "memoria",
+    label: "Memoria",
+    bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Reconoce rostros y voces familiares", "Recuerda rutinas predecibles del día", "Imita gestos tras intervalo breve", "Responde a su nombre con consistencia"],
+      "3-5":   ["Recuerda 2 elementos de una secuencia", "Evoca contenido de cuentos escuchados antes", "Empareja imagen con objeto recordado", "Retiene instrucciones de 2 pasos"],
+      "6-8":   ["Recuerda instrucciones de 3 pasos sin apoyo visual", "Retiene vocabulario nuevo tras 2–3 exposiciones", "Asocia imágenes y palabras con apoyo gráfico", "Recuerda secuencias de 3–4 elementos"],
+      "9-12":  ["Memoriza contenido escolar con estrategias básicas", "Usa repetición y asociación para retener información", "Recuerda pasos de procedimientos aprendidos", "Recupera información trabajada en sesiones previas"],
+      "13-16": ["Aplica estrategias mnemónicas para contenido académico", "Relaciona nueva información con conocimiento previo", "Retiene vocabulario técnico con apoyo de mapas conceptuales", "Memoriza secuencias complejas con autorregulación"],
+      "17-20": ["Gestiona autónomamente la retención de contenido extenso", "Usa organización, elaboración y visualización como estrategias", "Evalúa eficacia de sus estrategias de memoria", "Consolida aprendizajes a largo plazo con revisión espaciada"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular reconocimiento, imitación y memoria de corto plazo",
+      "3-5":   "Trabajar retención de secuencias simples y evocación de contenido",
+      "6-8":   "Desarrollar memoria de trabajo verbal y retención de instrucciones",
+      "9-12":  "Trabajar estrategias básicas de memoria para el contexto escolar",
+      "13-16": "Fortalecer estrategias mnemónicas y memoria a largo plazo",
+      "17-20": "Desarrollar autorregulación de la memoria y revisión espaciada",
+    },
+  },
+  {
+    area: "estrategias-aprendizaje",
+    label: "Estrategias de aprendizaje",
+    bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Explora materiales con curiosidad", "Imita acciones del adulto para resolver problemas", "Intenta de nuevo tras fracaso con apoyo", "Usa objetos para descubrir y explorar"],
+      "3-5":   ["Pide ayuda cuando no logra una tarea", "Intenta una segunda opción si la primera no funciona", "Sigue pasos de una actividad con modelo visual", "Verbaliza lo que quiere hacer antes de hacerlo"],
+      "6-8":   ["Usa subrayado o dibujo para recordar información", "Anticipa pasos antes de iniciar una tarea", "Identifica qué parte de la tarea le resultó más difícil", "Repite en voz alta para retener información nueva"],
+      "9-12":  ["Organiza información con esquemas, listas o mapas", "Divide tareas complejas en pasos manejables", "Selecciona estrategia de estudio según el tipo de contenido", "Evalúa si comprendió lo que leyó o escuchó"],
+      "13-16": ["Planifica el estudio con agenda o cronograma", "Usa elaboración y relación conceptual como estrategia", "Monitorea la comprensión y ajusta el ritmo de lectura", "Adapta estrategias según el tipo de evaluación"],
+      "17-20": ["Gestiona autónomamente el aprendizaje con portafolio o revisión", "Selecciona y evalúa estrategias de forma metacognitiva", "Diseña su propio sistema de organización y estudio", "Transfiere estrategias a contextos nuevos y exigentes"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular curiosidad, exploración y persistencia ante tareas",
+      "3-5":   "Trabajar autoayuda, anticipación y resolución de problemas simples",
+      "6-8":   "Desarrollar estrategias básicas: subrayado, repetición y anticipación",
+      "9-12":  "Trabajar organización, planificación y evaluación del propio aprendizaje",
+      "13-16": "Fortalecer metacognición y selección de estrategias según contexto",
+      "17-20": "Desarrollar gestión autónoma del aprendizaje y transferencia estratégica",
+    },
+  },
 ];
 
 const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {

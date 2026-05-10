@@ -35,14 +35,18 @@ export const DIAGNOSES_FONO: DiagnosisOption[] = [
 ];
 
 export const DIAGNOSES_PSICOPED: DiagnosisOption[] = [
-  { value: "Dificultades de aprendizaje",  label: "Dificultades de aprendizaje" },
-  { value: "Dislexia",                     label: "Dislexia" },
-  { value: "Disgrafía",                    label: "Disgrafía" },
-  { value: "Discalculia",                  label: "Discalculia" },
-  { value: "TDAH",                         label: "TDAH" },
-  { value: "Dificultades atencionales",    label: "Dificultades atencionales" },
-  { value: "Comprensión lectora",          label: "Problemas de comprensión lectora" },
-  { value: "Funciones ejecutivas",         label: "Dificultades en funciones ejecutivas" },
+  { value: "Dificultades de aprendizaje",     label: "Dificultades de aprendizaje" },
+  { value: "Dislexia",                        label: "Dislexia" },
+  { value: "Disgrafía",                       label: "Disgrafía" },
+  { value: "Discalculia",                     label: "Discalculia" },
+  { value: "TDAH",                            label: "TDAH" },
+  { value: "Dificultades atencionales",       label: "Dificultades atencionales" },
+  { value: "Comprensión lectora",             label: "Dificultades de comprensión lectora" },
+  { value: "Producción escrita",              label: "Dificultades de producción escrita" },
+  { value: "Funciones ejecutivas",            label: "Dificultades en funciones ejecutivas" },
+  { value: "Memoria",                         label: "Dificultades de memoria" },
+  { value: "Matemática",                      label: "Dificultades en matemática" },
+  { value: "Estrategias de aprendizaje",      label: "Dificultades en estrategias de aprendizaje" },
 ];
 
 export function getDiagnosesByProfesion(profesion: Profesion): DiagnosisOption[] {

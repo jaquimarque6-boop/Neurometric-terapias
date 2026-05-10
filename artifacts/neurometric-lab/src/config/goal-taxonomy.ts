@@ -97,6 +97,15 @@ export const TAXONOMY: Taxonomy = {
       "Categorización",
       "Categorización semántica",
     ],
+    "Estrategias de aprendizaje": [
+      "Estrategias de aprendizaje",
+      "Estrategias de estudio",
+      "Metacognición",
+      "Autorregulación del aprendizaje",
+      "Estrategias mnemónicas",
+      "Estrategias de memoria",
+      "Organización del aprendizaje",
+    ],
   },
 
   "funciones ejecutivas": {
@@ -262,6 +271,14 @@ export const TAXONOMY: Taxonomy = {
       "Comprensión inferencial",
       "Conocimiento alfabético",
     ],
+    "Comprensión lectora": [
+      "Comprensión lectora",
+      "Comprensión inferencial",
+      "Comprensión literal",
+      "Idea principal",
+      "Secuencia narrativa",
+      "Discriminación de información",
+    ],
     "Escritura": [
       "Escritura",
       "Escritura de oraciones",
@@ -269,6 +286,22 @@ export const TAXONOMY: Taxonomy = {
       "Escritura al dictado",
       "Producción textual",
       "Ortografía y puntuación",
+    ],
+    "Producción escrita": [
+      "Producción escrita",
+      "Producción textual",
+      "Escritura de oraciones",
+      "Organización del texto",
+      "Ortografía y puntuación",
+      "Legibilidad",
+    ],
+    "Matemática": [
+      "Matemática",
+      "Cálculo",
+      "Número y cantidad",
+      "Resolución de problemas matemáticos",
+      "Patrones numéricos",
+      "Organización numérica",
     ],
   },
 };
