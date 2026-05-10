@@ -95,6 +95,11 @@ export default function Dashboard() {
     <AppLayout>
       <div className="flex flex-col gap-7 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
 
+        {/* ── Build marker ────────────────────────────────────────────────── */}
+        <div className="bg-primary/10 border border-primary/25 rounded-xl px-4 py-2 text-center">
+          <p className="text-xs font-bold text-primary tracking-widest uppercase">BUILD NUEVO 10/5 03:50</p>
+        </div>
+
         {/* ── Greeting ───────────────────────────────────────────────────── */}
         <div>
           <p className="text-xs font-medium text-muted-foreground capitalize tracking-wide">{todayLabel}</p>
