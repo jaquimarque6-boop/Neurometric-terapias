@@ -1400,6 +1400,9 @@ export default function PatientProfile() {
             <TabsTrigger value="informe" className="rounded-lg text-sm flex items-center gap-1">
               <FileText className="h-3.5 w-3.5" /> Informe
             </TabsTrigger>
+            <TabsTrigger value="timeline" className="rounded-lg text-sm flex items-center gap-1">
+              <History className="h-3.5 w-3.5" /> Línea de Tiempo
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Anamnesis ───────────────────────────────────────────────── */}
@@ -1909,6 +1912,9 @@ export default function PatientProfile() {
               registros={registros}
               onSave={handleSaveInforme}
             />
+          </TabsContent>
+          <TabsContent value="timeline" className="mt-6">
+            <ClinicalTimeline patientId={patient.id} />
           </TabsContent>
         </Tabs>
       </div>
