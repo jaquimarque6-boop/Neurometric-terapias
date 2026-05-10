@@ -1,7 +1,6 @@
 [build]
-  base    = "artifacts/neurometric-lab"
-  command = "pnpm run build"
-  publish = "dist"
+  command = ""pnpm --filter @workspace/neurometric-lab build"
+  publish = "artifacts/neurometric-lab/dist"
 
 [build.environment]
   NODE_VERSION = "20"
