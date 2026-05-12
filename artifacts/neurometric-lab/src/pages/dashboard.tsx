@@ -14,10 +14,10 @@ import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { API_BASE } from "@/lib/api";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  sesion:     { dot: "bg-primary/60",   bg: "bg-primary/10",   text: "text-primary"       },
-  evaluacion: { dot: "bg-secondary/80", bg: "bg-secondary/30", text: "text-secondary-foreground" },
-  reunion:    { dot: "bg-amber-300",    bg: "bg-amber-50",     text: "text-amber-700"     },
-  otro:       { dot: "bg-muted-border", bg: "bg-muted",        text: "text-muted-foreground" },
+  sesion:     { dot: "bg-primary/50",   bg: "bg-primary/8",    text: "text-primary"             },
+  evaluacion: { dot: "bg-secondary/70", bg: "bg-secondary/20", text: "text-secondary-foreground" },
+  reunion:    { dot: "bg-amber-300",    bg: "bg-amber-50/80",  text: "text-amber-700"            },
+  otro:       { dot: "bg-border",       bg: "bg-muted/60",     text: "text-muted-foreground"     },
 };
 const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
@@ -79,108 +79,119 @@ export default function Dashboard() {
   const isAdmin = user?.role === "admin";
 
   const quickLinks = [
-    { label: "Pacientes",          subtitle: "Gestión de casos",    icon: Users,        path: "/patients",     iconBg: "bg-primary/10",  iconColor: "text-primary"  },
-    { label: "Agenda",             subtitle: "Citas y horarios",    icon: CalendarDays, path: "/agenda",       iconBg: "bg-secondary/40", iconColor: "text-secondary-foreground" },
-    { label: "Banco de Objetivos", subtitle: "Metas terapéuticas",  icon: BookOpen,     path: "/goal-library", iconBg: "bg-accent/15",   iconColor: "text-accent"   },
-    ...(isAdmin ? [{ label: "Usuarios", subtitle: "Equipo clínico", icon: Users2, path: "/usuarios", iconBg: "bg-muted", iconColor: "text-muted-foreground" }] : []),
+    { label: "Pacientes",          subtitle: "Gestión de casos",   icon: Users,        path: "/patients"     },
+    { label: "Agenda",             subtitle: "Citas y horarios",   icon: CalendarDays, path: "/agenda"       },
+    { label: "Banco de Objetivos", subtitle: "Metas terapéuticas", icon: BookOpen,     path: "/goal-library" },
+    ...(isAdmin ? [{ label: "Usuarios", subtitle: "Equipo clínico", icon: Users2, path: "/usuarios" }] : []),
   ];
 
   const stats = [
-    { label: "Pacientes",          value: totalPatients,  icon: Users,        iconBg: "bg-primary/10",   iconColor: "text-primary",  valueColor: "text-primary"  },
-    { label: "Objetivos activos",  value: activeGoals,    icon: Target,       iconBg: "bg-accent/15",    iconColor: "text-accent",   valueColor: "text-accent"   },
-    { label: "Citas esta semana",  value: sessionsSemana, icon: TrendingUp,   iconBg: "bg-secondary/30", iconColor: "text-secondary-foreground", valueColor: "text-foreground" },
+    { label: "Pacientes",         value: totalPatients,  icon: Users      },
+    { label: "Objetivos activos", value: activeGoals,    icon: Target     },
+    { label: "Citas esta semana", value: sessionsSemana, icon: TrendingUp },
   ];
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-7 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
+      <div className="flex flex-col gap-6 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
 
-        {/* ── Build marker ────────────────────────────────────────────────── */}
-        <div className="bg-primary/10 border border-primary/25 rounded-xl px-4 py-2 text-center">
-          <p className="text-xs font-bold text-primary tracking-widest uppercase">BUILD NUEVO 10/5 03:50</p>
-        </div>
-
-        {/* ── Greeting ───────────────────────────────────────────────────── */}
-        <div>
+        {/* ── Greeting ──────────────────────────────────────────────────── */}
+        <div className="pt-1">
           <p className="text-xs font-medium text-muted-foreground capitalize tracking-wide">{todayLabel}</p>
-          <h1 className="text-2xl font-semibold mt-1 font-display text-foreground">
+          <h1 className="text-[1.6rem] font-semibold mt-0.5 font-display text-foreground leading-tight">
             Hola, <span className="text-primary">{firstName}</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">Bienvenido a tu plataforma clínica</p>
         </div>
 
-        {/* ── Primary actions ─────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-2.5">
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => navigate("/nueva-sesion")}
-              className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-primary/20
-                         bg-primary/8 hover:bg-primary/14 transition-all duration-200 active:scale-[0.98] text-left group"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 group-hover:bg-primary/22 transition-colors">
-                <ClipboardList className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground leading-tight">Nueva sesión</p>
-                <p className="text-xs text-muted-foreground mt-0.5 font-normal">Con objetivos</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setShowNewPatient(true)}
-              className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-accent/25
-                         bg-accent/8 hover:bg-accent/14 transition-all duration-200 active:scale-[0.98] text-left group"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 group-hover:bg-accent/22 transition-colors">
-                <Plus className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground leading-tight">Nuevo paciente</p>
-                <p className="text-xs text-muted-foreground mt-0.5 font-normal">Agregar al sistema</p>
-              </div>
-            </button>
+        {/* ── PRIMARY: Sesión rápida ─────────────────────────────────────── */}
+        <button
+          onClick={() => navigate("/sesion-rapida")}
+          className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl
+                     border border-border/70 bg-card shadow-sm
+                     hover:shadow-md hover:border-border
+                     transition-all duration-200 active:scale-[0.99] text-left group"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl
+                          bg-primary/8 border border-primary/12 shrink-0
+                          group-hover:bg-primary/12 transition-colors">
+            <Zap className="h-5 w-5 text-primary" />
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[1.05rem] font-bold text-foreground leading-snug">Sesión rápida</p>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full
+                               bg-primary/8 text-primary border border-primary/15 leading-none">
+                Uso diario
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 leading-snug">
+              Registra sin seleccionar objetivos — ágil y directo
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-muted-foreground/60 shrink-0 transition-colors" />
+        </button>
 
-          {/* Sesión rápida — secondary CTA */}
+        {/* ── SECONDARY + TERTIARY actions ──────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-2.5">
+
+          {/* Secondary: Nueva sesión */}
           <button
-            onClick={() => navigate("/sesion-rapida")}
-            className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl border border-amber-200/70
-                       bg-amber-50/60 hover:bg-amber-100/70 transition-all duration-200 active:scale-[0.99] text-left group"
+            onClick={() => navigate("/nueva-sesion")}
+            className="flex flex-col items-start gap-2.5 px-4 py-4 rounded-2xl
+                       border border-border/50 bg-muted/25
+                       hover:bg-muted/45 hover:border-border/70
+                       transition-all duration-200 active:scale-[0.98] text-left group"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 group-hover:bg-amber-200/80 transition-colors shrink-0">
-              <Zap className="h-4.5 w-4.5 text-amber-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-card border border-border/60
+                            group-hover:border-border transition-colors">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 leading-tight">Sesión rápida</p>
-              <p className="text-xs text-amber-600/80 mt-0.5 font-normal">Sin objetivos · registro diario ágil</p>
+            <div>
+              <p className="text-sm font-semibold text-foreground/90 leading-tight">Nueva sesión</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Con objetivos</p>
             </div>
-            <ChevronRight className="h-4 w-4 text-amber-400 shrink-0" />
+          </button>
+
+          {/* Tertiary: Nuevo paciente */}
+          <button
+            onClick={() => setShowNewPatient(true)}
+            className="flex flex-col items-start gap-2.5 px-4 py-4 rounded-2xl
+                       border border-border/35 bg-transparent
+                       hover:bg-muted/20 hover:border-border/55
+                       transition-all duration-200 active:scale-[0.98] text-left group"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/50 border border-border/40
+                            group-hover:bg-muted/70 transition-colors">
+              <Plus className="h-4 w-4 text-muted-foreground/70" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground/75 leading-tight">Nuevo paciente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Agregar al sistema</p>
+            </div>
           </button>
         </div>
 
-        {/* ── Stats summary ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* ── Stats ─────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-2.5">
           {stats.map(s => (
-            <div key={s.label} className="bg-card rounded-2xl border border-card-border shadow-sm p-4 text-center">
-              <div className={`inline-flex items-center justify-center h-9 w-9 rounded-xl mb-3 ${s.iconBg}`}>
-                <s.icon className={`h-4 w-4 ${s.iconColor}`} />
-              </div>
-              <p className={`text-2xl font-bold font-display ${s.valueColor}`}>{s.value}</p>
+            <div key={s.label} className="bg-card rounded-2xl border border-border/50 shadow-sm px-3 py-4 text-center">
+              <p className="text-2xl font-bold font-display text-foreground">{s.value}</p>
               <p className="text-[10px] text-muted-foreground mt-1 leading-snug">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* ── Agenda de hoy ─────────────────────────────────────────────────── */}
+        {/* ── Agenda de hoy ─────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               Agenda de hoy
             </h2>
             <button
               onClick={() => navigate("/agenda")}
-              className="text-xs font-medium flex items-center gap-0.5 text-accent hover:text-accent/80 transition-colors"
+              className="text-xs font-medium flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
             >
               Ver agenda <ChevronRight className="h-3.5 w-3.5" />
             </button>
@@ -189,17 +200,17 @@ export default function Dashboard() {
           {loadingCitas ? (
             <div className="space-y-2">
               {[0, 1].map(i => (
-                <div key={i} className="h-16 bg-muted/60 animate-pulse rounded-2xl" />
+                <div key={i} className="h-16 bg-muted/40 animate-pulse rounded-2xl" />
               ))}
             </div>
           ) : citasHoyActive.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-border bg-card text-center">
-              <CalendarDays className="h-8 w-8 text-muted-foreground/25 mb-3" />
+            <div className="flex flex-col items-center justify-center py-9 rounded-2xl border border-dashed border-border/60 bg-card/60 text-center">
+              <CalendarDays className="h-7 w-7 text-muted-foreground/20 mb-2.5" />
               <p className="text-sm text-muted-foreground font-medium">Sin citas para hoy</p>
-              <p className="text-xs text-muted-foreground/70 mt-0.5">Tu agenda está libre</p>
+              <p className="text-xs text-muted-foreground/60 mt-0.5">Tu agenda está libre</p>
               <button
                 onClick={() => navigate("/agenda")}
-                className="mt-4 text-xs font-semibold px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/16 transition-colors"
+                className="mt-4 text-xs font-semibold px-4 py-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 Ir a la Agenda
               </button>
@@ -213,7 +224,8 @@ export default function Dashboard() {
                   return (
                     <div
                       key={cita.id}
-                      className="flex items-center gap-3 bg-card rounded-2xl border border-card-border shadow-sm px-4 py-3.5 hover:shadow-md transition-all duration-200"
+                      className="flex items-center gap-3 bg-card rounded-2xl border border-border/50 shadow-sm px-4 py-3.5
+                                 hover:border-border hover:shadow-md transition-all duration-200"
                     >
                       <div className={`flex items-center justify-center h-9 w-9 rounded-xl shrink-0 ${colors.bg}`}>
                         <Clock className={`h-4 w-4 ${colors.text}`} />
@@ -223,13 +235,15 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {cita.horaInicio} – {cita.horaFin}
                           {cita.tipo && (
-                            <span className="ml-2 text-muted-foreground/70">{TIPO_LABELS[cita.tipo] ?? cita.tipo}</span>
+                            <span className="ml-2 text-muted-foreground/60">{TIPO_LABELS[cita.tipo] ?? cita.tipo}</span>
                           )}
                         </p>
                       </div>
                       <button
-                        onClick={() => navigate("/nueva-sesion")}
-                        className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary transition-all hover:bg-primary/18 active:scale-95"
+                        onClick={() => navigate("/sesion-rapida")}
+                        className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5
+                                   rounded-lg border border-border/50 text-muted-foreground
+                                   hover:border-border hover:text-foreground transition-all active:scale-95"
                       >
                         <Sparkles className="h-3 w-3" />
                         Iniciar
@@ -241,25 +255,27 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ── Quick access ─────────────────────────────────────────────────── */}
-        <div>
+        {/* ── Quick access ──────────────────────────────────────────────── */}
+        <div className="pb-4">
           <h2 className="text-sm font-semibold text-foreground mb-3">Acceso rápido</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {quickLinks.map(link => (
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
-                className="flex flex-col items-start gap-3 p-4 bg-card rounded-2xl border border-card-border shadow-sm
-                           text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97] group"
+                className="flex flex-col items-start gap-2.5 p-4 bg-card rounded-2xl border border-border/50
+                           text-left transition-all duration-200 hover:border-border hover:shadow-sm
+                           active:scale-[0.97] group"
               >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${link.iconBg} transition-transform group-hover:scale-110`}>
-                  <link.icon className={`h-4.5 w-4.5 ${link.iconColor}`} />
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/60
+                                group-hover:bg-muted transition-colors">
+                  <link.icon className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="w-full">
                   <p className="text-xs font-semibold text-foreground leading-tight">{link.label}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{link.subtitle}</p>
                 </div>
-                <ArrowRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors self-end" />
+                <ArrowRight className="h-3 w-3 text-muted-foreground/25 group-hover:text-muted-foreground/50 transition-colors self-end" />
               </button>
             ))}
           </div>
