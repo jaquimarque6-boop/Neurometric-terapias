@@ -472,6 +472,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "13-16": ["Comprensión crítica de textos argumentativos", "Detecta idea principal y detalles de apoyo", "Lectura en contexto académico multi-asignatura", "Integra información de dos fuentes escritas"],
       "17-20": ["Lectura académica y técnica autónoma", "Síntesis y análisis crítico de textos", "Detección de sesgos y argumentos implícitos", "Metacognición lectora avanzada"],
     },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Lectura compartida de cuentos con imágenes grandes: nombrar y señalar juntos", "Juego de 'señala la letra': terapeuta muestra tarjetas con letras y el niño señala las que conoce", "Canciones con rimas sencillas para estimular la conciencia del sonido del lenguaje"],
+      "3-5":   ["Juego de sílabas con palmadas: dividir palabras familiares golpeando la mesa", "Asociación letra-sonido con tarjetas de vocales y dibujos con imagen inicial", "Construcción del nombre propio con letras móviles o tarjetas recortadas"],
+      "6-8":   ["Lectura en pareja: terapeuta lee una oración, paciente lee la siguiente en voz alta", "Fichas de palabras CVCV con imagen: el paciente lee y asocia al dibujo correspondiente", "Preguntas de comprensión literal sobre texto corto leído en sesión (¿quién?, ¿qué pasó?)"],
+      "9-12":  ["Lectura silenciosa de texto breve seguida de resumen oral con apoyo del terapeuta", "Fichas de inferencia: el terapeuta lee una situación y el paciente completa lo implícito", "Identificación de idea principal en párrafos usando subrayado y círculo en palabras clave"],
+      "13-16": ["Lectura de texto argumentativo con guía de preguntas: ¿cuál es la tesis?, ¿qué argumentos usa?", "Comparación de dos textos breves sobre el mismo tema: diferencias y puntos en común", "Práctica de velocidad lectora con cronómetro y verificación de comprensión posterior"],
+      "17-20": ["Análisis de texto académico con identificación de estructura: introducción, desarrollo, conclusión", "Síntesis escrita de un texto leído en sesión: párrafo de tres oraciones con idea principal", "Ejercicio metacognitivo: el paciente evalúa su propia comprensión antes y después de releer"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Leer en voz alta libros de imágenes cada noche antes de dormir, señalando los dibujos", "No forzar al niño a seguir la lectura: dejar que explore el libro con libertad"],
+      "3-5":   ["Jugar a buscar letras del nombre del niño en carteles, envases y libros del hogar", "Contar sílabas de palabras cotidianas mientras caminan o comen (ma-no, za-pa-to)"],
+      "6-8":   ["Leer juntos 10 minutos al día: el niño lee en voz alta y el adulto escucha sin corregir abruptamente", "Preguntar después de leer: '¿de qué trataba?' y escuchar sin completar la respuesta"],
+      "9-12":  ["Apoyar la lectura de tareas escolares: leer junto una vez y luego dejar que lo haga solo", "Visitar la biblioteca o descargar libros de interés del niño para motivar la lectura voluntaria"],
+      "13-16": ["Conversar sobre noticias o artículos que haya leído el adolescente, sin evaluar su opinión", "No interrumpir ni leer por ellos: respetar su ritmo y dejar que consulte el diccionario solo"],
+      "17-20": ["Apoyar la búsqueda de materiales de lectura académica (libros, artículos) según sus intereses", "Mostrar interés genuino en lo que está leyendo: preguntar de qué trata, sin evaluar"],
+    },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular amor por la lectura y conciencia de texto impreso",
       "3-5":   "Trabajar conciencia fonológica y reconocimiento de letras",
@@ -492,6 +508,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "9-12":  ["Redacta párrafos con idea principal y detalles", "Aplica tildes en palabras agudas y graves frecuentes", "Planifica texto con borrador y revisión", "Usa conectores para organizar ideas"],
       "13-16": ["Redacta textos argumentativos de 3+ párrafos", "Aplica ortografía acentual y puntual", "Adapta registro al destinatario del texto", "Revisa y reescribe con criterio propio"],
       "17-20": ["Escritura académica formal con citas y bibliografía", "Planifica y estructura textos extensos", "Revisión avanzada de coherencia y cohesión", "Producción autónoma de distintos géneros textuales"],
+    },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Trazado libre con pintura de dedos o crayones gruesos sobre papel grande", "Imitación de trazos simples: el terapeuta dibuja una línea recta, el niño la reproduce", "Actividades de grafomotricidad: laberintos muy simples, rellenar formas grandes con color"],
+      "3-5":   ["Copia del nombre propio con modelo a la vista: letra por letra con celebración", "Trazado de letras del nombre en arena, harina o pizarra borrosa para refuerzo táctil", "Diferenciación dibujo/escritura: el terapeuta escribe una palabra y dibuja el objeto, el niño identifica cuál es cuál"],
+      "6-8":   ["Dictado de palabras simples con análisis posterior: ¿qué parte fue difícil?, ¿por qué?", "Escritura de frases cortas a partir de imágenes: el paciente elige la imagen y dicta su frase", "Lista de cotejo ortográfico: el paciente revisa su propio texto con una guía de reglas básicas"],
+      "9-12":  ["Planificación de párrafo con organizador gráfico: lluvia de ideas → idea principal → detalles", "Revisión por pares simulada: el terapeuta hace de 'lector' y da retroalimentación sobre coherencia", "Dictado de oraciones con aplicación de reglas ortográficas trabajadas en sesión"],
+      "13-16": ["Producción de texto argumentativo corto con estructura guiada: tesis → argumentos → conclusión", "Revisión propia con rúbrica simple: el paciente evalúa su texto en coherencia, ortografía y registro", "Reescritura: tomar un texto con errores intencionados y corregirlo con explicación de cada cambio"],
+      "17-20": ["Escritura académica guiada: introducción de un trabajo con tesis y cita bibliográfica", "Revisión de coherencia y cohesión en texto propio usando lista de conectores y marcadores textuales", "Autoevaluación escrita: el paciente redacta un párrafo y luego anota qué cambiaría y por qué"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Ofrecer crayones, pinturas y papel con regularidad sin exigir un resultado concreto", "Celebrar cualquier trazo intencional: 'mira lo que hiciste' sin decir 'qué es esto'"],
+      "3-5":   ["Escribir juntos listas simples en casa: la lista del supermercado, los nombres de la familia", "No corregir la escritura del nombre delante de otras personas; hacerlo en privado y con amabilidad"],
+      "6-8":   ["Dictar 3-5 palabras al niño en casa como práctica breve (5 min), sin hacerlo estresante", "Animar a escribir tarjetas o mensajes a familiares: refuerza el propósito real de la escritura"],
+      "9-12":  ["Apoyar la planificación del texto escolar pero no escribirlo: hacer preguntas ('¿de qué va el párrafo?')", "Evitar corregir la ortografía del hijo en el borrador: esperar a que él revise primero"],
+      "13-16": ["Mostrar interés en sus textos escolares: pedir que cuente de qué escribió, no leer el borrador sin permiso", "No reescribir sus textos: sugerir una idea y dejar que él la desarrolle con sus propias palabras"],
+      "17-20": ["Apoyar el acceso a diccionarios, correctores y manuales de estilo según el nivel académico", "Respetar su voz escrita: no imponer el estilo propio al revisar un texto que el joven pidió compartir"],
     },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular grafomotricidad y trazos básicos",
@@ -514,6 +546,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "13-16": ["Opera con números negativos y fracciones complejas", "Álgebra básica: ecuaciones de primer grado", "Geometría: área y perímetro de figuras planas", "Interpreta gráficas y datos estadísticos simples"],
       "17-20": ["Razonamiento matemático abstracto y algebraico", "Estadística descriptiva e inferencial básica", "Funciones lineales y representación gráfica", "Matemática aplicada a contextos reales y cotidianos"],
     },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Conteo de objetos concretos (bloques, botones): el terapeuta cuenta junto al niño tocando cada objeto", "Juego de 'más o menos': el terapeuta pone 2 y 4 objetos, el niño señala el grupo con más", "Ordenamiento de 3 objetos por tamaño con apoyo verbal: 'este es grande, este chico, ¿cuál es el del medio?'"],
+      "3-5":   ["Conteo con correspondencia uno a uno usando fichas: el niño toca y cuenta hasta 10", "Juego de dados: tirar un dado y poner el mismo número de fichas en el tablero", "Reconocimiento de dígitos con tarjetas: el terapeuta muestra el número y el niño pone esa cantidad de objetos"],
+      "6-8":   ["Resolución de problemas con enunciado oral simple: el terapeuta narra la situación, el paciente resuelve con material concreto", "Escalera numérica con suma y resta: el paciente avanza o retrocede fichas según las operaciones", "Valor posicional con cubos de decenas y unidades: armar un número dado con material concreto"],
+      "9-12":  ["Resolución de problemas de dos pasos escritos: identificar los datos, la pregunta y el procedimiento", "Práctica de tablas de multiplicar con tarjetas de asociación veloz (tiempo por respuesta)", "Fracciones con material concreto: dividir figuras en partes iguales y nombrar la fracción correspondiente"],
+      "13-16": ["Ecuaciones de primer grado con procedimiento guiado paso a paso y explicación en voz alta", "Análisis de gráficas estadísticas: el paciente describe lo que ve, extrae conclusiones y formula preguntas", "Resolución de problemas contextualizados (descuentos, porcentajes, escalas) con apoyo de calculadora cuando corresponde"],
+      "17-20": ["Modelado matemático de situaciones reales: el paciente elige una situación y la representa con ecuaciones", "Trabajo en estadística descriptiva: calcular media, moda y rango de un conjunto de datos del interés del paciente", "Revisión de errores en ejercicios propios: identificar en qué paso falló y por qué, con autocorrección guiada"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Contar objetos cotidianos en voz alta: escalones, manzanas, zapatos al ordenarlos", "Juego del 'cuántos hay': señalar objetos del entorno y contar juntos sin presión por la respuesta"],
+      "3-5":   ["Jugar a la tiendita con monedas de juguete o billetes impresos para contar y dar vuelto", "Usar juegos de mesa con dados (Ludo, escalera) como práctica natural del conteo y los números"],
+      "6-8":   ["Proponer cálculo mental cotidiano: '¿si compro 3 y me dan 1 de regalo, cuántos tengo?'", "No hacer las tareas matemáticas por el niño: leer el problema junto y dejar que él resuelva"],
+      "9-12":  ["Apoyar el estudio de tablas con canciones o tarjetas flash, en sesiones de 5 minutos diarios", "Invitar al niño a calcular vueltos, propinas o descuentos en situaciones reales de compra"],
+      "13-16": ["No desestimar las dificultades con el álgebra: 'te entiendo, es difícil' antes de buscar ayuda", "Apoyar el acceso a recursos visuales (tutoriales, calculadoras graficadoras) como herramientas válidas de aprendizaje"],
+      "17-20": ["Mostrar la matemática en contextos reales: presupuestos, intereses bancarios, estadísticas de noticias", "Respetar el estilo de resolución del joven aunque sea diferente al propio: el resultado correcto puede lograrse por distintos caminos"],
+    },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular concepto de cantidad y pensamiento lógico básico",
       "3-5":   "Trabajar conteo, correspondencia y comparación de cantidades",
@@ -534,6 +582,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "9-12":  ["Organiza materiales y tiempo de estudio básico", "Monitorea y corrige la propia conducta", "Cambia de estrategia cuando la actual no funciona", "Planifica una tarea escolar con anticipación"],
       "13-16": ["Planifica proyectos de largo plazo con etapas", "Toma decisiones evaluando consecuencias posibles", "Flexibilidad cognitiva ante cambios de regla o contexto", "Autorregula emociones en contexto de exigencia académica"],
       "17-20": ["Gestión autónoma del tiempo y el estudio", "Estrategias metacognitivas para el aprendizaje", "Planificación y priorización de tareas complejas", "Autorregulación emocional y conductual en contextos exigentes"],
+    },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Juego de stop y go con señal visual: el terapeuta levanta la mano y el niño detiene su acción", "Secuencia de 2 pasos con objetos: 'primero ponemos el bloque aquí, después el cubo allá'", "Espera de turno simple: juego de tirar la pelota alternando sin saltarse"],
+      "3-5":   ["Juego de Simón dice con reglas de inhibición: obedecer solo si dice 'Simón dice'", "Planificación de una actividad de 2 pasos con tablero visual: el niño pega imágenes en el orden correcto", "Juego de memoria (parejas de cartas): trabaja memoria de trabajo e inhibición de respuesta impulsiva"],
+      "6-8":   ["Planificación de tarea escolar en tarjetas: el paciente escribe cada paso en orden y los ejecuta", "Juego de categorización flexible: ordenar objetos primero por color, luego por forma (flexibilidad)", "Checklist de tareas de la sesión: el paciente marca cada paso completado y monitorea su progreso"],
+      "9-12":  ["Diseño de horario semanal de estudio con el terapeuta: asignación de tiempos por materia y descansos", "Role-play de situación escolar inesperada: el terapeuta cambia las reglas de una tarea a mitad y el paciente se adapta", "Automonitoreo de conducta: el paciente evalúa en una escala 1-5 su nivel de impulsividad durante la sesión"],
+      "13-16": ["Planificación de proyecto de mediano plazo en diagrama de Gantt simplificado (etapas y fechas)", "Análisis de decisiones: el paciente presenta una decisión real y el terapeuta guía el análisis de consecuencias", "Práctica de flexibilidad cognitiva: el terapeuta cambia reglas de un juego y el paciente reajusta su estrategia"],
+      "17-20": ["Construcción de sistema personal de organización: agenda, app o tablero que el paciente diseña", "Ejercicio de priorización: lista de 10 tareas que el paciente ordena por urgencia e importancia con justificación", "Autoevaluación de gestión del tiempo de la semana anterior: qué funcionó, qué cambiaría y por qué"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Anticipar los cambios de actividad con voz tranquila: 'en 2 minutos guardamos los juguetes'", "Establecer una rutina diaria predecible: el orden de las actividades ayuda a desarrollar la organización"],
+      "3-5":   ["Usar un tablero de rutina visual en casa con imágenes de las actividades del día en orden", "Valorar el esfuerzo de esperar el turno o seguir una regla, aunque no lo logre perfectamente siempre"],
+      "6-8":   ["Apoyar la elaboración de una lista de tareas escolares en papel o pizarrón visible", "Evitar hacer las cosas por el niño cuando se traba: acompañar con preguntas ('¿cuál sería el primer paso?')"],
+      "9-12":  ["Instalar con el adolescente un sistema de horarios y recordatorios que él mismo elija (app, cuaderno, pizarrón)", "Dar retroalimentación sobre la organización sin juzgar: '¿cómo te fue con el plan de estudio esta semana?'"],
+      "13-16": ["Respetar el sistema de organización del adolescente aunque sea diferente al propio: intervenir solo si hay consecuencias académicas reales", "Conversar sobre decisiones importantes sin tomar la decisión por ellos: '¿qué crees que pasaría si...?'"],
+      "17-20": ["Confiar en la capacidad del joven para gestionar su tiempo: observar sin microgestionar", "Estar disponible para conversar sobre planificación de proyectos cuando el joven lo solicite"],
     },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular inhibición básica y seguimiento de instrucciones simples",
@@ -556,6 +620,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "13-16": ["Mantiene atención en clases largas (40-45 min)", "Filtra información irrelevante en entornos complejos", "Monitorea activamente la comprensión en tiempo real", "Distribuye la atención entre múltiples demandas académicas"],
       "17-20": ["Atención sostenida en estudio autónomo prolongado", "Gestión avanzada de distractores internos y externos", "Metacognición atencional: reconoce cuándo pierde el hilo", "Adapta el entorno de estudio para optimizar el foco"],
     },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Juego de seguimiento visual con objeto llamativo: mover un juguete lentamente y esperar que el niño lo siga con la mirada", "Llamada por nombre con contacto visual: el terapeuta llama al niño y espera que gire y mire antes de continuar", "Exploración dirigida: darle un objeto nuevo y observar cuánto tiempo lo manipula con interés"],
+      "3-5":   ["Actividad de concentración con cronómetro visible: el niño realiza una tarea sencilla y ve el tiempo avanzar", "Juego de búsqueda visual: encontrar un objeto específico en una lámina con varios estímulos", "Retorno a la tarea: el terapeuta introduce una distracción suave y luego da la señal de volver ('¡a trabajar!')"],
+      "6-8":   ["Tarea con cronómetro graduado: completar una actividad académica breve en un tiempo acordado, registrar avance", "Búsqueda de diferencias entre dos imágenes: atención selectiva con foco sostenido", "Entrenamiento de retorno a la tarea: el terapeuta distrae levemente y el paciente practica ignorar y seguir"],
+      "9-12":  ["Tarea de atención alternada: el paciente cambia entre dos actividades distintas con señal del terapeuta", "Revisión de su propio trabajo con lista de errores a buscar: el paciente detecta y marca sin ayuda", "Técnica de Pomodoro adaptada: bloques de trabajo de 15 min con descanso de 3 min, registro de productividad"],
+      "13-16": ["Lectura de texto complejo con pausas programadas y preguntas de comprensión intercaladas", "Práctica de toma de apuntes mientras el terapeuta habla: ejercita la atención dividida", "Registro de autoevaluación atencional: el paciente puntúa su nivel de foco durante la sesión cada 10 minutos"],
+      "17-20": ["Trabajo en bloque de 25 min sobre tarea académica real con evaluación posterior de foco y productividad", "Diseño de entorno de estudio óptimo: el paciente identifica y elimina sus distractores personales", "Práctica de mindfulness atencional breve (5 min): respiración guiada con foco en el presente antes de la tarea"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Minimizar estímulos visuales y sonoros durante momentos de juego para favorecer la exploración sostenida", "Celebrar cuando el niño mantiene el contacto visual o juega con algo por más tiempo que antes"],
+      "3-5":   ["Preparar el espacio de trabajo del niño antes de pedir que haga una tarea: sin TV ni distractores", "Valorar el esfuerzo de volver a la tarea sin que lo hayan pedido: '¡volviste tú solo, muy bien!'"],
+      "6-8":   ["Usar un temporizador visible (reloj de arena o cronómetro) para delimitar el tiempo de tarea", "Evitar interrumpir al niño mientras trabaja concentrado, aunque sea para ofrecerle algo positivo"],
+      "9-12":  ["Acordar con el adolescente tiempos de trabajo y descanso: no imponer, negociar juntos", "No quitarle el celular de forma abrupta: acordar zonas o momentos sin pantallas con anticipación"],
+      "13-16": ["Apoyar la creación de un espacio de estudio sin distractores que el adolescente diseñe y controle", "Evitar hablarle mientras estudia: respetar los bloqueos de tiempo que él mismo establezca"],
+      "17-20": ["Confiar en que el joven conoce sus propios distractores y puede gestionarlos con apoyo", "Mostrar interés en sus estrategias de foco ('¿qué te funciona para concentrarte?') sin imponer las propias"],
+    },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular exploración sostenida y respuesta al nombre",
       "3-5":   "Trabajar atención sostenida y retorno a la tarea",
@@ -577,6 +657,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "13-16": ["Aplica estrategias mnemónicas para contenido académico", "Relaciona nueva información con conocimiento previo", "Retiene vocabulario técnico con apoyo de mapas conceptuales", "Memoriza secuencias complejas con autorregulación"],
       "17-20": ["Gestiona autónomamente la retención de contenido extenso", "Usa organización, elaboración y visualización como estrategias", "Evalúa eficacia de sus estrategias de memoria", "Consolida aprendizajes a largo plazo con revisión espaciada"],
     },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Juego de 'dónde está': esconder un objeto bajo un paño y esperar que el niño lo busque (permanencia del objeto)", "Secuencia de 2 gestos: el terapeuta hace dos acciones y el niño las imita en orden", "Canciones con acciones repetidas: el terapeuta canta, el niño anticipa el gesto que viene"],
+      "3-5":   ["Memoria de objetos: mostrar 3 objetos, cubrirlos, y pedir al niño que los nombre de memoria", "Cuento secuencial: narrar un cuento corto y preguntar '¿qué pasó primero?, ¿y después?'", "Instrucciones en cadena: dar 2 instrucciones seguidas y pedir que las ejecute en orden"],
+      "6-8":   ["Instrucciones de 3 pasos sin apoyo visual: el paciente escucha, espera 10 segundos y las ejecuta", "Asociación imagen-palabra: tarjetas con imagen y palabra nueva; repaso diferido al final de la sesión", "Juego de memoria (parejas) con vocabulario temático: animales, comidas, objetos escolares"],
+      "9-12":  ["Técnica de repetición espaciada: repasar un conjunto de datos a los 5, 15 y 30 minutos de la sesión", "Construcción de mnemónica: el paciente inventa una frase o acrónimo para recordar una lista de contenido escolar", "Recuperación activa: el terapeuta pide al paciente que recuerde lo trabajado en la sesión anterior sin claves"],
+      "13-16": ["Mapa conceptual de memoria: el paciente organiza un tema académico en un esquema que construye de memoria", "Estrategia de elaboración: el paciente conecta contenido nuevo con algo que ya sabe y explica el vínculo", "Revisión espaciada de vocabulario técnico con tarjetas: el paciente evalúa cuántas puede recordar sin mirar"],
+      "17-20": ["Diseño personal de sistema de revisión espaciada: el paciente crea su propio calendario de repasos", "Práctica de recuperación sin clave: el paciente cierra el libro y escribe todo lo que recuerda del tema", "Evaluación de eficacia: el paciente compara dos estrategias de memoria que usó en distintas semanas y analiza cuál funcionó mejor"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Mantener rutinas predecibles: el orden conocido ayuda al niño a anticipar y recordar lo que viene", "Jugar a '¿dónde está el juguete?' escondiendo objetos bajo cojines y pañuelos"],
+      "3-5":   ["Pedir al niño que recuerde 2 cosas que hizo hoy antes de dormir: práctica de memoria episódica", "Repasar juntos el cuento del día anterior antes de leer uno nuevo: '¿te acuerdas de qué pasó ayer?'"],
+      "6-8":   ["Repasar brevemente con el niño lo que trabajó en sesión: '¿qué hiciste hoy con la psicopedagoga?'", "Ayudar con el repaso de materias, pero en forma de preguntas, no de respuestas: '¿y cuánto es 6 por 7?'"],
+      "9-12":  ["Apoyar la implementación de tarjetas de estudio o flashcards en casa como herramienta de repaso", "Evitar dar la respuesta de inmediato cuando el adolescente no recuerda algo: esperar 10 segundos para que recupere"],
+      "13-16": ["Mostrar interés en las estrategias de memoria que el adolescente está aprendiendo: '¿qué te está funcionando?'", "No resolver por él lo que no recuerda: una pausa y un 'piensa en voz alta' puede ser suficiente apoyo"],
+      "17-20": ["Apoyar el acceso a herramientas digitales de repetición espaciada (Anki, Quizlet) si el joven las usa", "Respetar el sistema de repasos que el joven diseñó, aunque sea diferente al propio"],
+    },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular reconocimiento, imitación y memoria de corto plazo",
       "3-5":   "Trabajar retención de secuencias simples y evocación de contenido",
@@ -597,6 +693,22 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
       "9-12":  ["Organiza información con esquemas, listas o mapas", "Divide tareas complejas en pasos manejables", "Selecciona estrategia de estudio según el tipo de contenido", "Evalúa si comprendió lo que leyó o escuchó"],
       "13-16": ["Planifica el estudio con agenda o cronograma", "Usa elaboración y relación conceptual como estrategia", "Monitorea la comprensión y ajusta el ritmo de lectura", "Adapta estrategias según el tipo de evaluación"],
       "17-20": ["Gestiona autónomamente el aprendizaje con portafolio o revisión", "Selecciona y evalúa estrategias de forma metacognitiva", "Diseña su propio sistema de organización y estudio", "Transfiere estrategias a contextos nuevos y exigentes"],
+    },
+    actividadesClinicasPorFranja: {
+      "0-2":   ["Modelado de resolución con objeto: el terapeuta intenta abrir una caja, fracasa, lo intenta de otro modo, verbaliza el proceso", "Exploración libre con material nuevo: observar qué estrategias espontáneas usa el niño para interactuar con el objeto", "Refuerzo del intento: celebrar que volvió a intentarlo después de no lograrlo la primera vez"],
+      "3-5":   ["Tarea de 2 pasos con modelo visual: el terapeuta muestra las imágenes del proceso y el niño las ejecuta", "Práctica de pedir ayuda: situación diseñada donde el niño necesita ayuda y practica pedirla con palabras", "Verbalización antes de actuar: '¿qué vas a hacer primero?' — el niño lo dice antes de empezar"],
+      "6-8":   ["Subrayado en texto corto: el paciente marca con colores lo que cree más importante y explica por qué lo eligió", "Anticipación de pasos: antes de una actividad, el paciente enumera los pasos que va a seguir y luego los ejecuta", "Reflexión final: al terminar la tarea, el paciente responde '¿qué fue fácil?, ¿qué fue difícil?, ¿qué harías diferente?'"],
+      "9-12":  ["Construcción de mapa conceptual sobre contenido escolar: el paciente organiza un tema con sus propias palabras", "División de tarea compleja en pasos: el paciente toma una tarea escolar real y la descompone con el terapeuta", "Selección de estrategia: el terapeuta presenta 3 formas de estudiar un tema y el paciente elige y justifica la suya"],
+      "13-16": ["Diseño de plan de estudio para evaluación próxima: el paciente distribuye el contenido en días y tiempos", "Práctica de monitoreo de comprensión: leer un párrafo y luego cerrar el texto y explicar lo que entendió", "Evaluación de estrategia usada en la última semana: ¿funcionó?, ¿qué evidencia tiene de eso?"],
+      "17-20": ["Construcción de portafolio de aprendizaje: el paciente selecciona trabajos que muestren su progreso y reflexiona sobre ellos", "Transferencia de estrategia: el paciente aplica una estrategia conocida a un contexto académico nuevo", "Diseño de su propio sistema de organización del estudio: agenda, esquemas, repasos — con evaluación de eficacia a la semana siguiente"],
+    },
+    paraLaFamiliaPorFranja: {
+      "0-2":   ["Permitir que el niño explore objetos a su propio ritmo sin resolverle el problema de inmediato", "Celebrar cuando lo intenta de nuevo después de no lograr algo: 'muy bien que lo intentaste otra vez'"],
+      "3-5":   ["Enseñar a pedir ayuda en casa: validar la solicitud antes de responderla ('¡bien que pediste ayuda!')", "Usar imágenes o dibujos en la pared para mostrar los pasos de las rutinas (levantarse, desayunar, salir)"],
+      "6-8":   ["Apoyar el uso de subrayadores o stickers para marcar lo importante en los cuadernos", "Preguntar al terminar la tarea: '¿qué parte te costó más?, ¿qué harías diferente mañana?' — sin juzgar la respuesta"],
+      "9-12":  ["Apoyar la construcción de un sistema de organización propio: agenda, tablero o app que el niño elija", "No ordenar su espacio de estudio por él: preguntar si necesita ayuda antes de intervenir"],
+      "13-16": ["Mostrar interés en cómo estudia el adolescente sin imponer el método propio: '¿qué estrategia usaste esta vez?'", "Validar el esfuerzo de planificar, aunque el plan no se cumpla perfectamente: el proceso también cuenta"],
+      "17-20": ["Confiar en que el joven puede gestionar su aprendizaje con autonomía, interviniendo solo cuando lo pide", "Conversar sobre el estudio desde la curiosidad: '¿qué aprendiste esta semana?' sin evaluarlo"],
     },
     focoSugeridoPorFranja: {
       "0-2":   "Estimular curiosidad, exploración y persistencia ante tareas",
@@ -792,6 +904,21 @@ export default function NuevaSesion() {
       return res.json();
     },
     enabled: showBanco && !!bancoArea,
+  });
+
+  const { data: lastSessionRecord } = useQuery({
+    queryKey: ["last-session-record", patient?.id],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/api/registros-clinicos?patientId=${patient!.id}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return null;
+      return data[data.length - 1] as { fecha?: string; resumenSesion?: string | null };
+    },
+    enabled: !!patient,
   });
 
   const goals = (goalsRaw as any[]).filter(
@@ -2111,25 +2238,32 @@ export default function NuevaSesion() {
 
             <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
               {/* Last session summary */}
-              {lastWorkedGoal && (
+              {(lastWorkedGoal || lastSessionRecord?.resumenSesion) && (
                 <div className="px-5 py-3.5">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Sesión anterior</p>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground/80 truncate">{lastWorkedGoal.title}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {(() => {
-                          const ce = inferClinicalEstado(lastWorkedGoal.progressPct);
-                          const b = ESTADO_BADGE[ce];
-                          return (
-                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
-                              {b?.label ?? ce}
-                            </span>
-                          );
-                        })()}
+                  {lastSessionRecord?.resumenSesion && (
+                    <p className="text-[12px] text-muted-foreground italic leading-relaxed mb-2 line-clamp-3">
+                      {lastSessionRecord.resumenSesion}
+                    </p>
+                  )}
+                  {lastWorkedGoal && (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground/80 truncate">{lastWorkedGoal.title}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {(() => {
+                            const ce = inferClinicalEstado(lastWorkedGoal.progressPct);
+                            const b = ESTADO_BADGE[ce];
+                            return (
+                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${b?.bg ?? "bg-muted text-muted-foreground"}`}>
+                                {b?.label ?? ce}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -2519,6 +2653,8 @@ export default function NuevaSesion() {
                     <Textarea
                       placeholder="Ej: trabajar comprensión de consignas y conectores"
                       className="text-sm min-h-[80px]"
+                      value={focoTerapeutico}
+                      onChange={e => setFocoTerapeutico(e.target.value)}
                     />
                   </div>
                   {/* Optional text search */}

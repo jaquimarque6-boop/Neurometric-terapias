@@ -2,7 +2,7 @@
 
 **Date:** 2025-05-12
 **Branch:** `main`
-**Head commit:** `0d93cb6` — Add attention difficulties to the diagnosis options
+**Head commit:** `0d93cb6` + session 4 changes (uncommitted)
 
 ---
 
@@ -53,6 +53,10 @@ Replit (this environment — dev/backup)
 | Structured activity bank (5 activities) | `src/config/psicoped-activity-bank.ts` | OK |
 | Línea de Tiempo tab | `src/pages/patient-profile.tsx` | OK |
 | 35 new PP-* goals (dev DB) | `src/seeds/goal-library-seed.ts` | Seeded |
+| `actividadesClinicasPorFranja` for all 7 BLOQUES_PSICOPED | `src/pages/nueva-sesion.tsx` | OK |
+| `paraLaFamiliaPorFranja` for all 7 BLOQUES_PSICOPED | `src/pages/nueva-sesion.tsx` | OK |
+| Banco foco textarea wired to `focoTerapeutico` state | `src/pages/nueva-sesion.tsx` | OK |
+| Last session resumen fetched and shown in "Sesión anterior" | `src/pages/nueva-sesion.tsx` | OK |
 
 ---
 
@@ -65,12 +69,16 @@ Replit (this environment — dev/backup)
 - Goal clinical content panel resolves for all new taxonomy groups (Comprensión lectora, Producción escrita, Matemática, Estrategias de aprendizaje)
 - Línea de Tiempo tab renders in patient profiles
 - Structured activity bank config is ready for UI wiring
+- **All 7 BLOQUES_PSICOPED now have "Actividades clínicas" (6 age bands × 3 activities each)**
+- **All 7 BLOQUES_PSICOPED now have "Para la familia" (6 age bands × 2 tips each)**
+- **Banco de objetivos "Foco terapéutico" textarea is now wired to the shared state** — prefills from clinical guides and saves with the session
+- **"Sesión anterior" in Guía de la sesión now shows the actual resumen text** from the previous recorded session, above the last goal's status badge
 
 ---
 
 ## What Still Needs Testing
 
-- [ ] Activity bank UI — `PSICOPED_ACTIVITY_BANK` config exists but no component renders it yet
+- [ ] Activity bank UI — `PSICOPED_ACTIVITY_BANK` config exists but no UI component renders it yet (next step)
 - [ ] `lib/api-client-react` — needs a build (`pnpm --filter @workspace/lib/api-client-react build`) to clear TS6305 cascade
 - [ ] Goals/patients implicit `any` typing — cleanup task, not blocking runtime
 - [ ] PP-* goals in production Supabase — the 35 new goals exist in dev DB but have NOT been applied to the production Supabase database
