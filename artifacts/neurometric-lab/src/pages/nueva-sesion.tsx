@@ -937,6 +937,14 @@ export default function NuevaSesion() {
     !(goalsRaw as any[]).some(ag => ag.goalLibraryId === g.id)
   );
 
+  const diagGroups = useMemo(() => ({
+    adecuado: visibleDiagSuggestions.filter((g: any) =>
+      !g.nivelDificultad || (g.nivelDificultad !== "básico" && g.nivelDificultad !== "avanzado")
+    ),
+    superior: visibleDiagSuggestions.filter((g: any) => g.nivelDificultad === "avanzado"),
+    inferior: visibleDiagSuggestions.filter((g: any) => g.nivelDificultad === "básico"),
+  }), [visibleDiagSuggestions]);
+
   const filteredPatients = (patients as any[]).filter(p =>
     !patientSearch || p.name.toLowerCase().includes(patientSearch.toLowerCase())
   );
@@ -2194,33 +2202,74 @@ export default function NuevaSesion() {
                       : "Todos los objetivos sugeridos ya están agregados a la sesión."}
                   </div>
                 ) : (
-                  visibleDiagSuggestions.map((g: any) => (
-                    <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {g.areaClinica ?? g.area}
-                          {g.nivelDificultad && ` · ${g.nivelDificultad}`}
-                          {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
-                        </p>
-                      </div>
-                      <button
-                        className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
-                        onClick={() => {
-                          setAdHocGoals(prev => {
-                            if (prev.find(a => a.id === g.id)) return prev;
-                            return [...prev, g];
-                          });
-                          setAdHocRows(prev => {
-                            if (prev[g.id]) return prev;
-                            return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
-                          });
-                        }}
-                      >
-                        + Agregar
-                      </button>
-                    </div>
-                  ))
+                  (() => {
+                    const DIAG_LEVEL_GROUPS = [
+                      {
+                        key: "adecuado",
+                        label: "Nivel adecuado",
+                        desc: "Apropiado para el momento terapéutico actual",
+                        headerBg: "bg-emerald-50", headerText: "text-emerald-700", headerBorder: "border-emerald-100",
+                        items: diagGroups.adecuado,
+                      },
+                      {
+                        key: "superior",
+                        label: "Nivel superior",
+                        desc: "Extensión opcional · para mayor avance",
+                        headerBg: "bg-blue-50/70", headerText: "text-blue-700", headerBorder: "border-blue-100",
+                        items: diagGroups.superior,
+                      },
+                      {
+                        key: "inferior",
+                        label: "Nivel inferior",
+                        desc: "Apoyo · mayor estructuración",
+                        headerBg: "bg-amber-50/70", headerText: "text-amber-700", headerBorder: "border-amber-100",
+                        items: diagGroups.inferior,
+                      },
+                    ].filter(g => g.items.length > 0);
+
+                    const addDiagGoal = (g: any) => {
+                      setAdHocGoals(prev => {
+                        if (prev.find(a => a.id === g.id)) return prev;
+                        return [...prev, g];
+                      });
+                      setAdHocRows(prev => {
+                        if (prev[g.id]) return prev;
+                        return { ...prev, [g.id]: { checked: true, intentos: "", correctas: "", estado: "nuevo" } };
+                      });
+                    };
+
+                    return (
+                      <>
+                        {DIAG_LEVEL_GROUPS.map(group => (
+                          <div key={group.key}>
+                            <div className={`flex items-center gap-2 px-5 py-2 border-b ${group.headerBg} ${group.headerBorder}`}>
+                              <span className={`text-[10px] font-bold uppercase tracking-widest ${group.headerText}`}>
+                                {group.label}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">— {group.desc}</span>
+                            </div>
+                            {group.items.map((g: any) => (
+                              <div key={g.id} className="flex items-start gap-3 px-5 py-3 hover:bg-violet-50/60 transition-colors border-b border-violet-50 last:border-b-0">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-foreground leading-snug">{g.nombreObjetivo}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {g.areaClinica ?? g.area}
+                                    {g.franjaEtaria && ` · ${g.franjaEtaria} años`}
+                                  </p>
+                                </div>
+                                <button
+                                  className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-violet-300 text-violet-600 hover:bg-violet-100 transition-colors mt-0.5"
+                                  onClick={() => addDiagGoal(g)}
+                                >
+                                  + Agregar
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()
                 )}
               </div>
             )}
