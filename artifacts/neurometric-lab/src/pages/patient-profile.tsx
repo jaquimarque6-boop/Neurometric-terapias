@@ -13,7 +13,7 @@ import {
   Flag, BarChart3, Layers, Search as SearchIcon,
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
-  Brain, Volume2, Utensils, GraduationCap, HelpCircle,
+  Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -1328,6 +1328,13 @@ export default function PatientProfile() {
                   Editar
                 </button>
                 <button
+                  onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-all duration-200 hover:bg-amber-100 active:scale-[0.97]"
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Rápida
+                </button>
+                <button
                   onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97] bg-primary"
                 >
@@ -1709,9 +1716,14 @@ export default function PatientProfile() {
               <CardHeader className="pb-3 border-b">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold">Registros clínicos</CardTitle>
-                  <Button size="sm" onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)} className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nueva sesión
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)} className="border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 h-8 text-xs gap-1">
+                      <Zap className="h-3 w-3" /> Rápida
+                    </Button>
+                    <Button size="sm" onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)} className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Nueva sesión
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <div className="divide-y divide-border/40">

@@ -22,6 +22,7 @@ import Agenda from "@/pages/agenda";
 import AgendaPagos from "@/pages/agenda-pagos";
 import Usuario from "@/pages/usuario";
 import Usuarios from "@/pages/usuarios";
+import SesionRapida from "@/pages/sesion-rapida";
 import LoginPage from "@/pages/login";
 
 const queryClient = new QueryClient({
@@ -99,6 +100,7 @@ function Router() {
       <Route path="/agenda-pagos" component={() => <ProtectedRoute component={AgendaPagos} />} />
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
       <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
+      <Route path="/sesion-rapida" component={() => <ProtectedRoute component={SesionRapida} />} />
       <Route component={NotFound} />
     </Switch>
   );

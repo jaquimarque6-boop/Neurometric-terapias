@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Plus, ClipboardList, ChevronRight, BookOpen,
   Users, Users2, Target, CalendarDays, Clock, Sparkles,
-  ArrowRight, Calendar, TrendingUp,
+  ArrowRight, Calendar, TrendingUp, Zap,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
@@ -110,33 +110,51 @@ export default function Dashboard() {
         </div>
 
         {/* ── Primary actions ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => navigate("/nueva-sesion")}
-            className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-primary/20
-                       bg-primary/8 hover:bg-primary/14 transition-all duration-200 active:scale-[0.98] text-left group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 group-hover:bg-primary/22 transition-colors">
-              <ClipboardList className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground leading-tight">Nueva sesión</p>
-              <p className="text-xs text-muted-foreground mt-0.5 font-normal">Registrar atención</p>
-            </div>
-          </button>
+        <div className="flex flex-col gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => navigate("/nueva-sesion")}
+              className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-primary/20
+                         bg-primary/8 hover:bg-primary/14 transition-all duration-200 active:scale-[0.98] text-left group"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 group-hover:bg-primary/22 transition-colors">
+                <ClipboardList className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground leading-tight">Nueva sesión</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-normal">Con objetivos</p>
+              </div>
+            </button>
 
+            <button
+              onClick={() => setShowNewPatient(true)}
+              className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-accent/25
+                         bg-accent/8 hover:bg-accent/14 transition-all duration-200 active:scale-[0.98] text-left group"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 group-hover:bg-accent/22 transition-colors">
+                <Plus className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground leading-tight">Nuevo paciente</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-normal">Agregar al sistema</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Sesión rápida — secondary CTA */}
           <button
-            onClick={() => setShowNewPatient(true)}
-            className="flex flex-col items-start gap-3 px-5 py-5 rounded-2xl border border-accent/25
-                       bg-accent/8 hover:bg-accent/14 transition-all duration-200 active:scale-[0.98] text-left group"
+            onClick={() => navigate("/sesion-rapida")}
+            className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl border border-amber-200/70
+                       bg-amber-50/60 hover:bg-amber-100/70 transition-all duration-200 active:scale-[0.99] text-left group"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 group-hover:bg-accent/22 transition-colors">
-              <Plus className="h-5 w-5 text-accent" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 group-hover:bg-amber-200/80 transition-colors shrink-0">
+              <Zap className="h-4.5 w-4.5 text-amber-600" />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground leading-tight">Nuevo paciente</p>
-              <p className="text-xs text-muted-foreground mt-0.5 font-normal">Agregar al sistema</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 leading-tight">Sesión rápida</p>
+              <p className="text-xs text-amber-600/80 mt-0.5 font-normal">Sin objetivos · registro diario ágil</p>
             </div>
+            <ChevronRight className="h-4 w-4 text-amber-400 shrink-0" />
           </button>
         </div>
 
