@@ -176,6 +176,20 @@ const CONTENT: ContentMap = {
         "En el supermercado, pedir al niño que busque 'algo para comer' o 'algo para limpiar' como juego.",
       ],
     },
+    "Estrategias de aprendizaje": {
+      marcoConceptual: "Las estrategias de aprendizaje son herramientas metacognitivas que permiten al estudiante planificar, monitorear y evaluar su propio proceso de aprendizaje, mejorando la autonomía y la eficacia académica.",
+      actividadesClinicas: [
+        "Enseñar y practicar el subrayado de ideas clave en un texto breve; comparar qué subrayó el niño vs. el terapeuta.",
+        "Actividad de 'planificación antes de empezar': antes de iniciar, el niño enuncia en voz alta qué va a hacer y en qué orden.",
+        "Uso de mapas conceptuales para organizar información nueva: construirlos juntos y luego pedir al niño que los reproduzca.",
+        "Actividad de autoevaluación: al finalizar la tarea, el niño califica su desempeño en escala 1-5 y justifica su nota.",
+        "Práctica de repetición espaciada: revisar contenido trabajado en la sesión anterior antes de introducir material nuevo.",
+      ],
+      actividadesHogar: [
+        "Antes de estudiar, pedir al niño que explique con sus palabras qué ya sabe del tema y qué le resulta más difícil.",
+        "Enseñar una estrategia sencilla de repaso: releer, tapar el texto y recordar, luego verificar — practicarla juntos.",
+      ],
+    },
     "_default": {
       marcoConceptual: "El fortalecimiento de las habilidades cognitivas impacta directamente en el rendimiento escolar y la capacidad del niño de adaptarse a nuevas situaciones.",
       actividadesClinicas: [
@@ -624,6 +638,48 @@ const CONTENT: ContentMap = {
       actividadesHogar: [
         "Pedir al niño que escriba listas cotidianas (compras, tareas pendientes) o tarjetas breves para familiares.",
         "Revisar juntos una oración escrita buscando mayúsculas y puntos, sin marcar todos los errores a la vez.",
+      ],
+    },
+    "Comprensión lectora": {
+      marcoConceptual: "Comprender lo que se lee va más allá de decodificar: implica construir significado, relacionar ideas e inferir información implícita. Es el pilar del aprendizaje en todas las áreas curriculares.",
+      actividadesClinicas: [
+        "Lectura guiada de texto breve + preguntas escalonadas: literal → inferencial → valorativa.",
+        "Actividad de identificación de idea principal: el niño subraya o enuncia la idea central con y sin apoyo del terapeuta.",
+        "Juego de preguntas: terapeuta y niño se turnan para hacer preguntas sobre el texto leído.",
+        "Completar un resumen de 2-3 oraciones luego de leer un párrafo, con apoyo decreciente.",
+        "Actividad de discriminación: dado un párrafo, clasificar cada oración como 'información importante' o 'detalle secundario'.",
+      ],
+      actividadesHogar: [
+        "Leer juntos un párrafo breve y hacer 2 preguntas: una literal ('¿Qué dice el texto?') y una inferencial ('¿Por qué crees que...?').",
+        "Después de leer un cuento, pedir al niño que lo cuente con sus propias palabras focalizándose en la idea principal.",
+      ],
+    },
+    "Producción escrita": {
+      marcoConceptual: "Producir texto escrito integra planificación, organización de ideas, ortografía y revisión. Desarrollarla mejora simultáneamente la expresión oral, la comprensión lectora y el pensamiento organizado.",
+      actividadesClinicas: [
+        "Escritura de oraciones simples (SVO) a partir de imágenes, con foco en estructura y legibilidad.",
+        "Actividad de planificación textual: antes de escribir, el niño completa un organizador (inicio / desarrollo / cierre) con ayuda.",
+        "Producción de texto breve (3-4 oraciones) sobre una imagen o situación cotidiana; revisar juntos al final.",
+        "Dictado selectivo de palabras de alta frecuencia con errores ortográficos frecuentes; trabajar cada error como micro-lección.",
+        "Actividad de autocorrección: el niño relee su texto buscando un tipo de error a la vez (mayúsculas, puntos, espaciado).",
+      ],
+      actividadesHogar: [
+        "Pedir al niño que escriba listas breves, mensajes o notas para familiares; reforzar el intento más que el resultado.",
+        "Revisar juntos una oración buscando solo un tipo de error (solo puntos, o solo mayúsculas), sin tachar todo.",
+      ],
+    },
+    "Matemática": {
+      marcoConceptual: "El pensamiento matemático incluye el sentido numérico, la resolución de problemas y el razonamiento lógico. Fortalecer estas habilidades impacta el rendimiento escolar global y la autonomía cotidiana.",
+      actividadesClinicas: [
+        "Actividad de correspondencia número-cantidad con objetos concretos o dibujos; aumentar el rango progresivamente.",
+        "Resolución de sumas y restas simples con apoyo manipulativo (fichas, regletas) y luego en forma simbólica.",
+        "Problemas de enunciado oral de un paso: el niño identifica la operación requerida antes de resolverla.",
+        "Actividad de patrones: completar secuencias ABAB y ABB con material concreto; luego con dígitos.",
+        "Juego de comparación de cantidades: ordenar de menor a mayor y justificar verbalmente la decisión.",
+      ],
+      actividadesHogar: [
+        "Usar situaciones cotidianas para practicar matemática: repartir cubiertos, contar escalones, calcular el cambio en la tienda.",
+        "Practicar conteo regresivo y suma con objetos concretos (frutas, monedas) en momentos de rutina.",
       ],
     },
     "_default": {
