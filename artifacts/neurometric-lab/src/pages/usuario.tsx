@@ -136,11 +136,12 @@ export default function Usuario() {
                 <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
                   <KeyRound className="h-3.5 w-3.5 text-muted-foreground" /> Rol
                 </label>
-                <Input
-                  value={roleLabel}
+                <select
                   disabled
-                  className="bg-muted/30 text-muted-foreground"
-                />
+                  className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-70"
+                >
+                  <option value={user.role}>{roleLabel}</option>
+                </select>
                 <p className="text-[11px] text-muted-foreground">El rol es asignado por un administrador.</p>
               </div>
 

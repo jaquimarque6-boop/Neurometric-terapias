@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
-  History, UserCircle, ClipboardList, Star,
+  History, UserCircle, ClipboardList, Trash2, RotateCcw,
+  CalendarDays, Activity, Sparkles,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -48,53 +49,71 @@ export default function Usuarios() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers]       = useState<AppUser[]>([]);
+  const [registros, setRegistros] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<AppUser & { password: string }>>({});
+  const [form, setForm]         = useState(emptyForm);
+  const [saving, setSaving]     = useState(false);
+  const [showPwd, setShowPwd]   = useState(false);
+
+  const [editingId, setEditingId]   = useState<number | null>(null);
+  const [editForm, setEditForm]     = useState<Partial<AppUser & { password: string }>>({});
   const [showEditPwd, setShowEditPwd] = useState(false);
+
+  const [resettingId, setResettingId]   = useState<number | null>(null);
+  const [resetPwd, setResetPwd]         = useState("");
+  const [showResetPwd, setShowResetPwd] = useState(false);
+  const [savingReset, setSavingReset]   = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const fetchUsers = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/users`, { credentials: "include" });
-      if (r.ok) {
-        setUsers(await r.json());
-      } else {
-        const err = await r.json().catch(() => ({}));
-        console.error(`[usuarios] GET /api/users → ${r.status}`, err);
-        toast({
-          title: `Error al cargar usuarios (${r.status})`,
-          description: err.error ?? "Verificá que tengas rol administrador.",
-          variant: "destructive",
-        });
-      }
-    } catch (e) {
-      console.error("[usuarios] fetch error:", e);
-      toast({ title: "Error de conexión al servidor", variant: "destructive" });
+      const [uRes, rRes] = await Promise.all([
+        fetch(`${API_BASE}/api/users`, { credentials: "include" }),
+        fetch(`${API_BASE}/api/registros-clinicos`, { credentials: "include" }),
+      ]);
+      if (uRes.ok) setUsers(await uRes.json());
+      else toast({ title: "Error al cargar usuarios", variant: "destructive" });
+      if (rRes.ok) setRegistros(await rRes.json());
+    } catch {
+      toast({ title: "Error de conexión", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
+  // ── Per-user stats ─────────────────────────────────────────────────────────
+  const statsByUser = useMemo(() => {
+    const map: Record<number, { sessions: number; patients: number }> = {};
+    for (const r of registros) {
+      if (!r.userId) continue;
+      if (!map[r.userId]) map[r.userId] = { sessions: 0, patients: new Set<number>() as any };
+      map[r.userId].sessions++;
+      (map[r.userId].patients as unknown as Set<number>).add(r.patientId);
+    }
+    const result: Record<number, { sessions: number; patients: number }> = {};
+    for (const [uid, v] of Object.entries(map)) {
+      result[Number(uid)] = {
+        sessions: v.sessions,
+        patients: (v.patients as unknown as Set<number>).size,
+      };
+    }
+    return result;
+  }, [registros]);
+
+  // ── Create user ────────────────────────────────────────────────────────────
   const handleCreate = async () => {
     if (!form.name.trim() || !form.email.trim()) {
       toast({ title: "Nombre y email son obligatorios", variant: "destructive" });
       return;
     }
-    if (!form.password.trim()) {
-      toast({ title: "La contraseña es obligatoria", variant: "destructive" });
-      return;
-    }
-    if (form.password.trim().length < 6) {
+    if (!form.password.trim() || form.password.trim().length < 6) {
       toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" });
       return;
     }
@@ -105,109 +124,103 @@ export default function Usuarios() {
     setSaving(true);
     try {
       const r = await fetch(`${API_BASE}/api/users`, {
-        method: "POST",
-        credentials: "include",
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          email: form.email.trim(),
-          role: form.role,
-          specialty: form.specialty || null,
-          password: form.password.trim(),
-        }),
+        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), role: form.role, specialty: form.specialty || null, password: form.password.trim() }),
       });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        toast({ title: err.error ?? "Error al crear usuario", variant: "destructive" });
-        return;
-      }
-      toast({ title: "Usuario creado correctamente" });
-      setForm(emptyForm);
-      setShowForm(false);
-      await fetchUsers();
-    } finally {
-      setSaving(false);
-    }
+      if (!r.ok) { const e = await r.json().catch(() => ({})); toast({ title: e.error ?? "Error al crear", variant: "destructive" }); return; }
+      toast({ title: "Usuario creado" });
+      setForm(emptyForm); setShowForm(false);
+      await loadAll();
+    } finally { setSaving(false); }
   };
 
+  // ── Toggle active ──────────────────────────────────────────────────────────
   const handleToggleActive = async (u: AppUser) => {
     const r = await fetch(`${API_BASE}/api/users/${u.id}`, {
-      method: "PATCH",
-      credentials: "include",
+      method: "PATCH", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active: !u.active }),
     });
-    if (r.ok) {
-      toast({ title: u.active ? "Usuario desactivado" : "Usuario activado" });
-      await fetchUsers();
-    }
+    if (r.ok) { toast({ title: u.active ? "Usuario desactivado" : "Usuario activado" }); await loadAll(); }
   };
 
-  const startEdit = (u: AppUser) => {
-    setEditingId(u.id);
-    setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "" });
-    setShowEditPwd(false);
+  // ── Delete user ────────────────────────────────────────────────────────────
+  const handleDelete = async (u: AppUser) => {
+    if (!window.confirm(`¿Desactivar permanentemente a ${u.name}?`)) return;
+    const r = await fetch(`${API_BASE}/api/users/${u.id}`, { method: "DELETE", credentials: "include" });
+    if (r.ok) { toast({ title: "Usuario desactivado" }); await loadAll(); }
+    else toast({ title: "Error al eliminar usuario", variant: "destructive" });
   };
 
+  // ── Inline edit ────────────────────────────────────────────────────────────
+  const startEdit = (u: AppUser) => { setEditingId(u.id); setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "" }); setShowEditPwd(false); };
   const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); };
 
   const saveEdit = async (id: number) => {
     if (editForm.password && editForm.password.trim().length < 6) {
-      toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" });
-      return;
+      toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" }); return;
     }
     setSaving(true);
     try {
-      const payload: any = {
-        name: editForm.name,
-        email: editForm.email,
-        role: editForm.role,
-        specialty: editForm.specialty || null,
-      };
+      const payload: any = { name: editForm.name, email: editForm.email, role: editForm.role, specialty: editForm.specialty || null };
       if (editForm.password?.trim()) payload.password = editForm.password.trim();
-
       const r = await fetch(`${API_BASE}/api/users/${id}`, {
-        method: "PATCH",
-        credentials: "include",
+        method: "PATCH", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (r.ok) {
-        toast({ title: "Usuario actualizado" });
-        cancelEdit();
-        await fetchUsers();
-      } else {
-        const err = await r.json().catch(() => ({}));
-        toast({ title: err.error ?? "Error al actualizar", variant: "destructive" });
-      }
-    } finally {
-      setSaving(false);
-    }
+      if (r.ok) { toast({ title: "Usuario actualizado" }); cancelEdit(); await loadAll(); }
+      else { const e = await r.json().catch(() => ({})); toast({ title: e.error ?? "Error al actualizar", variant: "destructive" }); }
+    } finally { setSaving(false); }
   };
 
-  const activeUsers = users.filter(u => u.active);
+  // ── Reset password ─────────────────────────────────────────────────────────
+  const startReset = (u: AppUser) => { setResettingId(u.id); setResetPwd(""); setShowResetPwd(false); if (editingId) cancelEdit(); };
+  const cancelReset = () => { setResettingId(null); setResetPwd(""); };
+
+  const saveReset = async (id: number) => {
+    if (!resetPwd.trim() || resetPwd.trim().length < 6) {
+      toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" }); return;
+    }
+    setSavingReset(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/users/${id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPwd.trim() }),
+      });
+      if (r.ok) { toast({ title: "Contraseña restablecida" }); cancelReset(); }
+      else toast({ title: "Error al restablecer contraseña", variant: "destructive" });
+    } finally { setSavingReset(false); }
+  };
+
+  const activeUsers   = users.filter(u => u.active);
   const inactiveUsers = users.filter(u => !u.active);
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-5 animate-in fade-in duration-400">
+      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-4xl mx-auto">
+
         {/* Back */}
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition-colors w-fit"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver al panel
+        <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition-colors w-fit">
+          <ArrowLeft className="h-4 w-4" /> Volver al panel
         </button>
 
-        {/* Page title */}
+        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-primary/10">
             <Users className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-foreground">Panel de administración</h1>
-            <p className="text-sm text-muted-foreground">{activeUsers.length} usuario{activeUsers.length !== 1 ? "s" : ""} activo{activeUsers.length !== 1 ? "s" : ""}</p>
+            <h1 className="text-2xl font-display font-bold text-foreground">Panel de usuarios</h1>
+            <p className="text-sm text-muted-foreground">
+              {activeUsers.length} usuario{activeUsers.length !== 1 ? "s" : ""} activo{activeUsers.length !== 1 ? "s" : ""}
+              {inactiveUsers.length > 0 && ` · ${inactiveUsers.length} inactivo${inactiveUsers.length !== 1 ? "s" : ""}`}
+            </p>
           </div>
         </div>
 
@@ -216,9 +229,7 @@ export default function Usuarios() {
             <TabsTrigger value="usuarios" className="rounded-lg text-sm flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" /> Usuarios
               {users.length > 0 && (
-                <span className="ml-0.5 bg-primary/10 text-primary text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {users.length}
-                </span>
+                <span className="ml-0.5 bg-primary/10 text-primary text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">{users.length}</span>
               )}
             </TabsTrigger>
             <TabsTrigger value="auditoria" className="rounded-lg text-sm flex items-center gap-1.5">
@@ -229,26 +240,23 @@ export default function Usuarios() {
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Usuarios ───────────────────────────────────────────────── */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* Usuarios tab                                                        */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="usuarios" className="mt-5 space-y-4">
+
             {/* Action bar */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Gestión de usuarios</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {activeUsers.length} activo{activeUsers.length !== 1 ? "s" : ""} · {inactiveUsers.length} inactivo{inactiveUsers.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-              <Button
-                onClick={() => setShowForm(v => !v)}
-                className="gap-2 bg-gradient-to-br from-primary to-primary/80 text-white"
-              >
+              <p className="text-xs text-muted-foreground">
+                {activeUsers.length} activo{activeUsers.length !== 1 ? "s" : ""} · {inactiveUsers.length} inactivo{inactiveUsers.length !== 1 ? "s" : ""}
+              </p>
+              <Button onClick={() => setShowForm(v => !v)} className="gap-2 bg-gradient-to-br from-primary to-primary/80 text-white">
                 {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 {showForm ? "Cancelar" : "Nuevo usuario"}
               </Button>
             </div>
 
-            {/* Create form */}
+            {/* ── Create form ── */}
             {showForm && (
               <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-4">
                 <h2 className="font-semibold text-foreground">Crear nuevo usuario</h2>
@@ -262,61 +270,29 @@ export default function Usuarios() {
                     <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                      Contraseña <span className="text-primary/60">*</span>
-                    </label>
+                    <label className="text-sm font-medium flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5 text-muted-foreground" />Contraseña <span className="text-primary/60">*</span></label>
                     <div className="relative">
-                      <Input
-                        type={showPwd ? "text" : "password"}
-                        placeholder="Mínimo 6 caracteres"
-                        value={form.password}
-                        onChange={e => set("password", e.target.value)}
-                        className="bg-muted/30 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPwd(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        tabIndex={-1}
-                      >
+                      <Input type={showPwd ? "text" : "password"} placeholder="Mínimo 6 caracteres" value={form.password} onChange={e => set("password", e.target.value)} className="bg-muted/30 pr-10" />
+                      <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
                         {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Confirmar contraseña <span className="text-primary/60">*</span></label>
-                    <div className="relative">
-                      <Input
-                        type={showPwd ? "text" : "password"}
-                        placeholder="Repite la contraseña"
-                        value={form.confirmPassword}
-                        onChange={e => set("confirmPassword", e.target.value)}
-                        className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/50 focus-visible:ring-destructive/30" : ""}`}
-                      />
-                    </div>
-                    {form.confirmPassword && form.password !== form.confirmPassword && (
-                      <p className="text-[11px] text-destructive">Las contraseñas no coinciden</p>
-                    )}
+                    <Input type={showPwd ? "text" : "password"} placeholder="Repite la contraseña" value={form.confirmPassword} onChange={e => set("confirmPassword", e.target.value)} className={`bg-muted/30 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/50" : ""}`} />
+                    {form.confirmPassword && form.password !== form.confirmPassword && <p className="text-[11px] text-destructive">Las contraseñas no coinciden</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Rol</label>
-                    <select
-                      value={form.role}
-                      onChange={e => set("role", e.target.value)}
-                      className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
+                    <select value={form.role} onChange={e => set("role", e.target.value)} className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="professional">Profesional</option>
                       <option value="admin">Administrador</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Especialidad</label>
-                    <select
-                      value={form.specialty}
-                      onChange={e => set("specialty", e.target.value)}
-                      className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
+                    <select value={form.specialty} onChange={e => set("specialty", e.target.value)} className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="">Sin especificar</option>
                       {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -324,275 +300,310 @@ export default function Usuarios() {
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-border/40">
                   <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); }}>Cancelar</Button>
-                  <Button
-                    onClick={handleCreate}
-                    disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword}
-                    className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2"
-                  >
+                  <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword} className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2">
                     {saving ? "Guardando…" : "Crear usuario"}
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Users list */}
+            {/* ── Users list ── */}
             {loading ? (
-              <div className="space-y-2">
-                {[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />)}
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border">
+                No hay usuarios registrados.
               </div>
             ) : (
               <div className="space-y-3">
-                {users.length === 0 && (
-                  <div className="text-center py-10 text-muted-foreground">No hay usuarios registrados.</div>
-                )}
-                {users.map(u => (
-                  <div
-                    key={u.id}
-                    className={`rounded-2xl border border-border/60 bg-card shadow-sm p-4 transition-opacity ${!u.active ? "opacity-60" : ""}`}
-                  >
-                    {editingId === u.id ? (
-                      /* Inline edit form */
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Nombre</label>
-                            <Input
-                              value={editForm.name ?? ""}
-                              onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                              className="bg-muted/30 h-8 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Email</label>
-                            <Input
-                              value={editForm.email ?? ""}
-                              onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                              className="bg-muted/30 h-8 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Rol</label>
-                            <select
-                              value={editForm.role ?? "professional"}
-                              onChange={e => setEditForm(f => ({ ...f, role: e.target.value as any }))}
-                              className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
-                            >
-                              <option value="professional">Profesional</option>
-                              <option value="admin">Administrador</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Especialidad</label>
-                            <select
-                              value={editForm.specialty ?? ""}
-                              onChange={e => setEditForm(f => ({ ...f, specialty: e.target.value }))}
-                              className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
-                            >
-                              <option value="">Sin especificar</option>
-                              {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                          </div>
-                          <div className="space-y-1 sm:col-span-2">
-                            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                              <KeyRound className="h-3 w-3" /> Nueva contraseña (dejar en blanco para no cambiar)
-                            </label>
-                            <div className="relative">
-                              <Input
-                                type={showEditPwd ? "text" : "password"}
-                                placeholder="Nueva contraseña (opcional)"
-                                value={editForm.password ?? ""}
-                                onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                                className="bg-muted/30 h-8 text-sm pr-10"
-                              />
+                {users.map(u => {
+                  const stats  = statsByUser[u.id] ?? { sessions: 0, patients: 0 };
+                  const isEditing   = editingId === u.id;
+                  const isResetting = resettingId === u.id;
+
+                  return (
+                    <div key={u.id} className={`rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden transition-opacity ${!u.active ? "opacity-60" : ""}`}>
+
+                      {/* ── View row ── */}
+                      {!isEditing && !isResetting && (
+                        <div className="p-4">
+                          {/* Top: avatar + info + actions */}
+                          <div className="flex items-start gap-3">
+                            {/* Avatar */}
+                            <div className={`h-11 w-11 rounded-full flex items-center justify-center shrink-0 font-bold text-base ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-foreground">{u.name}</span>
+                                {u.role === "admin" ? (
+                                  <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary py-0">
+                                    <ShieldCheck className="h-3 w-3" />Admin
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent py-0">
+                                    <Stethoscope className="h-3 w-3" />Profesional
+                                  </Badge>
+                                )}
+                                {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground py-0">Inactivo</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">{u.email}</p>
+                              {u.specialty && (
+                                <p className="text-xs text-foreground/60 mt-0.5">{u.specialty}</p>
+                              )}
+                            </div>
+
+                            {/* Action icons */}
+                            <div className="flex items-center gap-0.5 shrink-0">
                               <button
-                                type="button"
-                                onClick={() => setShowEditPwd(v => !v)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                tabIndex={-1}
+                                onClick={() => startEdit(u)}
+                                className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                                title="Editar usuario"
                               >
-                                {showEditPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => startReset(u)}
+                                className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                                title="Restablecer contraseña"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleToggleActive(u)}
+                                className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${u.active ? "text-muted-foreground hover:text-rose-500 hover:bg-rose-50" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
+                                title={u.active ? "Desactivar usuario" : "Activar usuario"}
+                              >
+                                {u.active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                              </button>
+                              {u.id !== currentUser?.id && (
+                                <button
+                                  onClick={() => handleDelete(u)}
+                                  className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                                  title="Eliminar usuario"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Stats strip */}
+                          <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-5 flex-wrap">
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Users className="h-3 w-3 text-muted-foreground/60" />
+                              <span className="font-semibold text-foreground">{stats.patients}</span> pacientes
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <ClipboardList className="h-3 w-3 text-muted-foreground/60" />
+                              <span className="font-semibold text-foreground">{stats.sessions}</span> sesiones
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Sparkles className="h-3 w-3 text-muted-foreground/60" />
+                              <span className="font-semibold text-foreground">–</span> IA
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+                              <CalendarDays className="h-3 w-3 text-muted-foreground/60" />
+                              Miembro desde {formatDate(u.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Inline edit form ── */}
+                      {isEditing && (
+                        <div className="p-4 space-y-3 bg-muted/20">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Editar — {u.name}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Nombre</label>
+                              <Input value={editForm.name ?? ""} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="bg-background h-8 text-sm" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Email</label>
+                              <Input value={editForm.email ?? ""} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="bg-background h-8 text-sm" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Rol</label>
+                              <select value={editForm.role ?? "professional"} onChange={e => setEditForm(f => ({ ...f, role: e.target.value as any }))} className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
+                                <option value="professional">Profesional</option>
+                                <option value="admin">Administrador</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">Especialidad</label>
+                              <select value={editForm.specialty ?? ""} onChange={e => setEditForm(f => ({ ...f, specialty: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
+                                <option value="">Sin especificar</option>
+                                {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><KeyRound className="h-3 w-3" />Nueva contraseña (dejar en blanco para no cambiar)</label>
+                              <div className="relative">
+                                <Input type={showEditPwd ? "text" : "password"} placeholder="Nueva contraseña (opcional)" value={editForm.password ?? ""} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} className="bg-background h-8 text-sm pr-10" />
+                                <button type="button" onClick={() => setShowEditPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                                  {showEditPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 justify-end pt-1">
+                            <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
+                            <Button size="sm" onClick={() => saveEdit(u.id)} disabled={saving} className="bg-primary text-white gap-1">
+                              <Check className="h-3 w-3" />Guardar
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Inline reset password ── */}
+                      {isResetting && (
+                        <div className="p-4 space-y-3 bg-amber-50/60 border-t border-amber-100">
+                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <RotateCcw className="h-3.5 w-3.5" /> Restablecer contraseña — {u.name}
+                          </p>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Nueva contraseña</label>
+                            <div className="relative max-w-xs">
+                              <Input
+                                type={showResetPwd ? "text" : "password"}
+                                placeholder="Mínimo 6 caracteres"
+                                value={resetPwd}
+                                onChange={e => setResetPwd(e.target.value)}
+                                className="bg-background h-8 text-sm pr-10"
+                              />
+                              <button type="button" onClick={() => setShowResetPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                                {showResetPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                               </button>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2 justify-end">
-                          <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
-                          <Button size="sm" onClick={() => saveEdit(u.id)} disabled={saving} className="bg-accent text-white gap-1">
-                            <Check className="h-3 w-3" />Guardar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* View row */
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-bold text-primary">
-                              {u.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-foreground truncate">{u.name}</span>
-                              {u.role === "admin" ? (
-                                <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary">
-                                  <ShieldCheck className="h-3 w-3" />Admin
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent">
-                                  <Stethoscope className="h-3 w-3" />Profesional
-                                </Badge>
-                              )}
-                              {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inactivo</Badge>}
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                            {u.specialty && <p className="text-xs text-muted-foreground">{u.specialty}</p>}
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={cancelReset}><X className="h-3 w-3 mr-1" />Cancelar</Button>
+                            <Button size="sm" onClick={() => saveReset(u.id)} disabled={savingReset || !resetPwd.trim()} className="bg-amber-600 text-white gap-1 hover:bg-amber-700">
+                              <Check className="h-3 w-3" />{savingReset ? "Guardando…" : "Establecer contraseña"}
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEdit(u)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            title="Editar"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleActive(u)}
-                            className={`h-8 w-8 p-0 ${u.active ? "text-rose-500 hover:text-rose-600" : "text-emerald-500 hover:text-emerald-600"}`}
-                            title={u.active ? "Desactivar usuario" : "Activar usuario"}
-                          >
-                            {u.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
 
-          {/* ── Auditoría ───────────────────────────────────────────────── */}
-          <TabsContent value="auditoria" className="mt-5">
-            <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
-                <h2 className="text-base font-semibold text-foreground">Historial de auditoría</h2>
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* Auditoría tab                                                       */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <TabsContent value="auditoria" className="mt-5 space-y-4">
+            <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">Registro de usuarios</h2>
+                <span className="ml-auto text-xs text-muted-foreground">{users.length} en total</span>
               </div>
-
-              {/* Users registered — basic creation log */}
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Usuarios registrados</p>
-                <div className="divide-y divide-border/40 rounded-xl border border-border/50 overflow-hidden">
-                  {loading ? (
-                    <div className="p-4 text-sm text-muted-foreground">Cargando…</div>
-                  ) : users.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground text-center">Sin usuarios registrados.</div>
-                  ) : (
-                    [...users]
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map(u => (
-                        <div key={u.id} className="flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/30 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              <span className="text-xs font-bold text-primary">{u.name.charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                            </div>
+              <div className="divide-y divide-border/40">
+                {loading ? (
+                  <div className="px-5 py-4 text-sm text-muted-foreground">Cargando…</div>
+                ) : (
+                  [...users]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map(u => {
+                      const stats = statsByUser[u.id] ?? { sessions: 0, patients: 0 };
+                      return (
+                        <div key={u.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
+                          <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
+                            {u.name.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex items-center gap-3 shrink-0 text-right">
-                            {u.role === "admin" ? (
-                              <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary">
-                                <ShieldCheck className="h-3 w-3" />Admin
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent">
-                                <Stethoscope className="h-3 w-3" />Profesional
-                              </Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(u.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
+                              {u.role === "admin"
+                                ? <Badge variant="outline" className="text-[10px] gap-0.5 border-primary/40 text-primary py-0"><ShieldCheck className="h-2.5 w-2.5" />Admin</Badge>
+                                : <Badge variant="outline" className="text-[10px] gap-0.5 border-accent/40 text-accent py-0"><Stethoscope className="h-2.5 w-2.5" />Prof.</Badge>}
+                              {!u.active && <Badge variant="outline" className="text-[10px] text-muted-foreground py-0">Inactivo</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{u.email}{u.specialty ? ` · ${u.specialty}` : ""}</p>
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0 text-right">
+                            <span className="text-xs text-muted-foreground hidden sm:block">
+                              <span className="font-semibold text-foreground">{stats.patients}</span> pac · <span className="font-semibold text-foreground">{stats.sessions}</span> ses
                             </span>
-                            {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inactivo</Badge>}
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <CalendarDays className="h-3 w-3" /> {formatDate(u.createdAt)}
+                            </span>
                           </div>
                         </div>
-                      ))
-                  )}
-                </div>
+                      );
+                    })
+                )}
               </div>
+            </div>
 
-              <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border/40 px-4 py-3">
-                <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  El registro detallado de actividad clínica (sesiones, cambios de objetivos, registros) se encuentra en cada perfil de paciente. Los registros de acceso de usuarios y cambios de configuración se habilitarán en una próxima versión.
-                </p>
-              </div>
+            <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border/40 px-4 py-3">
+              <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                El historial clínico detallado (sesiones, objetivos, cambios) está disponible en cada perfil de paciente. El registro de accesos y cambios de configuración estará disponible en una próxima versión.
+              </p>
             </div>
           </TabsContent>
 
-          {/* ── Mi perfil ───────────────────────────────────────────────── */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* Mi perfil tab                                                       */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="mi-perfil" className="mt-5">
-            <div className="max-w-lg space-y-4">
+            <div className="max-w-md space-y-4">
               {currentUser && (
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center shrink-0">
-                      <span className="text-xl font-bold text-primary">{currentUser.name.charAt(0).toUpperCase()}</span>
+                <>
+                  {/* Identity card */}
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="h-14 w-14 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-xl font-bold text-primary">{currentUser.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">{currentUser.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{currentUser.email}</p>
+                        <Badge variant="outline" className="mt-1.5 text-[10px] gap-1 border-primary/40 text-primary">
+                          <ShieldCheck className="h-2.5 w-2.5" /> Administrador
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground truncate">{currentUser.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{currentUser.email}</p>
-                      <Badge variant="outline" className="mt-1 text-[10px] gap-1 border-primary/40 text-primary">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Administrador
-                      </Badge>
+                    <div className="border-t border-border pt-3">
+                      <p className="text-xs text-muted-foreground mb-2">Para editar nombre, contraseña o especialidad:</p>
+                      <Button size="sm" variant="outline" onClick={() => navigate("/usuario")} className="gap-1.5">
+                        <UserCircle className="h-3.5 w-3.5" /> Ir a Mi perfil completo
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="border-t border-border pt-3">
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Para cambiar tu nombre, contraseña o especialidad, usa la página de perfil completo.
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate("/usuario")}
-                      className="gap-1.5"
-                    >
-                      <UserCircle className="h-3.5 w-3.5" />
-                      Ir a Mi perfil completo
-                    </Button>
+                  {/* System stats */}
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Activity className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-semibold text-foreground">Resumen del sistema</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
+                        <p className="text-2xl font-bold text-foreground">{users.length}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Usuarios</p>
+                      </div>
+                      <div className="text-center p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                        <p className="text-2xl font-bold text-emerald-700">{activeUsers.length}</p>
+                        <p className="text-[10px] text-emerald-600 mt-0.5">Activos</p>
+                      </div>
+                      <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
+                        <p className="text-2xl font-bold text-muted-foreground">{registros.length}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Sesiones total</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
-
-              {/* Stats summary */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-foreground">Resumen del sistema</h3>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
-                    <p className="text-2xl font-bold text-foreground">{users.length}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Usuarios</p>
-                  </div>
-                  <div className="text-center p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                    <p className="text-2xl font-bold text-emerald-700">{activeUsers.length}</p>
-                    <p className="text-[10px] text-emerald-600 mt-0.5">Activos</p>
-                  </div>
-                  <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
-                    <p className="text-2xl font-bold text-muted-foreground">{inactiveUsers.length}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Inactivos</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
