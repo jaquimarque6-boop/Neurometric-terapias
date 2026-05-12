@@ -41,6 +41,7 @@ export const DIAGNOSES_PSICOPED: DiagnosisOption[] = [
   { value: "Discalculia",                     label: "Discalculia" },
   { value: "TDAH",                            label: "TDAH" },
   { value: "Dificultades atencionales",       label: "Dificultades atencionales" },
+  { value: "Atención",                        label: "Dificultades de atención" },
   { value: "Comprensión lectora",             label: "Dificultades de comprensión lectora" },
   { value: "Producción escrita",              label: "Dificultades de producción escrita" },
   { value: "Funciones ejecutivas",            label: "Dificultades en funciones ejecutivas" },
