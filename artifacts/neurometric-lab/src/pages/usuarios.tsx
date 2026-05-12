@@ -3,12 +3,15 @@ import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
+  History, UserCircle, ClipboardList, Star,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 
 const SPECIALTIES = [
@@ -43,6 +46,7 @@ const emptyForm = {
 export default function Usuarios() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,253 +200,402 @@ export default function Usuarios() {
           Volver al panel
         </button>
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-display font-bold text-foreground">Usuarios</h1>
-              <p className="text-sm text-muted-foreground">{activeUsers.length} usuario{activeUsers.length !== 1 ? "s" : ""} activo{activeUsers.length !== 1 ? "s" : ""}</p>
-            </div>
+        {/* Page title */}
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Users className="h-6 w-6 text-primary" />
           </div>
-          <Button
-            onClick={() => setShowForm(v => !v)}
-            className="gap-2 bg-gradient-to-br from-primary to-primary/80 text-white"
-          >
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? "Cancelar" : "Nuevo usuario"}
-          </Button>
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">Panel de administración</h1>
+            <p className="text-sm text-muted-foreground">{activeUsers.length} usuario{activeUsers.length !== 1 ? "s" : ""} activo{activeUsers.length !== 1 ? "s" : ""}</p>
+          </div>
         </div>
 
-        {/* Create form */}
-        {showForm && (
-          <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-4">
-            <h2 className="font-semibold text-foreground">Crear nuevo usuario</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nombre completo <span className="text-primary/60">*</span></label>
-                <Input placeholder="Nombre" value={form.name} onChange={e => set("name", e.target.value)} className="bg-muted/30" />
+        <Tabs defaultValue="usuarios">
+          <TabsList className="bg-card border border-border/50 p-1 rounded-xl shadow-sm h-auto gap-1">
+            <TabsTrigger value="usuarios" className="rounded-lg text-sm flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" /> Usuarios
+              {users.length > 0 && (
+                <span className="ml-0.5 bg-primary/10 text-primary text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {users.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="auditoria" className="rounded-lg text-sm flex items-center gap-1.5">
+              <History className="h-3.5 w-3.5" /> Auditoría
+            </TabsTrigger>
+            <TabsTrigger value="mi-perfil" className="rounded-lg text-sm flex items-center gap-1.5">
+              <UserCircle className="h-3.5 w-3.5" /> Mi perfil
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Usuarios ───────────────────────────────────────────────── */}
+          <TabsContent value="usuarios" className="mt-5 space-y-4">
+            {/* Action bar */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Gestión de usuarios</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {activeUsers.length} activo{activeUsers.length !== 1 ? "s" : ""} · {inactiveUsers.length} inactivo{inactiveUsers.length !== 1 ? "s" : ""}
+                </p>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email <span className="text-primary/60">*</span></label>
-                <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium flex items-center gap-1.5">
-                  <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                  Contraseña <span className="text-primary/60">*</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showPwd ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    value={form.password}
-                    onChange={e => set("password", e.target.value)}
-                    className="bg-muted/30 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Confirmar contraseña <span className="text-primary/60">*</span></label>
-                <div className="relative">
-                  <Input
-                    type={showPwd ? "text" : "password"}
-                    placeholder="Repite la contraseña"
-                    value={form.confirmPassword}
-                    onChange={e => set("confirmPassword", e.target.value)}
-                    className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/50 focus-visible:ring-destructive/30" : ""}`}
-                  />
-                </div>
-                {form.confirmPassword && form.password !== form.confirmPassword && (
-                  <p className="text-[11px] text-destructive">Las contraseñas no coinciden</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Rol</label>
-                <select
-                  value={form.role}
-                  onChange={e => set("role", e.target.value)}
-                  className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="professional">Profesional</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Especialidad</label>
-                <select
-                  value={form.specialty}
-                  onChange={e => set("specialty", e.target.value)}
-                  className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Sin especificar</option>
-                  {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-2 border-t border-border/40">
-              <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); }}>Cancelar</Button>
               <Button
-                onClick={handleCreate}
-                disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword}
-                className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2"
+                onClick={() => setShowForm(v => !v)}
+                className="gap-2 bg-gradient-to-br from-primary to-primary/80 text-white"
               >
-                {saving ? "Guardando…" : "Crear usuario"}
+                {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {showForm ? "Cancelar" : "Nuevo usuario"}
               </Button>
             </div>
-          </div>
-        )}
 
-        {/* Users list */}
-        {loading ? (
-          <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {users.length === 0 && (
-              <div className="text-center py-10 text-muted-foreground">No hay usuarios registrados.</div>
-            )}
-            {users.map(u => (
-              <div
-                key={u.id}
-                className={`rounded-2xl border border-border/60 bg-card shadow-sm p-4 transition-opacity ${!u.active ? "opacity-60" : ""}`}
-              >
-                {editingId === u.id ? (
-                  /* Inline edit form */
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Nombre</label>
-                        <Input
-                          value={editForm.name ?? ""}
-                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                          className="bg-muted/30 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Email</label>
-                        <Input
-                          value={editForm.email ?? ""}
-                          onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                          className="bg-muted/30 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Rol</label>
-                        <select
-                          value={editForm.role ?? "professional"}
-                          onChange={e => setEditForm(f => ({ ...f, role: e.target.value as any }))}
-                          className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
-                        >
-                          <option value="professional">Profesional</option>
-                          <option value="admin">Administrador</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Especialidad</label>
-                        <select
-                          value={editForm.specialty ?? ""}
-                          onChange={e => setEditForm(f => ({ ...f, specialty: e.target.value }))}
-                          className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
-                        >
-                          <option value="">Sin especificar</option>
-                          {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                          <KeyRound className="h-3 w-3" /> Nueva contraseña (dejar en blanco para no cambiar)
-                        </label>
-                        <div className="relative">
-                          <Input
-                            type={showEditPwd ? "text" : "password"}
-                            placeholder="Nueva contraseña (opcional)"
-                            value={editForm.password ?? ""}
-                            onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                            className="bg-muted/30 h-8 text-sm pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowEditPwd(v => !v)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            tabIndex={-1}
-                          >
-                            {showEditPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
-                      <Button size="sm" onClick={() => saveEdit(u.id)} disabled={saving} className="bg-accent text-white gap-1">
-                        <Check className="h-3 w-3" />Guardar
-                      </Button>
-                    </div>
+            {/* Create form */}
+            {showForm && (
+              <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-4">
+                <h2 className="font-semibold text-foreground">Crear nuevo usuario</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Nombre completo <span className="text-primary/60">*</span></label>
+                    <Input placeholder="Nombre" value={form.name} onChange={e => set("name", e.target.value)} className="bg-muted/30" />
                   </div>
-                ) : (
-                  /* View row */
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-primary">
-                          {u.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-foreground truncate">{u.name}</span>
-                          {u.role === "admin" ? (
-                            <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary">
-                              <ShieldCheck className="h-3 w-3" />Admin
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent">
-                              <Stethoscope className="h-3 w-3" />Profesional
-                            </Badge>
-                          )}
-                          {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inactivo</Badge>}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                        {u.specialty && <p className="text-xs text-muted-foreground">{u.specialty}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEdit(u)}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                        title="Editar"
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Email <span className="text-primary/60">*</span></label>
+                    <Input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                      Contraseña <span className="text-primary/60">*</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPwd ? "text" : "password"}
+                        placeholder="Mínimo 6 caracteres"
+                        value={form.password}
+                        onChange={e => set("password", e.target.value)}
+                        className="bg-muted/30 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
                       >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleActive(u)}
-                          className={`h-8 w-8 p-0 ${u.active ? "text-rose-500 hover:text-rose-600" : "text-emerald-500 hover:text-emerald-600"}`}
-                          title={u.active ? "Desactivar usuario" : "Activar usuario"}
-                        >
-                          {u.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                        </Button>
+                        {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Confirmar contraseña <span className="text-primary/60">*</span></label>
+                    <div className="relative">
+                      <Input
+                        type={showPwd ? "text" : "password"}
+                        placeholder="Repite la contraseña"
+                        value={form.confirmPassword}
+                        onChange={e => set("confirmPassword", e.target.value)}
+                        className={`bg-muted/30 pr-10 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/50 focus-visible:ring-destructive/30" : ""}`}
+                      />
+                    </div>
+                    {form.confirmPassword && form.password !== form.confirmPassword && (
+                      <p className="text-[11px] text-destructive">Las contraseñas no coinciden</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Rol</label>
+                    <select
+                      value={form.role}
+                      onChange={e => set("role", e.target.value)}
+                      className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="professional">Profesional</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Especialidad</label>
+                    <select
+                      value={form.specialty}
+                      onChange={e => set("specialty", e.target.value)}
+                      className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Sin especificar</option>
+                      {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2 border-t border-border/40">
+                  <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); }}>Cancelar</Button>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword}
+                    className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2"
+                  >
+                    {saving ? "Guardando…" : "Crear usuario"}
+                  </Button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            )}
+
+            {/* Users list */}
+            {loading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {users.length === 0 && (
+                  <div className="text-center py-10 text-muted-foreground">No hay usuarios registrados.</div>
+                )}
+                {users.map(u => (
+                  <div
+                    key={u.id}
+                    className={`rounded-2xl border border-border/60 bg-card shadow-sm p-4 transition-opacity ${!u.active ? "opacity-60" : ""}`}
+                  >
+                    {editingId === u.id ? (
+                      /* Inline edit form */
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Nombre</label>
+                            <Input
+                              value={editForm.name ?? ""}
+                              onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                              className="bg-muted/30 h-8 text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Email</label>
+                            <Input
+                              value={editForm.email ?? ""}
+                              onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                              className="bg-muted/30 h-8 text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Rol</label>
+                            <select
+                              value={editForm.role ?? "professional"}
+                              onChange={e => setEditForm(f => ({ ...f, role: e.target.value as any }))}
+                              className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
+                            >
+                              <option value="professional">Profesional</option>
+                              <option value="admin">Administrador</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Especialidad</label>
+                            <select
+                              value={editForm.specialty ?? ""}
+                              onChange={e => setEditForm(f => ({ ...f, specialty: e.target.value }))}
+                              className="w-full rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm"
+                            >
+                              <option value="">Sin especificar</option>
+                              {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                              <KeyRound className="h-3 w-3" /> Nueva contraseña (dejar en blanco para no cambiar)
+                            </label>
+                            <div className="relative">
+                              <Input
+                                type={showEditPwd ? "text" : "password"}
+                                placeholder="Nueva contraseña (opcional)"
+                                value={editForm.password ?? ""}
+                                onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                                className="bg-muted/30 h-8 text-sm pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowEditPwd(v => !v)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                tabIndex={-1}
+                              >
+                                {showEditPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
+                          <Button size="sm" onClick={() => saveEdit(u.id)} disabled={saving} className="bg-accent text-white gap-1">
+                            <Check className="h-3 w-3" />Guardar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* View row */
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-bold text-primary">
+                              {u.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-foreground truncate">{u.name}</span>
+                              {u.role === "admin" ? (
+                                <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary">
+                                  <ShieldCheck className="h-3 w-3" />Admin
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent">
+                                  <Stethoscope className="h-3 w-3" />Profesional
+                                </Badge>
+                              )}
+                              {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inactivo</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                            {u.specialty && <p className="text-xs text-muted-foreground">{u.specialty}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEdit(u)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            title="Editar"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleActive(u)}
+                            className={`h-8 w-8 p-0 ${u.active ? "text-rose-500 hover:text-rose-600" : "text-emerald-500 hover:text-emerald-600"}`}
+                            title={u.active ? "Desactivar usuario" : "Activar usuario"}
+                          >
+                            {u.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ── Auditoría ───────────────────────────────────────────────── */}
+          <TabsContent value="auditoria" className="mt-5">
+            <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                <h2 className="text-base font-semibold text-foreground">Historial de auditoría</h2>
+              </div>
+
+              {/* Users registered — basic creation log */}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Usuarios registrados</p>
+                <div className="divide-y divide-border/40 rounded-xl border border-border/50 overflow-hidden">
+                  {loading ? (
+                    <div className="p-4 text-sm text-muted-foreground">Cargando…</div>
+                  ) : users.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">Sin usuarios registrados.</div>
+                  ) : (
+                    [...users]
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map(u => (
+                        <div key={u.id} className="flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-xs font-bold text-primary">{u.name.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-right">
+                            {u.role === "admin" ? (
+                              <Badge variant="outline" className="text-xs gap-1 border-primary/40 text-primary">
+                                <ShieldCheck className="h-3 w-3" />Admin
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs gap-1 border-accent/40 text-accent">
+                                <Stethoscope className="h-3 w-3" />Profesional
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(u.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })}
+                            </span>
+                            {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inactivo</Badge>}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border/40 px-4 py-3">
+                <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  El registro detallado de actividad clínica (sesiones, cambios de objetivos, registros) se encuentra en cada perfil de paciente. Los registros de acceso de usuarios y cambios de configuración se habilitarán en una próxima versión.
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── Mi perfil ───────────────────────────────────────────────── */}
+          <TabsContent value="mi-perfil" className="mt-5">
+            <div className="max-w-lg space-y-4">
+              {currentUser && (
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center shrink-0">
+                      <span className="text-xl font-bold text-primary">{currentUser.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground truncate">{currentUser.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{currentUser.email}</p>
+                      <Badge variant="outline" className="mt-1 text-[10px] gap-1 border-primary/40 text-primary">
+                        <ShieldCheck className="h-2.5 w-2.5" /> Administrador
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Para cambiar tu nombre, contraseña o especialidad, usa la página de perfil completo.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate("/usuario")}
+                      className="gap-1.5"
+                    >
+                      <UserCircle className="h-3.5 w-3.5" />
+                      Ir a Mi perfil completo
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Stats summary */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Resumen del sistema</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
+                    <p className="text-2xl font-bold text-foreground">{users.length}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Usuarios</p>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-2xl font-bold text-emerald-700">{activeUsers.length}</p>
+                    <p className="text-[10px] text-emerald-600 mt-0.5">Activos</p>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
+                    <p className="text-2xl font-bold text-muted-foreground">{inactiveUsers.length}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Inactivos</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
