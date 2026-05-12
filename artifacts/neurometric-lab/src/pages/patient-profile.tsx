@@ -1582,6 +1582,18 @@ export default function PatientProfile() {
                             </span>
                           )}
                           <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toast({
+                              title: "Perfil clínico con IA",
+                              description: "Esta función estará disponible próximamente. Complete las secciones de anamnesis para activarla.",
+                            })}
+                            className="gap-1.5 border-violet-200 text-violet-600 hover:bg-violet-50 h-8 text-xs"
+                          >
+                            <Brain className="h-3.5 w-3.5" />
+                            Perfil clínico con IA
+                          </Button>
+                          <Button
                             onClick={handleSaveAnamnesis}
                             disabled={isSavingAn}
                             size="sm"
