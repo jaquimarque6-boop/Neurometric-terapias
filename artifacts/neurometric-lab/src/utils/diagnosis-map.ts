@@ -4,11 +4,11 @@ export interface DiagnosisOption {
 }
 
 export const DIAGNOSES: DiagnosisOption[] = [
-  { value: "TEL",                         label: "TEL – Trastorno Específico del Lenguaje" },
-  { value: "TDL",                         label: "TDL – Trastorno del Desarrollo del Lenguaje" },
-  { value: "TEA",                         label: "TEA – Trastorno del Espectro Autista" },
+  { value: "TEL",                         label: "TEL — Trastorno Específico del Lenguaje" },
+  { value: "TDL",                         label: "TDL — Trastorno del Desarrollo del Lenguaje" },
+  { value: "TEA",                         label: "TEA — Trastorno del Espectro Autista" },
   { value: "TDAH",                        label: "TDAH" },
-  { value: "TSH",                         label: "TSH – Trastorno de los sonidos del habla" },
+  { value: "TSH",                         label: "TSH — Trastorno de los sonidos del habla" },
   { value: "Trastorno fonológico",        label: "Trastorno fonológico" },
   { value: "Apraxia del habla",           label: "Apraxia del habla" },
   { value: "Disartria",                   label: "Disartria" },
@@ -32,32 +32,43 @@ export const DIAGNOSES: DiagnosisOption[] = [
 ];
 
 export const DIAGNOSIS_AREAS: Record<string, string[]> = {
+  // ── Fonoaudiología — lenguaje ────────────────────────────────────────────────
   "TEL":                         ["lenguaje", "habla"],
   "TDL":                         ["lenguaje", "pragmática"],
-  "TEA":                         ["pragmática", "cognición"],
-  "TDAH":                        ["cognición", "pragmática"],
+  "Retraso del lenguaje":        ["lenguaje", "estimulación temprana"],
+  "Retraso madurativo":          ["estimulación temprana", "cognición"],
+
+  // ── Fonoaudiología — habla / motricidad ─────────────────────────────────────
   "TSH":                         ["habla", "motricidad oral"],
-  "Dislalia":                    ["habla", "motricidad oral"],
+  "Dislalia":                    ["habla", "motricidad oral"],   // alias histórico de TSH
   "Trastorno fonológico":        ["habla"],
   "Apraxia del habla":           ["habla", "motricidad oral"],
   "Disartria":                   ["habla", "motricidad oral"],
   "Tartamudez":                  ["habla"],
-  "Dislexia":                    ["lectoescritura"],
-  "Disgrafía":                   ["lectoescritura"],
-  "Discalculia":                 ["cognición"],
-  "Retraso del lenguaje":        ["lenguaje", "estimulación temprana"],
-  "Retraso madurativo":          ["estimulación temprana", "cognición"],
+
+  // ── Fonoaudiología — otras áreas ────────────────────────────────────────────
   "Deglución atípica":           ["motricidad oral"],
   "Voz":                         ["voz"],
+
+  // ── Transversal (fono + psicopedagogía) ─────────────────────────────────────
+  "TEA":                         ["pragmática", "cognición"],
+  "TDAH":                        ["cognición", "pragmática"],
+
+  // ── Psicopedagogía — lectoescritura específica ──────────────────────────────
+  "Dislexia":                    ["lectoescritura"],
+  "Disgrafía":                   ["disgrafía"],
+  "Discalculia":                 ["matemáticas"],
+  "Comprensión lectora":         ["comprensión lectora"],
+  "Producción escrita":          ["producción escrita"],
+  "Matemática":                  ["matemáticas"],
   "Dificultades de aprendizaje": ["lectoescritura", "cognición"],
+
+  // ── Psicopedagogía — cognición específica ───────────────────────────────────
   "Dificultades atencionales":   ["cognición"],
   "Atención":                    ["cognición"],
-  "Comprensión lectora":         ["lectoescritura"],
-  "Producción escrita":          ["lectoescritura"],
-  "Funciones ejecutivas":        ["cognición"],
-  "Memoria":                     ["cognición"],
-  "Matemática":                  ["lectoescritura"],
-  "Estrategias de aprendizaje":  ["cognición"],
+  "Funciones ejecutivas":        ["funciones ejecutivas"],
+  "Memoria":                     ["memoria"],
+  "Estrategias de aprendizaje":  ["estrategias de aprendizaje"],
 };
 
 export function getDiagnosisLabel(value: string): string {

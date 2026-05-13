@@ -188,42 +188,71 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
   const diagnosis = (diagnosisOverride ?? patient.diagnosis ?? "").toLowerCase();
   const resultLimit = limitParam ? parseInt(limitParam) : 10;
 
-  const scored = allLibraryGoals
+  const scoreGoal = (g: typeof allLibraryGoals[number]) => {
+    let score = 0;
+
+    // Age match
+    const gMin = g.franjaEtariaMin ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[0]) : null);
+    const gMax = g.franjaEtariaMax ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[1]) : null);
+    if (gMin !== null && gMax !== null && !isNaN(gMin) && !isNaN(gMax)) {
+      if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) {
+        score += 4;
+      } else if (!isNaN(franjaMin) && !isNaN(franjaMax)) {
+        const overlapMin = Math.max(franjaMin, gMin);
+        const overlapMax = Math.min(franjaMax, gMax);
+        if (overlapMax >= overlapMin) score += 3;
+      }
+    }
+
+    // Diagnosis keyword match per area
+    if (diagnosis) {
+      const area = (g.areaClinica ?? g.area ?? "").toLowerCase();
+      const keywords = DIAG_KEYWORDS[area] ?? [];
+      for (const kw of keywords) {
+        if (diagnosis.includes(kw.toLowerCase())) { score += 5; break; }
+      }
+    }
+
+    // Prefer básico for very young patients
+    if (patientAge !== null && patientAge <= 4 && g.nivelDificultad === "básico") score += 1;
+
+    return score;
+  };
+
+  const eligible = allLibraryGoals
     .filter(g => !assignedLibraryIds.has(g.id))
-    .map(g => {
-      let score = 0;
-
-      // Age match
-      const gMin = g.franjaEtariaMin ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[0]) : null);
-      const gMax = g.franjaEtariaMax ?? (g.franjaEtaria ? parseInt(g.franjaEtaria.split("-")[1]) : null);
-      if (gMin !== null && gMax !== null && !isNaN(gMin) && !isNaN(gMax)) {
-        if (patientAge !== null && patientAge >= gMin && patientAge <= gMax) {
-          score += 4;
-        } else if (!isNaN(franjaMin) && !isNaN(franjaMax)) {
-          const overlapMin = Math.max(franjaMin, gMin);
-          const overlapMax = Math.min(franjaMax, gMax);
-          if (overlapMax >= overlapMin) score += 3;
-        }
-      }
-
-      // Diagnosis keyword match per area
-      if (diagnosis) {
-        const area = (g.areaClinica ?? g.area ?? "").toLowerCase();
-        const keywords = DIAG_KEYWORDS[area] ?? [];
-        for (const kw of keywords) {
-          if (diagnosis.includes(kw.toLowerCase())) { score += 5; break; }
-        }
-      }
-
-      // Prefer básico for young patients
-      if (patientAge !== null && patientAge <= 4 && g.nivelDificultad === "básico") score += 1;
-
-      return { ...g, _score: score };
-    })
+    .map(g => ({ ...g, _score: scoreGoal(g) }))
     .filter(g => g._score > 0)
-    .sort((a, b) => b._score - a._score)
-    .slice(0, resultLimit)
-    .map(({ _score, ...g }) => ({ ...g, createdAt: g.createdAt.toISOString() }));
+    .sort((a, b) => b._score - a._score);
+
+  // ── Balanced multi-level selection ────────────────────────────────────────
+  // Distribute the result limit evenly across difficulty tiers so that the
+  // "Nivel superior / adecuado / inferior" UI groups are always populated when
+  // matching goals exist at each level.
+  const perTier = Math.ceil(resultLimit / 3);
+
+  const tiers = {
+    superior: eligible.filter(g => g.nivelDificultad === "avanzado").slice(0, perTier),
+    adecuado: eligible.filter(g => !g.nivelDificultad || g.nivelDificultad === "intermedio").slice(0, perTier),
+    inferior:  eligible.filter(g => g.nivelDificultad === "básico").slice(0, perTier),
+  };
+
+  // Merge tiers (superior first so the UI sorts them naturally), de-duplicate by id
+  const seen = new Set<number>();
+  const merged: typeof eligible = [];
+  for (const g of [...tiers.superior, ...tiers.adecuado, ...tiers.inferior]) {
+    if (!seen.has(g.id)) { seen.add(g.id); merged.push(g); }
+  }
+
+  // If a tier was empty, backfill from remaining eligible goals up to resultLimit
+  if (merged.length < resultLimit) {
+    for (const g of eligible) {
+      if (merged.length >= resultLimit) break;
+      if (!seen.has(g.id)) { seen.add(g.id); merged.push(g); }
+    }
+  }
+
+  const scored = merged.map(({ _score, ...g }) => ({ ...g, createdAt: g.createdAt.toISOString() }));
 
   return res.json(scored);
 });
