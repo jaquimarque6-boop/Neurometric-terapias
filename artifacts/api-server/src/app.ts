@@ -24,6 +24,8 @@ const PgSession = connectPgSimple(session);
 console.log(`[app] cookieSameSite=none cookieSecure=true NODE_ENV=${process.env.NODE_ENV ?? "unset"}`);
 
 const ALLOWED_ORIGINS = [
+  "https://neurometricterapias.com",
+  "https://www.neurometricterapias.com",
   "https://neurometrict.netlify.app",
   "https://neurometric-terapias-backend.onrender.com",
   "http://localhost:3000",
