@@ -406,6 +406,11 @@ export default function Usuarios() {
                               <Sparkles className="h-3 w-3 text-muted-foreground/60" />
                               <span className="font-semibold text-foreground">–</span> IA
                             </span>
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Activity className="h-3 w-3 text-muted-foreground/60" />
+                              <span className="text-muted-foreground/60">Último acceso:</span>
+                              <span className="text-muted-foreground italic">Sin acceso registrado</span>
+                            </span>
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
                               <CalendarDays className="h-3 w-3 text-muted-foreground/60" />
                               Miembro desde {formatDate(u.createdAt)}
@@ -532,6 +537,10 @@ export default function Usuarios() {
                           <div className="flex items-center gap-4 shrink-0 text-right">
                             <span className="text-xs text-muted-foreground hidden sm:block">
                               <span className="font-semibold text-foreground">{stats.patients}</span> pac · <span className="font-semibold text-foreground">{stats.sessions}</span> ses
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 hidden md:flex" title="Último acceso">
+                              <Activity className="h-3 w-3" />
+                              <span className="italic">Sin acceso registrado</span>
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <CalendarDays className="h-3 w-3" /> {formatDate(u.createdAt)}

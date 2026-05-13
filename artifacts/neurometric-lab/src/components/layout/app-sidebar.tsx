@@ -28,21 +28,27 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type NavItem = { title: string; url: string; icon: React.FC<{ className?: string }>; adminOnly?: boolean };
+type NavItem = {
+  title: string;
+  url: string;
+  icon: React.FC<{ className?: string }>;
+  adminOnly?: boolean;
+  adminHidden?: boolean;
+};
 
 const navItems: NavItem[] = [
   { title: "Panel",              url: "/",              icon: LayoutDashboard },
-  { title: "Pacientes",          url: "/patients",      icon: Users           },
-  { title: "Agenda",             url: "/agenda",        icon: CalendarDays    },
-  { title: "Registro de Pagos",  url: "/agenda-pagos",  icon: Wallet          },
-  { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList   },
-  { title: "Objetivos",          url: "/objetivos",     icon: Target          },
-  { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen        },
-  { title: "Actividades",        url: "/actividades",   icon: Sparkles        },
-  { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays    },
-  { title: "Profesionales",      url: "/professionals", icon: Stethoscope,    adminOnly: true },
-  { title: "Reportes",           url: "/reportes",      icon: BarChart3       },
-  { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,    adminOnly: true },
+  { title: "Pacientes",          url: "/patients",      icon: Users,           adminHidden: true },
+  { title: "Agenda",             url: "/agenda",        icon: CalendarDays,    adminHidden: true },
+  { title: "Registro de Pagos",  url: "/agenda-pagos",  icon: Wallet,          adminHidden: true },
+  { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList,   adminHidden: true },
+  { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
+  { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
+  { title: "Actividades",        url: "/actividades",   icon: Sparkles,        adminHidden: true },
+  { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays,    adminHidden: true },
+  { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
+  { title: "Reportes",           url: "/reportes",      icon: BarChart3,       adminHidden: true },
+  { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,     adminOnly: true },
   { title: "Mi perfil",          url: "/usuario",       icon: UserCircle      },
 ];
 
@@ -50,8 +56,13 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isAdmin = user?.role === "admin";
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || user?.role === "admin");
+  const visibleItems = navItems.filter(item => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.adminHidden && isAdmin) return false;
+    return true;
+  });
 
   return (
     <Sidebar
