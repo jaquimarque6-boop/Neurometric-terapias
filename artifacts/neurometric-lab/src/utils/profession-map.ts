@@ -15,19 +15,19 @@ export function getProfesion(specialty: string | null | undefined): Profesion {
 
 export const DIAGNOSES_FONO: DiagnosisOption[] = [
   // Lenguaje
-  { value: "TEL",                   label: "TEL – Trastorno Específico del Lenguaje" },
-  { value: "TDL",                   label: "TDL – Trastorno del Desarrollo del Lenguaje" },
+  { value: "TEL",                   label: "TEL — Trastorno Específico del Lenguaje" },
+  { value: "TDL",                   label: "TDL — Trastorno del Desarrollo del Lenguaje" },
   { value: "Retraso del lenguaje",  label: "Retraso del lenguaje" },
   { value: "Retraso madurativo",    label: "Retraso madurativo / del desarrollo" },
   // Habla y fonología
-  { value: "TSH",                   label: "TSH – Trastorno de los sonidos del habla" },
+  { value: "TSH",                   label: "TSH — Trastorno de los sonidos del habla" },
   { value: "Trastorno fonológico",  label: "Trastorno fonológico" },
   { value: "Apraxia del habla",     label: "Apraxia del habla" },
   { value: "Disartria",             label: "Disartria" },
   // Fluidez
   { value: "Tartamudez",            label: "Tartamudez / Disfluencia" },
   // Neurodesarrollo
-  { value: "TEA",                   label: "TEA – Trastorno del Espectro Autista" },
+  { value: "TEA",                   label: "TEA — Trastorno del Espectro Autista" },
   { value: "TDAH",                  label: "TDAH" },
   // Orofacial y voz
   { value: "Voz",                   label: "Trastorno de voz (disfonía, nódulos…)" },
@@ -54,12 +54,31 @@ export function getDiagnosesByProfesion(profesion: Profesion): DiagnosisOption[]
   return profesion === "psicopedagogia" ? DIAGNOSES_PSICOPED : DIAGNOSES_FONO;
 }
 
+// ── Banco de objetivos: áreas disponibles por profesión ──────────────────────
+// These drive the "Área clínica" dropdown in the goal bank.
+// Every area here must have a corresponding key in goal-library's AREA_GUIDANCE
+// and ideally active library goals tagged with that area.
+
 export const BANCO_AREAS_FONO = [
-  "lenguaje", "habla", "pragmática", "motricidad orofacial", "deglución", "estimulación temprana",
+  "lenguaje",
+  "habla",
+  "pragmática",
+  "motricidad orofacial",
+  "deglución",
+  "voz",
+  "estimulación temprana",
 ];
 
 export const BANCO_AREAS_PSICOPED = [
-  "lectoescritura", "cognición",
+  "lectoescritura",
+  "comprensión lectora",
+  "producción escrita",
+  "disgrafía",
+  "matemáticas",
+  "cognición",
+  "funciones ejecutivas",
+  "memoria",
+  "estrategias de aprendizaje",
 ];
 
 export function getBancoAreas(profesion: Profesion): string[] {
