@@ -257,8 +257,8 @@ async function main() {
     // IDs 32-34 are already taken in Supabase by different accounts.
     await pool.query(
       `INSERT INTO users (email, password_hash, role, name, specialty, active, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (email) DO NOTHING`,
+       SELECT $1, $2, $3, $4, $5, $6, $7
+       WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = $1)`,
       [
         u.email,
         passwordHash,
