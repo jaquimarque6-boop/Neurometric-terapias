@@ -158,16 +158,17 @@ export default function SesionRapida() {
 
   useEffect(() => () => recognitionRef.current?.stop(), []);
 
-  // ── AI organizer (placeholder) ─────────────────────────────────────────────
+  // ── AI organizer ───────────────────────────────────────────────────────────
+  const [isOrganizando, setIsOrganizando]   = useState(false);
+  const [aiSugerencias, setAiSugerencias]   = useState<any[]>([]);
+
   const handleOrganizarIA = async () => {
     if (!selectedId) {
       toast({ title: "Selecciona un paciente primero", variant: "destructive" });
       return;
     }
-    if (!resumen.trim() && totalChipsSelected === 0) {
-      toast({ title: "Escribe algunas notas primero para organizar con IA", variant: "destructive" });
-      return;
-    }
+    setIsOrganizando(true);
+    setAiSugerencias([]);
     try {
       const res = await fetch(`${API_BASE}/api/ai/objetivos-suggest`, {
         method: "POST",
@@ -175,10 +176,21 @@ export default function SesionRapida() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patientId: selectedId, mode: "sesion", notes: resumen }),
       });
-      if (!res.ok) throw new Error("not_supported");
-      toast({ title: "Función disponible próximamente", description: "El organizador con IA estará activo en la próxima actualización." });
-    } catch {
-      toast({ title: "Organizar con IA — próximamente", description: "Esta función estará disponible en la próxima actualización." });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Error al consultar la IA");
+      }
+      const data = await res.json();
+      const objetivos = Array.isArray(data.objetivos) ? data.objetivos : [];
+      if (objetivos.length === 0) {
+        toast({ title: "La IA no generó sugerencias", description: "Agrega más notas o registros clínicos del paciente e intenta de nuevo." });
+      } else {
+        setAiSugerencias(objetivos);
+      }
+    } catch (e: any) {
+      toast({ title: e.message ?? "Error al organizar con IA", variant: "destructive" });
+    } finally {
+      setIsOrganizando(false);
     }
   };
 
@@ -406,17 +418,58 @@ export default function SesionRapida() {
         {/* ── Actions ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2.5 pb-6">
 
-          {/* AI Organizer — placeholder */}
+          {/* AI Organizer */}
           <Button
             variant="outline"
             onClick={handleOrganizarIA}
-            disabled={!selectedId}
+            disabled={!selectedId || isOrganizando}
             className="w-full gap-2 border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 disabled:opacity-40"
           >
-            <Sparkles className="h-4 w-4" />
-            Organizar con IA
-            <span className="ml-auto text-[10px] bg-violet-100 text-violet-500 px-1.5 py-0.5 rounded-full font-semibold">Próximamente</span>
+            <Sparkles className={`h-4 w-4 ${isOrganizando ? "animate-spin" : ""}`} />
+            {isOrganizando ? "Organizando…" : "Organizar con IA"}
           </Button>
+
+          {/* AI suggestions panel */}
+          {aiSugerencias.length > 0 && (
+            <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-violet-500 shrink-0" />
+                <p className="text-sm font-semibold text-violet-800">
+                  Sugerencias para hoy ({aiSugerencias.length})
+                </p>
+                <button
+                  onClick={() => setAiSugerencias([])}
+                  className="ml-auto text-[11px] text-violet-400 hover:text-violet-600 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                {aiSugerencias.map((obj: any, i: number) => (
+                  <div
+                    key={i}
+                    className="rounded-xl bg-white border border-violet-100 p-3 space-y-1 shadow-sm"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 text-[10px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide">
+                        {obj.nivelDificultad ?? "—"}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground leading-snug">{obj.title}</p>
+                    </div>
+                    {obj.areaClinica && (
+                      <p className="text-[11px] text-muted-foreground pl-1">
+                        Área: <span className="font-medium text-violet-700">{obj.areaClinica}</span>
+                        {obj.category && obj.category !== obj.areaClinica ? ` · ${obj.category}` : ""}
+                      </p>
+                    )}
+                    {obj.rationale && (
+                      <p className="text-[12px] text-muted-foreground pl-1 italic leading-snug">{obj.rationale}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Save */}
           <Button
