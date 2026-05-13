@@ -112,9 +112,6 @@ export default function LoginPage() {
 
       </div>
 
-      <p className="text-center text-xs font-semibold text-primary mt-8 bg-primary/10 border border-primary/20 rounded-lg py-2 px-4">
-        VERSIÓN NETLIFY ACTUAL 10/5 - TEST
-      </p>
     </div>
   );
 }
