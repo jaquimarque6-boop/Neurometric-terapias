@@ -23,6 +23,11 @@ const PgSession = connectPgSimple(session);
 // RENDER is NOT automatically injected by Render's platform.
 console.log(`[app] cookieSameSite=none cookieSecure=true NODE_ENV=${process.env.NODE_ENV ?? "unset"}`);
 
+// Extra origins from env — supports comma-separated list, e.g.:
+//   EXTRA_ORIGINS=https://neurometricterapias.com,https://www.neurometricterapias.com
+const extraOrigins: string[] = (process.env.EXTRA_ORIGINS ?? process.env.FRONTEND_URL ?? "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+
 const ALLOWED_ORIGINS = [
   "https://neurometricterapias.com",
   "https://www.neurometricterapias.com",
@@ -30,8 +35,21 @@ const ALLOWED_ORIGINS = [
   "https://neurometric-terapias-backend.onrender.com",
   "http://localhost:3000",
   "http://localhost:5173",
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...extraOrigins,
 ];
+
+console.log(`[cors] allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
+
+function isOriginAllowed(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (/neurometricterapias\.com$/.test(origin)) return true;
+  if (/\.netlify\.app$/.test(origin)) return true;
+  if (/\.onrender\.com$/.test(origin)) return true;
+  if (/\.replit\.dev$/.test(origin)) return true;
+  if (/\.replit\.app$/.test(origin)) return true;
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  return false;
+}
 
 const app: Express = express();
 
@@ -42,14 +60,7 @@ app.set("trust proxy", 1);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (
-      ALLOWED_ORIGINS.includes(origin) ||
-      /\.netlify\.app$/.test(origin) ||
-      /\.onrender\.com$/.test(origin) ||
-      /\.replit\.dev$/.test(origin) ||
-      /\.replit\.app$/.test(origin) ||
-      /^https?:\/\/localhost(:\d+)?$/.test(origin)
-    ) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
     console.warn(`[cors] blocked origin: ${origin}`);
