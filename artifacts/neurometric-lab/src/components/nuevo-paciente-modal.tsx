@@ -47,7 +47,10 @@ export function NuevoPacienteModal({
           toast({ title: "Paciente registrado correctamente" });
           handleClose();
         },
-        onError: () => toast({ title: "Error al guardar", variant: "destructive" }),
+        onError: (err: any) => {
+          const msg = err?.message ?? err?.data?.error ?? "Error al guardar el paciente";
+          toast({ title: "Error al guardar", description: msg, variant: "destructive" });
+        },
       }
     );
   };

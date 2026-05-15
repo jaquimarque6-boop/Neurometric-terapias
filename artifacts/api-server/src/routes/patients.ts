@@ -121,38 +121,72 @@ router.get("/patients", async (req, res) => {
 
 router.post("/patients", async (req, res) => {
   const sess = getSessionUser(req);
-  if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!sess) {
+    console.warn(`[POST /api/patients] 401 — sin sesión (origin: ${req.headers.origin ?? "none"})`);
+    return res.status(401).json({ error: "No autenticado. Tu sesión puede haber vencido." });
+  }
 
   const body = req.body;
+  console.log(`[POST /api/patients] userId=${sess.id} role=${sess.role} body=${JSON.stringify({ name: body.name, age: body.age, diagnosis: body.diagnosis?.slice?.(0, 40) })}`);
 
-  // Determine assigned professional — any user can pick from the dropdown
+  // name is required
+  if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+    return res.status(400).json({ error: "El nombre del paciente es obligatorio." });
+  }
+
+  // Sanitise age — reject non-numeric strings, allow undefined/null
+  let age: number | null = null;
+  if (body.age !== undefined && body.age !== null && body.age !== "") {
+    age = parseInt(body.age);
+    if (isNaN(age) || age < 0 || age > 150) {
+      return res.status(400).json({ error: "Edad inválida. Debe ser un número entre 0 y 150." });
+    }
+  }
+
+  // Determine assigned professional
   let assignedProfessionalId: number | null = null;
   let profesionalNombre: string | null = body.profesionalNombre ?? null;
 
-  if (body.assignedProfessionalId) {
-    assignedProfessionalId = parseInt(body.assignedProfessionalId);
-    if (!profesionalNombre) {
-      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
+  try {
+    if (body.assignedProfessionalId) {
+      assignedProfessionalId = parseInt(body.assignedProfessionalId);
+      if (!profesionalNombre) {
+        const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
+        profesionalNombre = prof?.name ?? null;
+      }
+    } else if (sess.role !== "admin") {
+      // Professionals are automatically the assigned professional
+      assignedProfessionalId = sess.id;
+      const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
       profesionalNombre = prof?.name ?? null;
     }
-  } else if (sess.role !== "admin") {
-    // Professionals are automatically assigned as the patient's professional
-    assignedProfessionalId = sess.id;
-    const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
-    profesionalNombre = prof?.name ?? null;
+
+    const [patient] = await db.insert(patientsTable).values({
+      name: body.name.trim(),
+      age,
+      diagnosis: body.diagnosis?.trim() || null,
+      profesionalNombre,
+      assignedProfessionalId,
+      franjaEtaria: body.franjaEtaria ?? null,
+      fechaInicio: body.fechaInicio ?? null,
+    }).returning();
+
+    console.log(`[POST /api/patients] ✓ creado id=${patient.id} name="${patient.name}" profesional=${profesionalNombre ?? "ninguno"} assignedId=${assignedProfessionalId}`);
+    return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
+
+  } catch (err: any) {
+    const detail = err?.message ?? String(err);
+    console.error(`[POST /api/patients] ERROR userId=${sess.id} →`, detail);
+
+    // Provide a user-friendly message while logging the real cause
+    const friendly =
+      detail.includes("violates not-null") ? "Falta un campo obligatorio en el paciente." :
+      detail.includes("duplicate key")     ? "Ya existe un paciente con esos datos." :
+      detail.includes("connect")           ? "No se pudo conectar a la base de datos. Intenta de nuevo." :
+      "Error al guardar el paciente. Intenta de nuevo.";
+
+    return res.status(500).json({ error: friendly, detail });
   }
-
-  const [patient] = await db.insert(patientsTable).values({
-    name: body.name,
-    age: body.age ?? null,
-    diagnosis: body.diagnosis ?? null,
-    profesionalNombre,
-    assignedProfessionalId,
-    franjaEtaria: body.franjaEtaria ?? null,
-    fechaInicio: body.fechaInicio ?? null,
-  }).returning();
-
-  return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
 });
 
 router.get("/patients/:id", async (req, res) => {
