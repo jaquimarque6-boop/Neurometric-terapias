@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const patientsTable = pgTable("patients", {
   id: serial("id").primaryKey(),
@@ -26,6 +26,8 @@ export const patientsTable = pgTable("patients", {
   informeEvolucion: text("informe_evolucion"),
   informeFamilia: text("informe_familia"),
   informeMensual: text("informe_mensual"),
+  archived: boolean("archived").notNull().default(false),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

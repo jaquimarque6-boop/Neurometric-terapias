@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, User, FileText, CalendarDays, Target,
+  ArrowLeft, User, FileText, CalendarDays, Target, RotateCcw,
   CheckCircle2, Circle, Stethoscope, Activity, Home,
   Eye, ClipboardList, Plus, ChevronDown, X,
   TrendingUp, AlertTriangle, Sparkles, Lightbulb, Star,
@@ -33,6 +33,7 @@ import {
   getListGoalsQueryKey,
   getListRegistrosClinicosQueryKey,
   getGetPatientQueryKey,
+  getListPatientsQueryKey,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
@@ -48,6 +49,11 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
@@ -978,6 +984,9 @@ export default function PatientProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const { data: patient, isLoading: loadingPatient } = useGetPatient(patientId);
   const { data: allRegistros = [] } = useListRegistrosClinicos(
     { patientId },
@@ -1006,6 +1015,8 @@ export default function PatientProfile() {
   const [epProf, setEpProf]           = useState("");
   const [epObs, setEpObs]             = useState("");
   const [isSavingPatient, setIsSavingPatient] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   // Edit registro
   const [editingRegistro, setEditingRegistro]     = useState<RC | null>(null);
@@ -1046,6 +1057,51 @@ export default function PatientProfile() {
   const stopRecordingEr = () => {
     recognitionErRef.current?.stop();
     setIsRecordingEr(false);
+  };
+
+  const handleArchive = async () => {
+    setIsArchiving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/archive`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      toast({ title: "Paciente archivado", description: "El historial clínico se conserva intacto. Puedes restaurarlo desde el listado de archivados." });
+      setShowArchiveDialog(false);
+      navigate("/patients");
+    } catch (err: any) {
+      toast({ title: "Error al archivar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setIsArchiving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/restore`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      toast({ title: "Paciente restaurado", description: "El paciente vuelve a aparecer en los listados activos." });
+      setShowArchiveDialog(false);
+    } catch (err: any) {
+      toast({ title: "Error al restaurar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsArchiving(false);
+    }
   };
 
   // Pre-fill edit patient form when dialog opens
@@ -1319,28 +1375,50 @@ export default function PatientProfile() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setShowEditPatient(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-border bg-muted/60 text-foreground/80 shadow-sm transition-all duration-200 hover:bg-muted hover:border-border active:scale-[0.97]"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Editar
-                </button>
-                <button
-                  onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-all duration-200 hover:bg-amber-100 active:scale-[0.97]"
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  Rápida
-                </button>
-                <button
-                  onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97] bg-primary"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nueva sesión
-                </button>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                {(patient as any).archived ? (
+                  isAdmin && (
+                    <button
+                      onClick={() => setShowArchiveDialog(true)}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition-all duration-200 hover:bg-emerald-100 active:scale-[0.97]"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Restaurar
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setShowEditPatient(true)}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-border bg-muted/60 text-foreground/80 shadow-sm transition-all duration-200 hover:bg-muted hover:border-border active:scale-[0.97]"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => setShowArchiveDialog(true)}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-border bg-muted/40 text-muted-foreground shadow-sm transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-[0.97]"
+                      title="Archivar paciente"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                      Archivar
+                    </button>
+                    <button
+                      onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-all duration-200 hover:bg-amber-100 active:scale-[0.97]"
+                    >
+                      <Zap className="h-3.5 w-3.5" />
+                      Rápida
+                    </button>
+                    <button
+                      onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97] bg-primary"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Nueva sesión
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             {patient.diagnosis && (
@@ -2145,6 +2223,63 @@ export default function PatientProfile() {
           }}
         />
       )}
+
+      {/* Archive / Restore confirmation dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            {(patient as any)?.archived ? (
+              <>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <RotateCcw className="h-5 w-5 text-emerald-600" />
+                  Restaurar paciente
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  <strong>{patient?.name}</strong> volverá a aparecer en los listados activos y en la agenda.
+                  Todo el historial clínico, sesiones y objetivos se mantienen intactos.
+                </AlertDialogDescription>
+              </>
+            ) : (
+              <>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Archive className="h-5 w-5 text-muted-foreground" />
+                  Archivar paciente
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <p>
+                      <strong>{patient?.name}</strong> dejará de aparecer en los listados principales y en la agenda activa.
+                    </p>
+                    <p className="text-sm font-medium text-foreground/80 bg-muted/60 rounded-lg px-3 py-2 border border-border">
+                      El historial clínico, sesiones y objetivos no se perderán y podrás restaurar el paciente en cualquier momento.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isArchiving}>Cancelar</AlertDialogCancel>
+            {(patient as any)?.archived ? (
+              <AlertDialogAction
+                onClick={handleRestore}
+                disabled={isArchiving}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isArchiving ? "Restaurando…" : "Sí, restaurar"}
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                onClick={handleArchive}
+                disabled={isArchiving}
+                className="bg-muted text-foreground hover:bg-muted/80 border border-border"
+              >
+                {isArchiving ? "Archivando…" : "Sí, archivar"}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

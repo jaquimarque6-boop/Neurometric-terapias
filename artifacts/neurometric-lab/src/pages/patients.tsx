@@ -7,13 +7,20 @@ import {
   ArrowLeft,
   Plus,
   ChevronRight,
+  Archive,
+  RotateCcw,
+  ChevronDown,
 } from "lucide-react";
-import { useListPatients } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useListPatients, getListPatientsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { getDiagnosisLabel } from "@/utils/diagnosis-map";
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/api";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -47,11 +54,9 @@ function resolveStatus(raw: string | undefined): DisplayStatus {
   if (!raw) return "Requiere ajuste";
   if (raw === "Buen progreso") return "Buen progreso";
   if (raw === "En progreso") return "En progreso";
-  // Estancado → Requiere ajuste; anything else → Requiere ajuste
   return "Requiere ajuste";
 }
 
-// Map verbose action labels to short imperative verbs
 function shortAction(raw: string | undefined): string | null {
   if (!raw) return null;
   if (raw.includes("Continuar")) return "Continuar";
@@ -67,8 +72,51 @@ function shortAction(raw: string | undefined): string | null {
 export default function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewPatient, setShowNewPatient] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isAdmin = user?.role === "admin";
+
   const { data: patients, isLoading } = useListPatients();
+
+  const { data: archivedPatients = [], isLoading: loadingArchived } = useQuery({
+    queryKey: ["archivedPatients"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/patients?includeArchived=true`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Error al cargar archivados");
+      return res.json() as Promise<any[]>;
+    },
+    enabled: isAdmin && showArchived,
+  });
+
+  const handleRestore = async (patientId: number, patientName: string) => {
+    setRestoringId(patientId);
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/restore`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["archivedPatients"] });
+      toast({
+        title: "Paciente restaurado",
+        description: `${patientName} vuelve a aparecer en los listados activos.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Error al restaurar", description: err.message, variant: "destructive" });
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
   const filtered = (patients ?? []).filter((p) => {
     const q = searchTerm.toLowerCase();
@@ -174,7 +222,6 @@ export default function Patients() {
               const sc = STATUS[displayStatus];
               const action = shortAction(rawAction);
 
-              // Focus line: "Area – title" truncated
               const focusLine = focus
                 ? [focus.area, focus.title].filter(Boolean).join(" – ")
                 : (patient.diagnosis ? getDiagnosisLabel(patient.diagnosis) : null);
@@ -189,7 +236,6 @@ export default function Patients() {
                   style={{ borderLeft: `3px solid ${sc.stripe}` }}
                 >
                   <div className="flex-1 p-4 min-w-0 flex flex-col gap-2.5">
-                    {/* Row 1: Name + age · Status */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="flex items-baseline gap-2 min-w-0">
                         <span
@@ -214,7 +260,6 @@ export default function Patients() {
                       </span>
                     </div>
 
-                    {/* Row 2: Professional badge */}
                     {patient.profesionalNombre && (
                       <p className="text-xs text-muted-foreground/70 truncate leading-none flex items-center gap-1">
                         <UserCircle className="h-3 w-3 shrink-0" />
@@ -222,14 +267,12 @@ export default function Patients() {
                       </p>
                     )}
 
-                    {/* Row 3: Current focus */}
                     {focusLine && (
                       <p className="text-xs text-muted-foreground truncate leading-none">
                         {focusLine}
                       </p>
                     )}
 
-                    {/* Row 3: Progress + action */}
                     <div className="flex items-center gap-2 mt-0.5">
                       {pct !== null ? (
                         <>
@@ -267,7 +310,6 @@ export default function Patients() {
                         </button>
                       )}
 
-                      {/* Fallback: always show an arrow to indicate clickable */}
                       {!action && (
                         <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
                       )}
@@ -295,6 +337,101 @@ export default function Patients() {
             </div>
           )}
         </div>
+
+        {/* ─── Archived patients section (admin only) ──────────────────── */}
+        {isAdmin && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowArchived(v => !v)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+            >
+              <Archive className="h-4 w-4" />
+              <span>Pacientes archivados</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${showArchived ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showArchived && (
+              <div className="mt-2">
+                {loadingArchived ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {Array(3).fill(0).map((_, i) => (
+                      <div key={i} className="bg-card rounded-xl border border-border/50 p-4 space-y-3 shadow-sm opacity-60">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-40" />
+                      </div>
+                    ))}
+                  </div>
+                ) : archivedPatients.length === 0 ? (
+                  <div className="py-8 text-center bg-muted/30 rounded-xl border border-dashed border-border">
+                    <Archive className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No hay pacientes archivados.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {archivedPatients.map((patient: any) => (
+                      <div
+                        key={patient.id}
+                        className="bg-card/60 rounded-xl border border-border/40 shadow-sm overflow-hidden flex opacity-75"
+                        style={{ borderLeft: "3px solid #94a3b8" }}
+                      >
+                        <div className="flex-1 p-4 min-w-0 flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-baseline gap-2 min-w-0">
+                              <span className="font-semibold text-sm truncate leading-none text-muted-foreground">
+                                {patient.name}
+                              </span>
+                              {patient.age && (
+                                <span className="text-xs text-muted-foreground/60 shrink-0 leading-none">
+                                  {patient.age}a
+                                </span>
+                              )}
+                            </div>
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground/60 shrink-0 bg-muted/60 px-2 py-0.5 rounded-full">
+                              <Archive className="h-2.5 w-2.5" />
+                              Archivado
+                            </span>
+                          </div>
+
+                          {patient.profesionalNombre && (
+                            <p className="text-xs text-muted-foreground/50 truncate flex items-center gap-1">
+                              <UserCircle className="h-3 w-3 shrink-0" />
+                              {patient.profesionalNombre}
+                            </p>
+                          )}
+
+                          {patient.diagnosis && (
+                            <p className="text-xs text-muted-foreground/60 truncate">
+                              {getDiagnosisLabel(patient.diagnosis)}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <button
+                              onClick={() => navigate(`/patients/${patient.id}`)}
+                              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                            >
+                              Ver historial
+                            </button>
+                            <button
+                              onClick={() => handleRestore(patient.id, patient.name)}
+                              disabled={restoringId === patient.id}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              {restoringId === patient.id ? "Restaurando…" : "Restaurar"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <NuevoPacienteModal

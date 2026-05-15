@@ -5,7 +5,7 @@ import {
   registrosClinicosTable, goalsTable, goalProgressTable,
   usersTable,
 } from "@workspace/db/schema";
-import { eq, count, inArray } from "drizzle-orm";
+import { eq, count, inArray, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -100,22 +100,32 @@ router.get("/patients", async (req, res) => {
     return res.status(401).json({ error: "No autenticado" });
   }
 
+  // Admin can request archived list with ?includeArchived=true
+  const includeArchived = req.query.includeArchived === "true" && sess.role === "admin";
+
   let patients: typeof patientsTable.$inferSelect[];
   if (sess.role === "admin") {
-    patients = await db.select().from(patientsTable).orderBy(patientsTable.name);
-  } else {
-    // Professional: only see assigned patients
     patients = await db
       .select()
       .from(patientsTable)
-      .where(eq(patientsTable.assignedProfessionalId, sess.id))
+      .where(eq(patientsTable.archived, includeArchived))
+      .orderBy(patientsTable.name);
+  } else {
+    // Professional: only see their own active (non-archived) patients
+    patients = await db
+      .select()
+      .from(patientsTable)
+      .where(and(
+        eq(patientsTable.assignedProfessionalId, sess.id),
+        eq(patientsTable.archived, false),
+      ))
       .orderBy(patientsTable.name);
   }
 
   const allGoals = await db.select().from(goalsTable);
 
   const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
-  console.log(`[GET /api/patients] userId=${sess.id} role=${sess.role} → devolviendo ${withCounts.length} pacientes`);
+  console.log(`[GET /api/patients] userId=${sess.id} role=${sess.role} includeArchived=${includeArchived} → devolviendo ${withCounts.length} pacientes`);
   return res.json(withCounts);
 });
 
@@ -269,6 +279,63 @@ router.put("/patients/:id", async (req, res) => {
 
 router.patch("/patients/:id", async (req, res) => {
   await updatePatientById(parseInt(req.params.id), req.body, req, res);
+});
+
+// ─── Archive / Restore ────────────────────────────────────────────────────────
+
+router.patch("/patients/:id/archive", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const id = parseInt(req.params.id);
+  try {
+    const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Paciente no encontrado" });
+
+    if (sess.role !== "admin" && existing.assignedProfessionalId !== sess.id) {
+      return res.status(403).json({ error: "No tienes permiso para archivar este paciente" });
+    }
+    if (existing.archived) {
+      return res.status(400).json({ error: "El paciente ya está archivado" });
+    }
+
+    const [updated] = await db.update(patientsTable)
+      .set({ archived: true, archivedAt: new Date() })
+      .where(eq(patientsTable.id, id))
+      .returning();
+
+    console.log(`[PATCH /api/patients/${id}/archive] userId=${sess.id} → archivado "${updated.name}"`);
+    return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  } catch (err: any) {
+    console.error(`[PATCH /api/patients/${id}/archive] ERROR →`, err?.message);
+    return res.status(500).json({ error: "Error al archivar el paciente" });
+  }
+});
+
+router.patch("/patients/:id/restore", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const id = parseInt(req.params.id);
+  try {
+    const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Paciente no encontrado" });
+
+    if (sess.role !== "admin" && existing.assignedProfessionalId !== sess.id) {
+      return res.status(403).json({ error: "No tienes permiso para restaurar este paciente" });
+    }
+
+    const [updated] = await db.update(patientsTable)
+      .set({ archived: false, archivedAt: null })
+      .where(eq(patientsTable.id, id))
+      .returning();
+
+    console.log(`[PATCH /api/patients/${id}/restore] userId=${sess.id} → restaurado "${updated.name}"`);
+    return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  } catch (err: any) {
+    console.error(`[PATCH /api/patients/${id}/restore] ERROR →`, err?.message);
+    return res.status(500).json({ error: "Error al restaurar el paciente" });
+  }
 });
 
 // ─── Clinical Timeline ────────────────────────────────────────────────────────
