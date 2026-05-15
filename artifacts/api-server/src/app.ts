@@ -23,33 +23,44 @@ const PgSession = connectPgSimple(session);
 // RENDER is NOT automatically injected by Render's platform.
 console.log(`[app] cookieSameSite=none cookieSecure=true NODE_ENV=${process.env.NODE_ENV ?? "unset"}`);
 
-// Extra origins from env — supports comma-separated list, e.g.:
-//   EXTRA_ORIGINS=https://neurometricterapias.com,https://www.neurometricterapias.com
-const extraOrigins: string[] = (process.env.EXTRA_ORIGINS ?? process.env.FRONTEND_URL ?? "")
-  .split(",").map(s => s.trim()).filter(Boolean);
+// ─── Dynamic CORS — NO hardcoded list ────────────────────────────────────────
+// Any origin is allowed if it matches one of the patterns below.
+// Adding a new domain never requires a code change or redeploy of this file.
+const CORS_PATTERNS: RegExp[] = [
+  // Any subdomain or apex of neurometricterapias.com
+  //   ✓ https://neurometricterapias.com
+  //   ✓ https://www.neurometricterapias.com
+  //   ✓ https://app.neurometricterapias.com
+  /^https:\/\/([\w-]+\.)*neurometricterapias\.com$/,
 
-const ALLOWED_ORIGINS = [
-  "https://neurometricterapias.com",
-  "https://www.neurometricterapias.com",
-  "https://neurometrict.netlify.app",
-  "https://neurometric-terapias-backend.onrender.com",
-  "http://localhost:3000",
-  "http://localhost:5173",
-  ...extraOrigins,
+  // Any Netlify deploy URL
+  //   ✓ https://neurometrict.netlify.app
+  //   ✓ https://neurometricterapias.netlify.app
+  /^https:\/\/[\w-]+\.netlify\.app$/,
+
+  // Render backend self-requests
+  /^https:\/\/[\w-]+\.onrender\.com$/,
+
+  // Replit preview / published domains
+  /^https:\/\/[\w-]+\.(replit\.dev|replit\.app)$/,
+
+  // Local development — any port
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
 ];
 
-console.log(`[cors] allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
+// Optional extra origins from env (comma-separated) — escape hatch for ops.
+// Example: EXTRA_ORIGINS=https://staging.example.com
+const EXTRA_ORIGINS: string[] = (process.env.EXTRA_ORIGINS ?? "")
+  .split(",").map(s => s.trim()).filter(Boolean);
 
 function isOriginAllowed(origin: string): boolean {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (/neurometricterapias\.com$/.test(origin)) return true;
-  if (/\.netlify\.app$/.test(origin)) return true;
-  if (/\.onrender\.com$/.test(origin)) return true;
-  if (/\.replit\.dev$/.test(origin)) return true;
-  if (/\.replit\.app$/.test(origin)) return true;
-  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
-  return false;
+  if (EXTRA_ORIGINS.includes(origin)) return true;
+  return CORS_PATTERNS.some(re => re.test(origin));
 }
+
+console.log(`[cors] dynamic origin matching active`);
+console.log(`[cors] patterns: *.neurometricterapias.com | *.netlify.app | *.onrender.com | localhost`);
 
 const app: Express = express();
 
