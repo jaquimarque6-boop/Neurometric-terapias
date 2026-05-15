@@ -23,43 +23,36 @@ const PgSession = connectPgSimple(session);
 // RENDER is NOT automatically injected by Render's platform.
 console.log(`[app] cookieSameSite=none cookieSecure=true NODE_ENV=${process.env.NODE_ENV ?? "unset"}`);
 
-// ─── Dynamic CORS — NO hardcoded list ────────────────────────────────────────
-// Any origin is allowed if it matches one of the patterns below.
-// Adding a new domain never requires a code change or redeploy of this file.
+// ─── CORS — pinned exact origins + regex patterns ────────────────────────────
+// PINNED_ORIGINS: exact-match strings checked first — guaranteed to pass.
+const PINNED_ORIGINS: string[] = [
+  "https://neurometricterapias.com",
+  "https://www.neurometricterapias.com",
+  "https://neurometricterapias.netlify.app",
+];
+
+// CORS_PATTERNS: regex catch-all for subdomains, preview URLs, localhost.
 const CORS_PATTERNS: RegExp[] = [
-  // Any subdomain or apex of neurometricterapias.com
-  //   ✓ https://neurometricterapias.com
-  //   ✓ https://www.neurometricterapias.com
-  //   ✓ https://app.neurometricterapias.com
-  /^https:\/\/([\w-]+\.)*neurometricterapias\.com$/,
-
-  // Any Netlify deploy URL
-  //   ✓ https://neurometrict.netlify.app
-  //   ✓ https://neurometricterapias.netlify.app
-  /^https:\/\/[\w-]+\.netlify\.app$/,
-
-  // Render backend self-requests
-  /^https:\/\/[\w-]+\.onrender\.com$/,
-
-  // Replit preview / published domains
-  /^https:\/\/[\w-]+\.(replit\.dev|replit\.app)$/,
-
-  // Local development — any port
+  /^https:\/\/[^.]+\.neurometricterapias\.com$/,
+  /^https:\/\/[^.]+\.netlify\.app$/,
+  /^https:\/\/[^.]+\.onrender\.com$/,
+  /^https:\/\/[^.]+\.(replit\.dev|replit\.app)$/,
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
 ];
 
 // Optional extra origins from env (comma-separated) — escape hatch for ops.
-// Example: EXTRA_ORIGINS=https://staging.example.com
 const EXTRA_ORIGINS: string[] = (process.env.EXTRA_ORIGINS ?? "")
   .split(",").map(s => s.trim()).filter(Boolean);
 
 function isOriginAllowed(origin: string): boolean {
+  if (PINNED_ORIGINS.includes(origin)) return true;
   if (EXTRA_ORIGINS.includes(origin)) return true;
   return CORS_PATTERNS.some(re => re.test(origin));
 }
 
 console.log(`[cors] dynamic origin matching active`);
+console.log(`[cors] pinned: ${PINNED_ORIGINS.join(" | ")}`);
 console.log(`[cors] patterns: *.neurometricterapias.com | *.netlify.app | *.onrender.com | localhost`);
 
 const app: Express = express();
