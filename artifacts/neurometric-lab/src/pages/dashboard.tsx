@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Plus, ClipboardList, ChevronRight, BookOpen,
   Users, Users2, Target, CalendarDays, Clock, Sparkles,
-  ArrowRight, Calendar, TrendingUp, Zap,
+  Calendar, TrendingUp, Zap, Puzzle,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
@@ -22,6 +22,54 @@ const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
 const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
 };
+
+const QUICK_LINKS = (isAdmin: boolean) => [
+  {
+    label:    "Pacientes",
+    subtitle: "Gestión de casos",
+    icon:     Users,
+    path:     "/patients",
+    color:    "bg-rose-50 border-rose-200/70 hover:bg-rose-100/70 hover:border-rose-300/70",
+    iconBg:   "bg-rose-100 border-rose-200/60",
+    iconColor:"text-rose-500",
+  },
+  {
+    label:    "Agenda",
+    subtitle: "Citas y horarios",
+    icon:     CalendarDays,
+    path:     "/agenda",
+    color:    "bg-amber-50 border-amber-200/70 hover:bg-amber-100/70 hover:border-amber-300/70",
+    iconBg:   "bg-amber-100 border-amber-200/60",
+    iconColor:"text-amber-600",
+  },
+  {
+    label:    "Banco de Objetivos",
+    subtitle: "Metas terapéuticas",
+    icon:     BookOpen,
+    path:     "/goal-library",
+    color:    "bg-emerald-50 border-emerald-200/70 hover:bg-emerald-100/70 hover:border-emerald-300/70",
+    iconBg:   "bg-emerald-100 border-emerald-200/60",
+    iconColor:"text-emerald-600",
+  },
+  {
+    label:    "Actividades",
+    subtitle: "Actividades interactivas",
+    icon:     Puzzle,
+    path:     "/actividades",
+    color:    "bg-violet-50 border-violet-200/70 hover:bg-violet-100/70 hover:border-violet-300/70",
+    iconBg:   "bg-violet-100 border-violet-200/60",
+    iconColor:"text-violet-600",
+  },
+  ...(isAdmin ? [{
+    label:    "Usuarios",
+    subtitle: "Equipo clínico",
+    icon:     Users2,
+    path:     "/usuarios",
+    color:    "bg-sky-50 border-sky-200/70 hover:bg-sky-100/70 hover:border-sky-300/70",
+    iconBg:   "bg-sky-100 border-sky-200/60",
+    iconColor:"text-sky-600",
+  }] : []),
+];
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
@@ -76,14 +124,8 @@ export default function Dashboard() {
   const sessionsSemana = (citasSemana as any[]).filter(c => c.status !== "cancelada").length;
   const citasHoyActive = (citasHoy as any[]).filter(c => c.status !== "cancelada");
 
-  const isAdmin = user?.role === "admin";
-
-  const quickLinks = [
-    { label: "Pacientes",          subtitle: "Gestión de casos",   icon: Users,        path: "/patients"     },
-    { label: "Agenda",             subtitle: "Citas y horarios",   icon: CalendarDays, path: "/agenda"       },
-    { label: "Banco de Objetivos", subtitle: "Metas terapéuticas", icon: BookOpen,     path: "/goal-library" },
-    ...(isAdmin ? [{ label: "Usuarios", subtitle: "Equipo clínico", icon: Users2, path: "/usuarios" }] : []),
-  ];
+  const isAdmin    = user?.role === "admin";
+  const quickLinks = QUICK_LINKS(isAdmin);
 
   const stats = [
     { label: "Pacientes",         value: totalPatients,  icon: Users      },
@@ -93,7 +135,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-6 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
+      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
 
         {/* ── Greeting ──────────────────────────────────────────────────── */}
         <div className="pt-1">
@@ -135,7 +177,6 @@ export default function Dashboard() {
         {/* ── SECONDARY + TERTIARY actions ──────────────────────────────── */}
         <div className="grid grid-cols-2 gap-2.5">
 
-          {/* Secondary: Nueva sesión */}
           <button
             onClick={() => navigate("/nueva-sesion")}
             className="flex flex-col items-start gap-2.5 px-4 py-4 rounded-2xl
@@ -153,7 +194,6 @@ export default function Dashboard() {
             </div>
           </button>
 
-          {/* Tertiary: Nuevo paciente */}
           <button
             onClick={() => setShowNewPatient(true)}
             className="flex flex-col items-start gap-2.5 px-4 py-4 rounded-2xl
@@ -172,6 +212,30 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* ── Acceso rápido ─────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Acceso rápido</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {quickLinks.map(link => (
+              <button
+                key={link.label}
+                onClick={() => navigate(link.path)}
+                className={`flex flex-col items-start gap-3 p-4 rounded-2xl border
+                            transition-all duration-200 active:scale-[0.97] text-left
+                            shadow-sm hover:shadow-md ${link.color}`}
+              >
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl border ${link.iconBg}`}>
+                  <link.icon className={`h-5 w-5 ${link.iconColor}`} />
+                </div>
+                <div className="w-full">
+                  <p className="text-sm font-bold text-foreground leading-tight">{link.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{link.subtitle}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* ── Stats ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2.5">
           {stats.map(s => (
@@ -183,7 +247,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Agenda de hoy ─────────────────────────────────────────────── */}
-        <div>
+        <div className="pb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
@@ -253,32 +317,6 @@ export default function Dashboard() {
                 })}
             </div>
           )}
-        </div>
-
-        {/* ── Quick access ──────────────────────────────────────────────── */}
-        <div className="pb-4">
-          <h2 className="text-sm font-semibold text-foreground mb-3">Acceso rápido</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {quickLinks.map(link => (
-              <button
-                key={link.label}
-                onClick={() => navigate(link.path)}
-                className="flex flex-col items-start gap-2.5 p-4 bg-card rounded-2xl border border-border/50
-                           text-left transition-all duration-200 hover:border-border hover:shadow-sm
-                           active:scale-[0.97] group"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/60
-                                group-hover:bg-muted transition-colors">
-                  <link.icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="w-full">
-                  <p className="text-xs font-semibold text-foreground leading-tight">{link.label}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{link.subtitle}</p>
-                </div>
-                <ArrowRight className="h-3 w-3 text-muted-foreground/25 group-hover:text-muted-foreground/50 transition-colors self-end" />
-              </button>
-            ))}
-          </div>
         </div>
 
       </div>
