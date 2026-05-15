@@ -54,6 +54,8 @@ async function buildAll() {
       !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
   );
 
+  const buildTimestamp = new Date().toISOString();
+
   await esbuild({
     entryPoints: [path.resolve(__dirname, "src/index.ts")],
     platform: "node",
@@ -62,11 +64,14 @@ async function buildAll() {
     outfile: path.resolve(distDir, "index.cjs"),
     define: {
       "process.env.NODE_ENV": '"production"',
+      "process.env.BUILD_TIMESTAMP": JSON.stringify(buildTimestamp),
     },
     minify: true,
     external: externals,
     logLevel: "info",
   });
+
+  console.log(`[build] timestamp baked in: ${buildTimestamp}`);
 }
 
 buildAll().catch((err) => {
