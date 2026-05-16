@@ -309,6 +309,13 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
+  // Add stored auth token as Authorization header so requests work in browsers
+  // that block cross-site cookies (Safari ITP, Chrome third-party cookie phase-out).
+  if (typeof localStorage !== "undefined" && !headers.has("authorization")) {
+    const stored = localStorage.getItem("nm_auth_token");
+    if (stored) headers.set("authorization", `Bearer ${stored}`);
+  }
+
   const absoluteInput = toAbsoluteUrl(input);
   const requestInfo = { method, url: resolveUrl(absoluteInput) };
 

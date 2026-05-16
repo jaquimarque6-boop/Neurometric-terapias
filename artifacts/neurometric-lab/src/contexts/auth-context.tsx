@@ -29,7 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchMe = async () => {
     try {
-      const r = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
+      const headers: Record<string, string> = {};
+      const stored = localStorage.getItem("nm_auth_token");
+      if (stored) headers["Authorization"] = `Bearer ${stored}`;
+
+      const r = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include", headers });
       if (r.ok) {
         const data = await r.json();
         if (data?.id) setUser(data);
@@ -58,12 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.error ?? "Error al iniciar sesión");
     }
     const data = await res.json();
+    // Store the signed token so subsequent requests can send it via
+    // Authorization header — bypasses third-party cookie blocking (Safari, Chrome).
+    if (data.token) {
+      localStorage.setItem("nm_auth_token", data.token);
+    }
     // Clear cache so the new user's data loads fresh
     queryClient.clear();
     setUser(data);
   };
 
   const logout = async () => {
+    localStorage.removeItem("nm_auth_token");
     await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
     // Clear ALL cached query data so next user starts fresh
     queryClient.clear();

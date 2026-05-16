@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { createAuthToken } from "../auth-token";
 
 const router: IRouter = Router();
 
@@ -59,13 +60,17 @@ router.post("/auth/login", async (req, res) => {
   // Explicitly persist session to the PostgreSQL store BEFORE sending the
   // response. Without this, the async DB write can race with the browser's
   // immediate follow-up request (GET /api/auth/me), causing a 401.
+  const token = createAuthToken(user.id, user.role);
+
   req.session.save((err) => {
     if (err) {
       console.error("[auth/login] session.save error:", err);
       return res.status(500).json({ error: "Error al guardar sesión" });
     }
     console.log(`[auth/login] sesión guardada userId=${user.id} role=${user.role}`);
-    return res.json(userToJson(user));
+    // Return token alongside user data so the frontend can send it via
+    // Authorization header as a fallback for browsers that block cross-site cookies.
+    return res.json({ ...userToJson(user), token });
   });
 });
 

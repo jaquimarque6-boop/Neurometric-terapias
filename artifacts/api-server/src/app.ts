@@ -7,6 +7,7 @@ import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 import { seedFromSupabaseIfNeeded } from "./seeds/supabase-migration-seed";
+import { verifyAuthToken } from "./auth-token";
 
 const PgSession = connectPgSimple(session);
 
@@ -102,6 +103,30 @@ app.use(session({
     sameSite: "none",
   },
 }));
+
+// ─── Token-based auth fallback ────────────────────────────────────────────────
+// Cross-origin deployments (Netlify ↔ Render) suffer from third-party cookie
+// blocking in Safari and Chrome 120+. If the session cookie was dropped by the
+// browser, we fall back to a signed Bearer token sent via Authorization header.
+// All existing route files check req.session.userId — populating it here means
+// every route works without changes.
+app.use((req, _res, next) => {
+  if (req.session.userId) return next(); // cookie session already active
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const claims = verifyAuthToken(token);
+    if (claims) {
+      req.session.userId    = claims.userId;
+      req.session.userRole  = claims.role;
+      console.log(`[auth-token] ✓ sesión restaurada desde token | userId=${claims.userId} role=${claims.role}`);
+    } else {
+      console.warn(`[auth-token] token inválido o expirado`);
+    }
+  }
+  next();
+});
 
 app.use("/api", router);
 

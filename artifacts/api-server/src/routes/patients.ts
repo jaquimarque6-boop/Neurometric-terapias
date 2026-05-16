@@ -132,12 +132,28 @@ router.get("/patients", async (req, res) => {
 router.post("/patients", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) {
-    console.warn(`[POST /api/patients] 401 — sin sesión (origin: ${req.headers.origin ?? "none"})`);
+    const cookieHdr  = req.headers.cookie ? "presente" : "ausente";
+    const tokenHdr   = req.headers.authorization?.startsWith("Bearer ") ? "presente" : "ausente";
+    const sessionId  = (req.session as any)?.id ?? "sin-id";
+    console.warn(
+      `[POST /api/patients] 401 — sin sesión` +
+      ` | cookie=${cookieHdr}` +
+      ` | token-header=${tokenHdr}` +
+      ` | sessionId=${sessionId}` +
+      ` | origin=${req.headers.origin ?? "none"}` +
+      ` | userId-en-sesion=${(req.session as any)?.userId ?? "undefined"}`
+    );
     return res.status(401).json({ error: "No autenticado. Tu sesión puede haber vencido." });
   }
 
   const body = req.body;
-  console.log(`[POST /api/patients] userId=${sess.id} role=${sess.role} body=${JSON.stringify({ name: body.name, age: body.age, diagnosis: body.diagnosis?.slice?.(0, 40) })}`);
+  console.log(
+    `[POST /api/patients] ✓ autenticado` +
+    ` | userId=${sess.id}` +
+    ` | role=${sess.role}` +
+    ` | origin=${req.headers.origin ?? "none"}` +
+    ` | name=${JSON.stringify(body.name)}`
+  );
 
   // name is required
   if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
