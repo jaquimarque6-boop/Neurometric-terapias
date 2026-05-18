@@ -743,7 +743,10 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       {/* ── INFORME CLÍNICO ──────────────────────────────────────────────────── */}
       {view === "clinico" && (
         <div className="space-y-4">
-          <Card className="border-border/50 shadow-sm">
+          {/* Scrollable wrapper — maintains A4 format on mobile via min-w,
+              allows horizontal swipe on iOS/Android without zooming out. */}
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+          <Card className="border-border/50 shadow-sm min-w-[850px]">
             <CardContent className="px-8 py-8 space-y-8" id="informe-clinico-content">
 
               {/* ── Encabezado del documento ─────────────────────────── */}
@@ -850,6 +853,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
 
             </CardContent>
           </Card>
+          </div>{/* /overflow-x-auto */}
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} className="gap-2">
               <Save className="h-4 w-4" />
@@ -862,7 +866,8 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       {/* ── PARA FAMILIAS ────────────────────────────────────────────────────── */}
       {view === "familia" && (
         <div className="space-y-4">
-          <Card className="border-border/50 shadow-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+          <Card className="border-border/50 shadow-sm min-w-[850px]">
             <CardContent className="px-8 py-8 space-y-8" id="informe-familia-content">
 
               {/* Header */}
@@ -942,6 +947,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
 
             </CardContent>
           </Card>
+          </div>{/* /overflow-x-auto */}
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
               <Save className="h-4 w-4" />

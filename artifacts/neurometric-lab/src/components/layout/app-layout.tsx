@@ -125,7 +125,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-x-hidden p-5 sm:p-7 lg:p-8">
+          {/* NOTE: no overflow-x-hidden here — the informe preview needs horizontal
+              scroll on mobile. The parent flex item has min-w-0 which already
+              prevents the sidebar from leaking into this area. */}
+          <main className="flex-1 overflow-x-auto p-5 sm:p-7 lg:p-8">
             <div className="mx-auto w-full max-w-7xl">
               {children}
             </div>
