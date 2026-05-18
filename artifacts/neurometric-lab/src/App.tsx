@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/providers/language-provider";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
@@ -106,6 +107,30 @@ function Router() {
   );
 }
 
+// Listens for the nm:session-expired event fired by the global fetch interceptor
+// in main.tsx whenever any API request returns 401.
+function SessionGuard() {
+  const { logout } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const handler = () => {
+      toast({
+        title: "Sesión expirada",
+        description: "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+        variant: "destructive",
+        duration: 6000,
+      });
+      logout().finally(() => setLocation("/login"));
+    };
+    window.addEventListener("nm:session-expired", handler);
+    return () => window.removeEventListener("nm:session-expired", handler);
+  }, [logout, toast, setLocation]);
+
+  return null;
+}
+
 function App() {
   return (
     <LanguageProvider>
@@ -113,6 +138,7 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <SessionGuard />
               <Router />
             </WouterRouter>
             <Toaster />

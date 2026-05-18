@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, getAuthToken, setAuthToken, clearAuthToken } from "@/lib/api";
 
 export type AuthUser = {
   id: number;
@@ -27,13 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
 
-  const fetchMe = async () => {
+  const fetchMe = useCallback(async () => {
     try {
       const headers: Record<string, string> = {};
-      const stored = localStorage.getItem("nm_auth_token");
-      if (stored) headers["Authorization"] = `Bearer ${stored}`;
+      const token = getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const r = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include", headers });
+      const r = await fetch(`${API_BASE}/api/auth/me`, {
+        credentials: "include",
+        headers,
+      });
       if (r.ok) {
         const data = await r.json();
         if (data?.id) setUser(data);
@@ -44,11 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setUser(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMe().finally(() => setLoading(false));
-  }, []);
+  }, [fetchMe]);
+
+  // Listen for the global session-expired event dispatched by the fetch interceptor
+  // in main.tsx. When fired, clear state so ProtectedRoute redirects to /login.
+  useEffect(() => {
+    const handler = () => {
+      console.warn("[auth] sesión expirada — limpiando estado");
+      clearAuthToken();
+      queryClient.clear();
+      setUser(null);
+    };
+    window.addEventListener("nm:session-expired", handler);
+    return () => window.removeEventListener("nm:session-expired", handler);
+  }, [queryClient]);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -62,20 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.error ?? "Error al iniciar sesión");
     }
     const data = await res.json();
-    // Store the signed token so subsequent requests can send it via
-    // Authorization header — bypasses third-party cookie blocking (Safari, Chrome).
-    if (data.token) {
-      localStorage.setItem("nm_auth_token", data.token);
-    }
-    // Clear cache so the new user's data loads fresh
+    // Persist signed token — works on all browsers regardless of cookie policy.
+    if (data.token) setAuthToken(data.token);
     queryClient.clear();
     setUser(data);
   };
 
   const logout = async () => {
-    localStorage.removeItem("nm_auth_token");
+    clearAuthToken();
     await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
-    // Clear ALL cached query data so next user starts fresh
     queryClient.clear();
     setUser(null);
   };
