@@ -1174,7 +1174,6 @@ export default function PatientProfile() {
           name: epName.trim(),
           age: epAge ? parseInt(epAge) : null,
           diagnosis: epDiagnosis || null,
-          profesionalNombre: epProf || null,
           observaciones: epObs || null,
         }),
       });
@@ -2079,40 +2078,57 @@ export default function PatientProfile() {
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/70">Nombre <span className="text-primary/60">*</span></label>
-                <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-muted/50" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70">Edad</label>
-                  <Input value={epAge} onChange={e => setEpAge(e.target.value)} placeholder="Ej. 8" type="number" min={0} max={120} className="bg-muted/50" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70">Profesional a cargo</label>
-                  <Input value={epProf} onChange={e => setEpProf(e.target.value)} placeholder="Nombre del profesional" className="bg-muted/50" />
-                </div>
+                <label htmlFor="ep-name" className="text-xs font-semibold text-foreground/70">
+                  Nombre <span className="text-primary/60">*</span>
+                </label>
+                <Input
+                  id="ep-name"
+                  value={epName}
+                  onChange={e => setEpName(e.target.value)}
+                  placeholder="Nombre completo"
+                  className="bg-muted/50"
+                  autoComplete="off"
+                />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
+                <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">Edad</label>
                 <Input
+                  id="ep-age"
+                  value={epAge}
+                  onChange={e => setEpAge(e.target.value)}
+                  placeholder="Ej. 8"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={120}
+                  className="bg-muted/50 max-w-[10rem]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="ep-diagnosis" className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
+                <Textarea
+                  id="ep-diagnosis"
                   value={epDiagnosis}
                   onChange={e => setEpDiagnosis(e.target.value)}
-                  placeholder="Escribe el diagnóstico o motivo de consulta"
-                  list="diagnosis-suggestions"
-                  className="bg-muted/50"
+                  placeholder="Escribe libremente el diagnóstico o motivo de consulta"
+                  rows={3}
+                  className="bg-muted/50 text-sm"
+                  autoComplete="off"
                 />
-                <datalist id="diagnosis-suggestions">
-                  {DIAGNOSES.map(d => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </datalist>
                 <p className="text-[11px] text-muted-foreground">
-                  Puedes escribir libremente o elegir una sugerencia de la lista.
+                  Texto libre — puedes escribir lo que necesites.
                 </p>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/70">Notas generales</label>
-                <Textarea value={epObs} onChange={e => setEpObs(e.target.value)} placeholder="Observaciones generales del paciente…" rows={3} className="bg-muted/50 resize-none text-sm" />
+                <label htmlFor="ep-obs" className="text-xs font-semibold text-foreground/70">Notas generales</label>
+                <Textarea
+                  id="ep-obs"
+                  value={epObs}
+                  onChange={e => setEpObs(e.target.value)}
+                  placeholder="Observaciones generales del paciente…"
+                  rows={3}
+                  className="bg-muted/50 text-sm"
+                />
               </div>
             </div>
             <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background sticky bottom-0">
