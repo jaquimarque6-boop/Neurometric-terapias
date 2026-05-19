@@ -2070,14 +2070,14 @@ export default function PatientProfile() {
       {/* ── Edit Patient Dialog ───────────────────────────────────────────── */}
       {showEditPatient && (
         <Dialog open onOpenChange={(o) => { if (!o && !isSavingPatient) setShowEditPatient(false); }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+            <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
               <DialogTitle className="font-display text-xl flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-primary" /> Editar paciente
               </DialogTitle>
               <DialogDescription>Actualiza los datos de {patient?.name}.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/70">Nombre <span className="text-primary/60">*</span></label>
                 <Input value={epName} onChange={e => setEpName(e.target.value)} placeholder="Nombre completo" className="bg-muted/50" />
@@ -2094,24 +2094,28 @@ export default function PatientProfile() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
-                <Select value={epDiagnosis || "__none"} onValueChange={v => setEpDiagnosis(v === "__none" ? "" : v)}>
-                  <SelectTrigger className="bg-muted/50">
-                    <SelectValue placeholder="Seleccionar diagnóstico…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">Sin diagnóstico registrado</SelectItem>
-                    {DIAGNOSES.map(d => (
-                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={epDiagnosis}
+                  onChange={e => setEpDiagnosis(e.target.value)}
+                  placeholder="Escribe el diagnóstico o motivo de consulta"
+                  list="diagnosis-suggestions"
+                  className="bg-muted/50"
+                />
+                <datalist id="diagnosis-suggestions">
+                  {DIAGNOSES.map(d => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </datalist>
+                <p className="text-[11px] text-muted-foreground">
+                  Puedes escribir libremente o elegir una sugerencia de la lista.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/70">Notas generales</label>
                 <Textarea value={epObs} onChange={e => setEpObs(e.target.value)} placeholder="Observaciones generales del paciente…" rows={3} className="bg-muted/50 resize-none text-sm" />
               </div>
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background sticky bottom-0">
               <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
                 Cancelar
               </Button>

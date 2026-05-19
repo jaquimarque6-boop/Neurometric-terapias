@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { DIAGNOSES } from "@/utils/diagnosis-map";
 
 export function NuevoPacienteModal({
   open,
@@ -57,8 +58,8 @@ export function NuevoPacienteModal({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle className="font-display text-xl flex items-center gap-2 text-primary">
             <Plus className="h-5 w-5 text-accent" />
             Nuevo paciente
@@ -66,7 +67,7 @@ export function NuevoPacienteModal({
           <DialogDescription>Completa los datos básicos del paciente.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground/80">
               Nombre <span className="text-primary/60">*</span>
@@ -98,15 +99,24 @@ export function NuevoPacienteModal({
               Diagnóstico <span className="text-muted-foreground font-normal">(opcional)</span>
             </label>
             <Input
-              placeholder="Diagnóstico o motivo de consulta"
+              placeholder="Escribe el diagnóstico o motivo de consulta"
               value={form.diagnosis}
               onChange={e => set("diagnosis", e.target.value)}
+              list="nuevo-paciente-diagnosis-suggestions"
               className="bg-muted/50"
             />
+            <datalist id="nuevo-paciente-diagnosis-suggestions">
+              {DIAGNOSES.map(d => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
+            </datalist>
+            <p className="text-[11px] text-muted-foreground">
+              Puedes escribir libremente o elegir una sugerencia de la lista.
+            </p>
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2 border-t border-border/50">
+        <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background sticky bottom-0">
           <Button variant="outline" className="flex-1" onClick={handleClose} disabled={createPatient.isPending}>
             Cancelar
           </Button>
