@@ -83,7 +83,14 @@ router.get("/auth/me", async (req, res) => {
     req.session.destroy(() => {});
     return res.status(401).json({ error: "No autenticado" });
   }
-  return res.json(userToJson(user));
+  // Always issue a fresh Bearer token alongside /me so that:
+  //  • users who logged in BEFORE the token system was deployed
+  //    (cookie-only) transparently receive a token on next page load,
+  //  • Safari / iOS users whose third-party cookies get blocked still end
+  //    up with a valid token in localStorage to use as a Bearer fallback,
+  //  • the token's 7-day TTL gets refreshed on every active session.
+  const token = createAuthToken(user.id, user.role);
+  return res.json({ ...userToJson(user), token });
 });
 
 router.patch("/auth/me", async (req, res) => {

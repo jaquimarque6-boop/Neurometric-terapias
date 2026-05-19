@@ -39,8 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (r.ok) {
         const data = await r.json();
-        if (data?.id) setUser(data);
-        else setUser(null);
+        if (data?.id) {
+          // Persist any fresh token the server emits — this transparently
+          // upgrades users who logged in before the token system existed
+          // (cookie-only sessions) and refreshes the 7-day TTL on every
+          // app load. Critical for Safari / iOS where cross-site cookies
+          // get dropped: without this they'd hit 401 on POST /api/patients.
+          if (data.token) setAuthToken(data.token);
+          setUser(data);
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
