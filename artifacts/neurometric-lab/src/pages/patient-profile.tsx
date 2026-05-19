@@ -2069,75 +2069,82 @@ export default function PatientProfile() {
       {/* ── Edit Patient Dialog ───────────────────────────────────────────── */}
       {showEditPatient && (
         <Dialog open onOpenChange={(o) => { if (!o && !isSavingPatient) setShowEditPatient(false); }}>
-          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
-            <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-              <DialogTitle className="font-display text-xl flex items-center gap-2">
-                <Pencil className="h-5 w-5 text-primary" /> Editar paciente
-              </DialogTitle>
-              <DialogDescription>Actualiza los datos de {patient?.name}.</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="ep-name" className="text-xs font-semibold text-foreground/70">
-                  Nombre <span className="text-primary/60">*</span>
-                </label>
-                <Input
-                  id="ep-name"
-                  value={epName}
-                  onChange={e => setEpName(e.target.value)}
-                  placeholder="Nombre completo"
-                  className="bg-muted/50"
-                  autoComplete="off"
-                />
+          <DialogContent className="sm:max-w-md p-0 gap-0 max-h-[90vh] overflow-hidden">
+            <div className="flex flex-col max-h-[90vh]">
+              <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
+                <DialogTitle className="font-display text-xl flex items-center gap-2">
+                  <Pencil className="h-5 w-5 text-primary" /> Editar paciente
+                </DialogTitle>
+                <DialogDescription>Actualiza los datos de {patient?.name}.</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="ep-name" className="text-xs font-semibold text-foreground/70">
+                    Nombre <span className="text-primary/60">*</span>
+                  </label>
+                  <Input
+                    id="ep-name"
+                    value={epName}
+                    onChange={e => setEpName(e.target.value)}
+                    placeholder="Nombre completo"
+                    className="bg-muted/50"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">Edad</label>
+                  <Input
+                    id="ep-age"
+                    value={epAge}
+                    onChange={e => setEpAge(e.target.value)}
+                    placeholder="Ej. 8"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={120}
+                    className="bg-muted/50 max-w-[10rem]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="ep-diagnosis" className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
+                  <Textarea
+                    id="ep-diagnosis"
+                    value={epDiagnosis}
+                    onChange={e => setEpDiagnosis(e.target.value)}
+                    placeholder="Escribe libremente el diagnóstico o motivo de consulta"
+                    rows={3}
+                    className="bg-muted/50 text-sm w-full"
+                    autoComplete="off"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Texto libre — puedes escribir lo que necesites.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="ep-obs" className="text-xs font-semibold text-foreground/70">Notas generales</label>
+                  <Textarea
+                    id="ep-obs"
+                    value={epObs}
+                    onChange={e => setEpObs(e.target.value)}
+                    placeholder="Observaciones generales del paciente…"
+                    rows={3}
+                    className="bg-muted/50 text-sm w-full"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">Edad</label>
-                <Input
-                  id="ep-age"
-                  value={epAge}
-                  onChange={e => setEpAge(e.target.value)}
-                  placeholder="Ej. 8"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={120}
-                  className="bg-muted/50 max-w-[10rem]"
-                />
+
+              <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background">
+                <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
+                  Cancelar
+                </Button>
+                <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
+                  <Save className="h-4 w-4 mr-1.5" /> {isSavingPatient ? "Guardando…" : "Guardar cambios"}
+                </Button>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="ep-diagnosis" className="text-xs font-semibold text-foreground/70">Diagnóstico</label>
-                <Textarea
-                  id="ep-diagnosis"
-                  value={epDiagnosis}
-                  onChange={e => setEpDiagnosis(e.target.value)}
-                  placeholder="Escribe libremente el diagnóstico o motivo de consulta"
-                  rows={3}
-                  className="bg-muted/50 text-sm"
-                  autoComplete="off"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Texto libre — puedes escribir lo que necesites.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="ep-obs" className="text-xs font-semibold text-foreground/70">Notas generales</label>
-                <Textarea
-                  id="ep-obs"
-                  value={epObs}
-                  onChange={e => setEpObs(e.target.value)}
-                  placeholder="Observaciones generales del paciente…"
-                  rows={3}
-                  className="bg-muted/50 text-sm"
-                />
-              </div>
-            </div>
-            <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background sticky bottom-0">
-              <Button variant="outline" className="flex-1" onClick={() => setShowEditPatient(false)} disabled={isSavingPatient}>
-                Cancelar
-              </Button>
-              <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSavePatient} disabled={!epName.trim() || isSavingPatient}>
-                <Save className="h-4 w-4 mr-1.5" /> {isSavingPatient ? "Guardando…" : "Guardar cambios"}
-              </Button>
             </div>
           </DialogContent>
         </Dialog>
