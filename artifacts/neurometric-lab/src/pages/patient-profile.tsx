@@ -13,7 +13,7 @@ import {
   Flag, BarChart3, Layers, Search as SearchIcon,
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
-  Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap,
+  Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -1023,6 +1023,9 @@ export default function PatientProfile() {
   const [isSavingPatient, setIsSavingPatient] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Edit registro
   const [editingRegistro, setEditingRegistro]     = useState<RC | null>(null);
@@ -1085,6 +1088,35 @@ export default function PatientProfile() {
       toast({ title: "Error al archivar", description: err.message, variant: "destructive" });
     } finally {
       setIsArchiving(false);
+    }
+  };
+
+  const handleDeleteForever = async () => {
+    if (!patient) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      queryClient.removeQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["archivedPatients"] });
+      toast({
+        title: "Paciente eliminado definitivamente",
+        description: `"${patient.name}" y todo su historial clínico fueron eliminados.`,
+      });
+      setShowDeleteDialog(false);
+      setDeleteConfirmText("");
+      navigate("/patients");
+    } catch (err: any) {
+      toast({ title: "Error al eliminar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1408,6 +1440,14 @@ export default function PatientProfile() {
                     >
                       <Archive className="h-3.5 w-3.5" />
                       Archivar
+                    </button>
+                    <button
+                      onClick={() => { setDeleteConfirmText(""); setShowDeleteDialog(true); }}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-rose-200 bg-rose-50 text-rose-700 shadow-sm transition-all duration-200 hover:bg-rose-100 active:scale-[0.97]"
+                      title="Eliminar paciente definitivamente"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Eliminar
                     </button>
                     <button
                       onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)}
@@ -2229,6 +2269,54 @@ export default function PatientProfile() {
           }}
         />
       )}
+
+      {/* Permanent delete confirmation dialog — requires typing patient name */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={(v) => { setShowDeleteDialog(v); if (!v) setDeleteConfirmText(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" />
+              Eliminar paciente definitivamente
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Esta acción <strong>no se puede deshacer</strong>. Se eliminará a{" "}
+                  <strong>{patient?.name}</strong> junto con todo su historial:
+                </p>
+                <ul className="text-sm text-foreground/70 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 list-disc list-inside space-y-0.5">
+                  <li>Objetivos clínicos y notas de progreso</li>
+                  <li>Registros y sesiones clínicas</li>
+                  <li>Citas y pagos asociados</li>
+                  <li>Asignaciones de profesionales</li>
+                </ul>
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-sm font-medium text-foreground/80">
+                    Para confirmar, escribe <strong className="text-rose-700">{patient?.name}</strong>:
+                  </label>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={patient?.name}
+                    autoFocus
+                    className="bg-card border-rose-200 focus-visible:ring-rose-200"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteForever}
+              disabled={isDeleting || deleteConfirmText.trim() !== (patient?.name ?? "").trim() || !patient?.name}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeleting ? "Eliminando…" : "Eliminar definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Archive / Restore confirmation dialog */}
       <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>

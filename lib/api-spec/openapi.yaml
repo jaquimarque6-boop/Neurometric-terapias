@@ -112,6 +112,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Patient"
+    delete:
+      operationId: deletePatient
+      tags: [patients]
+      summary: Permanently delete a patient and all related data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  deletedId:
+                    type: integer
+                required: [ok, deletedId]
 
   /registros:
     get:

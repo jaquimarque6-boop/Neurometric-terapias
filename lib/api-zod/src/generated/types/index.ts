@@ -16,6 +16,7 @@ export * from "./createProfessional";
 export * from "./createProfessionalStatus";
 export * from "./createRegistroClinico";
 export * from "./dashboardStats";
+export * from "./deletePatient200";
 export * from "./goal";
 export * from "./goalLibraryItem";
 export * from "./goalStatus";

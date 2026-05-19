@@ -108,6 +108,18 @@ export const UpdatePatientResponse = zod.object({
 });
 
 /**
+ * @summary Permanently delete a patient and all related data
+ */
+export const DeletePatientParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeletePatientResponse = zod.object({
+  ok: zod.boolean(),
+  deletedId: zod.number(),
+});
+
+/**
  * @summary List all session records
  */
 export const ListRegistrosResponseItem = zod.object({

@@ -259,6 +259,11 @@ export interface DashboardStats {
   newPatientsThisMonth: number;
 }
 
+export type DeletePatient200 = {
+  ok: boolean;
+  deletedId: number;
+};
+
 export type ListRegistrosClinicosParams = {
   patientId?: number;
 };

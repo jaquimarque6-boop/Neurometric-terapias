@@ -111,7 +111,18 @@ app.use(session({
 // All existing route files check req.session.userId — populating it here means
 // every route works without changes.
 app.use((req, _res, next) => {
-  if (req.session.userId) return next(); // cookie session already active
+  // Only log auth resolution for /api routes to avoid noise on static assets.
+  const isApi = req.url.startsWith("/api");
+
+  if (req.session.userId) {
+    if (isApi) {
+      console.log(
+        `[auth] ✓ cookie-session | ${req.method} ${req.url}` +
+        ` | userId=${req.session.userId} role=${req.session.userRole ?? "?"}`
+      );
+    }
+    return next();
+  }
 
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
@@ -120,10 +131,26 @@ app.use((req, _res, next) => {
     if (claims) {
       req.session.userId    = claims.userId;
       req.session.userRole  = claims.role;
-      console.log(`[auth-token] ✓ sesión restaurada desde token | userId=${claims.userId} role=${claims.role}`);
-    } else {
-      console.warn(`[auth-token] token inválido o expirado`);
+      if (isApi) {
+        console.log(
+          `[auth] ✓ bearer-token | ${req.method} ${req.url}` +
+          ` | userId=${claims.userId} role=${claims.role}` +
+          ` | origin=${req.headers.origin ?? "none"}`
+        );
+      }
+    } else if (isApi) {
+      console.warn(
+        `[auth] ✗ token inválido o expirado | ${req.method} ${req.url}` +
+        ` | origin=${req.headers.origin ?? "none"}`
+      );
     }
+  } else if (isApi && !req.url.startsWith("/api/auth/login") && !req.url.startsWith("/api/health")) {
+    console.log(
+      `[auth] · sin credenciales | ${req.method} ${req.url}` +
+      ` | cookie=${req.headers.cookie ? "presente" : "ausente"}` +
+      ` | authHeader=${authHeader ? "presente-no-bearer" : "ausente"}` +
+      ` | origin=${req.headers.origin ?? "none"}`
+    );
   }
   next();
 });

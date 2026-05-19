@@ -3,9 +3,10 @@ import { db } from "@workspace/db";
 import {
   patientsTable, registrosTable,
   registrosClinicosTable, goalsTable, goalProgressTable,
-  usersTable,
+  usersTable, patientProfessionalsTable, sessionsTable,
+  citasTable, pagosTable,
 } from "@workspace/db/schema";
-import { eq, count, inArray, and } from "drizzle-orm";
+import { eq, count, inArray, and, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -351,6 +352,92 @@ router.patch("/patients/:id/restore", async (req, res) => {
   } catch (err: any) {
     console.error(`[PATCH /api/patients/${id}/restore] ERROR →`, err?.message);
     return res.status(500).json({ error: "Error al restaurar el paciente" });
+  }
+});
+
+// ─── Hard delete (definitive) ─────────────────────────────────────────────────
+// Permanently removes the patient and ALL related data across:
+//   • goal_progress  (via goals)
+//   • goals
+//   • registros
+//   • registros_clinicos
+//   • sessions
+//   • patient_professionals
+//   • citas
+//   • pagos
+//   • patients
+// Wrapped in a transaction so a failure leaves the DB unchanged.
+router.delete("/patients/:id", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) {
+    const cookieHdr = req.headers.cookie ? "presente" : "ausente";
+    const tokenHdr  = req.headers.authorization?.startsWith("Bearer ") ? "presente" : "ausente";
+    console.warn(
+      `[DELETE /api/patients/${req.params.id}] 401 — sin sesión` +
+      ` | cookie=${cookieHdr}` +
+      ` | token-header=${tokenHdr}` +
+      ` | origin=${req.headers.origin ?? "none"}`
+    );
+    return res.status(401).json({ error: "No autenticado. Tu sesión puede haber vencido." });
+  }
+
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: "ID de paciente inválido" });
+  }
+
+  try {
+    const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
+    if (!existing) {
+      return res.status(404).json({ error: "Paciente no encontrado" });
+    }
+
+    // Permission: admin OR assigned professional may delete.
+    if (sess.role !== "admin" && existing.assignedProfessionalId !== sess.id) {
+      console.warn(
+        `[DELETE /api/patients/${id}] 403 — userId=${sess.id} role=${sess.role}` +
+        ` no es admin ni profesional asignado (asignado=${existing.assignedProfessionalId})`
+      );
+      return res.status(403).json({
+        error: "No tienes permiso para eliminar este paciente. Solo el profesional asignado o un administrador pueden hacerlo.",
+      });
+    }
+
+    await db.transaction(async (tx) => {
+      // 1. Goal progress entries (children of goals)
+      const goalIds = (await tx.select({ id: goalsTable.id })
+        .from(goalsTable)
+        .where(eq(goalsTable.patientId, id))).map(g => g.id);
+
+      if (goalIds.length > 0) {
+        await tx.delete(goalProgressTable).where(inArray(goalProgressTable.goalId, goalIds));
+      }
+
+      // 2. Direct children of patient
+      await tx.delete(goalsTable).where(eq(goalsTable.patientId, id));
+      await tx.delete(registrosTable).where(eq(registrosTable.patientId, id));
+      await tx.delete(registrosClinicosTable).where(eq(registrosClinicosTable.patientId, id));
+      await tx.delete(sessionsTable).where(eq(sessionsTable.patientId, id));
+      await tx.delete(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, id));
+      await tx.delete(citasTable).where(eq(citasTable.patientId, id));
+      await tx.delete(pagosTable).where(eq(pagosTable.patientId, id));
+
+      // 3. Patient row
+      await tx.delete(patientsTable).where(eq(patientsTable.id, id));
+    });
+
+    console.log(
+      `[DELETE /api/patients/${id}] ✓ eliminado definitivamente "${existing.name}"` +
+      ` | userId=${sess.id} role=${sess.role}`
+    );
+    return res.json({ ok: true, deletedId: id });
+  } catch (err: any) {
+    const detail = err?.message ?? String(err);
+    console.error(`[DELETE /api/patients/${id}] ERROR userId=${sess.id} →`, detail);
+    return res.status(500).json({
+      error: "Error al eliminar el paciente. Intenta de nuevo.",
+      detail,
+    });
   }
 });
 
