@@ -6,9 +6,9 @@ import {
 } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { DIAGNOSES } from "@/utils/diagnosis-map";
 
 export function NuevoPacienteModal({
   open,
@@ -49,7 +49,20 @@ export function NuevoPacienteModal({
           handleClose();
         },
         onError: (err: any) => {
-          const msg = err?.message ?? err?.data?.error ?? "Error al guardar el paciente";
+          const status = err?.response?.status ?? err?.status;
+          if (status === 401) {
+            toast({
+              title: "Tu sesión expiró",
+              description: "Inicia sesión de nuevo. Tus datos se conservaron en el formulario.",
+              variant: "destructive",
+            });
+            return;
+          }
+          const msg =
+            err?.response?.data?.error ??
+            err?.data?.error ??
+            err?.message ??
+            "Error al guardar el paciente";
           toast({ title: "Error al guardar", description: msg, variant: "destructive" });
         },
       }
@@ -57,76 +70,79 @@ export function NuevoPacienteModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="font-display text-xl flex items-center gap-2 text-primary">
-            <Plus className="h-5 w-5 text-accent" />
-            Nuevo paciente
-          </DialogTitle>
-          <DialogDescription>Completa los datos básicos del paciente.</DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={v => !v && !createPatient.isPending && handleClose()}>
+      <DialogContent className="sm:max-w-md p-0 gap-0 max-h-[90vh] overflow-hidden">
+        <div className="flex flex-col max-h-[90vh]">
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
+            <DialogTitle className="font-display text-xl flex items-center gap-2 text-primary">
+              <Plus className="h-5 w-5 text-accent" />
+              Nuevo paciente
+            </DialogTitle>
+            <DialogDescription>Completa los datos básicos del paciente.</DialogDescription>
+          </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground/80">
-              Nombre <span className="text-primary/60">*</span>
-            </label>
-            <Input
-              placeholder="Nombre completo"
-              value={form.name}
-              onChange={e => set("name", e.target.value)}
-              className="bg-muted/50"
-              autoFocus
-            />
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="np-name" className="text-sm font-medium text-foreground/80">
+                Nombre <span className="text-primary/60">*</span>
+              </label>
+              <Input
+                id="np-name"
+                placeholder="Nombre completo"
+                value={form.name}
+                onChange={e => set("name", e.target.value)}
+                className="bg-muted/50"
+                autoComplete="off"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="np-age" className="text-sm font-medium text-foreground/80">Edad</label>
+              <Input
+                id="np-age"
+                type="number"
+                inputMode="numeric"
+                placeholder="Años"
+                min={0}
+                max={120}
+                value={form.age}
+                onChange={e => set("age", e.target.value)}
+                className="bg-muted/50 max-w-[10rem]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="np-diagnosis" className="text-sm font-medium text-foreground/80">
+                Diagnóstico <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <Textarea
+                id="np-diagnosis"
+                placeholder="Escribe libremente el diagnóstico o motivo de consulta"
+                value={form.diagnosis}
+                onChange={e => set("diagnosis", e.target.value)}
+                rows={3}
+                className="bg-muted/50 text-sm w-full"
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Texto libre — puedes escribir lo que necesites.
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground/80">Edad</label>
-            <Input
-              type="number"
-              placeholder="Años"
-              min={0}
-              max={120}
-              value={form.age}
-              onChange={e => set("age", e.target.value)}
-              className="bg-muted/50"
-            />
+          <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background">
+            <Button variant="outline" className="flex-1" onClick={handleClose} disabled={createPatient.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 bg-primary text-white hover:bg-primary/90 font-semibold"
+              disabled={!canSave || createPatient.isPending}
+              onClick={handleSave}
+            >
+              {createPatient.isPending ? "Guardando..." : "Guardar paciente"}
+            </Button>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground/80">
-              Diagnóstico <span className="text-muted-foreground font-normal">(opcional)</span>
-            </label>
-            <Input
-              placeholder="Escribe el diagnóstico o motivo de consulta"
-              value={form.diagnosis}
-              onChange={e => set("diagnosis", e.target.value)}
-              list="nuevo-paciente-diagnosis-suggestions"
-              className="bg-muted/50"
-            />
-            <datalist id="nuevo-paciente-diagnosis-suggestions">
-              {DIAGNOSES.map(d => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </datalist>
-            <p className="text-[11px] text-muted-foreground">
-              Puedes escribir libremente o elegir una sugerencia de la lista.
-            </p>
-          </div>
-        </div>
-
-        <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-border/50 bg-background sticky bottom-0">
-          <Button variant="outline" className="flex-1" onClick={handleClose} disabled={createPatient.isPending}>
-            Cancelar
-          </Button>
-          <Button
-            className="flex-1 bg-primary text-white hover:bg-primary/90 font-semibold"
-            disabled={!canSave || createPatient.isPending}
-            onClick={handleSave}
-          >
-            {createPatient.isPending ? "Guardando..." : "Guardar paciente"}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
