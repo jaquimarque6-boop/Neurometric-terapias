@@ -107,15 +107,43 @@ function Router() {
   );
 }
 
-// Listens for the nm:session-expired event fired by the global fetch interceptor
-// in main.tsx whenever any API request returns 401.
+// Listens for the auth lifecycle events fired by the global fetch interceptor
+// in main.tsx. The interceptor never logs the user out on a single 401: it
+// first re-verifies via /api/auth/me and dispatches either `restored` or
+// `expired`. While that verification is in flight, we surface a friendly
+// "Reconectando sesión…" toast so the user isn't blamed for a Render cold
+// start, a flaky mobile network, or a transient cookie hiccup.
 function SessionGuard() {
   const { logout } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    const handler = () => {
+    let reconnectToastDismiss: (() => void) | null = null;
+
+    const clearReconnectToast = () => {
+      if (reconnectToastDismiss) {
+        reconnectToastDismiss();
+        reconnectToastDismiss = null;
+      }
+    };
+
+    const onChecking = () => {
+      if (reconnectToastDismiss) return; // already showing
+      const { dismiss } = toast({
+        title: "Reconectando sesión…",
+        description: "Verificando tu acceso. No cierres la app.",
+        duration: 15000,
+      });
+      reconnectToastDismiss = dismiss;
+    };
+
+    const onRestored = () => {
+      clearReconnectToast();
+    };
+
+    const onExpired = () => {
+      clearReconnectToast();
       toast({
         title: "Sesión expirada",
         description: "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
@@ -124,8 +152,16 @@ function SessionGuard() {
       });
       logout().finally(() => setLocation("/login"));
     };
-    window.addEventListener("nm:session-expired", handler);
-    return () => window.removeEventListener("nm:session-expired", handler);
+
+    window.addEventListener("nm:session-checking", onChecking);
+    window.addEventListener("nm:session-restored", onRestored);
+    window.addEventListener("nm:session-expired", onExpired);
+    return () => {
+      window.removeEventListener("nm:session-checking", onChecking);
+      window.removeEventListener("nm:session-restored", onRestored);
+      window.removeEventListener("nm:session-expired", onExpired);
+      clearReconnectToast();
+    };
   }, [logout, toast, setLocation]);
 
   return null;
