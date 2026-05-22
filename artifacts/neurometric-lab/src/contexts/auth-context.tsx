@@ -76,21 +76,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error ?? "Error al iniciar sesión");
+    // Wipe any leftover dead token before issuing the login request. Without
+    // this, the global fetch interceptor would attach a stale Authorization
+    // header — harmless to the backend (login ignores it) but it muddies logs
+    // and could confuse intermediate proxies on mobile networks.
+    clearAuthToken();
+
+    let res: Response;
+    try {
+      console.info("[auth] POST /api/auth/login → en vuelo");
+      res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (e: any) {
+      // TypeError from fetch = transport-layer failure (offline, DNS, CORS,
+      // CSP, Render still booting, antivirus/firewall, captive portal, etc.)
+      console.error("[auth] login fetch threw:", e?.message ?? e);
+      throw new Error("No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
     }
-    const data = await res.json();
+
+    console.info(`[auth] login response status=${res.status}`);
+
+    if (!res.ok) {
+      // Map server status to a friendly, accurate message — never the generic
+      // "Sesión expirada" string (which belongs to mid-app 401s, not login).
+      let serverMsg: string | undefined;
+      try {
+        const errBody = await res.json();
+        serverMsg = errBody?.error;
+      } catch { /* body not JSON */ }
+
+      if (res.status === 401) {
+        throw new Error(serverMsg ?? "Email o contraseña incorrectos.");
+      }
+      if (res.status === 403) {
+        throw new Error(serverMsg ?? "Tu usuario está inactivo. Contacta al administrador.");
+      }
+      if (res.status === 400) {
+        throw new Error(serverMsg ?? "Datos inválidos. Revisa tu email y contraseña.");
+      }
+      if (res.status >= 500) {
+        throw new Error("El servidor no responde. Intenta nuevamente en unos segundos.");
+      }
+      throw new Error(serverMsg ?? `Error al iniciar sesión (HTTP ${res.status}).`);
+    }
+
+    let data: any;
+    try {
+      data = await res.json();
+    } catch (e: any) {
+      console.error("[auth] login OK pero JSON inválido:", e?.message);
+      throw new Error("Respuesta inesperada del servidor. Intenta de nuevo.");
+    }
+
+    if (!data?.id) {
+      console.error("[auth] login OK pero payload sin id:", data);
+      throw new Error("Respuesta inesperada del servidor. Intenta de nuevo.");
+    }
+
     // Persist signed token — works on all browsers regardless of cookie policy.
-    if (data.token) setAuthToken(data.token);
+    if (data.token) {
+      setAuthToken(data.token);
+      const ok = getAuthToken() === data.token;
+      console.info(`[auth] token guardado en localStorage: ${ok ? "✓" : "✗ (storage bloqueado)"}`);
+    } else {
+      console.warn("[auth] login OK pero sin token en la respuesta — solo cookie-session");
+    }
     queryClient.clear();
     setUser(data);
+    console.info(`[auth] ✓ usuario ${data.email} (rol=${data.role}) autenticado`);
   };
 
   const logout = async () => {

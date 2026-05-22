@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Activity, Eye, EyeOff, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { dismiss } = useToast();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,15 +17,45 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // On mount: nuke any stale toast ("Sesión expirada", "Reconectando…") and
+  // wipe any leftover invalid token so the next login starts clean. This avoids
+  // the scenario where a mobile user with a dead token sees "Sesión expirada"
+  // pinned on top of the login form and the next /me call also fails.
+  useEffect(() => {
+    try { clearAuthToken(); } catch { /* ignore */ }
+    dismiss();
+    console.info("[login] página montada — token viejo eliminado, toasts limpios");
+  }, [dismiss]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const emailTrimmed = email.trim();
+    const passwordVal  = password;
+
+    console.info("[login] click Ingresar", {
+      hasEmail: !!emailTrimmed,
+      hasPassword: !!passwordVal,
+      ua: navigator.userAgent.slice(0, 80),
+    });
+
+    if (!emailTrimmed || !passwordVal) {
+      setError("Ingresa tu email y contraseña.");
+      console.warn("[login] abortado: faltan credenciales");
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(email, password);
+      console.info("[login] POST /api/auth/login → enviando");
+      await login(emailTrimmed, passwordVal);
+      console.info("[login] ✓ login OK — redirigiendo a /");
       setLocation("/");
     } catch (err: any) {
-      setError(err.message ?? "Error al iniciar sesión");
+      const msg = err?.message ?? "Error al iniciar sesión";
+      console.warn("[login] ✗ fallo:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -47,33 +80,41 @@ export default function LoginPage() {
         <div className="bg-card rounded-2xl border border-card-border shadow-sm p-7">
           <h2 className="text-base font-semibold text-foreground mb-5">Iniciar sesión</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <label htmlFor="login-email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Correo electrónico
               </label>
               <Input
+                id="login-email"
+                name="email"
                 type="email"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="profesional@clinica.cl"
-                required
                 autoFocus
                 className="h-10 bg-muted/40"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <label htmlFor="login-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Contraseña
               </label>
               <div className="relative">
                 <Input
+                  id="login-password"
+                  name="password"
                   type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  required
                   className="h-10 pr-10 bg-muted/40"
                 />
                 <button
@@ -81,6 +122,7 @@ export default function LoginPage() {
                   onClick={() => setShowPw(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                   tabIndex={-1}
+                  aria-label={showPw ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -88,14 +130,17 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="bg-destructive/8 border border-destructive/20 text-destructive text-sm rounded-xl px-3.5 py-2.5">
+              <div
+                role="alert"
+                className="bg-destructive/8 border border-destructive/20 text-destructive text-sm rounded-xl px-3.5 py-2.5"
+              >
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading}
               className="w-full h-10 mt-1"
             >
               {loading ? (
