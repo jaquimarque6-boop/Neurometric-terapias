@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Activity, Eye, EyeOff, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { useToast } from "@/hooks/use-toast";
 import { clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const { dismiss } = useToast();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,15 +15,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: nuke any stale toast ("Sesión expirada", "Reconectando…") and
-  // wipe any leftover invalid token so the next login starts clean. This avoids
-  // the scenario where a mobile user with a dead token sees "Sesión expirada"
-  // pinned on top of the login form and the next /me call also fails.
+  // On mount: wipe any leftover invalid token so the next login starts clean.
+  // Stale "Sesión expirada" / "Reconectando…" toasts auto-dismiss via their
+  // own duration; we don't call dismiss() here because useToast.dismiss is a
+  // fresh function each render (would loop) and a global DISMISS_TOAST dispatch
+  // re-triggers onOpenChange → dismiss → re-dispatch.
   useEffect(() => {
     try { clearAuthToken(); } catch { /* ignore */ }
-    dismiss();
-    console.info("[login] página montada — token viejo eliminado, toasts limpios");
-  }, [dismiss]);
+    console.info("[login] página montada — token viejo eliminado");
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
