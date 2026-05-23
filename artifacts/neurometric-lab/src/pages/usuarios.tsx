@@ -4,7 +4,7 @@ import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
   History, UserCircle, ClipboardList, Trash2, RotateCcw,
-  CalendarDays, Activity, Sparkles,
+  CalendarDays, Activity, Sparkles, Search,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,21 @@ type AppUser = {
   active: boolean;
   createdAt: string;
 };
+
+function normalizeText(s: string | null | undefined) {
+  return (s ?? "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function roleLabel(role: string) {
+  if (role === "admin") return "admin administrador";
+  if (role === "professional") return "professional profesional";
+  return role;
+}
 
 const emptyForm = {
   name: "",
@@ -66,6 +81,8 @@ export default function Usuarios() {
   const [resetPwd, setResetPwd]         = useState("");
   const [showResetPwd, setShowResetPwd] = useState(false);
   const [savingReset, setSavingReset]   = useState(false);
+
+  const [search, setSearch] = useState("");
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -198,6 +215,22 @@ export default function Usuarios() {
   const activeUsers   = users.filter(u => u.active);
   const inactiveUsers = users.filter(u => !u.active);
 
+  // Filtered list shown in the Usuarios tab. Searches by name, email,
+  // specialty and role (both internal value and Spanish label).
+  const filteredUsers = useMemo(() => {
+    const q = normalizeText(search);
+    if (!q) return users;
+    return users.filter(u => {
+      const haystack = [
+        u.name,
+        u.email,
+        u.specialty ?? "",
+        roleLabel(u.role),
+      ].map(normalizeText).join(" ");
+      return haystack.includes(q);
+    });
+  }, [users, search]);
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -307,6 +340,33 @@ export default function Usuarios() {
               </div>
             )}
 
+            {/* ── Search ── */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar por nombre, email, especialidad o rol…"
+                className="pl-9 pr-9 h-11 bg-card border-border focus-visible:border-primary"
+                aria-label="Buscar usuarios"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition"
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {search.trim() && !loading && (
+                <p className="text-xs text-muted-foreground mt-2 px-1">
+                  Mostrando {filteredUsers.length} de {users.length} usuario{users.length !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+
             {/* ── Users list ── */}
             {loading ? (
               <div className="space-y-3">
@@ -316,9 +376,13 @@ export default function Usuarios() {
               <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border">
                 No hay usuarios registrados.
               </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border">
+                No se encontraron usuarios.
+              </div>
             ) : (
               <div className="space-y-3">
-                {users.map(u => {
+                {filteredUsers.map(u => {
                   const stats  = statsByUser[u.id] ?? { sessions: 0, patients: 0 };
                   const isEditing   = editingId === u.id;
                   const isResetting = resettingId === u.id;
