@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Stethoscope, Plus, Mail, ShieldCheck, Users as UsersIcon,
-  Phone, Pencil, Trash2
+  Phone, Search, X, Cake, ClipboardList, CalendarDays,
 } from "lucide-react";
 import {
   useListProfessionals,
   useCreateProfessional,
+  useListPatients,
+  useListPatientProfessionals,
   getListProfessionalsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,9 +44,48 @@ function statusLabel(status: string) {
   return status === "active" ? "Activo" : "Inactivo";
 }
 
+function normalize(s: string | null | undefined) {
+  return (s ?? "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function formatDate(iso?: string | null) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString("es-AR", {
+      year: "numeric", month: "short", day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+type ProfessionalLite = {
+  id: number;
+  name: string;
+  email?: string | null;
+  specialty?: string | null;
+};
+
 export default function Professionals() {
   const { data: professionals, isLoading } = useListProfessionals();
   const [showForm, setShowForm] = useState(false);
+  const [query, setQuery] = useState("");
+  const [selectedPro, setSelectedPro] = useState<ProfessionalLite | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!professionals) return [];
+    const q = normalize(query.trim());
+    if (!q) return professionals;
+    return professionals.filter((p: any) =>
+      normalize(p.name).includes(q) ||
+      normalize(p.email).includes(q) ||
+      normalize(p.specialty).includes(q)
+    );
+  }, [professionals, query]);
 
   return (
     <AppLayout>
@@ -59,6 +100,11 @@ export default function Professionals() {
             </h1>
             <p className="text-muted-foreground mt-1">
               {professionals?.length ?? 0} profesional{professionals?.length !== 1 ? "es" : ""} registrado{professionals?.length !== 1 ? "s" : ""}
+              {query.trim() && professionals && (
+                <span className="ml-2 text-xs text-foreground/60">
+                  · mostrando {filtered.length}
+                </span>
+              )}
             </p>
           </div>
           <Button
@@ -68,6 +114,28 @@ export default function Professionals() {
             <Plus className="h-4 w-4 mr-2" />
             Agregar profesional
           </Button>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar por nombre, correo o especialidad…"
+            className="pl-9 pr-9 bg-card border-border/50"
+            aria-label="Buscar profesionales"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Grid */}
@@ -87,68 +155,94 @@ export default function Professionals() {
                 </CardContent>
               </Card>
             ))
-          ) : professionals && professionals.length > 0 ? (
-            professionals.map(pro => (
-              <Card
-                key={pro.id}
-                className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
-              >
-                <CardContent className="p-0">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-5">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-lg font-display shadow-md shadow-primary/20">
-                          {pro.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()}
+          ) : filtered && filtered.length > 0 ? (
+            filtered.map((pro: any) => {
+              const count = pro.patientCount ?? 0;
+              return (
+                <Card
+                  key={pro.id}
+                  className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
+                >
+                  <CardContent className="p-0">
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-5">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-lg font-display shadow-md shadow-primary/20">
+                            {pro.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-foreground leading-tight">{pro.name}</h3>
+                            <p className="text-sm font-medium text-primary mt-0.5">{pro.specialty}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-bold text-foreground leading-tight">{pro.name}</h3>
-                          <p className="text-sm font-medium text-primary mt-0.5">{pro.specialty}</p>
-                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${statusBadge(pro.status ?? "active")}`}
+                        >
+                          {statusLabel(pro.status ?? "active")}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${statusBadge(pro.status ?? "active")}`}
-                      >
-                        {statusLabel(pro.status ?? "active")}
-                      </Badge>
+
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="truncate">{pro.email}</span>
+                        </div>
+                        {pro.phone && (
+                          <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span>{pro.phone}</span>
+                          </div>
+                        )}
+                        {pro.license && (
+                          <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                            <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span>Matrícula: {pro.license}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2.5 text-sm text-foreground/70">
-                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate">{pro.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPro({
+                        id: pro.id,
+                        name: pro.name,
+                        email: pro.email,
+                        specialty: pro.specialty,
+                      })}
+                      className="w-full px-6 py-3.5 bg-muted/50 border-t border-border/50 flex items-center justify-between hover:bg-muted transition group/footer text-left"
+                      aria-label={`Ver pacientes de ${pro.name}`}
+                    >
+                      <div className="flex items-center gap-1.5 text-sm text-foreground/70">
+                        <UsersIcon className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-primary">{count}</span>
+                        <span className="text-muted-foreground group-hover/footer:text-foreground/80 transition">
+                          paciente{count !== 1 ? "s" : ""}
+                        </span>
+                        <span className="text-xs text-primary/70 ml-1 opacity-0 group-hover/footer:opacity-100 transition">
+                          · ver lista
+                        </span>
                       </div>
-                      {pro.phone && (
-                        <div className="flex items-center gap-2.5 text-sm text-foreground/70">
-                          <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <span>{pro.phone}</span>
-                        </div>
-                      )}
-                      {pro.license && (
-                        <div className="flex items-center gap-2.5 text-sm text-foreground/70">
-                          <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <span>Matrícula: {pro.license}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-3.5 bg-muted/50 border-t border-border/50 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sm text-foreground/70">
-                      <UsersIcon className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-primary">{(pro as any).patientCount ?? 0}</span>
-                      <span className="text-muted-foreground">paciente{(pro as any).patientCount !== 1 ? "s" : ""}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">ID #{pro.id}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                      <span className="text-xs text-muted-foreground">ID #{pro.id}</span>
+                    </button>
+                  </CardContent>
+                </Card>
+              );
+            })
           ) : (
             <div className="col-span-full py-20 text-center bg-card rounded-2xl border border-dashed border-border">
               <Stethoscope className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="font-medium text-foreground/70">No hay profesionales registrados</p>
-              <p className="text-muted-foreground text-sm mt-1">Agrega el primer miembro del equipo clínico.</p>
+              <p className="font-medium text-foreground/70">
+                {query.trim()
+                  ? "No se encontraron profesionales con ese criterio"
+                  : "No hay profesionales registrados"}
+              </p>
+              <p className="text-muted-foreground text-sm mt-1">
+                {query.trim()
+                  ? "Probá con otro nombre, correo o especialidad."
+                  : "Agrega el primer miembro del equipo clínico."}
+              </p>
             </div>
           )}
         </div>
@@ -157,7 +251,175 @@ export default function Professionals() {
       {showForm && (
         <ProfessionalForm onClose={() => setShowForm(false)} />
       )}
+
+      {selectedPro && (
+        <ProfessionalPatientsModal
+          pro={selectedPro}
+          onClose={() => setSelectedPro(null)}
+        />
+      )}
     </AppLayout>
+  );
+}
+
+function ProfessionalPatientsModal({
+  pro, onClose,
+}: { pro: ProfessionalLite; onClose: () => void }) {
+  const { data: allPatients, isLoading: loadingPatients } = useListPatients();
+  const { data: links, isLoading: loadingLinks } = useListPatientProfessionals({ professionalId: pro.id });
+  const [query, setQuery] = useState("");
+
+  // Source of truth = patient_professionals links, identical to the card's
+  // `patientCount` (computed in /api/professionals as count of those rows for
+  // this professional). We hydrate each link with the full patient record from
+  // /api/patients (admin gets all). Deduped by patientId to avoid showing the
+  // same person twice if a duplicate link row ever exists.
+  const patients = useMemo(() => {
+    if (!allPatients || !links) return [];
+    const byId = new Map<number, any>();
+    for (const p of allPatients as any[]) byId.set(p.id, p);
+    const seen = new Set<number>();
+    const out: any[] = [];
+    for (const l of links as any[]) {
+      if (seen.has(l.patientId)) continue;
+      seen.add(l.patientId);
+      const p = byId.get(l.patientId);
+      if (p) out.push(p);
+    }
+    return out.sort((a, b) =>
+      (a.name ?? "").localeCompare(b.name ?? "", "es", { sensitivity: "base" })
+    );
+  }, [allPatients, links]);
+
+  const filtered = useMemo(() => {
+    const q = normalize(query.trim());
+    if (!q) return patients;
+    return patients.filter(p =>
+      normalize(p.name).includes(q) ||
+      normalize(p.diagnosis).includes(q)
+    );
+  }, [patients, query]);
+
+  const loading = loadingPatients || loadingLinks;
+  const total = patients.length;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <UsersIcon className="h-5 w-5 text-primary" />
+            Pacientes de {pro.name}
+          </DialogTitle>
+          <DialogDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mt-1">
+            {pro.specialty && <span>{pro.specialty}</span>}
+            <span className="text-foreground/70">
+              <span className="font-semibold text-primary">{total}</span> paciente{total !== 1 ? "s" : ""} asignado{total !== 1 ? "s" : ""}
+            </span>
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Inner search */}
+        <div className="px-6 pt-4 pb-3 border-b border-border/50">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar paciente por nombre o diagnóstico…"
+              className="pl-9 pr-9 bg-muted/50 border-border/50"
+              aria-label="Buscar pacientes de este profesional"
+              disabled={loading || total === 0}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Scroll list */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+          {loading ? (
+            <div className="space-y-3">
+              {Array(3).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-20 rounded-lg" />
+              ))}
+            </div>
+          ) : total === 0 ? (
+            <div className="py-16 text-center">
+              <UsersIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="font-medium text-foreground/70">
+                Este profesional todavía no tiene pacientes cargados.
+              </p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center">
+              <Search className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm text-foreground/70">
+                Ningún paciente coincide con “{query}”.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {filtered.map((p: any) => {
+                const created = formatDate(p.createdAt);
+                return (
+                  <li
+                    key={p.id}
+                    className="p-3.5 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-foreground leading-tight truncate">
+                          {p.name}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/70">
+                          {p.age != null && (
+                            <span className="inline-flex items-center gap-1">
+                              <Cake className="h-3.5 w-3.5 text-muted-foreground" />
+                              {p.age} año{p.age !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {p.diagnosis && (
+                            <span className="inline-flex items-center gap-1 max-w-full">
+                              <ClipboardList className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="truncate">{p.diagnosis}</span>
+                            </span>
+                          )}
+                          {created && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              {created}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 shrink-0 mt-1">
+                        #{p.id}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="px-6 py-3 border-t border-border/50 bg-muted/30 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Solo lectura</span>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cerrar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
