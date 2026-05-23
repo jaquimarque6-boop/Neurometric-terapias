@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserCircle, Mail, Shield, Save, KeyRound, Eye, EyeOff, Lock, Download } from "lucide-react";
+import { UserCircle, Mail, Shield, Save, KeyRound, Eye, EyeOff, Lock } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,6 @@ export default function Usuario() {
   const [confirmPwd, setConfirmPwd]   = useState("");
   const [showPwd, setShowPwd]         = useState(false);
   const [isSavingPwd, setIsSavingPwd] = useState(false);
-
-  const [isExporting, setIsExporting] = useState(false);
 
   if (!user) return null;
 
@@ -76,37 +74,6 @@ export default function Usuario() {
   };
 
   const pwdMismatch = confirmPwd.length > 0 && newPwd !== confirmPwd;
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/export/my-data`, {
-        credentials: "include",
-      });
-      if (res.status === 204) {
-        toast({ title: "Todavía no tenés datos cargados para exportar." });
-        return;
-      }
-      if (!res.ok) throw new Error();
-
-      const blob = await res.blob();
-      const today = new Date().toISOString().slice(0, 10);
-      const filename = `neurometric-respaldo-mis-datos-${today}.csv`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast({ title: "Respaldo descargado correctamente" });
-    } catch {
-      toast({ title: "Error al generar el respaldo", variant: "destructive" });
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <AppLayout>
@@ -242,32 +209,6 @@ export default function Usuario() {
             >
               <Lock className="h-4 w-4" />
               {isSavingPwd ? "Guardando…" : "Cambiar contraseña"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Data backup card */}
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Download className="h-4 w-4 text-primary" /> Respaldo de mis datos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Descargá una copia en CSV de tus pacientes y sesiones. El archivo se abre directamente en Excel o Google Sheets.
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Solo se exportan los datos asociados a tu cuenta. No se modifica ni elimina nada.
-            </p>
-            <Button
-              onClick={handleExport}
-              disabled={isExporting}
-              variant="outline"
-              className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5"
-            >
-              <Download className="h-4 w-4" />
-              {isExporting ? "Generando…" : "Descargar mis datos"}
             </Button>
           </CardContent>
         </Card>

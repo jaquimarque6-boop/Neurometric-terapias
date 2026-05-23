@@ -13,6 +13,7 @@ import {
   UserCircle,
   ShieldCheck,
   Wallet,
+  Download,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,7 +46,7 @@ const navItems: NavItem[] = [
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
   { title: "Actividades",        url: "/actividades",   icon: Sparkles,        adminHidden: true },
-  { title: "Sesiones CSV",       url: "/sessions",      icon: CalendarDays,    adminHidden: true },
+  { title: "Respaldo de datos",  url: "/respaldo",      icon: Download,        adminHidden: true },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3,       adminHidden: true },
   { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,     adminOnly: true },

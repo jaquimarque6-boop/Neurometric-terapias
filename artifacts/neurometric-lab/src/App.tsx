@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Patients from "@/pages/patients";
 import PatientProfile from "@/pages/patient-profile";
+import Respaldo from "@/pages/respaldo";
 import Sessions from "@/pages/sessions";
 import Registros from "@/pages/registros";
 import Objetivos from "@/pages/objetivos";
@@ -102,6 +103,7 @@ function Router() {
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
       <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
       <Route path="/sesion-rapida" component={() => <ProtectedRoute component={SesionRapida} />} />
+      <Route path="/respaldo" component={() => <ProtectedRoute component={Respaldo} />} />
       <Route component={NotFound} />
     </Switch>
   );
