@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import {
   Stethoscope, Plus, Mail, ShieldCheck, Users as UsersIcon,
-  Phone, Search, X, Cake, ClipboardList, CalendarDays,
+  Phone, Search, X, Cake, ClipboardList, CalendarDays, ChevronRight,
 } from "lucide-react";
 import {
   useListProfessionals,
@@ -63,121 +64,210 @@ function formatDate(iso?: string | null) {
   }
 }
 
-type ProfessionalLite = {
+type Professional = {
   id: number;
   name: string;
   email?: string | null;
+  phone?: string | null;
   specialty?: string | null;
+  license?: string | null;
+  status?: string | null;
+  patientCount?: number;
 };
 
 export default function Professionals() {
   const { data: professionals, isLoading } = useListProfessionals();
   const [showForm, setShowForm] = useState(false);
   const [query, setQuery] = useState("");
-  const [selectedPro, setSelectedPro] = useState<ProfessionalLite | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
 
-  const filtered = useMemo(() => {
+  const matches = useMemo<Professional[]>(() => {
     if (!professionals) return [];
     const q = normalize(query.trim());
-    if (!q) return professionals;
-    return professionals.filter((p: any) =>
+    if (!q) return [];
+    return (professionals as Professional[]).filter(p =>
       normalize(p.name).includes(q) ||
       normalize(p.email).includes(q) ||
       normalize(p.specialty).includes(q)
     );
   }, [professionals, query]);
 
+  // Auto-select when there's exactly one match (guarded to avoid redundant
+  // state writes on every render).
+  useEffect(() => {
+    if (query.trim() && matches.length === 1 && selectedId !== matches[0].id) {
+      setSelectedId(matches[0].id);
+    }
+  }, [query, matches, selectedId]);
+
+  // If selected pro disappears from current matches (e.g. cleared), keep it
+  // but scroll into view when newly selected.
+  useEffect(() => {
+    if (selectedId && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedId]);
+
+  const selectedPro: Professional | null = useMemo(() => {
+    if (!selectedId || !professionals) return null;
+    return (professionals as Professional[]).find(p => p.id === selectedId) ?? null;
+  }, [selectedId, professionals]);
+
+  const clearSelection = () => {
+    setSelectedId(null);
+    setQuery("");
+  };
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border/50 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-5 sm:p-6 rounded-2xl border border-border/50 shadow-sm">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Stethoscope className="h-6 w-6 text-primary" />
               Equipo Clínico
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm">
               {professionals?.length ?? 0} profesional{professionals?.length !== 1 ? "es" : ""} registrado{professionals?.length !== 1 ? "s" : ""}
-              {query.trim() && professionals && (
-                <span className="ml-2 text-xs text-foreground/60">
-                  · mostrando {filtered.length}
-                </span>
-              )}
             </p>
           </div>
           <Button
             onClick={() => setShowForm(true)}
-            className="bg-primary hover:bg-primary/90 text-white shadow-sm"
+            className="bg-primary text-white hover:bg-primary/90 shadow-sm border border-primary/20 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Agregar profesional
           </Button>
         </div>
 
-        {/* Search bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, correo o especialidad…"
-            className="pl-9 pr-9 bg-card border-border/50"
-            aria-label="Buscar profesionales"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="h-4 w-4" />
-            </button>
+        {/* Search */}
+        <div className="bg-card p-4 sm:p-5 rounded-2xl border border-border/50 shadow-sm">
+          <label className="text-sm font-semibold text-foreground/90 mb-2 block">
+            Buscar profesional
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Escribí un nombre, correo o especialidad…"
+              className="pl-9 pr-9 h-11 bg-background border-border focus-visible:border-primary"
+              aria-label="Buscar profesional"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(""); setSelectedId(null); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Live matches list when typing */}
+          {query.trim() && (
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array(2).fill(0).map((_, i) => (
+                    <Skeleton key={i} className="h-12 rounded-lg" />
+                  ))}
+                </div>
+              ) : matches.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-3 px-1">
+                  No se encontraron profesionales con "{query}".
+                </p>
+              ) : (
+                <ul className="divide-y divide-border/60 border border-border/60 rounded-lg overflow-hidden bg-background">
+                  {matches.slice(0, 8).map(pro => {
+                    const isSelected = pro.id === selectedId;
+                    return (
+                      <li key={pro.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(pro.id)}
+                          className={`w-full text-left px-3.5 py-2.5 flex items-center gap-3 transition hover:bg-muted/60 ${
+                            isSelected ? "bg-primary/10" : ""
+                          }`}
+                        >
+                          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                            {pro.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-foreground leading-tight truncate">{pro.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {pro.specialty}{pro.email ? ` · ${pro.email}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-foreground/70 shrink-0">
+                            <UsersIcon className="h-3.5 w-3.5 text-primary" />
+                            <span className="font-semibold text-primary">{pro.patientCount ?? 0}</span>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            Array(3).fill(0).map((_, i) => (
-              <Card key={i} className="border-border/50 shadow-sm">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Skeleton className="h-12 w-12 rounded-xl" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-4 w-24" />
+        {/* Selected professional → patients section */}
+        {selectedPro && (
+          <div ref={detailRef}>
+            <ProfessionalPatientsPanel
+              pro={selectedPro}
+              onClose={clearSelection}
+            />
+          </div>
+        )}
+
+        {/* Default grid when no search/selection */}
+        {!query.trim() && !selectedPro && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+            {isLoading ? (
+              Array(3).fill(0).map((_, i) => (
+                <Card key={i} className="border-border/50 shadow-sm">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-12 w-12 rounded-xl" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
                     </div>
-                  </div>
-                  <Skeleton className="h-16 rounded-lg" />
-                </CardContent>
-              </Card>
-            ))
-          ) : filtered && filtered.length > 0 ? (
-            filtered.map((pro: any) => {
-              const count = pro.patientCount ?? 0;
-              return (
+                    <Skeleton className="h-16 rounded-lg" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : professionals && professionals.length > 0 ? (
+              (professionals as Professional[]).map(pro => (
                 <Card
                   key={pro.id}
                   className="border-border/50 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
                 >
                   <CardContent className="p-0">
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-5">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-lg font-display shadow-md shadow-primary/20">
-                            {pro.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()}
+                    <div className="p-5 sm:p-6">
+                      <div className="flex items-start justify-between mb-5 gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-lg font-display shadow-md shadow-primary/20 shrink-0">
+                            {pro.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <h3 className="font-bold text-foreground leading-tight">{pro.name}</h3>
-                            <p className="text-sm font-medium text-primary mt-0.5">{pro.specialty}</p>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-foreground leading-tight truncate">{pro.name}</h3>
+                            <p className="text-sm font-medium text-primary mt-0.5 truncate">{pro.specialty}</p>
                           </div>
                         </div>
                         <Badge
                           variant="outline"
-                          className={`text-xs ${statusBadge(pro.status ?? "active")}`}
+                          className={`text-xs shrink-0 ${statusBadge(pro.status ?? "active")}`}
                         >
                           {statusLabel(pro.status ?? "active")}
                         </Badge>
@@ -205,75 +295,53 @@ export default function Professionals() {
 
                     <button
                       type="button"
-                      onClick={() => setSelectedPro({
-                        id: pro.id,
-                        name: pro.name,
-                        email: pro.email,
-                        specialty: pro.specialty,
-                      })}
-                      className="w-full px-6 py-3.5 bg-muted/50 border-t border-border/50 flex items-center justify-between hover:bg-muted transition group/footer text-left"
+                      onClick={() => setSelectedId(pro.id)}
+                      className="w-full px-5 sm:px-6 py-3.5 bg-muted/60 border-t border-border/50 flex items-center justify-between hover:bg-muted transition text-left group/footer"
                       aria-label={`Ver pacientes de ${pro.name}`}
                     >
-                      <div className="flex items-center gap-1.5 text-sm text-foreground/70">
+                      <div className="flex items-center gap-1.5 text-sm">
                         <UsersIcon className="h-4 w-4 text-primary" />
-                        <span className="font-semibold text-primary">{count}</span>
-                        <span className="text-muted-foreground group-hover/footer:text-foreground/80 transition">
-                          paciente{count !== 1 ? "s" : ""}
-                        </span>
-                        <span className="text-xs text-primary/70 ml-1 opacity-0 group-hover/footer:opacity-100 transition">
-                          · ver lista
+                        <span className="font-semibold text-primary">{pro.patientCount ?? 0}</span>
+                        <span className="text-foreground/70">
+                          paciente{(pro.patientCount ?? 0) !== 1 ? "s" : ""}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">ID #{pro.id}</span>
+                      <span className="text-xs font-medium text-primary inline-flex items-center gap-1">
+                        Ver
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </span>
                     </button>
                   </CardContent>
                 </Card>
-              );
-            })
-          ) : (
-            <div className="col-span-full py-20 text-center bg-card rounded-2xl border border-dashed border-border">
-              <Stethoscope className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="font-medium text-foreground/70">
-                {query.trim()
-                  ? "No se encontraron profesionales con ese criterio"
-                  : "No hay profesionales registrados"}
-              </p>
-              <p className="text-muted-foreground text-sm mt-1">
-                {query.trim()
-                  ? "Probá con otro nombre, correo o especialidad."
-                  : "Agrega el primer miembro del equipo clínico."}
-              </p>
-            </div>
-          )}
-        </div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center bg-card rounded-2xl border border-dashed border-border">
+                <Stethoscope className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="font-medium text-foreground/70">No hay profesionales registrados</p>
+                <p className="text-muted-foreground text-sm mt-1">Agrega el primer miembro del equipo clínico.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {showForm && (
         <ProfessionalForm onClose={() => setShowForm(false)} />
       )}
-
-      {selectedPro && (
-        <ProfessionalPatientsModal
-          pro={selectedPro}
-          onClose={() => setSelectedPro(null)}
-        />
-      )}
     </AppLayout>
   );
 }
 
-function ProfessionalPatientsModal({
+function ProfessionalPatientsPanel({
   pro, onClose,
-}: { pro: ProfessionalLite; onClose: () => void }) {
+}: { pro: Professional; onClose: () => void }) {
+  const [, navigate] = useLocation();
   const { data: allPatients, isLoading: loadingPatients } = useListPatients();
   const { data: links, isLoading: loadingLinks } = useListPatientProfessionals({ professionalId: pro.id });
-  const [query, setQuery] = useState("");
 
-  // Source of truth = patient_professionals links, identical to the card's
-  // `patientCount` (computed in /api/professionals as count of those rows for
-  // this professional). We hydrate each link with the full patient record from
-  // /api/patients (admin gets all). Deduped by patientId to avoid showing the
-  // same person twice if a duplicate link row ever exists.
+  // Source of truth = patient_professionals links (same table the card's
+  // `patientCount` is computed from). Hydrate each link with patient details
+  // from /api/patients. Deduped by patientId.
   const patients = useMemo(() => {
     if (!allPatients || !links) return [];
     const byId = new Map<number, any>();
@@ -291,61 +359,47 @@ function ProfessionalPatientsModal({
     );
   }, [allPatients, links]);
 
-  const filtered = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return patients;
-    return patients.filter(p =>
-      normalize(p.name).includes(q) ||
-      normalize(p.diagnosis).includes(q)
-    );
-  }, [patients, query]);
-
   const loading = loadingPatients || loadingLinks;
   const total = patients.length;
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-          <DialogTitle className="font-display text-xl flex items-center gap-2">
-            <UsersIcon className="h-5 w-5 text-primary" />
-            Pacientes de {pro.name}
-          </DialogTitle>
-          <DialogDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mt-1">
-            {pro.specialty && <span>{pro.specialty}</span>}
-            <span className="text-foreground/70">
-              <span className="font-semibold text-primary">{total}</span> paciente{total !== 1 ? "s" : ""} asignado{total !== 1 ? "s" : ""}
-            </span>
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Inner search */}
-        <div className="px-6 pt-4 pb-3 border-b border-border/50">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar paciente por nombre o diagnóstico…"
-              className="pl-9 pr-9 bg-muted/50 border-border/50"
-              aria-label="Buscar pacientes de este profesional"
-              disabled={loading || total === 0}
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
-                aria-label="Limpiar búsqueda"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+    <Card className="border-border/50 shadow-sm overflow-hidden">
+      <CardContent className="p-0">
+        {/* Header */}
+        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-base font-display shadow-md shadow-primary/20 shrink-0">
+              {pro.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-display font-bold text-lg text-foreground leading-tight truncate">
+                Pacientes de {pro.name}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                {pro.specialty}
+                {pro.email && <> · <span className="text-foreground/70">{pro.email}</span></>}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
+              <UsersIcon className="h-3.5 w-3.5 mr-1" />
+              {total} paciente{total !== 1 ? "s" : ""}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="bg-background border-border text-foreground hover:bg-muted"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Cerrar
+            </Button>
           </div>
         </div>
 
-        {/* Scroll list */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+        {/* List */}
+        <div className="p-4 sm:p-5">
           {loading ? (
             <div className="space-y-3">
               {Array(3).fill(0).map((_, i) => (
@@ -353,31 +407,24 @@ function ProfessionalPatientsModal({
               ))}
             </div>
           ) : total === 0 ? (
-            <div className="py-16 text-center">
+            <div className="py-12 text-center">
               <UsersIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
               <p className="font-medium text-foreground/70">
                 Este profesional todavía no tiene pacientes cargados.
               </p>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center">
-              <Search className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="text-sm text-foreground/70">
-                Ningún paciente coincide con “{query}”.
-              </p>
-            </div>
           ) : (
-            <ul className="space-y-2">
-              {filtered.map((p: any) => {
+            <ul className="space-y-2.5">
+              {patients.map((p: any) => {
                 const created = formatDate(p.createdAt);
                 return (
                   <li
                     key={p.id}
-                    className="p-3.5 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition"
+                    className="p-3.5 sm:p-4 rounded-lg border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground leading-tight truncate">
+                        <p className="font-semibold text-foreground leading-tight">
                           {p.name}
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/70">
@@ -401,9 +448,14 @@ function ProfessionalPatientsModal({
                           )}
                         </div>
                       </div>
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 shrink-0 mt-1">
-                        #{p.id}
-                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/nueva-sesion?patientId=${p.id}`)}
+                        className="bg-primary text-white hover:bg-primary/90 border border-primary/20 shadow-sm w-full sm:w-auto shrink-0"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Agregar sesión
+                      </Button>
                     </div>
                   </li>
                 );
@@ -412,14 +464,11 @@ function ProfessionalPatientsModal({
           )}
         </div>
 
-        <div className="px-6 py-3 border-t border-border/50 bg-muted/30 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Solo lectura</span>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cerrar
-          </Button>
+        <div className="px-5 sm:px-6 py-2.5 border-t border-border/50 bg-muted/40 text-xs text-muted-foreground">
+          Solo lectura — no se puede editar ni eliminar pacientes desde acá.
         </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -481,7 +530,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Dra. María García"
-              className={`bg-muted/50 ${errors.name && form.name ? "border-red-300" : ""}`}
+              className={`bg-background border-border ${errors.name && form.name ? "border-red-300" : ""}`}
             />
             {errors.name && form.name && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
@@ -489,7 +538,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground/80">Especialidad *</label>
             <Select value={form.specialty} onValueChange={v => set("specialty", v)}>
-              <SelectTrigger className="bg-muted/50">
+              <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Seleccionar especialidad..." />
               </SelectTrigger>
               <SelectContent>
@@ -510,7 +559,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
               value={form.email}
               onChange={e => set("email", e.target.value)}
               placeholder="profesional@neurometric.com"
-              className={`bg-muted/50 ${errors.email && form.email ? "border-red-300" : ""}`}
+              className={`bg-background border-border ${errors.email && form.email ? "border-red-300" : ""}`}
             />
             {errors.email && form.email && <p className="text-xs text-red-500">{errors.email}</p>}
           </div>
@@ -522,7 +571,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
                 value={form.phone}
                 onChange={e => set("phone", e.target.value)}
                 placeholder="+54 11 5555-0000"
-                className="bg-muted/50"
+                className="bg-background border-border"
               />
             </div>
             <div className="space-y-2">
@@ -531,7 +580,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
                 value={form.license}
                 onChange={e => set("license", e.target.value)}
                 placeholder="MP-12345"
-                className="bg-muted/50"
+                className="bg-background border-border"
               />
             </div>
           </div>
@@ -539,7 +588,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground/80">Estado</label>
             <Select value={form.status} onValueChange={v => set("status", v)}>
-              <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Activo</SelectItem>
                 <SelectItem value="inactive">Inactivo</SelectItem>
@@ -548,9 +597,15 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
             <Button
-              className="flex-1 bg-primary hover:bg-primary/90"
+              variant="outline"
+              className="flex-1 bg-background border-border text-foreground hover:bg-muted"
+              onClick={onClose}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 bg-primary text-white hover:bg-primary/90 border border-primary/20"
               disabled={!form.name || !form.email || !form.specialty || createPro.isPending}
               onClick={handleSubmit}
             >
