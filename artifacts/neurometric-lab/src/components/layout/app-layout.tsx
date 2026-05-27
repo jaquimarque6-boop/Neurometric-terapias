@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
-import { Bell, LogOut, ChevronDown, UserCircle } from "lucide-react";
+import { Bell, LogOut, ChevronDown, Menu } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
@@ -14,6 +14,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+function MobileMenuButton() {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      className="md:hidden flex items-center gap-1.5 h-10 px-3 rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border/60"
+      aria-label="Abrir menú"
+    >
+      <Menu className="h-4 w-4 shrink-0" />
+      <span className="text-sm font-medium">Menú</span>
+    </button>
+  );
+}
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
@@ -43,7 +58,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {/* Top header */}
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/60 bg-card/90 backdrop-blur-md px-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="md:hidden hover:bg-muted p-1.5 rounded-lg transition-colors text-muted-foreground" />
+              <MobileMenuButton />
               <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-muted/80 px-3 py-1.5 rounded-full border border-border/60">
                 <span className="opacity-50">⌘</span>
                 <span className="font-medium">{t.header.searchHint}</span>
