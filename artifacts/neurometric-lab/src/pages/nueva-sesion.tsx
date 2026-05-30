@@ -13,6 +13,7 @@ import { EvalSugerida } from "@/components/eval-sugerida";
 import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
+import { LastSessionSummary } from "@/components/last-session-summary";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -904,21 +905,6 @@ export default function NuevaSesion() {
       return res.json();
     },
     enabled: showBanco && !!bancoArea,
-  });
-
-  const { data: lastSessionRecord } = useQuery({
-    queryKey: ["last-session-record", patient?.id],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE}/api/registros-clinicos?patientId=${patient!.id}`,
-        { credentials: "include" }
-      );
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) return null;
-      return data[data.length - 1] as { fecha?: string; resumenSesion?: string | null };
-    },
-    enabled: !!patient,
   });
 
   const goals = (goalsRaw as any[]).filter(
@@ -1906,6 +1892,11 @@ export default function NuevaSesion() {
           )}
         </div>
 
+        {/* ── Última sesión registrada ─────────────────────────────────── */}
+        {patient && (
+          <LastSessionSummary patientId={patient.id} title="Última sesión registrada" />
+        )}
+
         {/* ── Guía por edad y área ─────────────────────────────────────── */}
         {patient && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
@@ -2286,15 +2277,10 @@ export default function NuevaSesion() {
             </div>
 
             <div className="divide-y" style={{ borderColor: `${BRAND_TEAL}15` }}>
-              {/* Last session summary */}
-              {(lastWorkedGoal || lastSessionRecord?.resumenSesion) && (
+              {/* Last worked goal */}
+              {lastWorkedGoal && (
                 <div className="px-5 py-3.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Sesión anterior</p>
-                  {lastSessionRecord?.resumenSesion && (
-                    <p className="text-[12px] text-muted-foreground italic leading-relaxed mb-2 line-clamp-3">
-                      {lastSessionRecord.resumenSesion}
-                    </p>
-                  )}
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Último objetivo trabajado</p>
                   {lastWorkedGoal && (
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">

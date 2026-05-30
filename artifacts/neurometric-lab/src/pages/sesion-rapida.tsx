@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
+import { LastSessionSummary } from "@/components/last-session-summary";
 
 // ── Clinical chip groups ────────────────────────────────────────────────────
 const CHIP_GROUPS = [
@@ -295,6 +296,11 @@ export default function SesionRapida() {
             </p>
           )}
         </div>
+
+        {/* ── Resumen de la sesión anterior ───────────────────────────────── */}
+        {selectedPatient && (
+          <LastSessionSummary patientId={selectedId} title="📝 Resumen de la sesión anterior" />
+        )}
 
         {/* ── 2. Date ─────────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4 space-y-2">
