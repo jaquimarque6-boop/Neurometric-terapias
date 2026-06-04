@@ -27,8 +27,9 @@ export default function Respaldo() {
       if (!res.ok) throw new Error();
 
       const blob = await res.blob();
+      if (!blob || blob.size === 0) throw new Error();
       const today = new Date().toISOString().slice(0, 10);
-      const filename = `neurometric-respaldo-mis-datos-${today}.csv`;
+      const filename = `neurometric-respaldo-mis-datos-${today}.xlsx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -37,9 +38,12 @@ export default function Respaldo() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast({ title: "Respaldo descargado correctamente" });
+      toast({ title: "Respaldo generado correctamente." });
     } catch {
-      toast({ title: "Error al generar el respaldo", variant: "destructive" });
+      toast({
+        title: "No fue posible generar el respaldo. Intente nuevamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -64,8 +68,10 @@ export default function Respaldo() {
           </CardHeader>
           <CardContent className="p-6 space-y-4">
             <p className="text-sm text-muted-foreground">
-              El archivo incluye tus pacientes (nombre, edad, diagnóstico, notas) y todas las sesiones
-              clínicas asociadas (fecha, resumen, observaciones, recomendaciones).
+              Se descarga un archivo Excel (.xlsx) con una hoja por sección: pacientes (incluye
+              anamnesis, diagnóstico, informes y observaciones), registros clínicos / sesiones
+              (fecha, resumen, observaciones, recomendaciones) y objetivos terapéuticos. Se abre
+              correctamente en Excel y Google Sheets.
             </p>
 
             <Button
