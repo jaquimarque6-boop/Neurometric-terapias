@@ -6,7 +6,18 @@ import { API_BASE } from "@/lib/api";
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
 
-const MAX_SESSIONS = 3;
+const SESSION_COUNT_OPTIONS = [1, 3, 5] as const;
+const DEFAULT_SESSION_COUNT = 3;
+const SESSION_COUNT_STORAGE_KEY = "neurometric:recent-sessions-count";
+
+function readStoredSessionCount(): number {
+  if (typeof window === "undefined") return DEFAULT_SESSION_COUNT;
+  const raw = window.localStorage.getItem(SESSION_COUNT_STORAGE_KEY);
+  const parsed = raw ? Number(raw) : NaN;
+  return SESSION_COUNT_OPTIONS.includes(parsed as (typeof SESSION_COUNT_OPTIONS)[number])
+    ? parsed
+    : DEFAULT_SESSION_COUNT;
+}
 
 type ClinicalRecord = {
   id?: number;
@@ -105,13 +116,21 @@ function CollapsibleSession({ record, defaultOpen }: { record: ClinicalRecord; d
 
 export function LastSessionSummary({ patientId, title = "Resumen de la sesión anterior" }: Props) {
   const [, navigate] = useLocation();
-  const [records, setRecords] = useState<ClinicalRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<ClinicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [sessionCount, setSessionCount] = useState<number>(readStoredSessionCount);
+
+  const updateSessionCount = (count: number) => {
+    setSessionCount(count);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SESSION_COUNT_STORAGE_KEY, String(count));
+    }
+  };
 
   useEffect(() => {
     if (!patientId) {
-      setRecords([]);
+      setAllRecords([]);
       setLoaded(false);
       return;
     }
@@ -123,13 +142,14 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
       .then((data: ClinicalRecord[]) => {
         if (cancelled) return;
         // El backend devuelve los registros en orden ascendente por fecha,
-        // así que las últimas sesiones están al final. Tomamos las más
-        // recientes y las mostramos de la más nueva a la más antigua.
-        const recent = Array.isArray(data) ? data.slice(-MAX_SESSIONS).reverse() : [];
-        setRecords(recent);
+        // así que las últimas sesiones están al final. Guardamos todas en
+        // orden de la más nueva a la más antigua y recortamos al mostrar,
+        // según la preferencia del profesional.
+        const ordered = Array.isArray(data) ? [...data].reverse() : [];
+        setAllRecords(ordered);
       })
       .catch(() => {
-        if (!cancelled) setRecords([]);
+        if (!cancelled) setAllRecords([]);
       })
       .finally(() => {
         if (!cancelled) {
@@ -154,6 +174,7 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
     );
   }
 
+  const records = allRecords.slice(0, sessionCount);
   const [latest, ...previous] = records;
 
   return (
@@ -178,6 +199,34 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
           </button>
         )}
       </div>
+
+      {/* Selector de cantidad de sesiones recientes */}
+      {allRecords.length > 1 && (
+        <div className="flex items-center justify-end gap-1.5 px-4 py-2 border-b" style={{ borderColor: `${BRAND_TEAL}15` }}>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mr-0.5">
+            Mostrar
+          </span>
+          <div className="inline-flex items-center rounded-full border p-0.5" style={{ borderColor: `${BRAND_TEAL}30` }}>
+            {SESSION_COUNT_OPTIONS.map(count => {
+              const active = sessionCount === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => updateSessionCount(count)}
+                  aria-pressed={active}
+                  className={`min-w-[28px] rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                    active ? "text-white" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  style={active ? { backgroundColor: BRAND_TEAL } : undefined}
+                >
+                  {count}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {!latest ? (
         <div className="px-4 py-4">
