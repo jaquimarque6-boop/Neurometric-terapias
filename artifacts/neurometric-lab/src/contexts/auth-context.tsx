@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { API_BASE, getAuthToken, setAuthToken, clearAuthToken } from "@/lib/api";
+import {
+  API_BASE,
+  getAuthToken,
+  setAuthToken,
+  clearAuthToken,
+  markSession,
+  clearSessionMarker,
+} from "@/lib/api";
 
 export type AuthUser = {
   id: number;
@@ -46,6 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // app load. Critical for Safari / iOS where cross-site cookies
           // get dropped: without this they'd hit 401 on POST /api/patients.
           if (data.token) setAuthToken(data.token);
+          // Record that this browser has an authenticated session. Works even
+          // for cookie-only logins (no token), so a later genuine expiry is
+          // still detected by the global interceptor.
+          markSession();
           setUser(data);
         } else {
           setUser(null);
@@ -68,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handler = () => {
       console.warn("[auth] sesión expirada — limpiando estado");
       clearAuthToken();
+      clearSessionMarker();
       queryClient.clear();
       setUser(null);
     };
@@ -145,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       console.warn("[auth] login OK pero sin token en la respuesta — solo cookie-session");
     }
+    markSession();
     queryClient.clear();
     setUser(data);
     console.info(`[auth] ✓ usuario ${data.email} (rol=${data.role}) autenticado`);
@@ -152,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     clearAuthToken();
+    clearSessionMarker();
     await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
     queryClient.clear();
     setUser(null);

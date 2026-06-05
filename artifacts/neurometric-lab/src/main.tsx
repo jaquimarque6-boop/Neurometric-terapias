@@ -30,6 +30,14 @@ function _safeGetToken(): string | null {
   try { return localStorage.getItem("nm_auth_token"); } catch { return null; }
 }
 
+// True if this browser has ever held an authenticated session (token OR
+// cookie-only). Set by the auth context on login / verified /me. Used to tell a
+// "session expired" 401 (had a session) apart from a "not logged in" 401 (fresh
+// open). Keep the key in sync with SESSION_MARKER_KEY in src/lib/api.ts.
+function _safeHadSession(): boolean {
+  try { return localStorage.getItem("nm_had_session") === "1"; } catch { return false; }
+}
+
 function _safeSetToken(t: string): void {
   try { localStorage.setItem("nm_auth_token", t); } catch { /* ignore */ }
 }
@@ -108,10 +116,19 @@ window.fetch = async function patchedFetch(input, init?) {
 
   // Only consider verifying when the backend explicitly says 401.
   // Skip login (expected 401 on wrong password) and /me itself (would loop).
+  //
+  // Crucially, only begin the "session expired" flow when this browser has
+  // actually had an authenticated session — proven by a stored token OR the
+  // session marker (which also covers cookie-only logins with no token).
+  // A 401 with neither means the user simply isn't logged in (e.g. a fresh
+  // open on Safari/iOS where cross-site cookies are dropped) — that is NOT an
+  // expiry and must never surface the "Sesión expirada" toast or trigger an
+  // automatic logout.
   const shouldCheck =
     response.status === 401 &&
     !url.includes("/api/auth/login") &&
-    !url.includes("/api/auth/me");
+    !url.includes("/api/auth/me") &&
+    (!!_safeGetToken() || _safeHadSession());
 
   if (shouldCheck && Date.now() - _lastCheckAt > 3000) {
     _lastCheckAt = Date.now();
