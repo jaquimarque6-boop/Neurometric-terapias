@@ -48,6 +48,23 @@ function _resolveUrl(input: RequestInfo | URL): string {
   return (input as Request).url;
 }
 
+// A request is "ours" when it targets the backend API:
+//   • Prod (VITE_API_URL set): any URL on that origin — e.g. https://backend.onrender.com/api/...
+//   • Dev (no VITE_API_URL, Vite proxy): same-origin "/api/..." URLs.
+// Comparing parsed origins (not string prefixes) so the Bearer token can never
+// leak to a look-alike domain.
+const _apiOrigin = _API_BASE ? new URL(_API_BASE).origin : window.location.origin;
+
+function _isApiRequest(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl, window.location.origin);
+    if (url.origin !== _apiOrigin) return false;
+    return _API_BASE ? true : url.pathname.startsWith("/api/");
+  } catch {
+    return false; // unparseable URL — let the native fetch deal with it
+  }
+}
+
 // Verify session against /api/auth/me. Resolves to:
 //   true  → session is alive (200 OK, or ambiguous network/5xx — fail-open)
 //   false → token confirmed invalid (401 from /me itself)
@@ -97,7 +114,7 @@ function _verifyAuth(): Promise<boolean> {
 window.fetch = async function patchedFetch(input, init?) {
   const url = _resolveUrl(input as RequestInfo | URL);
 
-  if (!_API_BASE || !url.startsWith(_API_BASE)) {
+  if (!_isApiRequest(url)) {
     return _nativeFetch(input as RequestInfo, init as RequestInit);
   }
 

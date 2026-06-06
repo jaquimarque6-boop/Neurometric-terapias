@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "dev": "pnpm --parallel --filter @workspace/neurometric-lab --filter @workspace/api-server run dev",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:render": "pnpm --filter @workspace/neurometric-lab run build && pnpm --filter @workspace/api-server run build",
     "typecheck:libs": "tsc --build",

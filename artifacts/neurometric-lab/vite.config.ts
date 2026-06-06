@@ -11,6 +11,10 @@ const port = rawPort ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH ?? "/";
 
+// Where the api-server listens in dev. Locally it runs on 3001
+// (see artifacts/api-server/.env) so it doesn't collide with Vite on 3000.
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://localhost:3001";
+
 const replitPlugins = (!isBuild && isReplit)
   ? [
       (await import("@replit/vite-plugin-runtime-error-modal")).default(),
@@ -44,8 +48,15 @@ export default defineConfig({
   },
   server: {
     port,
+    strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
