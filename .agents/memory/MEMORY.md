@@ -1,1 +1,2 @@
 - [Production topology](production-topology.md) — prod is Netlify + Render backend + own DB, NOT the Replit deploy; Replit Publish does not manage prod schema.
+- [Query cache & navigation](query-cache-navigation.md) — "need F5 to load" = QueryClient staleTime cache; fix is refetchOnMount:"always"; reuse generated query keys (manual ad-hoc keys = duplicate caches).
