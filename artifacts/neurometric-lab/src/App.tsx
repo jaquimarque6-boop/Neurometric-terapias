@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,26 +6,32 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/providers/language-provider";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
+
+// Eager: login is the entry screen and NotFound is the cheap fallback. Keeping
+// them in the initial chunk avoids a loading flash on first paint.
+import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 
-import Dashboard from "@/pages/dashboard";
-import Patients from "@/pages/patients";
-import PatientProfile from "@/pages/patient-profile";
-import Respaldo from "@/pages/respaldo";
-import Sessions from "@/pages/sessions";
-import Registros from "@/pages/registros";
-import Objetivos from "@/pages/objetivos";
-import Actividades from "@/pages/actividades";
-import Reportes from "@/pages/reportes";
-import Professionals from "@/pages/professionals";
-import GoalLibrary from "@/pages/goal-library";
-import NuevaSesion from "@/pages/nueva-sesion";
-import Agenda from "@/pages/agenda";
-import AgendaPagos from "@/pages/agenda-pagos";
-import Usuario from "@/pages/usuario";
-import Usuarios from "@/pages/usuarios";
-import SesionRapida from "@/pages/sesion-rapida";
-import LoginPage from "@/pages/login";
+// Lazy: every authenticated page is code-split into its own chunk so the initial
+// bundle (and time-to-interactive) only pays for what the user actually opens.
+// Behaviour is unchanged — only when each module is downloaded.
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Patients = lazy(() => import("@/pages/patients"));
+const PatientProfile = lazy(() => import("@/pages/patient-profile"));
+const Respaldo = lazy(() => import("@/pages/respaldo"));
+const Sessions = lazy(() => import("@/pages/sessions"));
+const Registros = lazy(() => import("@/pages/registros"));
+const Objetivos = lazy(() => import("@/pages/objetivos"));
+const Actividades = lazy(() => import("@/pages/actividades"));
+const Reportes = lazy(() => import("@/pages/reportes"));
+const Professionals = lazy(() => import("@/pages/professionals"));
+const GoalLibrary = lazy(() => import("@/pages/goal-library"));
+const NuevaSesion = lazy(() => import("@/pages/nueva-sesion"));
+const Agenda = lazy(() => import("@/pages/agenda"));
+const AgendaPagos = lazy(() => import("@/pages/agenda-pagos"));
+const Usuario = lazy(() => import("@/pages/usuario"));
+const Usuarios = lazy(() => import("@/pages/usuarios"));
+const SesionRapida = lazy(() => import("@/pages/sesion-rapida"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +87,16 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   if (!user || user.role !== "admin") return null;
 
   return <Component />;
+}
+
+// Lightweight fallback shown while a code-split page chunk downloads. Matches
+// the existing "Cargando…" treatment so route transitions never look frozen.
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-muted-foreground text-sm animate-pulse">Cargando…</div>
+    </div>
+  );
 }
 
 function Router() {
@@ -199,7 +215,9 @@ function App() {
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <SessionGuard />
-              <Router />
+              <Suspense fallback={<PageFallback />}>
+                <Router />
+              </Suspense>
             </WouterRouter>
             <Toaster />
           </TooltipProvider>

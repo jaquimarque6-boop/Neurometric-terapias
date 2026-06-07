@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,9 @@ const START_HOUR = 7;
 const END_HOUR = 21;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 const GRID_HEIGHT = TOTAL_HOURS * HOUR_PX;
+// Derived purely from constants, so compute once at module load instead of on
+// every render of the agenda grid.
+const HOURS_LABELS = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   sesion:     { bg: "bg-stone-50",  text: "text-stone-700",  border: "border-stone-200",  dot: "bg-stone-500"  },
@@ -101,7 +104,8 @@ export default function AgendaPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
-  const days = weekDays(currentMonday);
+  // Recompute the week's days only when the selected week changes.
+  const days = useMemo(() => weekDays(currentMonday), [currentMonday]);
   const rangeStart = format(currentMonday, "yyyy-MM-dd");
   const rangeEnd   = format(addDays(currentMonday, 6), "yyyy-MM-dd");
 
@@ -265,7 +269,7 @@ export default function AgendaPage() {
     setShowCreate(true);
   };
 
-  const hoursLabels = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
+  const hoursLabels = HOURS_LABELS;
   const isToday = (d: Date) => isSameDay(d, new Date());
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Users,
@@ -118,16 +118,20 @@ export default function Patients() {
     }
   };
 
-  const filtered = (patients ?? []).filter((p) => {
+  // Recompute the filtered list only when the data or the search term changes,
+  // not on every render (e.g. unrelated state updates). Same result, less work.
+  const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return (
-      !q ||
-      p.name.toLowerCase().includes(q) ||
-      (p.diagnosis ?? "").toLowerCase().includes(q) ||
-      (p.profesionalNombre ?? "").toLowerCase().includes(q) ||
-      (p.franjaEtaria ?? "").includes(q)
-    );
-  });
+    return (patients ?? []).filter((p) => {
+      return (
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        (p.diagnosis ?? "").toLowerCase().includes(q) ||
+        (p.profesionalNombre ?? "").toLowerCase().includes(q) ||
+        (p.franjaEtaria ?? "").includes(q)
+      );
+    });
+  }, [patients, searchTerm]);
 
   const handleBack = () => {
     if (window.history.length > 1) window.history.back();
