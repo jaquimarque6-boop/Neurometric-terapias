@@ -1,20 +1,27 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { actividadesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.get("/actividades", async (req, res) => {
-  let activities = await db.select().from(actividadesTable).orderBy(actividadesTable.tipo);
-
   const { franjaEtaria, area, tipo, goalLibraryId } = req.query;
-  if (franjaEtaria) {
-    activities = activities.filter(a => a.franjaEtaria === franjaEtaria);
-  }
-  if (area) activities = activities.filter(a => a.area === area);
-  if (tipo) activities = activities.filter(a => a.tipo === tipo);
-  if (goalLibraryId) activities = activities.filter(a => a.goalLibraryId === parseInt(goalLibraryId as string));
+
+  // Push all filters into SQL so we never load the full table when a filter
+  // (e.g. goalLibraryId) is provided. Same equality semantics as before; the
+  // tipo ordering is preserved.
+  const conditions = [];
+  if (franjaEtaria) conditions.push(eq(actividadesTable.franjaEtaria, franjaEtaria as string));
+  if (area) conditions.push(eq(actividadesTable.area, area as string));
+  if (tipo) conditions.push(eq(actividadesTable.tipo, tipo as string));
+  if (goalLibraryId) conditions.push(eq(actividadesTable.goalLibraryId, parseInt(goalLibraryId as string)));
+
+  const activities = await db
+    .select()
+    .from(actividadesTable)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(actividadesTable.tipo);
 
   res.json(activities.map(a => ({ ...a, createdAt: a.createdAt.toISOString() })));
 });

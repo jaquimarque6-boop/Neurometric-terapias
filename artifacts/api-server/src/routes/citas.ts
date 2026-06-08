@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { citasTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -54,19 +54,27 @@ router.get("/citas", async (req, res) => {
     if (!sess) return res.status(401).json({ error: "No autenticado" });
 
     const { start, end, patientId } = req.query as Record<string, string>;
-    let rows = await db.select().from(citasTable);
 
-    // Role-based isolation: professionals see only their own citas (by userId)
+    const conditions = [];
+
+    // Role-based isolation: professionals see only their own citas (by userId).
+    // Same ownership rule as before — just pushed into the SQL WHERE.
     if (sess.role !== "admin") {
-      rows = rows.filter(c => c.userId === sess.id);
+      conditions.push(eq(citasTable.userId, sess.id));
     }
-
+    // Filter by date range in SQL (fecha is an ISO yyyy-MM-dd text column, so
+    // gte/lte give the same lexicographic comparison the JS filter did).
     if (start && end) {
-      rows = rows.filter(c => c.fecha >= start && c.fecha <= end);
+      conditions.push(gte(citasTable.fecha, start), lte(citasTable.fecha, end));
     }
     if (patientId) {
-      rows = rows.filter(c => c.patientId === parseInt(patientId));
+      conditions.push(eq(citasTable.patientId, parseInt(patientId)));
     }
+
+    const rows = await db
+      .select()
+      .from(citasTable)
+      .where(conditions.length ? and(...conditions) : undefined);
 
     return res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
   } catch (err) {

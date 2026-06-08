@@ -123,7 +123,13 @@ router.get("/patients", async (req, res) => {
       .orderBy(patientsTable.name);
   }
 
-  const allGoals = await db.select().from(goalsTable);
+  // Only load goals for the patients we're actually returning, instead of the
+  // entire goals table. enrichPatient still receives the same shape (a flat
+  // array it filters by patientId), so the response is byte-for-byte identical.
+  const patientIds = patients.map(p => p.id);
+  const allGoals = patientIds.length
+    ? await db.select().from(goalsTable).where(inArray(goalsTable.patientId, patientIds))
+    : [];
 
   const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
   console.log(`[GET /api/patients] userId=${sess.id} role=${sess.role} includeArchived=${includeArchived} → devolviendo ${withCounts.length} pacientes`);
