@@ -15,6 +15,7 @@ import NotFound from "@/pages/not-found";
 // Lazy: every authenticated page is code-split into its own chunk so the initial
 // bundle (and time-to-interactive) only pays for what the user actually opens.
 // Behaviour is unchanged — only when each module is downloaded.
+const Seleccion = lazy(() => import("@/pages/seleccion"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Patients = lazy(() => import("@/pages/patients"));
 const PatientProfile = lazy(() => import("@/pages/patient-profile"));
@@ -104,6 +105,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/seleccion" component={() => <ProtectedRoute component={Seleccion} />} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/patients" component={() => <ProtectedRoute component={Patients} />} />
       <Route path="/patients/:id" component={() => <ProtectedRoute component={PatientProfile} />} />

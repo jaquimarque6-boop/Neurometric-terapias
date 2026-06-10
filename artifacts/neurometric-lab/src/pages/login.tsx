@@ -48,8 +48,8 @@ export default function LoginPage() {
     try {
       console.info("[login] POST /api/auth/login → enviando");
       await login(emailTrimmed, passwordVal);
-      console.info("[login] ✓ login OK — redirigiendo a /");
-      setLocation("/");
+      console.info("[login] ✓ login OK — redirigiendo a /seleccion");
+      setLocation("/seleccion");
     } catch (err: any) {
       const msg = err?.message ?? "Error al iniciar sesión";
       console.warn("[login] ✗ fallo:", msg);
