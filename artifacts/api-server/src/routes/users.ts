@@ -192,11 +192,25 @@ router.post("/users", async (req, res) => {
   return res.status(201).json(userToJson(user));
 });
 
-// PATCH /api/users/:id — update user (any authenticated user)
+// PATCH /api/users/:id — update user.
+// Admins can manage any user. Non-admins may only edit their OWN account and only
+// non-privileged fields (name, email, specialty, password); they cannot change
+// `role` or `active`, nor edit other users.
 router.patch("/users/:id", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const id = parseInt(req.params.id);
+  const isAdmin = req.session.userRole === "admin";
+  const isSelf  = id === req.session.userId;
+
+  if (!isAdmin && !isSelf) {
+    return res.status(403).json({ error: "Solo administradores pueden gestionar otros usuarios" });
+  }
+
   const { name, email, role, specialty, active, password } = req.body;
+
+  if (!isAdmin && (role !== undefined || active !== undefined)) {
+    return res.status(403).json({ error: "No tienes permiso para cambiar el rol o el estado de la cuenta" });
+  }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!existing) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -204,10 +218,13 @@ router.patch("/users/:id", async (req, res) => {
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (name !== undefined) updates.name = name.trim();
   if (email !== undefined) updates.email = email.toLowerCase().trim();
-  if (role !== undefined) updates.role = role;
   if (specialty !== undefined) updates.specialty = specialty?.trim() || null;
-  if (active !== undefined) updates.active = active;
   if (password) updates.passwordHash = await bcrypt.hash(password, 10);
+  // Privileged fields — admins only.
+  if (isAdmin) {
+    if (role !== undefined) updates.role = role;
+    if (active !== undefined) updates.active = active;
+  }
 
   const [updated] = await db
     .update(usersTable)
@@ -218,9 +235,10 @@ router.patch("/users/:id", async (req, res) => {
   return res.json(userToJson(updated));
 });
 
-// DELETE /api/users/:id — deactivate user (any authenticated user, cannot deactivate self)
+// DELETE /api/users/:id — deactivate user (admin only, cannot deactivate self)
 router.delete("/users/:id", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
   const id = parseInt(req.params.id);
 
   if (id === req.session.userId) {

@@ -77,3 +77,8 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - **Pacientes creados**: agregar columna `created_by` en `patients` (hoy no existe forma de distinguir "creados" de "asignados").
 - **Último acceso real**: agregar columna `last_login` en `users` y escribir el timestamp en el login (toca el flujo de autenticación).
 - **Uso de IA**: no solicitado por ahora; las rutas `ai-informe.ts` / `ai-objetivos.ts` no persisten uso.
+
+### Control de acceso en la API de usuarios (corregido)
+- `PATCH /api/users/:id`: los administradores pueden gestionar cualquier usuario. Un no-admin solo puede editar su **propia** cuenta y solo campos no privilegiados (`name`, `email`, `specialty`, `password`); no puede cambiar `role`/`active` ni editar a otros (responde 403). Esto preserva el cambio de contraseña propia desde `/usuario`.
+- `DELETE /api/users/:id`: requiere rol admin (`requireAdmin`); se mantiene la regla de no poder auto-desactivarse.
+- Nota: el cambio de **nombre** propio se hace por `PATCH /api/auth/me`; el cambio de **contraseña** propia se hace por `PATCH /api/users/:id` con `{ password }`.
