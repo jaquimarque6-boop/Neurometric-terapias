@@ -65,3 +65,15 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - **`express-session`**: Middleware for managing user sessions.
 - **`bcryptjs`**: For hashing user passwords securely.
 - **recharts**: For rendering statistical charts in the reporting section.
+## Métricas de uso en la pantalla "Usuarios"
+
+### Fase 1 (implementada)
+- `GET /api/users` (admin) enriquece cada usuario con un objeto `stats` calculado **en tiempo de ejecución** desde tablas existentes (sin cambios de esquema):
+  - `pacientesAsignados`: pacientes no archivados con `patients.assigned_professional_id = user.id`.
+  - `sesionesRegistradas` / `pacientesConSesion` / `sesionesEsteMes` / `ultimaActividad`: derivados de `registros_clinicos`, atribuyendo cada registro a un usuario por `user_id`; si `user_id` es nulo (registros antiguos), se recupera por `professional_id` (vs `users.professional_id`) y, en última instancia, por nombre normalizado.
+- El frontend (`usuarios.tsx`) muestra esas métricas por tarjeta y un resumen general arriba (activos este mes / con pacientes / con sesiones / sin actividad), visible solo si hay datos reales. No muestra "0" falsos.
+
+### Fase 2 (pendiente — requiere aprobación, cambios de BD/login)
+- **Pacientes creados**: agregar columna `created_by` en `patients` (hoy no existe forma de distinguir "creados" de "asignados").
+- **Último acceso real**: agregar columna `last_login` en `users` y escribir el timestamp en el login (toca el flujo de autenticación).
+- **Uso de IA**: no solicitado por ahora; las rutas `ai-informe.ts` / `ai-objetivos.ts` no persisten uso.

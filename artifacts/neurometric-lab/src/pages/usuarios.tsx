@@ -4,7 +4,7 @@ import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
   History, UserCircle, ClipboardList, Trash2, RotateCcw,
-  CalendarDays, Activity, Sparkles, Search,
+  CalendarDays, Activity, Search,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,14 @@ const SPECIALTIES = [
   "Otro",
 ];
 
+type UserStats = {
+  pacientesAsignados: number;
+  sesionesRegistradas: number;
+  pacientesConSesion: number;
+  sesionesEsteMes: number;
+  ultimaActividad: string | null;
+};
+
 type AppUser = {
   id: number;
   email: string;
@@ -33,6 +41,15 @@ type AppUser = {
   specialty: string | null;
   active: boolean;
   createdAt: string;
+  stats?: UserStats;
+};
+
+const EMPTY_STATS: UserStats = {
+  pacientesAsignados: 0,
+  sesionesRegistradas: 0,
+  pacientesConSesion: 0,
+  sesionesEsteMes: 0,
+  ultimaActividad: null,
 };
 
 function normalizeText(s: string | null | undefined) {
@@ -65,7 +82,6 @@ export default function Usuarios() {
   const { user: currentUser } = useAuth();
 
   const [users, setUsers]       = useState<AppUser[]>([]);
-  const [registros, setRegistros] = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -89,13 +105,9 @@ export default function Usuarios() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [uRes, rRes] = await Promise.all([
-        fetch(`${API_BASE}/api/users`, { credentials: "include" }),
-        fetch(`${API_BASE}/api/registros-clinicos`, { credentials: "include" }),
-      ]);
+      const uRes = await fetch(`${API_BASE}/api/users`, { credentials: "include" });
       if (uRes.ok) setUsers(await uRes.json());
       else toast({ title: "Error al cargar usuarios", variant: "destructive" });
-      if (rRes.ok) setRegistros(await rRes.json());
     } catch {
       toast({ title: "Error de conexión", variant: "destructive" });
     } finally {
@@ -105,24 +117,26 @@ export default function Usuarios() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // ── Per-user stats ─────────────────────────────────────────────────────────
-  const statsByUser = useMemo(() => {
-    const map: Record<number, { sessions: number; patients: number }> = {};
-    for (const r of registros) {
-      if (!r.userId) continue;
-      if (!map[r.userId]) map[r.userId] = { sessions: 0, patients: new Set<number>() as any };
-      map[r.userId].sessions++;
-      (map[r.userId].patients as unknown as Set<number>).add(r.patientId);
+  // ── Resumen general de uso (solo se muestra si hay datos reales) ────────────
+  const summary = useMemo(() => {
+    let activosEsteMes = 0;
+    let conPacientes = 0;
+    let conSesiones = 0;
+    let sinActividad = 0;
+    let totalSesiones = 0;
+    for (const u of users) {
+      const s = u.stats ?? EMPTY_STATS;
+      totalSesiones += s.sesionesRegistradas;
+      if (s.sesionesEsteMes > 0) activosEsteMes++;
+      if (s.pacientesAsignados > 0) conPacientes++;
+      if (s.sesionesRegistradas > 0) conSesiones++;
+      if (s.pacientesAsignados === 0 && s.sesionesRegistradas === 0) sinActividad++;
     }
-    const result: Record<number, { sessions: number; patients: number }> = {};
-    for (const [uid, v] of Object.entries(map)) {
-      result[Number(uid)] = {
-        sessions: v.sessions,
-        patients: (v.patients as unknown as Set<number>).size,
-      };
-    }
-    return result;
-  }, [registros]);
+    const hayDatos = users.some(
+      u => (u.stats?.pacientesAsignados ?? 0) > 0 || (u.stats?.sesionesRegistradas ?? 0) > 0,
+    );
+    return { activosEsteMes, conPacientes, conSesiones, sinActividad, totalSesiones, hayDatos };
+  }, [users]);
 
   // ── Create user ────────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -278,6 +292,36 @@ export default function Usuarios() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="usuarios" className="mt-5 space-y-4">
 
+            {/* ── Resumen general de uso (solo si hay datos reales) ── */}
+            {!loading && summary.hayDatos && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3.5 w-3.5 text-primary" /> Activos este mes
+                  </div>
+                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.activosEsteMes}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Users className="h-3.5 w-3.5 text-primary" /> Con pacientes
+                  </div>
+                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conPacientes}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ClipboardList className="h-3.5 w-3.5 text-primary" /> Con sesiones
+                  </div>
+                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conSesiones}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin actividad
+                  </div>
+                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.sinActividad}</p>
+                </div>
+              </div>
+            )}
+
             {/* Action bar */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-xs text-muted-foreground">
@@ -383,7 +427,8 @@ export default function Usuarios() {
             ) : (
               <div className="space-y-3">
                 {filteredUsers.map(u => {
-                  const stats  = statsByUser[u.id] ?? { sessions: 0, patients: 0 };
+                  const stats  = u.stats ?? EMPTY_STATS;
+                  const sinActividad = stats.pacientesAsignados === 0 && stats.sesionesRegistradas === 0;
                   const isEditing   = editingId === u.id;
                   const isResetting = resettingId === u.id;
 
@@ -458,23 +503,34 @@ export default function Usuarios() {
 
                           {/* Stats strip */}
                           <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-5 flex-wrap">
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Users className="h-3 w-3 text-muted-foreground/60" />
-                              <span className="font-semibold text-foreground">{stats.patients}</span> pacientes
-                            </span>
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <ClipboardList className="h-3 w-3 text-muted-foreground/60" />
-                              <span className="font-semibold text-foreground">{stats.sessions}</span> sesiones
-                            </span>
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Sparkles className="h-3 w-3 text-muted-foreground/60" />
-                              <span className="font-semibold text-foreground">–</span> IA
-                            </span>
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Activity className="h-3 w-3 text-muted-foreground/60" />
-                              <span className="text-muted-foreground/60">Último acceso:</span>
-                              <span className="text-muted-foreground italic">Sin acceso registrado</span>
-                            </span>
+                            {sinActividad ? (
+                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70 italic">
+                                <Activity className="h-3 w-3 text-muted-foreground/50" />
+                                Sin actividad registrada
+                              </span>
+                            ) : (
+                              <>
+                                {stats.pacientesAsignados > 0 && (
+                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Users className="h-3 w-3 text-muted-foreground/60" />
+                                    <span className="font-semibold text-foreground">{stats.pacientesAsignados}</span> paciente{stats.pacientesAsignados !== 1 ? "s" : ""} asignado{stats.pacientesAsignados !== 1 ? "s" : ""}
+                                  </span>
+                                )}
+                                {stats.sesionesRegistradas > 0 && (
+                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <ClipboardList className="h-3 w-3 text-muted-foreground/60" />
+                                    <span className="font-semibold text-foreground">{stats.sesionesRegistradas}</span> sesión{stats.sesionesRegistradas !== 1 ? "es" : ""} registrada{stats.sesionesRegistradas !== 1 ? "s" : ""}
+                                  </span>
+                                )}
+                                {stats.ultimaActividad && (
+                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Activity className="h-3 w-3 text-muted-foreground/60" />
+                                    <span className="text-muted-foreground/60">Última actividad:</span>
+                                    <span className="text-foreground">{formatDate(stats.ultimaActividad)}</span>
+                                  </span>
+                                )}
+                              </>
+                            )}
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
                               <CalendarDays className="h-3 w-3 text-muted-foreground/60" />
                               Miembro desde {formatDate(u.createdAt)}
@@ -582,7 +638,7 @@ export default function Usuarios() {
                   [...users]
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map(u => {
-                      const stats = statsByUser[u.id] ?? { sessions: 0, patients: 0 };
+                      const stats = u.stats ?? EMPTY_STATS;
                       return (
                         <div key={u.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
                           <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
@@ -600,11 +656,13 @@ export default function Usuarios() {
                           </div>
                           <div className="flex items-center gap-4 shrink-0 text-right">
                             <span className="text-xs text-muted-foreground hidden sm:block">
-                              <span className="font-semibold text-foreground">{stats.patients}</span> pac · <span className="font-semibold text-foreground">{stats.sessions}</span> ses
+                              <span className="font-semibold text-foreground">{stats.pacientesAsignados}</span> pac · <span className="font-semibold text-foreground">{stats.sesionesRegistradas}</span> ses
                             </span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1 hidden md:flex" title="Último acceso">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 hidden md:flex" title="Última actividad registrada">
                               <Activity className="h-3 w-3" />
-                              <span className="italic">Sin acceso registrado</span>
+                              {stats.ultimaActividad
+                                ? <span>{formatDate(stats.ultimaActividad)}</span>
+                                : <span className="italic">Sin actividad</span>}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <CalendarDays className="h-3 w-3" /> {formatDate(u.createdAt)}
@@ -670,7 +728,7 @@ export default function Usuarios() {
                         <p className="text-[10px] text-emerald-600 mt-0.5">Activos</p>
                       </div>
                       <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
-                        <p className="text-2xl font-bold text-muted-foreground">{registros.length}</p>
+                        <p className="text-2xl font-bold text-muted-foreground">{summary.totalSesiones}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">Sesiones total</p>
                       </div>
                     </div>

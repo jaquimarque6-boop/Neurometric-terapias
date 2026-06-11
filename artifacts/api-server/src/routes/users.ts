@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, patientsTable, registrosClinicosTable } from "@workspace/db/schema";
 import { eq, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -12,6 +12,15 @@ function requireAdmin(req: any, res: any): boolean {
     return false;
   }
   return true;
+}
+
+function normalizeName(s: string | null | undefined): string {
+  return (s ?? "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function userToJson(u: typeof usersTable.$inferSelect) {
@@ -26,16 +35,113 @@ function userToJson(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /api/users — list all users (admin only)
+// GET /api/users — list all users (admin only).
+// Each user is enriched with real usage stats computed from existing tables
+// (no schema changes): assigned patients (patients.assigned_professional_id) and
+// clinical-record activity (registros_clinicos). Records with a null user_id are
+// recovered via a professionalId / professionalName fallback so legacy rows still count.
 router.get("/users", async (req, res) => {
   const sessionUserId = req.session?.userId;
   const sessionRole   = req.session?.userRole;
   console.log(`[GET /api/users] sessionUserId=${sessionUserId} role=${sessionRole}`);
   if (!sessionUserId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
+
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
+
+  const [patients, registros] = await Promise.all([
+    db
+      .select({
+        assignedProfessionalId: patientsTable.assignedProfessionalId,
+        archived: patientsTable.archived,
+      })
+      .from(patientsTable),
+    db
+      .select({
+        patientId: registrosClinicosTable.patientId,
+        userId: registrosClinicosTable.userId,
+        professionalId: registrosClinicosTable.professionalId,
+        professionalName: registrosClinicosTable.professionalName,
+        createdAt: registrosClinicosTable.createdAt,
+      })
+      .from(registrosClinicosTable),
+  ]);
+
+  // Lookup maps to recover records whose user_id is null.
+  const userByProfId = new Map<number, number>();
+  const userByName = new Map<string, number>();
+  for (const u of users) {
+    if (u.professionalId != null) userByProfId.set(u.professionalId, u.id);
+    const n = normalizeName(u.name);
+    if (n && !userByName.has(n)) userByName.set(n, u.id);
+  }
+
+  const attribute = (r: (typeof registros)[number]): number | null => {
+    if (r.userId != null) return r.userId;
+    if (r.professionalId != null && userByProfId.has(r.professionalId)) {
+      return userByProfId.get(r.professionalId)!;
+    }
+    const n = normalizeName(r.professionalName);
+    if (n && userByName.has(n)) return userByName.get(n)!;
+    return null;
+  };
+
+  type Stat = {
+    pacientesAsignados: number;
+    sesionesRegistradas: number;
+    pacientesConSesion: Set<number>;
+    sesionesEsteMes: number;
+    ultimaActividad: Date | null;
+  };
+  const stats = new Map<number, Stat>();
+  for (const u of users) {
+    stats.set(u.id, {
+      pacientesAsignados: 0,
+      sesionesRegistradas: 0,
+      pacientesConSesion: new Set<number>(),
+      sesionesEsteMes: 0,
+      ultimaActividad: null,
+    });
+  }
+
+  for (const p of patients) {
+    if (p.archived) continue;
+    if (p.assignedProfessionalId == null) continue;
+    const s = stats.get(p.assignedProfessionalId);
+    if (s) s.pacientesAsignados++;
+  }
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  for (const r of registros) {
+    const uid = attribute(r);
+    if (uid == null) continue;
+    const s = stats.get(uid);
+    if (!s) continue;
+    s.sesionesRegistradas++;
+    s.pacientesConSesion.add(r.patientId);
+    if (r.createdAt && r.createdAt >= monthStart) s.sesionesEsteMes++;
+    if (r.createdAt && (!s.ultimaActividad || r.createdAt > s.ultimaActividad)) {
+      s.ultimaActividad = r.createdAt;
+    }
+  }
+
   console.log(`[GET /api/users] returning ${users.length} users`);
-  return res.json(users.map(userToJson));
+  return res.json(
+    users.map((u) => {
+      const s = stats.get(u.id)!;
+      return {
+        ...userToJson(u),
+        stats: {
+          pacientesAsignados: s.pacientesAsignados,
+          sesionesRegistradas: s.sesionesRegistradas,
+          pacientesConSesion: s.pacientesConSesion.size,
+          sesionesEsteMes: s.sesionesEsteMes,
+          ultimaActividad: s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
+        },
+      };
+    })
+  );
 });
 
 // GET /api/users/professionals — list active professionals for selectors
