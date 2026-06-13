@@ -62,6 +62,7 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 ### Pagos: período vs fecha de ingreso
 - The `pagos` table already separates two distinct fields (no schema change): `mes` ("YYYY-MM", the **period the payment covers** — "mes abonado") and `fecha` ("YYYY-MM-DD", the **real date the money was received** — "fecha de ingreso").
 - `agenda-pagos.tsx` table/form labels make this distinction explicit ("Mes abonado" vs "Fecha de ingreso", with helper text).
+- `agenda-pagos.tsx` has a "Filtrar por" selector (mes abonado vs fecha de ingreso). The API only filters by `mes`/`tipo`/`patientId`, so the period filter is applied **client-side**: the list is fetched by `tipo` only, then `pagosFiltrados` filters by month using either `pago.mes` (mes abonado) or `pago.fecha.slice(0,7)` (fecha de ingreso). Summary cards + table use `pagosFiltrados`.
 - `patient-profile.tsx` has a read-only "Pagos" tab listing that patient's payment history via raw `useQuery` to `/api/pagos?patientId=` (query key `["pagos","patient",patientId]`, `refetchOnMount: "always"`), showing mes abonado, monto (CLP), tipo, fecha de ingreso, and a total.
 
 ## External Dependencies

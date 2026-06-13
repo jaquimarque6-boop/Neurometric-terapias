@@ -95,6 +95,8 @@ export default function RegistroPagos() {
 
   const [filterMes, setFilterMes] = useState<string>(getCurrentMes());
   const [filterTipo, setFilterTipo] = useState<string>("todos");
+  // "mes" = filtrar por mes abonado (campo mes) · "fecha" = filtrar por fecha de ingreso (campo fecha)
+  const [filterCriterio, setFilterCriterio] = useState<"mes" | "fecha">("mes");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Pago | null>(null);
@@ -114,16 +116,27 @@ export default function RegistroPagos() {
   });
 
   const { data: pagos = [], isLoading } = useQuery<Pago[]>({
-    queryKey: ["pagos", filterMes, filterTipo],
+    queryKey: ["pagos", filterTipo],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filterMes && filterMes !== "todos") params.set("mes", filterMes);
       if (filterTipo !== "todos") params.set("tipo", filterTipo);
       const r = await fetch(`${API_BASE}/api/pagos?${params}`, { credentials: "include" });
       if (!r.ok) throw new Error("Error");
       return r.json();
     },
   });
+
+  // El período (mes seleccionado) se aplica en el cliente según el criterio elegido:
+  // - "mes abonado" → compara contra el campo `mes` ("YYYY-MM")
+  // - "fecha de ingreso" → compara contra el mes del campo `fecha` ("YYYY-MM-DD")
+  const pagosFiltrados = useMemo(() => {
+    if (!filterMes || filterMes === "todos") return pagos;
+    return pagos.filter(p =>
+      filterCriterio === "fecha"
+        ? (p.fecha ?? "").slice(0, 7) === filterMes
+        : p.mes === filterMes
+    );
+  }, [pagos, filterMes, filterCriterio]);
 
   // Instantly update the query cache for all active "pagos" queries,
   // then refetch in background to stay in sync with the server.
@@ -246,9 +259,9 @@ export default function RegistroPagos() {
     }
   }
 
-  const totalCobrado = pagos.reduce((acc, p) => acc + parseFloat(p.monto), 0);
-  const countParticular = pagos.filter(p => p.tipo === "particular").length;
-  const countObraSocial = pagos.filter(p => p.tipo === "obra_social").length;
+  const totalCobrado = pagosFiltrados.reduce((acc, p) => acc + parseFloat(p.monto), 0);
+  const countParticular = pagosFiltrados.filter(p => p.tipo === "particular").length;
+  const countObraSocial = pagosFiltrados.filter(p => p.tipo === "obra_social").length;
 
   return (
     <AppLayout>
@@ -261,7 +274,10 @@ export default function RegistroPagos() {
               Registro de Pagos
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {filterMes && filterMes !== "todos" ? mesLabel(filterMes) : "Todos los meses"} · Cobros registrados por paciente
+              {filterMes && filterMes !== "todos" ? mesLabel(filterMes) : "Todos los meses"}
+              {" · "}
+              {filterCriterio === "fecha" ? "por fecha de ingreso" : "por mes abonado"}
+              {" · Cobros registrados por paciente"}
             </p>
           </div>
           <Button onClick={openCreate} className="gap-2 bg-primary hover:bg-primary/90">
@@ -279,7 +295,7 @@ export default function RegistroPagos() {
             <div>
               <p className="text-xs text-muted-foreground">Total cobrado</p>
               <p className="font-bold text-lg text-foreground leading-tight">{formatMonto(totalCobrado)}</p>
-              <p className="text-xs text-muted-foreground">{pagos.length} registro{pagos.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">{pagosFiltrados.length} registro{pagosFiltrados.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
           <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
@@ -289,7 +305,7 @@ export default function RegistroPagos() {
             <div>
               <p className="text-xs text-muted-foreground">Particular</p>
               <p className="font-bold text-lg text-foreground leading-tight">
-                {formatMonto(pagos.filter(p => p.tipo === "particular").reduce((a, p) => a + parseFloat(p.monto), 0))}
+                {formatMonto(pagosFiltrados.filter(p => p.tipo === "particular").reduce((a, p) => a + parseFloat(p.monto), 0))}
               </p>
               <p className="text-xs text-muted-foreground">{countParticular} pago{countParticular !== 1 ? "s" : ""}</p>
             </div>
@@ -301,7 +317,7 @@ export default function RegistroPagos() {
             <div>
               <p className="text-xs text-muted-foreground">Obra social</p>
               <p className="font-bold text-lg text-foreground leading-tight">
-                {formatMonto(pagos.filter(p => p.tipo === "obra_social").reduce((a, p) => a + parseFloat(p.monto), 0))}
+                {formatMonto(pagosFiltrados.filter(p => p.tipo === "obra_social").reduce((a, p) => a + parseFloat(p.monto), 0))}
               </p>
               <p className="text-xs text-muted-foreground">{countObraSocial} pago{countObraSocial !== 1 ? "s" : ""}</p>
             </div>
@@ -310,6 +326,16 @@ export default function RegistroPagos() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
+          <Select value={filterCriterio} onValueChange={(v) => setFilterCriterio(v as "mes" | "fecha")}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder="Filtrar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mes">Filtrar por mes abonado</SelectItem>
+              <SelectItem value="fecha">Filtrar por fecha de ingreso</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={filterMes} onValueChange={setFilterMes}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Mes" />
@@ -351,12 +377,14 @@ export default function RegistroPagos() {
             <div className="p-6 space-y-3">
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
             </div>
-          ) : pagos.length === 0 ? (
+          ) : pagosFiltrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
               <Wallet className="h-12 w-12 text-muted-foreground/30 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">Sin cobros registrados</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Usá el botón "Registrar pago" para ingresar un cobro realizado.
+                {filterMes && filterMes !== "todos"
+                  ? `No hay pagos ${filterCriterio === "fecha" ? "ingresados" : "correspondientes"} a ${mesLabel(filterMes)}.`
+                  : 'Usá el botón "Registrar pago" para ingresar un cobro realizado.'}
               </p>
             </div>
           ) : (
@@ -372,7 +400,7 @@ export default function RegistroPagos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pagos.map(pago => (
+                {pagosFiltrados.map(pago => (
                   <TableRow key={pago.id} className="hover:bg-muted/20 transition-colors">
                     <TableCell className="font-medium">{pago.patientName}</TableCell>
                     <TableCell className="font-mono font-semibold text-foreground">
