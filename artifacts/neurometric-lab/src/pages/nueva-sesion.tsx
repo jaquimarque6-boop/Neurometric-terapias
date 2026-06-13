@@ -722,6 +722,135 @@ const BLOQUES_PSICOPED: BloqueSesion[] = [
   },
 ];
 
+const BLOQUES_TO: BloqueSesion[] = [
+  {
+    area: "integración sensorial",
+    label: "Integración sensorial",
+    bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Tolera distintas texturas en manos y boca", "Se calma con input propioceptivo (contención, presión)", "Responde de forma organizada a sonidos cotidianos", "Acepta cambios de posición y movimiento suave"],
+      "3-5":   ["Tolera actividades de higiene (lavado, corte de uñas, peinado)", "Participa en juegos con distintas texturas sin evitación", "Regula su nivel de alerta con apoyo del adulto", "Tolera ambientes con ruido o movimiento moderado"],
+      "6-8":   ["Modula respuestas ante estímulos táctiles y auditivos", "Mantiene la atención pese a distractores sensoriales del aula", "Identifica qué estímulos lo desorganizan", "Usa estrategias sensoriales simples para regularse"],
+      "9-12":  ["Anticipa y evita situaciones de sobrecarga sensorial", "Aplica estrategias de autorregulación de forma autónoma", "Tolera entornos sensoriales variados (recreos, eventos)", "Reconoce y comunica sus necesidades sensoriales"],
+      "13-16": ["Gestiona su entorno para optimizar el desempeño (luz, ruido)", "Selecciona estrategias sensoriales según la demanda", "Participa en actividades grupales sin desorganizarse", "Generaliza la autorregulación a contextos nuevos"],
+      "17-20": ["Autogestiona necesidades sensoriales en estudio y trabajo", "Adapta el ambiente de forma anticipada y autónoma", "Mantiene desempeño en contextos sensorialmente exigentes", "Integra estrategias sensoriales a su rutina sin apoyo"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Favorecer la modulación sensorial y la organización del nivel de alerta",
+      "3-5":   "Trabajar tolerancia táctil y participación en rutinas de higiene",
+      "6-8":   "Desarrollar modulación y estrategias sensoriales en el aula",
+      "9-12":  "Promover autorregulación sensorial autónoma y anticipación",
+      "13-16": "Trabajar adaptación del entorno y generalización de estrategias",
+      "17-20": "Consolidar la autogestión sensorial en estudio y trabajo",
+    },
+  },
+  {
+    area: "motricidad fina",
+    label: "Motricidad fina",
+    bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Agarra y suelta objetos voluntariamente", "Realiza pinza inferior y superior", "Pasa objetos de una mano a otra", "Encaja y apila piezas grandes"],
+      "3-5":   ["Realiza pinza fina para objetos pequeños", "Enhebra cuentas grandes y ensarta", "Usa tijera para cortes simples", "Manipula plastilina con ambas manos coordinadas"],
+      "6-8":   ["Recorta siguiendo líneas curvas y figuras", "Abotona, abrocha y sube cierres", "Usa el lápiz con prensión madura", "Coordina ambas manos en tareas bimanuales"],
+      "9-12":  ["Realiza tareas manuales de precisión (manualidades, regla)", "Manipula herramientas con destreza (compás, sacapuntas)", "Sostiene un ritmo y presión adecuados al escribir", "Resuelve tareas de motricidad fina con velocidad funcional"],
+      "13-16": ["Ejecuta tareas finas complejas con eficiencia", "Maneja instrumentos específicos (laboratorio, taller)", "Coordina velocidad y precisión en tareas escolares", "Adapta el agarre a distintas herramientas"],
+      "17-20": ["Destreza manual funcional para estudio y trabajo", "Maneja herramientas técnicas con precisión y eficiencia", "Sostiene tareas finas prolongadas sin fatiga", "Adapta su motricidad fina a demandas laborales"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular prensión, manipulación y coordinación de ambas manos",
+      "3-5":   "Trabajar pinza fina, uso de tijera y manipulación de objetos pequeños",
+      "6-8":   "Desarrollar prensión del lápiz, recorte y tareas bimanuales",
+      "9-12":  "Trabajar precisión, velocidad y uso de herramientas",
+      "13-16": "Consolidar destreza fina en tareas complejas y específicas",
+      "17-20": "Optimizar destreza manual para demandas académicas y laborales",
+    },
+  },
+  {
+    area: "motricidad gruesa",
+    label: "Motricidad gruesa",
+    bg: "bg-lime-50", border: "border-lime-200", text: "text-lime-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Controla la cabeza y el tronco al sentarse", "Gatea y se desplaza con intención", "Se pone de pie con apoyo", "Camina con base de sustentación amplia"],
+      "3-5":   ["Corre, salta con dos pies y trepa", "Sube y baja escaleras alternando pies", "Patea y lanza una pelota con dirección", "Mantiene el equilibrio en un pie por segundos"],
+      "6-8":   ["Salta en un pie y salta a la cuerda", "Coordina brazos y piernas en juegos motores", "Mantiene equilibrio dinámico (bicicleta, vereda)", "Controla la fuerza al empujar, tirar y cargar"],
+      "9-12":  ["Participa en deportes con reglas y coordinación grupal", "Coordina secuencias motoras complejas", "Ajusta postura y equilibrio a terrenos variados", "Sostiene resistencia física en actividad prolongada"],
+      "13-16": ["Ejecuta patrones motores deportivos con eficiencia", "Coordina fuerza, velocidad y precisión", "Mantiene postura funcional durante la jornada", "Adapta el movimiento a demandas cambiantes"],
+      "17-20": ["Desempeño motor grueso funcional para vida autónoma", "Sostiene actividad física y postural sin fatiga temprana", "Coordina tareas que combinan fuerza y equilibrio", "Adapta su motricidad gruesa a contextos laborales"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Favorecer control postural, desplazamiento y marcha",
+      "3-5":   "Trabajar equilibrio, coordinación y patrones motores básicos",
+      "6-8":   "Desarrollar coordinación dinámica y control de la fuerza",
+      "9-12":  "Trabajar coordinación compleja, resistencia y juego reglado",
+      "13-16": "Consolidar patrones motores y postura funcional",
+      "17-20": "Optimizar el desempeño motor para la autonomía y el trabajo",
+    },
+  },
+  {
+    area: "coordinación visomotora",
+    label: "Coordinación visomotora",
+    bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Sigue objetos con la mirada (seguimiento visual)", "Lleva la mano al objeto que mira (alcance dirigido)", "Encaja piezas grandes mirando y ajustando", "Coordina ojo-mano para tomar y soltar"],
+      "3-5":   ["Apila, enhebra y encaja con control visual", "Copia trazos simples (líneas, círculo)", "Arma rompecabezas de pocas piezas", "Lanza y recibe una pelota grande"],
+      "6-8":   ["Copia formas y figuras geométricas", "Colorea respetando límites", "Coordina ojo-mano en juegos de puntería", "Sigue líneas y laberintos con precisión"],
+      "9-12":  ["Reproduce figuras complejas y diagramas", "Coordina lectura-escritura con seguimiento visual fluido", "Realiza copia de pizarra eficiente", "Ajusta la mano según la información visual en tiempo real"],
+      "13-16": ["Coordina tareas visomotoras complejas (gráficos, planos)", "Mantiene precisión visomotora bajo presión de tiempo", "Integra información visual y motora en deportes", "Resuelve tareas de construcción y diseño"],
+      "17-20": ["Desempeño visomotor funcional para estudio y trabajo", "Coordina tareas técnicas con alta precisión visual", "Sostiene rendimiento visomotor prolongado", "Adapta la coordinación a herramientas y pantallas"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular seguimiento visual y coordinación ojo-mano temprana",
+      "3-5":   "Trabajar encaje, copia de trazos y puntería básica",
+      "6-8":   "Desarrollar copia de figuras y precisión visomotora",
+      "9-12":  "Trabajar copia de pizarra y coordinación lectoescritora",
+      "13-16": "Consolidar coordinación visomotora compleja",
+      "17-20": "Optimizar el desempeño visomotor para tareas técnicas",
+    },
+  },
+  {
+    area: "actividades de la vida diaria",
+    label: "Autonomía y AVD",
+    bg: "bg-fuchsia-50", border: "border-fuchsia-200", text: "text-fuchsia-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Colabora al vestirse (estira brazos/piernas)", "Sostiene y lleva alimentos a la boca", "Bebe de vaso con apoyo", "Tolera rutinas de higiene básicas"],
+      "3-5":   ["Se viste y desviste con prendas simples", "Usa cubiertos de forma funcional", "Avanza en control de esfínteres y aseo", "Colabora en el lavado de manos y dientes"],
+      "6-8":   ["Se viste de forma autónoma incluyendo cierres y botones", "Realiza higiene personal con supervisión mínima", "Prepara meriendas simples", "Organiza sus útiles y pertenencias"],
+      "9-12":  ["Gestiona su higiene y arreglo personal de forma autónoma", "Colabora en tareas domésticas según su edad", "Maneja rutinas matutinas sin recordatorios constantes", "Cuida y organiza sus materiales escolares"],
+      "13-16": ["Gestiona AVD instrumentales (dinero simple, transporte guiado)", "Planifica y sostiene rutinas personales", "Colabora de forma responsable en el hogar", "Anticipa y resuelve imprevistos cotidianos"],
+      "17-20": ["Vida diaria autónoma (autocuidado, hogar, traslados)", "Gestiona AVD instrumentales (dinero, citas, transporte)", "Organiza rutinas de estudio/trabajo de forma independiente", "Resuelve problemas cotidianos con autonomía"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Favorecer participación en vestido, alimentación e higiene",
+      "3-5":   "Trabajar autonomía en vestido, uso de cubiertos y aseo",
+      "6-8":   "Desarrollar autonomía en higiene, vestido y organización",
+      "9-12":  "Promover autonomía en rutinas personales y colaboración en el hogar",
+      "13-16": "Trabajar AVD instrumentales y planificación de rutinas",
+      "17-20": "Consolidar la autonomía en la vida diaria y AVD instrumentales",
+    },
+  },
+  {
+    area: "grafomotricidad",
+    label: "Grafomotricidad",
+    bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700",
+    habilidadesPorFranja: {
+      "0-2":   ["Realiza garabateo espontáneo", "Toma el crayón con agarre palmar", "Imita trazos verticales y horizontales", "Disfruta dejar marcas con distintos materiales"],
+      "3-5":   ["Realiza trazos controlados (líneas, cruces, círculo)", "Toma el lápiz con prensión en desarrollo", "Colorea con intención dentro de áreas amplias", "Copia su nombre con apoyo"],
+      "6-8":   ["Escribe letras y números con direccionalidad correcta", "Mantiene prensión y presión adecuadas", "Respeta renglón y espaciado al escribir", "Sostiene legibilidad en textos cortos"],
+      "9-12":  ["Escribe con fluidez y legibilidad sostenida", "Mantiene velocidad de escritura funcional", "Organiza el espacio en la hoja (márgenes, columnas)", "Copia de pizarra sin perder legibilidad"],
+      "13-16": ["Sostiene escritura legible en textos extensos", "Combina velocidad y legibilidad bajo demanda", "Adapta la escritura a distintos formatos", "Reduce la fatiga al escribir tiempos prolongados"],
+      "17-20": ["Escritura funcional para estudio y trabajo", "Sostiene producción escrita extensa sin fatiga", "Alterna escritura manual y digital con eficiencia", "Adapta el grafismo a demandas académicas/laborales"],
+    },
+    focoSugeridoPorFranja: {
+      "0-2":   "Estimular el garabateo y el agarre del instrumento gráfico",
+      "3-5":   "Trabajar trazos controlados y prensión del lápiz",
+      "6-8":   "Desarrollar direccionalidad, prensión y legibilidad",
+      "9-12":  "Trabajar fluidez, velocidad y organización espacial",
+      "13-16": "Consolidar legibilidad y velocidad en textos extensos",
+      "17-20": "Optimizar la escritura funcional para estudio y trabajo",
+    },
+  },
+];
+
 const ESTADO_BADGE: Record<string, { bg: string; label: string }> = {
   "nuevo":         { bg: "bg-stone-100 text-stone-600",   label: "Nuevo"         },
   "en proceso":    { bg: "bg-amber-100 text-amber-700",   label: "En proceso"    },
@@ -765,7 +894,7 @@ export default function NuevaSesion() {
   const { user }                   = useAuth();
   const profesion                  = useMemo(() => getProfesion(user?.specialty), [user]);
   const diagnosisOptions           = useMemo(() => getDiagnosesByProfesion(profesion), [profesion]);
-  const bloquesActivos             = useMemo(() => profesion === "psicopedagogia" ? BLOQUES_PSICOPED : BLOQUES_SESION, [profesion]);
+  const bloquesActivos             = useMemo(() => profesion === "psicopedagogia" ? BLOQUES_PSICOPED : profesion === "ocupacional" ? BLOQUES_TO : BLOQUES_SESION, [profesion]);
   const bancoAreaOptions           = useMemo(() => getBancoAreas(profesion), [profesion]);
 
   // Pre-selected patient from URL query: /nueva-sesion?patientId=5

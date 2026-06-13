@@ -365,9 +365,9 @@ export default function RegistroPagos() {
                 <TableRow className="bg-muted/30">
                   <TableHead className="font-semibold">Paciente</TableHead>
                   <TableHead className="font-semibold">Monto</TableHead>
-                  <TableHead className="font-semibold">Mes</TableHead>
+                  <TableHead className="font-semibold">Mes abonado</TableHead>
                   <TableHead className="font-semibold">Tipo</TableHead>
-                  <TableHead className="font-semibold">Fecha</TableHead>
+                  <TableHead className="font-semibold">Fecha de ingreso</TableHead>
                   <TableHead className="font-semibold text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -469,12 +469,13 @@ export default function RegistroPagos() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Fecha *</Label>
+                <Label>Fecha de ingreso *</Label>
                 <Input
                   type="date"
                   value={form.fecha}
                   onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
                 />
+                <p className="text-[11px] text-muted-foreground leading-tight">Día real en que se recibió el dinero.</p>
               </div>
             </div>
 

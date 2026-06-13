@@ -1,10 +1,15 @@
 import type { DiagnosisOption } from "./diagnosis-map";
 
-export type Profesion = "fonoaudiologia" | "psicopedagogia";
+export type Profesion = "fonoaudiologia" | "psicopedagogia" | "ocupacional";
 
 export function getProfesion(specialty: string | null | undefined): Profesion {
   if (!specialty) return "fonoaudiologia";
   const s = specialty.toLowerCase();
+  if (
+    s.includes("ocupacional") ||
+    s.includes(" to ") ||
+    s === "to"
+  ) return "ocupacional";
   if (
     s.includes("psicoped") ||
     s.includes("pedagog") ||
@@ -50,8 +55,32 @@ export const DIAGNOSES_PSICOPED: DiagnosisOption[] = [
   { value: "Estrategias de aprendizaje",      label: "Dificultades en estrategias de aprendizaje" },
 ];
 
+export const DIAGNOSES_TO: DiagnosisOption[] = [
+  // Procesamiento sensorial
+  { value: "TPS",                          label: "TPS — Trastorno del Procesamiento Sensorial" },
+  { value: "Hiperreactividad sensorial",   label: "Hiperreactividad / defensividad sensorial" },
+  { value: "Hiporreactividad sensorial",   label: "Hiporreactividad / búsqueda sensorial" },
+  // Praxis y coordinación
+  { value: "TDC",                          label: "TDC — Trastorno del Desarrollo de la Coordinación" },
+  { value: "Dispraxia",                    label: "Dispraxia / dificultades práxicas" },
+  { value: "Dificultades motricidad fina", label: "Dificultades en motricidad fina" },
+  { value: "Dificultades motricidad gruesa", label: "Dificultades en motricidad gruesa" },
+  { value: "Dificultades grafomotoras",    label: "Dificultades grafomotoras" },
+  // Autonomía y desempeño ocupacional
+  { value: "Dificultades en AVD",          label: "Dificultades en actividades de la vida diaria (AVD)" },
+  { value: "Dificultades de autorregulación", label: "Dificultades de autorregulación" },
+  // Neurodesarrollo y condiciones asociadas
+  { value: "TEA",                          label: "TEA — Trastorno del Espectro Autista" },
+  { value: "TDAH",                         label: "TDAH" },
+  { value: "Retraso madurativo",           label: "Retraso madurativo / del desarrollo" },
+  { value: "Parálisis cerebral",           label: "Parálisis cerebral" },
+  { value: "Hipotonía",                    label: "Hipotonía / alteración del tono" },
+];
+
 export function getDiagnosesByProfesion(profesion: Profesion): DiagnosisOption[] {
-  return profesion === "psicopedagogia" ? DIAGNOSES_PSICOPED : DIAGNOSES_FONO;
+  if (profesion === "psicopedagogia") return DIAGNOSES_PSICOPED;
+  if (profesion === "ocupacional")    return DIAGNOSES_TO;
+  return DIAGNOSES_FONO;
 }
 
 // ── Banco de objetivos: áreas disponibles por profesión ──────────────────────
@@ -81,11 +110,25 @@ export const BANCO_AREAS_PSICOPED = [
   "estrategias de aprendizaje",
 ];
 
+export const BANCO_AREAS_TO = [
+  "integración sensorial",
+  "motricidad fina",
+  "motricidad gruesa",
+  "coordinación visomotora",
+  "actividades de la vida diaria",
+  "grafomotricidad",
+  "autorregulación",
+  "praxias",
+];
+
 export function getBancoAreas(profesion: Profesion): string[] {
-  return profesion === "psicopedagogia" ? BANCO_AREAS_PSICOPED : BANCO_AREAS_FONO;
+  if (profesion === "psicopedagogia") return BANCO_AREAS_PSICOPED;
+  if (profesion === "ocupacional")    return BANCO_AREAS_TO;
+  return BANCO_AREAS_FONO;
 }
 
 export const PROFESION_LABEL: Record<Profesion, string> = {
   fonoaudiologia: "Fonoaudiología",
   psicopedagogia: "Psicopedagogía",
+  ocupacional: "Terapia Ocupacional",
 };

@@ -52,12 +52,17 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - The "Informe" tab supports both "Técnico" (technical) and "Familia" (family) views for reports, with print-ready HTML generation for PDF export.
 
 ### Profession-aware Content Filtering
-- The utility `src/utils/profession-map.ts` derives the clinical profession from `user.specialty` string matching ("psicoped"/"pedagog"/"aprendizaje" → psicopedagogia; else fonoaudiologia).
+- The utility `src/utils/profession-map.ts` derives the clinical profession from `user.specialty` string matching ("ocupacional" → ocupacional; "psicoped"/"pedagog"/"aprendizaje" → psicopedagogia; else fonoaudiologia). Three branches: fonoaudiologia, psicopedagogia, ocupacional (Terapia Ocupacional).
 - `nueva-sesion.tsx` uses the derived profession to:
-  - Show diagnosis chips for the correct discipline (Fonoaudiología: TEL/TDL/TEA/TSH/etc.; Psicopedagogía: Dislexia/Disgrafía/Discalculia/TDAH/etc.)
-  - Show age-developmental skill blocks (BLOQUES_SESION for fono; BLOQUES_PSICOPED for psicoped — Lectura, Escritura, Cálculo, Funciones ejecutivas, Atención)
-  - Filter the banco de objetivos area dropdown to profession-relevant areas (Fono: lenguaje/habla/pragmática/MO/deglución/ET; Psicoped: lectoescritura/cognición)
+  - Show diagnosis chips for the correct discipline (Fonoaudiología: TEL/TDL/TEA/TSH/etc.; Psicopedagogía: Dislexia/Disgrafía/Discalculia/TDAH/etc.; Terapia Ocupacional: TPS/TDC/dispraxia/AVD/etc.)
+  - Show age-developmental skill blocks via a 3-way `bloquesActivos` (BLOQUES_SESION for fono; BLOQUES_PSICOPED for psicoped; BLOQUES_TO for TO — Integración sensorial, Motricidad fina/gruesa, Coordinación visomotora, AVD/autonomía, Grafomotricidad)
+  - Filter the banco de objetivos area dropdown to profession-relevant areas (Fono: lenguaje/habla/pragmática/MO/deglución/ET; Psicoped: lectoescritura/cognición; TO: integración sensorial/motricidad/visomotora/AVD/grafomotricidad/autorregulación/praxias)
 - `eval-sugerida.tsx` has evaluation guidance for psicopedagogía-specific areas: funciones ejecutivas, disgrafía, matemáticas, comprensión lectora.
+
+### Pagos: período vs fecha de ingreso
+- The `pagos` table already separates two distinct fields (no schema change): `mes` ("YYYY-MM", the **period the payment covers** — "mes abonado") and `fecha` ("YYYY-MM-DD", the **real date the money was received** — "fecha de ingreso").
+- `agenda-pagos.tsx` table/form labels make this distinction explicit ("Mes abonado" vs "Fecha de ingreso", with helper text).
+- `patient-profile.tsx` has a read-only "Pagos" tab listing that patient's payment history via raw `useQuery` to `/api/pagos?patientId=` (query key `["pagos","patient",patientId]`, `refetchOnMount: "always"`), showing mes abonado, monto (CLP), tipo, fecha de ingreso, and a total.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

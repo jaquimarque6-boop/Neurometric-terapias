@@ -14,6 +14,7 @@ import {
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
+  Wallet,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -57,10 +58,39 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
 import { API_BASE } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type Pago = {
+  id: number; patientId: number;
+  monto: string; mes: string; tipo: string;
+  nombreObraSocial?: string | null; fecha: string;
+  estado?: string | null; notas?: string | null;
+};
+const MESES_ES_PAGO: Record<string, string> = {
+  "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+  "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+  "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre",
+};
+function mesLabelPago(mes: string) {
+  if (!mes || !mes.includes("-")) return mes;
+  const [year, month] = mes.split("-");
+  return `${MESES_ES_PAGO[month] ?? month} ${year}`;
+}
+function formatMontoPago(monto: string | number) {
+  const n = typeof monto === "string" ? parseFloat(monto) : monto;
+  if (Number.isNaN(n)) return "—";
+  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
+}
+function fechaLabelPago(fecha: string) {
+  if (!fecha || !fecha.includes("-")) return fecha;
+  const [y, m, d] = fecha.split("-");
+  return `${d}/${m}/${y}`;
+}
 type RC = {
   id: number; patientId: number; patientName?: string | null;
   professionalId?: number | null; professionalName?: string | null;
@@ -1002,6 +1032,16 @@ export default function PatientProfile() {
   const { data: assignments = [] }  = useListPatientProfessionals({ patientId });
   const { data: professionals = [] } = useListProfessionals();
 
+  const { data: pagos = [], isLoading: loadingPagos } = useQuery<Pago[]>({
+    queryKey: ["pagos", "patient", patientId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/pagos?patientId=${patientId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("No se pudieron cargar los pagos");
+      return res.json();
+    },
+    refetchOnMount: "always",
+  });
+
   const updateGoal = useUpdateGoal();
   const assignGoalFromLibrary = useAssignGoalToPatient();
 
@@ -1533,6 +1573,9 @@ export default function PatientProfile() {
             <TabsTrigger value="timeline" className="rounded-lg text-sm flex items-center gap-1">
               <History className="h-3.5 w-3.5" /> Línea de Tiempo
             </TabsTrigger>
+            <TabsTrigger value="pagos" className="rounded-lg text-sm flex items-center gap-1">
+              <Wallet className="h-3.5 w-3.5" /> Pagos{pagos.length > 0 ? ` (${pagos.length})` : ""}
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Anamnesis ───────────────────────────────────────────────── */}
@@ -2062,6 +2105,72 @@ export default function PatientProfile() {
           </TabsContent>
           <TabsContent value="timeline" className="mt-6">
             <ClinicalTimeline patientId={patient.id} />
+          </TabsContent>
+          <TabsContent value="pagos" className="mt-6">
+            {(() => {
+              const sortedPagos = [...pagos].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+              const total = sortedPagos.reduce((acc, p) => {
+                const n = parseFloat(p.monto);
+                return acc + (Number.isNaN(n) ? 0 : n);
+              }, 0);
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-muted-foreground" /> Historial de pagos
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        El <span className="font-medium">mes abonado</span> es el período que cubre el pago; la{" "}
+                        <span className="font-medium">fecha de ingreso</span> es el día real en que se recibió el dinero.
+                      </p>
+                    </div>
+                    {sortedPagos.length > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Total registrado</p>
+                        <p className="text-lg font-bold text-foreground">{formatMontoPago(total)}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {loadingPagos ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">Cargando pagos…</p>
+                  ) : sortedPagos.length === 0 ? (
+                    <div className="border border-dashed border-border/60 rounded-xl py-12 text-center">
+                      <Wallet className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Este paciente aún no tiene pagos registrados.</p>
+                    </div>
+                  ) : (
+                    <div className="border border-border/50 rounded-xl overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead className="font-semibold">Mes abonado</TableHead>
+                            <TableHead className="font-semibold">Monto</TableHead>
+                            <TableHead className="font-semibold">Tipo</TableHead>
+                            <TableHead className="font-semibold">Fecha de ingreso</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedPagos.map(pago => (
+                            <TableRow key={pago.id}>
+                              <TableCell className="font-medium">{mesLabelPago(pago.mes)}</TableCell>
+                              <TableCell>{formatMontoPago(pago.monto)}</TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {pago.tipo === "obra_social"
+                                  ? `Obra social${pago.nombreObraSocial ? ` · ${pago.nombreObraSocial}` : ""}`
+                                  : "Particular"}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">{fechaLabelPago(pago.fecha)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
