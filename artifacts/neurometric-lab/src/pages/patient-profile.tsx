@@ -15,6 +15,7 @@ import {
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
   Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2,
+  Copy,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -1376,6 +1377,77 @@ export default function PatientProfile() {
   const [isSavingAn, setIsSavingAn]           = useState(false);
   const [anDirty, setAnDirty]                 = useState(false);
 
+  // ── Perfil clínico con IA ───────────────────────────────────────────────
+  type PerfilIA = {
+    motivoConsulta: string; antecedentes: string; fortalezas: string;
+    dificultades: string; areasIntervencion: string; objetivosPrioritarios: string;
+    resumenProfesional: string;
+  };
+  const PERFIL_SECCIONES: { key: keyof PerfilIA; label: string }[] = [
+    { key: "motivoConsulta",        label: "Motivo de consulta" },
+    { key: "antecedentes",          label: "Antecedentes relevantes" },
+    { key: "fortalezas",            label: "Fortalezas" },
+    { key: "dificultades",          label: "Dificultades" },
+    { key: "areasIntervencion",     label: "Áreas de intervención sugeridas" },
+    { key: "objetivosPrioritarios", label: "Objetivos prioritarios" },
+    { key: "resumenProfesional",    label: "Resumen profesional" },
+  ];
+  const [showPerfilIA, setShowPerfilIA] = useState(false);
+  const [isGenPerfil, setIsGenPerfil]   = useState(false);
+  const [perfilData, setPerfilData]     = useState<PerfilIA | null>(null);
+  const [perfilCopied, setPerfilCopied] = useState(false);
+
+  const handleGeneratePerfilIA = async () => {
+    setShowPerfilIA(true);
+    setPerfilData(null);
+    setPerfilCopied(false);
+    setIsGenPerfil(true);
+    try {
+      const resp = await fetch(`${API_BASE}/api/ai/perfil-generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        toast({ title: "Error al generar", description: (err as any).error ?? "Intenta de nuevo.", variant: "destructive" });
+        setShowPerfilIA(false);
+        return;
+      }
+      const result = await resp.json();
+      setPerfilData({
+        motivoConsulta: result.motivoConsulta ?? "",
+        antecedentes: result.antecedentes ?? "",
+        fortalezas: result.fortalezas ?? "",
+        dificultades: result.dificultades ?? "",
+        areasIntervencion: result.areasIntervencion ?? "",
+        objetivosPrioritarios: result.objetivosPrioritarios ?? "",
+        resumenProfesional: result.resumenProfesional ?? "",
+      });
+    } catch {
+      toast({ title: "Error de conexión", description: "No se pudo contactar al servidor.", variant: "destructive" });
+      setShowPerfilIA(false);
+    } finally {
+      setIsGenPerfil(false);
+    }
+  };
+
+  const handleCopyPerfil = async () => {
+    if (!perfilData) return;
+    const text = PERFIL_SECCIONES
+      .map(s => `${s.label.toUpperCase()}\n${perfilData[s.key] || "—"}`)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setPerfilCopied(true);
+      setTimeout(() => setPerfilCopied(false), 2000);
+      toast({ title: "Perfil copiado", description: "El perfil clínico se copió al portapapeles." });
+    } catch {
+      toast({ title: "No se pudo copiar", description: "Copialo manualmente desde el cuadro de texto.", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
     if (patient) {
       setAnMotivo((patient as any).motivoConsulta ?? "");
@@ -1623,17 +1695,19 @@ export default function PatientProfile() {
                     </button>
                     <button
                       onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)}
+                      title="Registro breve, sin objetivos"
                       className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-sm border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-all duration-200 hover:bg-amber-100 active:scale-[0.97]"
                     >
                       <Zap className="h-3.5 w-3.5" />
-                      Rápida
+                      Sesión rápida
                     </button>
                     <button
                       onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)}
+                      title="Sesión con objetivos, evolución y planificación"
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.97] bg-primary"
                     >
-                      <Plus className="h-4 w-4" />
-                      Nueva sesión
+                      <Target className="h-4 w-4" />
+                      Sesión completa
                     </button>
                   </>
                 )}
@@ -1893,14 +1967,14 @@ export default function PatientProfile() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => toast({
-                              title: "Perfil clínico con IA",
-                              description: "Esta función estará disponible próximamente. Complete las secciones de anamnesis para activarla.",
-                            })}
+                            onClick={handleGeneratePerfilIA}
+                            disabled={isGenPerfil}
                             className="gap-1.5 border-violet-200 text-violet-600 hover:bg-violet-50 h-8 text-xs"
                           >
-                            <Brain className="h-3.5 w-3.5" />
-                            Perfil clínico con IA
+                            {isGenPerfil
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Brain className="h-3.5 w-3.5" />}
+                            {isGenPerfil ? "Generando…" : "Perfil clínico con IA"}
                           </Button>
                           <Button
                             onClick={handleSaveAnamnesis}
@@ -2019,11 +2093,11 @@ export default function PatientProfile() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold">Registros clínicos</CardTitle>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)} className="border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 h-8 text-xs gap-1">
-                      <Zap className="h-3 w-3" /> Rápida
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/sesion-rapida?patientId=${patientId}`)} title="Registro breve, sin objetivos" className="border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 h-8 text-xs gap-1">
+                      <Zap className="h-3 w-3" /> Sesión rápida
                     </Button>
-                    <Button size="sm" onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)} className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Nueva sesión
+                    <Button size="sm" onClick={() => navigate(`/nueva-sesion?patientId=${patientId}`)} title="Sesión con objetivos, evolución y planificación" className="bg-primary hover:bg-primary/90 text-white h-8 text-xs">
+                      <Target className="h-3.5 w-3.5 mr-1" /> Sesión completa
                     </Button>
                   </div>
                 </div>
@@ -2617,6 +2691,54 @@ export default function PatientProfile() {
           patientName={patient?.name ?? ""}
         />
       )}
+
+      {/* Perfil clínico con IA dialog */}
+      <Dialog open={showPerfilIA} onOpenChange={(o) => { if (!o && !isGenPerfil) setShowPerfilIA(false); }}>
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-violet-600" />
+              Perfil clínico con IA
+            </DialogTitle>
+            <DialogDescription>
+              Síntesis generada a partir de la anamnesis, los objetivos y las sesiones registradas. Podés editar cada sección antes de copiarla.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isGenPerfil && (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+              <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+              <p className="text-sm">Generando el perfil clínico…</p>
+            </div>
+          )}
+
+          {!isGenPerfil && perfilData && (
+            <div className="space-y-4">
+              {PERFIL_SECCIONES.map(s => (
+                <div key={s.key} className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {s.label}
+                  </label>
+                  <Textarea
+                    value={perfilData[s.key]}
+                    onChange={(e) => setPerfilData(prev => prev ? { ...prev, [s.key]: e.target.value } : prev)}
+                    className="min-h-[80px] text-sm leading-relaxed"
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-end gap-2 pt-1 sticky bottom-0 bg-background pb-1">
+                <Button variant="outline" size="sm" onClick={() => setShowPerfilIA(false)}>
+                  Cerrar
+                </Button>
+                <Button size="sm" onClick={handleCopyPerfil} className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700">
+                  {perfilCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {perfilCopied ? "Copiado" : "Copiar todo"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Progress tracking dialog */}
       {progressGoal && (

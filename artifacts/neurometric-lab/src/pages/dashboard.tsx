@@ -161,14 +161,14 @@ export default function Dashboard() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[1.05rem] font-bold text-foreground leading-snug">Sesión rápida</p>
+              <p className="text-[1.05rem] font-bold text-foreground leading-snug">⚡ Sesión rápida</p>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full
                                bg-primary/8 text-primary border border-primary/15 leading-none">
                 Uso diario
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-snug">
-              Registra sin seleccionar objetivos — ágil y directo
+              Registrá observaciones breves en menos de 1 minuto, sin seleccionar objetivos.
             </p>
           </div>
           <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-muted-foreground/60 shrink-0 transition-colors" />
@@ -186,11 +186,11 @@ export default function Dashboard() {
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-card border border-border/60
                             group-hover:border-border transition-colors">
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              <Target className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground/90 leading-tight">Nueva sesión</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Con objetivos</p>
+              <p className="text-sm font-semibold text-foreground/90 leading-tight">🎯 Sesión completa</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Objetivos, evolución y planificación</p>
             </div>
           </button>
 

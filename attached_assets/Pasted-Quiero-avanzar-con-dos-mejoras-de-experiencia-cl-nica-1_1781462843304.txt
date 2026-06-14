@@ -1,0 +1,90 @@
+Quiero avanzar con dos mejoras de experiencia clínica:
+
+1. Diferenciar claramente Sesión rápida de Nueva sesión.
+2. Activar el botón Perfil clínico con IA.
+
+## 1. Diferenciar sesiones
+
+Problema:
+Actualmente “Sesión rápida” y “Nueva sesión” no se entienden bien. Parecen funciones parecidas.
+
+Objetivo:
+Que una profesional entienda rápidamente cuál debe usar.
+
+Cambios pedidos:
+
+Renombrar “Nueva sesión” como:
+
+🎯 Sesión completa
+
+Mantener “Sesión rápida” como:
+
+⚡ Sesión rápida
+
+Diferenciar así:
+
+⚡ Sesión rápida
+Descripción:
+“Registrá observaciones breves en menos de 1 minuto.”
+
+Usos:
+- Registro breve
+- Observaciones rápidas
+- Sin objetivos
+- Uso diario
+
+🎯 Sesión completa
+Descripción:
+“Trabajá objetivos, evolución y planificación terapéutica.”
+
+Usos:
+- Objetivos activos
+- Logros y dificultades
+- Próximos pasos
+- Registro clínico completo
+
+Cambios visuales:
+- Que ambas tarjetas/botones tengan diferencia clara.
+- Iconos distintos.
+- Texto de ayuda breve.
+- Evitar que parezcan la misma acción.
+
+No cambiar la lógica interna de guardado si no hace falta.
+
+## 2. Activar Perfil clínico con IA
+
+Problema:
+El botón “Perfil clínico con IA” aparece, pero actualmente dice “próximamente”.
+
+Objetivo:
+Que genere un perfil clínico resumido del paciente usando la información ya cargada.
+
+Usar como fuente:
+- Datos del paciente
+- Edad
+- Diagnóstico
+- Anamnesis
+- Objetivos activos
+- Registros clínicos existentes
+- Sugerencias o informes previos si existen
+
+Resultado esperado:
+Mostrar un texto editable o copiable con estas secciones:
+
+- Motivo de consulta
+- Antecedentes relevantes
+- Fortalezas observadas
+- Dificultades principales
+- Áreas de intervención sugeridas
+- Objetivos prioritarios
+- Resumen profesional
+
+Importante:
+- No tocar documentación/archivos.
+- No tocar login.
+- No tocar permisos.
+- No tocar pagos.
+- No tocar actividades.
+- No borrar datos.
+- Si ya existe endpoint de IA reutilizable, usarlo.
+- Si requiere endpoint nuevo, explicarme antes qué archivo se modifica.

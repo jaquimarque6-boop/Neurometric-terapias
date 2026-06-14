@@ -18,6 +18,7 @@ import pagosRouter from "./pagos";
 import patientFilesRouter from "./patient-files";
 import aiInformeRouter from "./ai-informe";
 import aiObjetivosRouter from "./ai-objetivos";
+import aiPerfilRouter from "./ai-perfil";
 import exportRouter from "./export";
 
 const router: IRouter = Router();
@@ -41,6 +42,7 @@ router.use(goalGuidanceRouter);
 router.use(citasRouter);
 router.use(aiInformeRouter);
 router.use(aiObjetivosRouter);
+router.use(aiPerfilRouter);
 router.use(exportRouter);
 
 export default router;
