@@ -15,7 +15,7 @@ import {
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
   Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2,
-  Copy,
+  Copy, RefreshCw,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -1396,10 +1396,36 @@ export default function PatientProfile() {
   const [isGenPerfil, setIsGenPerfil]   = useState(false);
   const [perfilData, setPerfilData]     = useState<PerfilIA | null>(null);
   const [perfilCopied, setPerfilCopied] = useState(false);
+  const [perfilMeta, setPerfilMeta]     = useState<{ createdAt: string | null; updatedAt: string | null }>({ createdAt: null, updatedAt: null });
+  const [perfilDirty, setPerfilDirty]   = useState(false);
+  const [isSavingPerfil, setIsSavingPerfil] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
 
-  const handleGeneratePerfilIA = async () => {
-    setShowPerfilIA(true);
-    setPerfilData(null);
+  // Cargar automáticamente la última versión guardada al abrir el paciente
+  const { data: savedPerfil } = useQuery<{ perfil: PerfilIA | null; createdAt: string | null; updatedAt: string | null }>({
+    queryKey: ["perfil-ia", patientId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/ai/perfil/${patientId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("No se pudo cargar el perfil");
+      return res.json();
+    },
+    enabled: patientId > 0,
+    refetchOnMount: "always",
+  });
+
+  const fmtPerfilFecha = (iso: string | null) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("es-AR", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
+  };
+
+  // Genera (o regenera) el perfil con IA. No persiste: solo actualiza el editor.
+  const runGeneratePerfil = async () => {
     setPerfilCopied(false);
     setIsGenPerfil(true);
     try {
@@ -1412,7 +1438,7 @@ export default function PatientProfile() {
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         toast({ title: "Error al generar", description: (err as any).error ?? "Intenta de nuevo.", variant: "destructive" });
-        setShowPerfilIA(false);
+        if (!perfilData) setShowPerfilIA(false);
         return;
       }
       const result = await resp.json();
@@ -1425,11 +1451,68 @@ export default function PatientProfile() {
         objetivosPrioritarios: result.objetivosPrioritarios ?? "",
         resumenProfesional: result.resumenProfesional ?? "",
       });
+      setPerfilDirty(true);
     } catch {
       toast({ title: "Error de conexión", description: "No se pudo contactar al servidor.", variant: "destructive" });
-      setShowPerfilIA(false);
+      if (!perfilData) setShowPerfilIA(false);
     } finally {
       setIsGenPerfil(false);
+    }
+  };
+
+  // Abre el diálogo: muestra la versión guardada si existe; si no, genera una nueva.
+  const handleOpenPerfilIA = () => {
+    setShowPerfilIA(true);
+    setPerfilCopied(false);
+    if (savedPerfil?.perfil) {
+      setPerfilData(savedPerfil.perfil);
+      setPerfilMeta({ createdAt: savedPerfil.createdAt, updatedAt: savedPerfil.updatedAt });
+      setPerfilDirty(false);
+    } else {
+      setPerfilMeta({ createdAt: null, updatedAt: null });
+      setPerfilData(null);
+      void runGeneratePerfil();
+    }
+  };
+
+  // Regenerar con IA, con confirmación si ya hay contenido (para no perderlo sin aviso).
+  const handleRegeneratePerfil = () => {
+    if (perfilData) {
+      setShowRegenConfirm(true);
+    } else {
+      void runGeneratePerfil();
+    }
+  };
+
+  const confirmRegeneratePerfil = () => {
+    setShowRegenConfirm(false);
+    void runGeneratePerfil();
+  };
+
+  const handleSavePerfil = async () => {
+    if (!perfilData) return;
+    setIsSavingPerfil(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ai/perfil/${patientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ perfil: perfilData }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Error al guardar", description: (err as any).error ?? "Intenta de nuevo.", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setPerfilMeta({ createdAt: data.createdAt, updatedAt: data.updatedAt });
+      setPerfilDirty(false);
+      queryClient.invalidateQueries({ queryKey: ["perfil-ia", patientId] });
+      toast({ title: "Perfil guardado", description: "El perfil clínico quedó guardado en la ficha del paciente." });
+    } catch {
+      toast({ title: "Error de conexión", description: "No se pudo contactar al servidor.", variant: "destructive" });
+    } finally {
+      setIsSavingPerfil(false);
     }
   };
 
@@ -1967,7 +2050,7 @@ export default function PatientProfile() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleGeneratePerfilIA}
+                            onClick={handleOpenPerfilIA}
                             disabled={isGenPerfil}
                             className="gap-1.5 border-violet-200 text-violet-600 hover:bg-violet-50 h-8 text-xs"
                           >
@@ -1975,6 +2058,9 @@ export default function PatientProfile() {
                               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               : <Brain className="h-3.5 w-3.5" />}
                             {isGenPerfil ? "Generando…" : "Perfil clínico con IA"}
+                            {savedPerfil?.perfil && !isGenPerfil && (
+                              <span className="ml-1 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block" title="Hay un perfil guardado" />
+                            )}
                           </Button>
                           <Button
                             onClick={handleSaveAnamnesis}
@@ -2701,9 +2787,21 @@ export default function PatientProfile() {
               Perfil clínico con IA
             </DialogTitle>
             <DialogDescription>
-              Síntesis generada a partir de la anamnesis, los objetivos y las sesiones registradas. Podés editar cada sección antes de copiarla.
+              Síntesis generada a partir de la anamnesis, los objetivos y las sesiones registradas. Podés editar cada sección, guardarla en la ficha y volver a copiarla.
             </DialogDescription>
           </DialogHeader>
+
+          {(perfilMeta.createdAt || perfilMeta.updatedAt) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-violet-50 border border-violet-100 px-3 py-2 text-xs text-violet-700">
+              <span>Creado: <strong>{fmtPerfilFecha(perfilMeta.createdAt)}</strong></span>
+              <span>Última edición: <strong>{fmtPerfilFecha(perfilMeta.updatedAt)}</strong></span>
+              {perfilDirty && (
+                <span className="text-amber-600 font-medium flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> Cambios sin guardar
+                </span>
+              )}
+            </div>
+          )}
 
           {isGenPerfil && (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
@@ -2721,24 +2819,53 @@ export default function PatientProfile() {
                   </label>
                   <Textarea
                     value={perfilData[s.key]}
-                    onChange={(e) => setPerfilData(prev => prev ? { ...prev, [s.key]: e.target.value } : prev)}
+                    onChange={(e) => { setPerfilData(prev => prev ? { ...prev, [s.key]: e.target.value } : prev); setPerfilDirty(true); }}
                     className="min-h-[80px] text-sm leading-relaxed"
                   />
                 </div>
               ))}
-              <div className="flex items-center justify-end gap-2 pt-1 sticky bottom-0 bg-background pb-1">
-                <Button variant="outline" size="sm" onClick={() => setShowPerfilIA(false)}>
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-1 sticky bottom-0 bg-background pb-1">
+                <Button variant="ghost" size="sm" onClick={() => setShowPerfilIA(false)}>
                   Cerrar
                 </Button>
-                <Button size="sm" onClick={handleCopyPerfil} className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700">
+                <Button variant="outline" size="sm" onClick={handleRegeneratePerfil} disabled={isGenPerfil || isSavingPerfil} className="gap-1.5 border-violet-200 text-violet-600 hover:bg-violet-50">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Regenerar con IA
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleCopyPerfil} className="gap-1.5">
                   {perfilCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {perfilCopied ? "Copiado" : "Copiar todo"}
+                </Button>
+                <Button size="sm" onClick={handleSavePerfil} disabled={isSavingPerfil || !perfilDirty} className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700">
+                  {isSavingPerfil ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {isSavingPerfil ? "Guardando…" : "Guardar"}
                 </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmación de regeneración del perfil con IA */}
+      <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-violet-600" />
+              Regenerar perfil con IA
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se generará un perfil nuevo y se reemplazará el contenido del editor. La versión guardada en la ficha no se modifica hasta que presiones “Guardar”. ¿Querés continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRegeneratePerfil} className="bg-violet-600 text-white hover:bg-violet-700">
+              Regenerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Progress tracking dialog */}
       {progressGoal && (

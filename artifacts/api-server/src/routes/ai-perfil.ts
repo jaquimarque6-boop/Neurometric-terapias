@@ -69,6 +69,102 @@ function trunc(s: string | null | undefined, max = 400): string {
   return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
+// ─── Persistence: load / save the clinical profile ────────────────────────────
+
+type PerfilIA = {
+  motivoConsulta: string;
+  antecedentes: string;
+  fortalezas: string;
+  dificultades: string;
+  areasIntervencion: string;
+  objetivosPrioritarios: string;
+  resumenProfesional: string;
+};
+
+const PERFIL_KEYS: (keyof PerfilIA)[] = [
+  "motivoConsulta",
+  "antecedentes",
+  "fortalezas",
+  "dificultades",
+  "areasIntervencion",
+  "objetivosPrioritarios",
+  "resumenProfesional",
+];
+
+function normalizePerfil(input: any): PerfilIA {
+  const out = {} as PerfilIA;
+  for (const k of PERFIL_KEYS) {
+    out[k] = typeof input?.[k] === "string" ? input[k] : "";
+  }
+  return out;
+}
+
+// GET the last saved clinical profile for a patient
+router.get("/ai/perfil/:patientId", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const patientId = Number(req.params.patientId);
+  if (!patientId) return res.status(400).json({ error: "patientId inválido" });
+
+  const [patient] = await db
+    .select()
+    .from(patientsTable)
+    .where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+
+  let perfil: PerfilIA | null = null;
+  if (patient.perfilIa) {
+    try {
+      perfil = normalizePerfil(JSON.parse(patient.perfilIa));
+    } catch {
+      perfil = null;
+    }
+  }
+
+  return res.json({
+    perfil,
+    createdAt: patient.perfilIaCreatedAt ? patient.perfilIaCreatedAt.toISOString() : null,
+    updatedAt: patient.perfilIaUpdatedAt ? patient.perfilIaUpdatedAt.toISOString() : null,
+  });
+});
+
+// SAVE (create/update) the clinical profile for a patient
+router.put("/ai/perfil/:patientId", async (req, res) => {
+  const sess = getSessionUser(req);
+  if (!sess) return res.status(401).json({ error: "No autenticado" });
+
+  const patientId = Number(req.params.patientId);
+  if (!patientId) return res.status(400).json({ error: "patientId inválido" });
+
+  const perfil = normalizePerfil((req.body as any)?.perfil);
+
+  const [patient] = await db
+    .select()
+    .from(patientsTable)
+    .where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+
+  const now = new Date();
+  const createdAt = patient.perfilIaCreatedAt ?? now;
+
+  const [updated] = await db
+    .update(patientsTable)
+    .set({
+      perfilIa: JSON.stringify(perfil),
+      perfilIaCreatedAt: createdAt,
+      perfilIaUpdatedAt: now,
+    })
+    .where(eq(patientsTable.id, patientId))
+    .returning();
+
+  return res.json({
+    ok: true,
+    createdAt: updated.perfilIaCreatedAt ? updated.perfilIaCreatedAt.toISOString() : null,
+    updatedAt: updated.perfilIaUpdatedAt ? updated.perfilIaUpdatedAt.toISOString() : null,
+  });
+});
+
 // ─── Main route ───────────────────────────────────────────────────────────────
 
 router.post("/ai/perfil-generate", async (req, res) => {
