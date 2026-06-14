@@ -14,7 +14,7 @@ import {
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
-  Wallet,
+  Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -90,6 +90,35 @@ function fechaLabelPago(fecha: string) {
   if (!fecha || !fecha.includes("-")) return fecha;
   const [y, m, d] = fecha.split("-");
   return `${d}/${m}/${y}`;
+}
+type PatientFileRow = {
+  id: number; patientId: number; uploadedBy: number;
+  originalName: string; mimeType: string; sizeBytes: number;
+  storagePath: string; createdAt: string;
+  uploadedByName?: string | null;
+};
+function formatFileSize(bytes: number) {
+  if (!bytes || bytes < 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function fileTypeLabel(mime: string) {
+  const map: Record<string, string> = {
+    "application/pdf": "PDF",
+    "application/msword": "Word",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+    "application/vnd.ms-excel": "Excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+    "text/csv": "CSV",
+    "text/plain": "Texto",
+    "image/png": "Imagen",
+    "image/jpeg": "Imagen",
+    "image/webp": "Imagen",
+    "image/gif": "Imagen",
+    "image/heic": "Imagen",
+  };
+  return map[mime] ?? (mime.split("/")[1]?.toUpperCase() || "Archivo");
 }
 type RC = {
   id: number; patientId: number; patientName?: string | null;
@@ -1042,6 +1071,110 @@ export default function PatientProfile() {
     refetchOnMount: "always",
   });
 
+  const { data: patientFiles = [], isLoading: loadingFiles, refetch: refetchFiles } = useQuery<PatientFileRow[]>({
+    queryKey: ["patient-files", patientId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/files`, { credentials: "include" });
+      if (!res.ok) throw new Error("No se pudieron cargar los archivos");
+      return res.json();
+    },
+    refetchOnMount: "always",
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<PatientFileRow | null>(null);
+  const [isDeletingFile, setIsDeletingFile] = useState(false);
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "Archivo muy grande", description: "El tamaño máximo es 25 MB.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      // 1. Ask the backend for a short-lived signed upload URL.
+      const urlRes = await fetch(`${API_BASE}/api/patients/${patientId}/files/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: file.name, mimeType: file.type || "application/octet-stream", size: file.size }),
+      });
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "No se pudo preparar la subida");
+      }
+      const { uploadUrl, storagePath } = await urlRes.json();
+
+      // 2. Upload the bytes directly to Supabase Storage.
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Falló la subida del archivo");
+
+      // 3. Save the metadata row.
+      const metaRes = await fetch(`${API_BASE}/api/patients/${patientId}/files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          originalName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+          storagePath,
+        }),
+      });
+      if (!metaRes.ok) {
+        const err = await metaRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "No se pudo guardar el archivo");
+      }
+
+      await refetchFiles();
+      toast({ title: "Archivo subido", description: file.name });
+    } catch (err: any) {
+      toast({ title: "Error al subir", description: err?.message ?? "Intenta nuevamente.", variant: "destructive" });
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleDownloadFile = async (f: PatientFileRow) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/files/${f.id}/download`, { credentials: "include" });
+      if (!res.ok) throw new Error("No se pudo generar el enlace");
+      const { url } = await res.json();
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message ?? "No se pudo abrir el archivo.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!fileToDelete) return;
+    setIsDeletingFile(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${patientId}/files/${fileToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("No se pudo eliminar el archivo");
+      setFileToDelete(null);
+      await refetchFiles();
+      toast({ title: "Archivo eliminado" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message ?? "No se pudo eliminar.", variant: "destructive" });
+    } finally {
+      setIsDeletingFile(false);
+    }
+  };
+
   const updateGoal = useUpdateGoal();
   const assignGoalFromLibrary = useAssignGoalToPatient();
 
@@ -1575,6 +1708,9 @@ export default function PatientProfile() {
             </TabsTrigger>
             <TabsTrigger value="pagos" className="rounded-lg text-sm flex items-center gap-1">
               <Wallet className="h-3.5 w-3.5" /> Pagos{pagos.length > 0 ? ` (${pagos.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="documentacion" className="rounded-lg text-sm flex items-center gap-1">
+              <Paperclip className="h-3.5 w-3.5" /> Documentación{patientFiles.length > 0 ? ` (${patientFiles.length})` : ""}
             </TabsTrigger>
           </TabsList>
 
@@ -2172,6 +2308,105 @@ export default function PatientProfile() {
               );
             })()}
           </TabsContent>
+
+          {/* ── Documentación ──────────────────────────────────────────────── */}
+          <TabsContent value="documentacion" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Paperclip className="h-4 w-4 text-muted-foreground" /> Archivos del paciente
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Informes, evaluaciones, certificados, estudios e imágenes. Máximo 25 MB por archivo.
+                  </p>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*"
+                    onChange={handleFileSelected}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingFile}
+                    className="flex items-center gap-1.5"
+                  >
+                    {isUploadingFile
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Subiendo…</>
+                      : <><UploadCloud className="h-4 w-4" /> Subir archivo</>}
+                  </Button>
+                </div>
+              </div>
+
+              {loadingFiles ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">Cargando archivos…</p>
+              ) : patientFiles.length === 0 ? (
+                <div className="border border-dashed border-border/60 rounded-xl py-12 text-center">
+                  <Paperclip className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Este paciente aún no tiene archivos subidos.</p>
+                </div>
+              ) : (
+                <div className="border border-border/50 rounded-xl overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="font-semibold">Nombre</TableHead>
+                        <TableHead className="font-semibold">Tipo</TableHead>
+                        <TableHead className="font-semibold">Tamaño</TableHead>
+                        <TableHead className="font-semibold">Subido por</TableHead>
+                        <TableHead className="font-semibold">Fecha de carga</TableHead>
+                        <TableHead className="font-semibold text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {patientFiles.map(f => (
+                        <TableRow key={f.id}>
+                          <TableCell className="font-medium">
+                            <span className="flex items-center gap-2">
+                              <FileType2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="truncate max-w-[220px]" title={f.originalName}>{f.originalName}</span>
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{fileTypeLabel(f.mimeType)}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{formatFileSize(f.sizeBytes)}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{f.uploadedByName ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {f.createdAt ? format(new Date(f.createdAt), "dd/MM/yyyy HH:mm", { locale: es }) : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2"
+                                onClick={() => handleDownloadFile(f)}
+                                title="Abrir / descargar"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-destructive hover:text-destructive"
+                                onClick={() => setFileToDelete(f)}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -2449,6 +2684,31 @@ export default function PatientProfile() {
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               {isDeleting ? "Eliminando…" : "Eliminar definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete file confirmation dialog */}
+      <AlertDialog open={!!fileToDelete} onOpenChange={(v) => { if (!v && !isDeletingFile) setFileToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" />
+              Eliminar archivo
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará <strong>{fileToDelete?.originalName}</strong> de forma permanente. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingFile}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteFile(); }}
+              disabled={isDeletingFile}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeletingFile ? "Eliminando…" : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

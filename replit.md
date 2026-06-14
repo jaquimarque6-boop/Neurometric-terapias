@@ -88,3 +88,14 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - `PATCH /api/users/:id`: los administradores pueden gestionar cualquier usuario. Un no-admin solo puede editar su **propia** cuenta y solo campos no privilegiados (`name`, `email`, `specialty`, `password`); no puede cambiar `role`/`active` ni editar a otros (responde 403). Esto preserva el cambio de contraseña propia desde `/usuario`.
 - `DELETE /api/users/:id`: requiere rol admin (`requireAdmin`); se mantiene la regla de no poder auto-desactivarse.
 - Nota: el cambio de **nombre** propio se hace por `PATCH /api/auth/me`; el cambio de **contraseña** propia se hace por `PATCH /api/users/:id` con `{ password }`.
+
+## Documentación / Archivos del paciente (Supabase Storage)
+- Nueva pestaña "Documentación" en `patient-profile.tsx`: subir / listar / descargar / eliminar archivos de cada paciente. Muestra nombre, tipo, tamaño, quién subió y fecha.
+- Almacenamiento en **Supabase Storage** en un bucket **privado** (`SUPABASE_FILES_BUCKET`, por defecto `patient-files`); el navegador nunca recibe la service key, solo **URLs firmadas** de corta duración (subida y descarga firmadas, expiran en 5 min).
+- Tabla `patient_files` (sin FKs, igual que el resto del esquema): `id, patient_id, uploaded_by, original_name, mime_type, size_bytes, storage_path (UNIQUE), created_at`. La ruta de objeto es `patients/{patientId}/{uuid}-{nombreSeguro}`.
+- Backend: `lib/supabaseStorage.ts` (fetch crudo, sin SDK; lee `SUPABASE_URL`/`SUPABASE_SERVICE_KEY`/`SUPABASE_FILES_BUCKET`) y `routes/patient-files.ts` (registrada en `routes/index.ts`).
+  - Flujo de subida en 3 pasos: `POST .../files/upload-url` (valida nombre, allowlist de MIME, tamaño ≤ 25 MB → URL firmada) → el navegador hace `PUT` de los bytes a Supabase → `POST .../files` guarda la metadata (verifica que el objeto exista antes de persistir, evita filas fantasma).
+  - `GET .../files` lista con el nombre de quien subió (leftJoin a `users`). `GET .../files/:fileId/download` devuelve URL firmada.
+  - `DELETE .../files/:fileId`: borra primero el objeto y solo entonces la fila (si el almacenamiento no está configurado responde 503, para no dejar objetos huérfanos). Permitido a cualquier profesional con acceso + admin.
+- Control de acceso: todos los endpoints usan la misma regla que las rutas de pacientes (admin **o** `assigned_professional_id === sesión`); los archivos están acotados por `patientId` y `fileId` (sin IDOR). **No** toca login/permisos/actividades ni otros datos. **Sin claves hardcodeadas.**
+- Variables de entorno: `SUPABASE_URL` y `SUPABASE_FILES_BUCKET` en *shared*; `SUPABASE_SERVICE_KEY` como **secret** (service_role). En producción (Render) deben configurarse las tres.

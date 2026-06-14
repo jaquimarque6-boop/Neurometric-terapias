@@ -11,3 +11,4 @@ export * from "./users";
 export * from "./citas";
 export * from "./express-sessions";
 export * from "./pagos";
+export * from "./patient-files";
