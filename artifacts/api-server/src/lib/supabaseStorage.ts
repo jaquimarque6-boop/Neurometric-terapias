@@ -31,7 +31,13 @@ function encodePath(path: string): string {
 export async function createSignedUploadUrl(path: string): Promise<{ uploadUrl: string }> {
   const res = await fetch(
     `${SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${encodePath(path)}`,
-    { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" } },
+    {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      // Supabase rejects an empty body when Content-Type is application/json,
+      // so always send a JSON object even though no fields are required here.
+      body: JSON.stringify({}),
+    },
   );
   if (!res.ok) {
     throw new Error(`Supabase signed upload URL failed: ${res.status} ${await res.text()}`);
