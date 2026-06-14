@@ -17,3 +17,8 @@ Production for Neurometric is **three separate systems**, not the Replit deploym
 - Frontend perf/code changes reach prod automatically via the Netlify build; backend changes need a Render redeploy.
 
 **How to apply:** when the user reports a prod-only bug ("column does not exist", slowness in prod), first decide which of the three systems is responsible before recommending fixes.
+
+## Supabase Storage (patient files)
+- `SUPABASE_URL` / `SUPABASE_FILES_BUCKET` are **shared** env vars and `SUPABASE_SERVICE_KEY` is a secret, so dev and prod hit the **same Supabase Storage project**. Creating the private bucket once (done: `patient-files`, private, 25MB limit) serves both environments — no per-env bucket needed.
+- BUT the `patient_files` **table** still follows the topology above: `db push` only touches the dev/Replit DB; the same idempotent CREATE TABLE SQL must be run by the user on the Render/prod Postgres. Storage bucket ≠ DB table; don't conflate them.
+- Storage REST (raw fetch, no SDK) requires the **`service_role`** JWT (`"role":"service_role"` claim). The `anon` key hits `new row violates row-level security policy`; a Postgres connection string isn't a JWT at all. Endpoint shapes: upload sign returns `{url}` (PUT bytes to `/storage/v1{url}`), download sign returns `{signedURL}`, existence check = GET object with `Range: bytes=0-0`.
