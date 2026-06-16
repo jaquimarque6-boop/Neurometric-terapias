@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,19 @@ export default function RegistroPagos() {
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Pago | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Acceso directo desde la agenda: /agenda-pagos?patientId=5&nuevo=1 preselecciona
+  // el paciente y abre el formulario de registro de pago.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pid = params.get("patientId");
+    if (params.get("nuevo") === "1" && pid) {
+      setEditTarget(null);
+      setForm({ ...emptyForm, patientId: pid });
+      setDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const mesOptions = useMemo(() => generateMesOptions(), []);
 

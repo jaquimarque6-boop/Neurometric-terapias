@@ -15,7 +15,9 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
   Repeat, X, Pencil, AlertCircle, CalendarDays, Search, User,
+  CheckCircle2, XCircle, CalendarClock, Zap, FileText, Receipt,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useListPatients } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
@@ -39,6 +41,18 @@ const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
 };
 
+// Colores por estado de asistencia — usados para colorear las citas en la vista
+// semanal. Pendiente = neutro, Asistió = verde, Ausente = rojo, Reprogramada = ámbar.
+const ASISTENCIA_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  pendiente:    { bg: "bg-stone-50",    text: "text-stone-600",   border: "border-stone-200",   dot: "bg-stone-400"   },
+  asistio:      { bg: "bg-emerald-50",  text: "text-emerald-800", border: "border-emerald-400", dot: "bg-emerald-500" },
+  ausente:      { bg: "bg-red-50",      text: "text-red-800",     border: "border-red-400",     dot: "bg-red-500"     },
+  reprogramada: { bg: "bg-amber-50",    text: "text-amber-800",   border: "border-amber-400",   dot: "bg-amber-500"   },
+};
+const ASISTENCIA_LABELS: Record<string, string> = {
+  pendiente: "Pendiente", asistio: "Asistió", ausente: "Ausente", reprogramada: "Reprogramada",
+};
+
 type Cita = {
   id: number;
   titulo: string;
@@ -47,6 +61,7 @@ type Cita = {
   horaFin: string;
   tipo: string;
   status: string;
+  asistencia: string;
   notas?: string | null;
   patientId?: number | null;
   professionalId?: number | null;
@@ -102,6 +117,7 @@ const DEFAULT_FORM = {
 export default function AgendaPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { user } = useAuth();
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
   // Recompute the week's days only when the selected week changes.
@@ -135,6 +151,8 @@ export default function AgendaPage() {
   const [showCancel, setShowCancel] = useState(false);
   const [cancelScope, setCancelScope] = useState<"solo" | "siguientes" | "serie">("solo");
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const [marcandoAsistencia, setMarcandoAsistencia] = useState(false);
 
   useEffect(() => {
     if (selectedCita && showEdit) {
@@ -245,6 +263,27 @@ export default function AgendaPage() {
       toast({ title: "Error al cancelar", variant: "destructive" });
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const handleMarcarAsistencia = async (asistencia: string) => {
+    if (!selectedCita) return;
+    setMarcandoAsistencia(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/citas/${selectedCita.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ scope: "solo", asistencia }),
+      });
+      if (!res.ok) throw new Error("Error");
+      toast({ title: `Marcada como ${ASISTENCIA_LABELS[asistencia] ?? asistencia}` });
+      setSelectedCita(null);
+      invalidate();
+    } catch {
+      toast({ title: "Error al marcar asistencia", variant: "destructive" });
+    } finally {
+      setMarcandoAsistencia(false);
     }
   };
 
@@ -389,7 +428,7 @@ export default function AgendaPage() {
                     {dayCitas.map(cita => {
                       const top = topPx(cita.horaInicio);
                       const h = heightPx(cita.horaInicio, cita.horaFin);
-                      const colors = TIPO_COLORS[cita.tipo] ?? TIPO_COLORS.otro;
+                      const colors = ASISTENCIA_COLORS[cita.asistencia] ?? ASISTENCIA_COLORS.pendiente;
                       const durationMins = timeToMinutes(cita.horaFin) - timeToMinutes(cita.horaInicio);
                       const citaPatient = cita.patientId
                         ? (patients as any[]).find(p => p.id === cita.patientId)
@@ -662,6 +701,12 @@ export default function AgendaPage() {
                     {selectedCita.status === "cancelada" && (
                       <Badge variant="outline" className="text-xs text-destructive border-destructive/30">Cancelada</Badge>
                     )}
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${ASISTENCIA_COLORS[selectedCita.asistencia]?.text ?? ""} ${ASISTENCIA_COLORS[selectedCita.asistencia]?.border ?? ""}`}
+                    >
+                      {ASISTENCIA_LABELS[selectedCita.asistencia] ?? "Pendiente"}
+                    </Badge>
                   </div>
                   {selectedCita.notas && (
                     <p className="text-xs text-muted-foreground italic">{selectedCita.notas}</p>
@@ -670,23 +715,93 @@ export default function AgendaPage() {
               </DialogDescription>
             </DialogHeader>
             {selectedCita.status !== "cancelada" && (
-              <DialogFooter className="flex gap-2 sm:justify-between">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="gap-1.5"
-                  onClick={() => { setCancelScope("solo"); setShowCancel(true); }}
-                >
-                  <X className="h-3.5 w-3.5" /> Cancelar
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setShowEdit(true)}
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Editar
-                </Button>
-              </DialogFooter>
+              <div className="space-y-3 pt-1">
+                {/* Marcar asistencia */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Marcar asistencia</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([
+                      { key: "asistio",      label: "Asistió",  icon: CheckCircle2,  cls: "border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100" },
+                      { key: "ausente",      label: "Ausente",  icon: XCircle,       cls: "border-red-300 text-red-700 bg-red-50 hover:bg-red-100" },
+                      { key: "reprogramada", label: "Reprog.",  icon: CalendarClock, cls: "border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" },
+                    ] as const).map(a => (
+                      <Button
+                        key={a.key}
+                        size="sm"
+                        variant="outline"
+                        disabled={marcandoAsistencia}
+                        className={`h-auto py-2 flex-col gap-1 text-[11px] ${a.cls} ${selectedCita.asistencia === a.key ? "ring-2 ring-current ring-offset-1" : ""}`}
+                        onClick={() => handleMarcarAsistencia(a.key)}
+                      >
+                        <a.icon className="h-4 w-4" />
+                        {a.label}
+                      </Button>
+                    ))}
+                  </div>
+                  {selectedCita.asistencia !== "pendiente" && (
+                    <button
+                      type="button"
+                      disabled={marcandoAsistencia}
+                      onClick={() => handleMarcarAsistencia("pendiente")}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    >
+                      Volver a pendiente
+                    </button>
+                  )}
+                </div>
+
+                {/* Accesos rápidos */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Accesos</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!selectedCita.patientId}
+                      className="h-auto py-2 flex-col gap-1 text-[11px]"
+                      onClick={() => navigate(`/sesion-rapida?patientId=${selectedCita.patientId}`)}
+                    >
+                      <Zap className="h-4 w-4" /> Sesión rápida
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!selectedCita.patientId}
+                      className="h-auto py-2 flex-col gap-1 text-[11px]"
+                      onClick={() => navigate(`/nueva-sesion?patientId=${selectedCita.patientId}`)}
+                    >
+                      <FileText className="h-4 w-4" /> Sesión completa
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!selectedCita.patientId}
+                      className="h-auto py-2 flex-col gap-1 text-[11px]"
+                      onClick={() => navigate(`/agenda-pagos?patientId=${selectedCita.patientId}&nuevo=1`)}
+                    >
+                      <Receipt className="h-4 w-4" /> Registrar pago
+                    </Button>
+                  </div>
+                </div>
+
+                <DialogFooter className="flex gap-2 sm:justify-between">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1.5"
+                    onClick={() => { setCancelScope("solo"); setShowCancel(true); }}
+                  >
+                    <X className="h-3.5 w-3.5" /> Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setShowEdit(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Editar
+                  </Button>
+                </DialogFooter>
+              </div>
             )}
           </DialogContent>
         </Dialog>

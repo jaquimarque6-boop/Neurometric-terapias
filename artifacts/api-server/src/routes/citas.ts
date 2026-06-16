@@ -139,7 +139,7 @@ router.put("/citas/:id", async (req, res) => {
     if (!sess) return res.status(401).json({ error: "No autenticado" });
 
     const id = parseInt(req.params.id);
-    const { scope = "solo", titulo, horaInicio, horaFin, tipo, notas, status, fecha } = req.body;
+    const { scope = "solo", titulo, horaInicio, horaFin, tipo, notas, status, fecha, asistencia } = req.body;
 
     const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
     if (!cita) return res.status(404).json({ error: "Cita no encontrada" });
@@ -157,6 +157,14 @@ router.put("/citas/:id", async (req, res) => {
     if (notas !== undefined) updates.notas = notas;
     if (status !== undefined) updates.status = status;
     if (fecha !== undefined) updates.fecha = fecha;
+    if (asistencia !== undefined && ["pendiente", "asistio", "ausente", "reprogramada"].includes(asistencia)) {
+      updates.asistencia = asistencia;
+    }
+
+    // Sin cambios válidos: devolver la cita tal cual (evita un UPDATE sin SET).
+    if (Object.keys(updates).length === 0) {
+      return res.json({ ...cita, createdAt: cita.createdAt.toISOString() });
+    }
 
     if (scope === "solo") {
       const [updated] = await db.update(citasTable).set(updates).where(eq(citasTable.id, id)).returning();
