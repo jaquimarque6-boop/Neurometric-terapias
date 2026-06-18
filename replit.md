@@ -123,3 +123,9 @@ The project is organized as a pnpm workspace monorepo with the following key pac
 - Acceso a pago (`agenda-pagos.tsx`): se abre con `?patientId=X&nuevo=1`, que preselecciona el paciente y abre el formulario de registro (sin tocar la lógica de pagos).
 - Los datos de asistencia quedan guardados para **reportes futuros** (asistencias, ausencias, % de asistencia por paciente/profesional) — esa etapa es posterior.
 - **Producción (Render/Supabase)**: requiere aplicar la misma migración (columna `asistencia` en `citas`) antes de usarse.
+
+### Panel de usuarios — filtros rápidos por actividad
+- Las métricas de uso (Con pacientes, Con sesiones, Sin actividad) ahora también funcionan como **filtros rápidos** sobre la lista: Todos, Con pacientes, Con sesiones, Sin pacientes, Sin actividad (cada chip muestra su conteo).
+  - Con pacientes: `pacientesAsignados > 0`; Con sesiones: `sesionesRegistradas > 0`; Sin pacientes: `pacientesAsignados === 0`; Sin actividad: sin pacientes y sin sesiones; Todos: lista completa.
+- El filtro se combina con el buscador existente (AND). No se tocaron las tarjetas de métricas, roles, permisos, login ni el alta/edición/baja de usuarios.
+- Cada tarjeta muestra badges visuales: **Tiene pacientes** (verde), **Tiene sesiones** (azul), **Sin actividad** (gris).

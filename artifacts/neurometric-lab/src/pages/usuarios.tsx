@@ -52,6 +52,13 @@ const EMPTY_STATS: UserStats = {
   ultimaActividad: null,
 };
 
+type ActivityFilter =
+  | "todos"
+  | "con-pacientes"
+  | "con-sesiones"
+  | "sin-pacientes"
+  | "sin-actividad";
+
 function normalizeText(s: string | null | undefined) {
   return (s ?? "")
     .toString()
@@ -99,6 +106,7 @@ export default function Usuarios() {
   const [savingReset, setSavingReset]   = useState(false);
 
   const [search, setSearch] = useState("");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("todos");
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -122,6 +130,7 @@ export default function Usuarios() {
     let activosEsteMes = 0;
     let conPacientes = 0;
     let conSesiones = 0;
+    let sinPacientes = 0;
     let sinActividad = 0;
     let totalSesiones = 0;
     for (const u of users) {
@@ -130,12 +139,13 @@ export default function Usuarios() {
       if (s.sesionesEsteMes > 0) activosEsteMes++;
       if (s.pacientesAsignados > 0) conPacientes++;
       if (s.sesionesRegistradas > 0) conSesiones++;
+      if (s.pacientesAsignados === 0) sinPacientes++;
       if (s.pacientesAsignados === 0 && s.sesionesRegistradas === 0) sinActividad++;
     }
     const hayDatos = users.some(
       u => (u.stats?.pacientesAsignados ?? 0) > 0 || (u.stats?.sesionesRegistradas ?? 0) > 0,
     );
-    return { activosEsteMes, conPacientes, conSesiones, sinActividad, totalSesiones, hayDatos };
+    return { activosEsteMes, conPacientes, conSesiones, sinPacientes, sinActividad, totalSesiones, hayDatos };
   }, [users]);
 
   // ── Create user ────────────────────────────────────────────────────────────
@@ -233,17 +243,36 @@ export default function Usuarios() {
   // specialty and role (both internal value and Spanish label).
   const filteredUsers = useMemo(() => {
     const q = normalizeText(search);
-    if (!q) return users;
     return users.filter(u => {
-      const haystack = [
-        u.name,
-        u.email,
-        u.specialty ?? "",
-        roleLabel(u.role),
-      ].map(normalizeText).join(" ");
-      return haystack.includes(q);
+      const s = u.stats ?? EMPTY_STATS;
+
+      // Quick activity filter
+      if (activityFilter === "con-pacientes" && !(s.pacientesAsignados > 0)) return false;
+      if (activityFilter === "con-sesiones" && !(s.sesionesRegistradas > 0)) return false;
+      if (activityFilter === "sin-pacientes" && s.pacientesAsignados !== 0) return false;
+      if (activityFilter === "sin-actividad" && !(s.pacientesAsignados === 0 && s.sesionesRegistradas === 0)) return false;
+
+      // Text search
+      if (q) {
+        const haystack = [
+          u.name,
+          u.email,
+          u.specialty ?? "",
+          roleLabel(u.role),
+        ].map(normalizeText).join(" ");
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
     });
-  }, [users, search]);
+  }, [users, search, activityFilter]);
+
+  const filterOptions: { value: ActivityFilter; label: string; count: number }[] = [
+    { value: "todos",         label: "Todos",         count: users.length },
+    { value: "con-pacientes", label: "Con pacientes", count: summary.conPacientes },
+    { value: "con-sesiones",  label: "Con sesiones",  count: summary.conSesiones },
+    { value: "sin-pacientes", label: "Sin pacientes", count: summary.sinPacientes },
+    { value: "sin-actividad", label: "Sin actividad", count: summary.sinActividad },
+  ];
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
@@ -404,12 +433,39 @@ export default function Usuarios() {
                   <X className="h-4 w-4" />
                 </button>
               )}
-              {search.trim() && !loading && (
+              {(search.trim() || activityFilter !== "todos") && !loading && (
                 <p className="text-xs text-muted-foreground mt-2 px-1">
                   Mostrando {filteredUsers.length} de {users.length} usuario{users.length !== 1 ? "s" : ""}
                 </p>
               )}
             </div>
+
+            {/* ── Filtros rápidos por actividad ── */}
+            {!loading && users.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {filterOptions.map(f => {
+                  const active = activityFilter === f.value;
+                  return (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setActivityFilter(f.value)}
+                      aria-pressed={active}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "bg-card text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
+                      }`}
+                    >
+                      {f.label}
+                      <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                        {f.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* ── Users list ── */}
             {loading ? (
@@ -459,6 +515,21 @@ export default function Usuarios() {
                                   </Badge>
                                 )}
                                 {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground py-0">Inactivo</Badge>}
+                                {stats.pacientesAsignados > 0 && (
+                                  <Badge variant="outline" className="text-xs gap-1 border-emerald-500/40 text-emerald-600 py-0">
+                                    <Users className="h-3 w-3" />Tiene pacientes
+                                  </Badge>
+                                )}
+                                {stats.sesionesRegistradas > 0 && (
+                                  <Badge variant="outline" className="text-xs gap-1 border-sky-500/40 text-sky-600 py-0">
+                                    <ClipboardList className="h-3 w-3" />Tiene sesiones
+                                  </Badge>
+                                )}
+                                {sinActividad && (
+                                  <Badge variant="outline" className="text-xs gap-1 border-muted-foreground/30 text-muted-foreground py-0">
+                                    <Activity className="h-3 w-3" />Sin actividad
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5 truncate">{u.email}</p>
                               {u.specialty && (
