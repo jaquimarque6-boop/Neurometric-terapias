@@ -11,6 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 import { LastSessionSummary } from "@/components/last-session-summary";
+import { getProfesion } from "@/utils/profession-map";
+import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
+import { DiagnosisPicker } from "@/components/diagnosis-picker";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 
 // ── Clinical chip groups ────────────────────────────────────────────────────
 const CHIP_GROUPS = [
@@ -88,8 +94,13 @@ export default function SesionRapida() {
   const [observacion, setObservacion]       = useState("");
   const [showChips, setShowChips]           = useState(true);
 
+  const [sessionDiagnoses, setSessionDiagnoses] = useState<string[]>([]);
+  const [showDiagScopeModal, setShowDiagScopeModal] = useState(false);
+
   const [isSaving, setIsSaving]             = useState(false);
   const [saved, setSaved]                   = useState(false);
+
+  const profesion = getProfesion(user?.specialty);
 
   const [isRecording, setIsRecording]       = useState(false);
   const recognitionRef                      = useRef<any>(null);
@@ -108,6 +119,11 @@ export default function SesionRapida() {
   }, []);
 
   const selectedPatient = patients.find(p => p.id === selectedId) ?? null;
+
+  // Precarga el diagnóstico de la ficha al seleccionar paciente.
+  useEffect(() => {
+    setSessionDiagnoses(parseDiagnoses(selectedPatient?.diagnosis));
+  }, [selectedId, selectedPatient?.diagnosis]);
 
   // ── Chip toggle ────────────────────────────────────────────────────────────
   const toggleChip = useCallback((key: ChipKey, chip: string) => {
@@ -196,7 +212,10 @@ export default function SesionRapida() {
   };
 
   // ── Save ───────────────────────────────────────────────────────────────────
-  const handleSave = async () => {
+  const diagnosticoSesion = serializeDiagnoses(sessionDiagnoses);
+  const diagnosisChanged  = !!selectedPatient && diagnosticoSesion !== serializeDiagnoses(parseDiagnoses(selectedPatient.diagnosis));
+
+  const handleSave = () => {
     if (!selectedId) {
       toast({ title: "Selecciona un paciente para continuar", variant: "destructive" });
       return;
@@ -205,7 +224,13 @@ export default function SesionRapida() {
       toast({ title: "Agrega al menos una nota o selecciona fichas clínicas", variant: "destructive" });
       return;
     }
+    if (diagnosisChanged) { setShowDiagScopeModal(true); return; }
+    performSave(false);
+  };
 
+  const performSave = async (updateFicha: boolean) => {
+    if (!selectedId) return;
+    setShowDiagScopeModal(false);
     setIsSaving(true);
     try {
       const observaciones = serializeChipsToObservaciones(chips, observacion);
@@ -217,6 +242,7 @@ export default function SesionRapida() {
         body: JSON.stringify({
           patientId: selectedId,
           fecha,
+          diagnostico: diagnosticoSesion || null,
           resumenSesion: resumen.trim() || null,
           observaciones: observaciones || null,
           recomendacionesHogar: null,
@@ -226,6 +252,21 @@ export default function SesionRapida() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error ?? "Error al guardar");
+      }
+
+      if (updateFicha && diagnosisChanged) {
+        const pRes = await fetch(`${API_BASE}/api/patients/${selectedId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ diagnosis: diagnosticoSesion }),
+        });
+        if (pRes.ok) {
+          const updated = await pRes.json().catch(() => null);
+          setPatients(prev => prev.map(p =>
+            p.id === selectedId ? { ...p, diagnosis: updated?.diagnosis ?? diagnosticoSesion } : p
+          ));
+        }
       }
 
       setSaved(true);
@@ -289,13 +330,23 @@ export default function SesionRapida() {
               ))}
             </select>
           )}
-          {selectedPatient && (
+          {selectedPatient && selectedPatient.age && (
             <p className="text-xs text-muted-foreground pl-1">
-              {selectedPatient.age ? `${selectedPatient.age} años · ` : ""}
-              {selectedPatient.diagnosis ?? "Sin diagnóstico registrado"}
+              {selectedPatient.age} años
             </p>
           )}
         </div>
+
+        {/* ── Diagnóstico ─────────────────────────────────────────────────── */}
+        {selectedPatient && (
+          <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+            <DiagnosisPicker
+              value={sessionDiagnoses}
+              onChange={setSessionDiagnoses}
+              profesion={profesion}
+            />
+          </div>
+        )}
 
         {/* ── Resumen de la sesión anterior ───────────────────────────────── */}
         {selectedPatient && (
@@ -505,6 +556,42 @@ export default function SesionRapida() {
         </div>
 
       </div>
+
+      <Dialog open={showDiagScopeModal} onOpenChange={setShowDiagScopeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico modificado</DialogTitle>
+            <DialogDescription>
+              Cambiaste el diagnóstico respecto a la ficha del paciente. ¿Cómo querés guardar este cambio?
+            </DialogDescription>
+          </DialogHeader>
+          {sessionDiagnoses.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 py-1">
+              {sessionDiagnoses.map(v => (
+                <span
+                  key={v}
+                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                  style={{ background: "#81B29A1f", color: "#3f6b56" }}
+                >
+                  {v}
+                </span>
+              ))}
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button
+              className="w-full text-white"
+              style={{ background: "#81B29A" }}
+              onClick={() => performSave(true)}
+            >
+              También actualizar ficha del paciente
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => performSave(false)}>
+              Solo esta sesión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

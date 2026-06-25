@@ -57,7 +57,7 @@ router.post("/registros-clinicos", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 
-  const { patientId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
+  const { patientId, fecha, diagnostico, resumenSesion, observaciones, recomendacionesHogar } = req.body;
 
   if (!patientId || !fecha) return res.status(400).json({ error: "patientId and fecha are required" });
 
@@ -84,6 +84,7 @@ router.post("/registros-clinicos", async (req, res) => {
     professionalName,
     userId: sess.id,
     fecha,
+    diagnostico: diagnostico ?? null,
     resumenSesion: resumenSesion ?? null,
     observaciones: observaciones ?? null,
     recomendacionesHogar: recomendacionesHogar ?? null,
@@ -121,10 +122,11 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
     return res.status(403).json({ error: "Sin acceso a este registro" });
   }
 
-  const { professionalId, fecha, resumenSesion, observaciones, recomendacionesHogar } = req.body;
+  const { professionalId, fecha, diagnostico, resumenSesion, observaciones, recomendacionesHogar } = req.body;
 
   const updates: Record<string, any> = {};
   if (fecha !== undefined) updates.fecha = fecha;
+  if (diagnostico !== undefined) updates.diagnostico = diagnostico;
   if (resumenSesion !== undefined) updates.resumenSesion = resumenSesion;
   if (observaciones !== undefined) updates.observaciones = observaciones;
   if (recomendacionesHogar !== undefined) updates.recomendacionesHogar = recomendacionesHogar;

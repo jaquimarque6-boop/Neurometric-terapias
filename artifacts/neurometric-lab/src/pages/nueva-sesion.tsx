@@ -8,9 +8,14 @@ import {
   RefreshCw, CheckCircle2,
 } from "lucide-react";
 import { getProfesion, getDiagnosesByProfesion, getBancoAreas } from "@/utils/profession-map";
+import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
+import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import { useAuth } from "@/contexts/auth-context";
 import { EvalSugerida } from "@/components/eval-sugerida";
-import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey } from "@workspace/api-client-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { useListPatients, getListGoalsQueryKey, getListRegistrosClinicosQueryKey, getListPatientsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { LastSessionSummary } from "@/components/last-session-summary";
@@ -915,7 +920,9 @@ export default function NuevaSesion() {
   const [adHocGoals, setAdHocGoals]           = useState<any[]>([]);
   const [adHocRows, setAdHocRows]             = useState<Record<number, RowState>>({});
 
-  const [sessionDiagnosis, setSessionDiagnosis]   = useState("");
+  const [sessionDiagnoses, setSessionDiagnoses]   = useState<string[]>([]);
+  const sessionDiagnosis                          = sessionDiagnoses[0] ?? "";
+  const [showDiagScopeModal, setShowDiagScopeModal] = useState(false);
   const [diagSuggestions, setDiagSuggestions]     = useState<any[]>([]);
   const [loadingDiagSug, setLoadingDiagSug]       = useState(false);
   const [showDiagSug, setShowDiagSug]             = useState(true);
@@ -1121,7 +1128,7 @@ export default function NuevaSesion() {
     setDetailOpenFor(new Set());
     hasAutoChecked.current = null;
     setDismissedGoalIds(new Set());
-    setSessionDiagnosis(p.diagnosis ?? "");
+    setSessionDiagnoses(parseDiagnoses(p.diagnosis));
     setDiagSuggestions([]);
     setShowAISesion(false);
     setAiSesionList([]);
@@ -1508,8 +1515,20 @@ export default function NuevaSesion() {
   const canSave       = !!patient && (totalSelected > 0 || resumen.trim().length > 0);
 
   // ── Save ──────────────────────────────────────────────────────────────────
-  const handleSave = async () => {
+  const diagnosticoSesion = serializeDiagnoses(sessionDiagnoses);
+  const diagnosisChanged  = !!patient && diagnosticoSesion !== serializeDiagnoses(parseDiagnoses(patient.diagnosis));
+
+  // Punto de entrada del botón: si el diagnóstico cambió respecto a la ficha,
+  // se pregunta el alcance; si no, se guarda directo sin actualizar la ficha.
+  const handleSave = () => {
     if (!canSave) return;
+    if (diagnosisChanged) { setShowDiagScopeModal(true); return; }
+    performSave(false);
+  };
+
+  const performSave = async (updateFicha: boolean) => {
+    if (!canSave) return;
+    setShowDiagScopeModal(false);
     setIsSaving(true);
     try {
       const rcRes = await fetch(`${API_BASE}/api/registros-clinicos`, {
@@ -1518,12 +1537,25 @@ export default function NuevaSesion() {
         body: JSON.stringify({
           patientId: patient.id,
           fecha,
+          diagnostico: diagnosticoSesion || undefined,
           resumenSesion: resumen || undefined,
           observaciones: observaciones || undefined,
         }),
       });
       if (!rcRes.ok) throw new Error("Error al crear el registro");
       const rc = await rcRes.json();
+
+      if (updateFicha && diagnosisChanged) {
+        const pRes = await fetch(`${API_BASE}/api/patients/${patient.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ diagnosis: diagnosticoSesion }),
+        });
+        if (pRes.ok) {
+          const updated = await pRes.json();
+          setPatient((prev: any) => prev ? { ...prev, diagnosis: updated.diagnosis ?? diagnosticoSesion } : prev);
+        }
+      }
 
       if (checkedGoals.length > 0) {
         await Promise.all(checkedGoals.map(goal => {
@@ -1594,6 +1626,9 @@ export default function NuevaSesion() {
       queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
       queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey({ patientId: patient.id }) });
       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      if (updateFicha && diagnosisChanged) {
+        queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      }
       const n = totalSelected;
       toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
       navigate(`/patients/${patient.id}`);
@@ -1985,35 +2020,12 @@ export default function NuevaSesion() {
             </div>
           </div>
           {patient && (
-            <div className="space-y-1.5 border-t border-border/40 pt-3">
-              <label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
-                <Stethoscope className="h-4 w-4" style={{ color: BRAND_TEAL }} />
-                Diagnóstico
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {diagnosisOptions.map(d => {
-                  const active = sessionDiagnosis === d.value;
-                  return (
-                    <button
-                      key={d.value}
-                      onClick={() => setSessionDiagnosis(active ? "" : d.value)}
-                      className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                        active
-                          ? "text-white border-transparent shadow-sm"
-                          : "bg-muted/50 border-border/70 text-foreground/70 hover:bg-muted hover:border-border hover:text-foreground/85"
-                      }`}
-                      style={active ? { background: BRAND_TEAL, borderColor: BRAND_TEAL } : {}}
-                    >
-                      {d.value}
-                    </button>
-                  );
-                })}
-              </div>
-              {sessionDiagnosis && (
-                <p className="text-xs text-muted-foreground pl-0.5">
-                  {diagnosisOptions.find(d => d.value === sessionDiagnosis)?.label ?? sessionDiagnosis}
-                </p>
-              )}
+            <div className="space-y-2 border-t border-border/40 pt-3">
+              <DiagnosisPicker
+                value={sessionDiagnoses}
+                onChange={setSessionDiagnoses}
+                profesion={profesion}
+              />
               {sessionDiagnosis && (
                 <EvalSugerida diagnosis={sessionDiagnosis} compact />
               )}
@@ -3018,6 +3030,42 @@ export default function NuevaSesion() {
         )}
 
       </div>
+
+      <Dialog open={showDiagScopeModal} onOpenChange={setShowDiagScopeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico modificado</DialogTitle>
+            <DialogDescription>
+              Cambiaste el diagnóstico respecto a la ficha del paciente. ¿Cómo querés guardar este cambio?
+            </DialogDescription>
+          </DialogHeader>
+          {sessionDiagnoses.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 py-1">
+              {sessionDiagnoses.map(v => (
+                <span
+                  key={v}
+                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                  style={{ background: `${BRAND_TEAL}1f`, color: "#3f6b56" }}
+                >
+                  {v}
+                </span>
+              ))}
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button
+              className="w-full text-white"
+              style={{ background: BRAND_TEAL }}
+              onClick={() => performSave(true)}
+            >
+              También actualizar ficha del paciente
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => performSave(false)}>
+              Solo esta sesión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showCustomGoal && (
         <CustomGoalDialog
