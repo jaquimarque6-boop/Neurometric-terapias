@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { FileText, CalendarDays, UserRound, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, CalendarDays, UserRound, ChevronRight, ChevronDown, ChevronUp, Stethoscope, Home } from "lucide-react";
 import { API_BASE } from "@/lib/api";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -22,8 +24,10 @@ function readStoredSessionCount(): number {
 type ClinicalRecord = {
   id?: number;
   fecha?: string | null;
+  diagnostico?: string | null;
   resumenSesion?: string | null;
   observaciones?: string | null;
+  recomendacionesHogar?: string | null;
   professionalName?: string | null;
 };
 
@@ -34,13 +38,32 @@ function formatFecha(value?: string | null): string {
   return d.toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function hasContent(record: ClinicalRecord): boolean {
+  return !!(record.resumenSesion || record.observaciones || record.recomendacionesHogar || record.diagnostico);
+}
+
 type Props = {
   patientId: number | null;
   /** Título mostrado en el encabezado de la tarjeta. */
   title?: string;
 };
 
-function SessionBody({ record }: { record: ClinicalRecord }) {
+/** Una sección con etiqueta dentro de la vista compacta. */
+function PreviewSection({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">{label}</p>
+      <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Vista resumida (compacta) del registro dentro de la tarjeta.
+ * El contenido se limita a ~6-8 renglones con un tope de altura real;
+ * el detalle completo se abre en el modal mediante "Ver detalle completo".
+ */
+function SessionBody({ record, onOpenDetail }: { record: ClinicalRecord; onOpenDetail: (r: ClinicalRecord) => void }) {
   return (
     <div className="space-y-2.5">
       {/* Fecha + profesional */}
@@ -57,34 +80,35 @@ function SessionBody({ record }: { record: ClinicalRecord }) {
         )}
       </div>
 
-      {/* Resumen breve */}
-      {record.resumenSesion && (
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Resumen</p>
-          <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line line-clamp-4">
-            {record.resumenSesion}
-          </p>
+      {hasContent(record) ? (
+        /* Tope real de altura (~8 renglones) con desvanecido inferior. */
+        <div className="relative max-h-[11.5rem] overflow-hidden">
+          <div className="space-y-2">
+            {record.diagnostico && <PreviewSection label="Diagnóstico" value={record.diagnostico} />}
+            {record.resumenSesion && <PreviewSection label="Resumen" value={record.resumenSesion} />}
+            {record.observaciones && <PreviewSection label="Observaciones / evolución" value={record.observaciones} />}
+            {record.recomendacionesHogar && <PreviewSection label="Recomendaciones para el hogar" value={record.recomendacionesHogar} />}
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white/90 to-transparent" />
         </div>
+      ) : (
+        <p className="text-[13px] text-muted-foreground italic">Sin contenido registrado en esta sesión.</p>
       )}
 
-      {/* Observaciones */}
-      {record.observaciones && (
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Observaciones</p>
-          <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line line-clamp-4">
-            {record.observaciones}
-          </p>
-        </div>
-      )}
-
-      {!record.resumenSesion && !record.observaciones && (
-        <p className="text-[13px] text-muted-foreground italic">Sin resumen ni observaciones en esta sesión.</p>
-      )}
+      {/* Abrir el registro completo */}
+      <button
+        onClick={() => onOpenDetail(record)}
+        className="flex items-center gap-0.5 text-[11px] font-semibold hover:underline pt-0.5"
+        style={{ color: BRAND_BLUE }}
+      >
+        Ver detalle completo
+        <ChevronRight className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }
 
-function CollapsibleSession({ record, defaultOpen }: { record: ClinicalRecord; defaultOpen: boolean }) {
+function CollapsibleSession({ record, defaultOpen, onOpenDetail }: { record: ClinicalRecord; defaultOpen: boolean; onOpenDetail: (r: ClinicalRecord) => void }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-xl border bg-white/50" style={{ borderColor: `${BRAND_TEAL}25` }}>
@@ -106,7 +130,7 @@ function CollapsibleSession({ record, defaultOpen }: { record: ClinicalRecord; d
       {open && (
         <div className="px-3 pb-3 pt-0.5 border-t" style={{ borderColor: `${BRAND_TEAL}15` }}>
           <div className="pt-2.5">
-            <SessionBody record={record} />
+            <SessionBody record={record} onOpenDetail={onOpenDetail} />
           </div>
         </div>
       )}
@@ -114,12 +138,66 @@ function CollapsibleSession({ record, defaultOpen }: { record: ClinicalRecord; d
   );
 }
 
+/** Campo del detalle completo (modal), sin truncado. */
+function DetailField({ label, value, icon }: { label: string; value?: string | null; icon?: React.ReactNode }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </p>
+      <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{value}</p>
+    </div>
+  );
+}
+
+function RecordDetailModal({ record, onClose }: { record: ClinicalRecord | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!record} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+            Registro clínico
+          </DialogTitle>
+        </DialogHeader>
+        {record && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+                {formatFecha(record.fecha)}
+              </span>
+              {record.professionalName && (
+                <span className="flex items-center gap-1.5">
+                  <UserRound className="h-4 w-4" style={{ color: BRAND_TEAL }} />
+                  {record.professionalName}
+                </span>
+              )}
+            </div>
+
+            <DetailField label="Diagnóstico" value={record.diagnostico} icon={<Stethoscope className="h-3 w-3" style={{ color: BRAND_TEAL }} />} />
+            <DetailField label="Resumen de la sesión" value={record.resumenSesion} />
+            <DetailField label="Observaciones / evolución" value={record.observaciones} />
+            <DetailField label="Recomendaciones para el hogar" value={record.recomendacionesHogar} icon={<Home className="h-3 w-3" style={{ color: BRAND_TEAL }} />} />
+
+            {!hasContent(record) && (
+              <p className="text-sm text-muted-foreground italic">Este registro no tiene contenido clínico.</p>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LastSessionSummary({ patientId, title = "Resumen de la sesión anterior" }: Props) {
-  const [, navigate] = useLocation();
   const [allRecords, setAllRecords] = useState<ClinicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [sessionCount, setSessionCount] = useState<number>(readStoredSessionCount);
+  const [detailRecord, setDetailRecord] = useState<ClinicalRecord | null>(null);
 
   const updateSessionCount = (count: number) => {
     setSessionCount(count);
@@ -141,11 +219,17 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
       .then(r => (r.ok ? r.json() : []))
       .then((data: ClinicalRecord[]) => {
         if (cancelled) return;
-        // El backend devuelve los registros en orden ascendente por fecha,
-        // así que las últimas sesiones están al final. Guardamos todas en
-        // orden de la más nueva a la más antigua y recortamos al mostrar,
-        // según la preferencia del profesional.
-        const ordered = Array.isArray(data) ? [...data].reverse() : [];
+        // Orden determinístico de la más nueva a la más antigua: por fecha
+        // descendente y, ante misma fecha, por id descendente como desempate
+        // estable (el id mayor es el registro creado más recientemente).
+        const ordered = Array.isArray(data)
+          ? [...data].sort((a, b) => {
+              const fa = a.fecha ?? "";
+              const fb = b.fecha ?? "";
+              if (fa !== fb) return fb.localeCompare(fa);
+              return (b.id ?? 0) - (a.id ?? 0);
+            })
+          : [];
         setAllRecords(ordered);
       })
       .catch(() => {
@@ -190,7 +274,7 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
         </div>
         {latest && (
           <button
-            onClick={() => navigate(`/patients/${patientId}`)}
+            onClick={() => setDetailRecord(latest)}
             className="flex items-center gap-0.5 text-xs font-semibold shrink-0 hover:underline"
             style={{ color: BRAND_BLUE }}
           >
@@ -235,7 +319,7 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
       ) : (
         <div className="px-4 py-3.5 space-y-3">
           {/* Sesión más reciente, siempre visible */}
-          <SessionBody record={latest} />
+          <SessionBody record={latest} onOpenDetail={setDetailRecord} />
 
           {/* Sesiones previas (colapsables) */}
           {previous.length > 0 && (
@@ -244,12 +328,14 @@ export function LastSessionSummary({ patientId, title = "Resumen de la sesión a
                 Sesiones anteriores
               </p>
               {previous.map((rec, i) => (
-                <CollapsibleSession key={rec.id ?? `prev-${i}`} record={rec} defaultOpen={false} />
+                <CollapsibleSession key={rec.id ?? `prev-${i}`} record={rec} defaultOpen={false} onOpenDetail={setDetailRecord} />
               ))}
             </div>
           )}
         </div>
       )}
+
+      <RecordDetailModal record={detailRecord} onClose={() => setDetailRecord(null)} />
     </div>
   );
 }
