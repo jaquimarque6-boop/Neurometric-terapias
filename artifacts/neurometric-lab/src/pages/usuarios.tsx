@@ -4,7 +4,7 @@ import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
   History, UserCircle, ClipboardList, Trash2, RotateCcw,
-  CalendarDays, Activity, Search,
+  CalendarDays, Activity, Search, CreditCard, DollarSign, FileText,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ type UserStats = {
   ultimaActividad: string | null;
 };
 
+type CommercialStatus = "trial" | "paying" | "overdue" | "courtesy" | "churned";
+
 type AppUser = {
   id: number;
   email: string;
@@ -41,8 +43,49 @@ type AppUser = {
   specialty: string | null;
   active: boolean;
   createdAt: string;
+  commercialStatus: CommercialStatus;
+  trialStartDate: string | null;
+  trialEndDate: string | null;
+  lastPaymentDate: string | null;
+  nextDueDate: string | null;
+  monthlyAmount: string | null;
+  paymentMethod: string | null;
+  internalNotes: string | null;
   stats?: UserStats;
 };
+
+const COMMERCIAL_META: Record<CommercialStatus, { label: string; className: string }> = {
+  trial:    { label: "En prueba",    className: "border-sky-500/40 text-sky-600" },
+  paying:   { label: "Pagando",      className: "border-emerald-500/40 text-emerald-600" },
+  overdue:  { label: "Pago vencido", className: "border-rose-500/40 text-rose-600" },
+  courtesy: { label: "Cortesía",     className: "border-violet-500/40 text-violet-600" },
+  churned:  { label: "Baja",         className: "border-muted-foreground/40 text-muted-foreground" },
+};
+
+const COMMERCIAL_OPTIONS: { value: CommercialStatus; label: string }[] = [
+  { value: "trial", label: "En prueba" },
+  { value: "paying", label: "Pagando" },
+  { value: "overdue", label: "Pago vencido" },
+  { value: "courtesy", label: "Cortesía" },
+  { value: "churned", label: "Baja" },
+];
+
+function isWithinDays(iso: string | null, days: number): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return false;
+  const delta = Date.now() - t;
+  return delta >= 0 && delta <= days * 24 * 60 * 60 * 1000;
+}
+
+function isOverdue(u: AppUser): boolean {
+  if (u.commercialStatus === "overdue") return true;
+  if (u.nextDueDate) {
+    const due = new Date(`${u.nextDueDate}T23:59:59`).getTime();
+    if (!isNaN(due) && due < Date.now()) return true;
+  }
+  return false;
+}
 
 const EMPTY_STATS: UserStats = {
   pacientesAsignados: 0,
@@ -55,9 +98,16 @@ const EMPTY_STATS: UserStats = {
 type ActivityFilter =
   | "todos"
   | "con-pacientes"
-  | "con-sesiones"
   | "sin-pacientes"
-  | "sin-actividad";
+  | "con-sesiones-mes"
+  | "sin-sesiones-mes"
+  | "activos-30"
+  | "inactivos-30"
+  | "pagando"
+  | "en-prueba"
+  | "vencidos"
+  | "cortesia"
+  | "dados-de-baja";
 
 function normalizeText(s: string | null | undefined) {
   return (s ?? "")
@@ -125,27 +175,49 @@ export default function Usuarios() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // ── Resumen general de uso (solo se muestra si hay datos reales) ────────────
+  // ── Resumen general ─────────────────────────────────────────────────────────
+  // El resumen y los conteos consideran solo usuarios activos; los dados de baja
+  // (active = false) se cuentan y se listan por separado.
   const summary = useMemo(() => {
     let activosEsteMes = 0;
     let conPacientes = 0;
     let conSesiones = 0;
     let sinPacientes = 0;
     let sinActividad = 0;
-    let totalSesiones = 0;
-    for (const u of users) {
+    let conSesionesMes = 0;
+    let activos30 = 0;
+    let pagando = 0;
+    let enPrueba = 0;
+    let vencidos = 0;
+    let cortesia = 0;
+
+    const activos = users.filter(u => u.active);
+    for (const u of activos) {
       const s = u.stats ?? EMPTY_STATS;
-      totalSesiones += s.sesionesRegistradas;
-      if (s.sesionesEsteMes > 0) activosEsteMes++;
+      if (s.sesionesEsteMes > 0) { activosEsteMes++; conSesionesMes++; }
       if (s.pacientesAsignados > 0) conPacientes++;
       if (s.sesionesRegistradas > 0) conSesiones++;
       if (s.pacientesAsignados === 0) sinPacientes++;
       if (s.pacientesAsignados === 0 && s.sesionesRegistradas === 0) sinActividad++;
+      if (isWithinDays(s.ultimaActividad, 30)) activos30++;
+      if (u.commercialStatus === "paying") pagando++;
+      else if (u.commercialStatus === "trial") enPrueba++;
+      else if (u.commercialStatus === "courtesy") cortesia++;
+      if (isOverdue(u)) vencidos++;
     }
-    const hayDatos = users.some(
-      u => (u.stats?.pacientesAsignados ?? 0) > 0 || (u.stats?.sesionesRegistradas ?? 0) > 0,
-    );
-    return { activosEsteMes, conPacientes, conSesiones, sinPacientes, sinActividad, totalSesiones, hayDatos };
+
+    // Total de sesiones considerando a todos los usuarios (para "Mi perfil").
+    let totalSesiones = 0;
+    for (const u of users) totalSesiones += u.stats?.sesionesRegistradas ?? 0;
+
+    const activosCount = activos.length;
+    const dadosDeBaja = users.length - activosCount;
+    const hayDatos = users.length > 0;
+    return {
+      activosEsteMes, conPacientes, conSesiones, sinPacientes, sinActividad,
+      conSesionesMes, activos30, pagando, enPrueba, vencidos, cortesia,
+      totalSesiones, activosCount, dadosDeBaja, hayDatos,
+    };
   }, [users]);
 
   // ── Create user ────────────────────────────────────────────────────────────
@@ -195,7 +267,21 @@ export default function Usuarios() {
   };
 
   // ── Inline edit ────────────────────────────────────────────────────────────
-  const startEdit = (u: AppUser) => { setEditingId(u.id); setEditForm({ name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "" }); setShowEditPwd(false); };
+  const startEdit = (u: AppUser) => {
+    setEditingId(u.id);
+    setEditForm({
+      name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "",
+      commercialStatus: u.commercialStatus,
+      trialStartDate: u.trialStartDate ?? "",
+      trialEndDate: u.trialEndDate ?? "",
+      lastPaymentDate: u.lastPaymentDate ?? "",
+      nextDueDate: u.nextDueDate ?? "",
+      monthlyAmount: u.monthlyAmount ?? "",
+      paymentMethod: u.paymentMethod ?? "",
+      internalNotes: u.internalNotes ?? "",
+    });
+    setShowEditPwd(false);
+  };
   const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); };
 
   const saveEdit = async (id: number) => {
@@ -204,7 +290,17 @@ export default function Usuarios() {
     }
     setSaving(true);
     try {
-      const payload: any = { name: editForm.name, email: editForm.email, role: editForm.role, specialty: editForm.specialty || null };
+      const payload: any = {
+        name: editForm.name, email: editForm.email, role: editForm.role, specialty: editForm.specialty || null,
+        commercialStatus: editForm.commercialStatus,
+        trialStartDate: editForm.trialStartDate || null,
+        trialEndDate: editForm.trialEndDate || null,
+        lastPaymentDate: editForm.lastPaymentDate || null,
+        nextDueDate: editForm.nextDueDate || null,
+        monthlyAmount: editForm.monthlyAmount ?? "",
+        paymentMethod: editForm.paymentMethod || null,
+        internalNotes: editForm.internalNotes || null,
+      };
       if (editForm.password?.trim()) payload.password = editForm.password.trim();
       const r = await fetch(`${API_BASE}/api/users/${id}`, {
         method: "PATCH", credentials: "include",
@@ -246,11 +342,23 @@ export default function Usuarios() {
     return users.filter(u => {
       const s = u.stats ?? EMPTY_STATS;
 
-      // Quick activity filter
-      if (activityFilter === "con-pacientes" && !(s.pacientesAsignados > 0)) return false;
-      if (activityFilter === "con-sesiones" && !(s.sesionesRegistradas > 0)) return false;
-      if (activityFilter === "sin-pacientes" && s.pacientesAsignados !== 0) return false;
-      if (activityFilter === "sin-actividad" && !(s.pacientesAsignados === 0 && s.sesionesRegistradas === 0)) return false;
+      // Los dados de baja se muestran solo en su propio filtro; el resto de los
+      // filtros operan únicamente sobre usuarios activos.
+      if (activityFilter === "dados-de-baja") {
+        if (u.active) return false;
+      } else {
+        if (!u.active) return false;
+        if (activityFilter === "con-pacientes" && !(s.pacientesAsignados > 0)) return false;
+        if (activityFilter === "sin-pacientes" && s.pacientesAsignados !== 0) return false;
+        if (activityFilter === "con-sesiones-mes" && !(s.sesionesEsteMes > 0)) return false;
+        if (activityFilter === "sin-sesiones-mes" && s.sesionesEsteMes !== 0) return false;
+        if (activityFilter === "activos-30" && !isWithinDays(s.ultimaActividad, 30)) return false;
+        if (activityFilter === "inactivos-30" && isWithinDays(s.ultimaActividad, 30)) return false;
+        if (activityFilter === "pagando" && u.commercialStatus !== "paying") return false;
+        if (activityFilter === "en-prueba" && u.commercialStatus !== "trial") return false;
+        if (activityFilter === "vencidos" && !isOverdue(u)) return false;
+        if (activityFilter === "cortesia" && u.commercialStatus !== "courtesy") return false;
+      }
 
       // Text search
       if (q) {
@@ -259,6 +367,7 @@ export default function Usuarios() {
           u.email,
           u.specialty ?? "",
           roleLabel(u.role),
+          COMMERCIAL_META[u.commercialStatus]?.label ?? "",
         ].map(normalizeText).join(" ");
         if (!haystack.includes(q)) return false;
       }
@@ -266,16 +375,37 @@ export default function Usuarios() {
     });
   }, [users, search, activityFilter]);
 
-  const filterOptions: { value: ActivityFilter; label: string; count: number }[] = [
-    { value: "todos",         label: "Todos",         count: users.length },
-    { value: "con-pacientes", label: "Con pacientes", count: summary.conPacientes },
-    { value: "con-sesiones",  label: "Con sesiones",  count: summary.conSesiones },
-    { value: "sin-pacientes", label: "Sin pacientes", count: summary.sinPacientes },
-    { value: "sin-actividad", label: "Sin actividad", count: summary.sinActividad },
+  const activityFilterOptions: { value: ActivityFilter; label: string; count: number }[] = [
+    { value: "todos",            label: "Todos",                  count: summary.activosCount },
+    { value: "con-pacientes",    label: "Con pacientes",          count: summary.conPacientes },
+    { value: "sin-pacientes",    label: "Sin pacientes",          count: summary.sinPacientes },
+    { value: "con-sesiones-mes", label: "Con sesiones este mes",  count: summary.conSesionesMes },
+    { value: "sin-sesiones-mes", label: "Sin sesiones este mes",  count: summary.activosCount - summary.conSesionesMes },
+    { value: "activos-30",       label: "Activos últimos 30 días", count: summary.activos30 },
+    { value: "inactivos-30",     label: "Inactivos +30 días",     count: summary.activosCount - summary.activos30 },
+  ];
+
+  const commercialFilterOptions: { value: ActivityFilter; label: string; count: number }[] = [
+    { value: "pagando",       label: "Pagando",       count: summary.pagando },
+    { value: "en-prueba",     label: "En prueba",     count: summary.enPrueba },
+    { value: "vencidos",      label: "Vencidos",      count: summary.vencidos },
+    { value: "cortesia",      label: "Cortesía",      count: summary.cortesia },
+    { value: "dados-de-baja", label: "Dados de baja", count: summary.dadosDeBaja },
   ];
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+
+  // Fechas «solo día» (columnas date, formato YYYY-MM-DD) sin corrimiento de zona.
+  const formatDateOnly = (d: string | null) =>
+    d ? new Date(`${d}T00:00:00`).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+  const formatMoney = (v: string | null) => {
+    if (v == null || v === "") return "—";
+    const n = Number(v);
+    if (isNaN(n)) return v;
+    return `$${n.toLocaleString("es-CL")}`;
+  };
 
   return (
     <AppLayout>
@@ -321,32 +451,62 @@ export default function Usuarios() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="usuarios" className="mt-5 space-y-4">
 
-            {/* ── Resumen general de uso (solo si hay datos reales) ── */}
+            {/* ── Resumen de uso (solo usuarios activos) ── */}
             {!loading && summary.hayDatos && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <CalendarDays className="h-3.5 w-3.5 text-primary" /> Activos este mes
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5 text-primary" /> Activos este mes
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.activosEsteMes}</p>
                   </div>
-                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.activosEsteMes}</p>
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Users className="h-3.5 w-3.5 text-primary" /> Con pacientes
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conPacientes}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <ClipboardList className="h-3.5 w-3.5 text-primary" /> Con sesiones
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conSesiones}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin actividad
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.sinActividad}</p>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Users className="h-3.5 w-3.5 text-primary" /> Con pacientes
+
+                {/* Resumen comercial */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/40 shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-700">
+                      <CreditCard className="h-3.5 w-3.5" /> Pagando
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-emerald-700">{summary.pagando}</p>
                   </div>
-                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conPacientes}</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <ClipboardList className="h-3.5 w-3.5 text-primary" /> Con sesiones
+                  <div className="rounded-2xl border border-sky-500/30 bg-sky-50/40 shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-sky-700">
+                      <CalendarDays className="h-3.5 w-3.5" /> En prueba
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-sky-700">{summary.enPrueba}</p>
                   </div>
-                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conSesiones}</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin actividad
+                  <div className="rounded-2xl border border-rose-500/30 bg-rose-50/40 shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-rose-700">
+                      <DollarSign className="h-3.5 w-3.5" /> Pago vencido
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-rose-700">{summary.vencidos}</p>
                   </div>
-                  <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.sinActividad}</p>
+                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Dados de baja
+                    </div>
+                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.dadosDeBaja}</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -440,30 +600,57 @@ export default function Usuarios() {
               )}
             </div>
 
-            {/* ── Filtros rápidos por actividad ── */}
+            {/* ── Filtros rápidos ── */}
             {!loading && users.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {filterOptions.map(f => {
-                  const active = activityFilter === f.value;
-                  return (
-                    <button
-                      key={f.value}
-                      type="button"
-                      onClick={() => setActivityFilter(f.value)}
-                      aria-pressed={active}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        active
-                          ? "bg-primary text-white border-primary shadow-sm"
-                          : "bg-card text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
-                      }`}
-                    >
-                      {f.label}
-                      <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
-                        {f.count}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2 flex-wrap">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 mr-1">Actividad</span>
+                  {activityFilterOptions.map(f => {
+                    const active = activityFilter === f.value;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setActivityFilter(f.value)}
+                        aria-pressed={active}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "bg-primary text-white border-primary shadow-sm"
+                            : "bg-card text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {f.label}
+                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                          {f.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 mr-1">Comercial</span>
+                  {commercialFilterOptions.map(f => {
+                    const active = activityFilter === f.value;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setActivityFilter(f.value)}
+                        aria-pressed={active}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "bg-primary text-white border-primary shadow-sm"
+                            : "bg-card text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {f.label}
+                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                          {f.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -515,6 +702,9 @@ export default function Usuarios() {
                                   </Badge>
                                 )}
                                 {!u.active && <Badge variant="outline" className="text-xs text-muted-foreground py-0">Inactivo</Badge>}
+                                <Badge variant="outline" className={`text-xs gap-1 py-0 ${COMMERCIAL_META[u.commercialStatus]?.className ?? ""}`}>
+                                  <CreditCard className="h-3 w-3" />{COMMERCIAL_META[u.commercialStatus]?.label ?? u.commercialStatus}
+                                </Badge>
                                 {stats.pacientesAsignados > 0 && (
                                   <Badge variant="outline" className="text-xs gap-1 border-emerald-500/40 text-emerald-600 py-0">
                                     <Users className="h-3 w-3" />Tiene pacientes
@@ -602,6 +792,20 @@ export default function Usuarios() {
                                 )}
                               </>
                             )}
+                            {u.monthlyAmount && (
+                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <DollarSign className="h-3 w-3 text-muted-foreground/60" />
+                                <span className="text-muted-foreground/60">Mensual:</span>
+                                <span className="text-foreground">{formatMoney(u.monthlyAmount)}</span>
+                              </span>
+                            )}
+                            {u.nextDueDate && (
+                              <span className={`flex items-center gap-1.5 text-xs ${isOverdue(u) ? "text-rose-600" : "text-muted-foreground"}`}>
+                                <CreditCard className="h-3 w-3 opacity-60" />
+                                <span className="opacity-60">Próximo venc.:</span>
+                                <span className={isOverdue(u) ? "font-semibold" : "text-foreground"}>{formatDateOnly(u.nextDueDate)}</span>
+                              </span>
+                            )}
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
                               <CalendarDays className="h-3 w-3 text-muted-foreground/60" />
                               Miembro desde {formatDate(u.createdAt)}
@@ -647,6 +851,50 @@ export default function Usuarios() {
                               </div>
                             </div>
                           </div>
+
+                          {/* ── Datos comerciales ── */}
+                          <div className="pt-2 mt-1 border-t border-border/40">
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <CreditCard className="h-3.5 w-3.5" /> Datos comerciales
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Estado comercial</label>
+                                <select value={editForm.commercialStatus ?? "trial"} onChange={e => setEditForm(f => ({ ...f, commercialStatus: e.target.value as CommercialStatus }))} className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
+                                  {COMMERCIAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" />Monto mensual</label>
+                                <Input type="number" inputMode="decimal" placeholder="0" value={editForm.monthlyAmount ?? ""} onChange={e => setEditForm(f => ({ ...f, monthlyAmount: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Inicio de prueba</label>
+                                <Input type="date" value={editForm.trialStartDate ?? ""} onChange={e => setEditForm(f => ({ ...f, trialStartDate: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Fin de prueba</label>
+                                <Input type="date" value={editForm.trialEndDate ?? ""} onChange={e => setEditForm(f => ({ ...f, trialEndDate: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Último pago</label>
+                                <Input type="date" value={editForm.lastPaymentDate ?? ""} onChange={e => setEditForm(f => ({ ...f, lastPaymentDate: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Próximo vencimiento</label>
+                                <Input type="date" value={editForm.nextDueDate ?? ""} onChange={e => setEditForm(f => ({ ...f, nextDueDate: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1 sm:col-span-2">
+                                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><CreditCard className="h-3 w-3" />Método de pago</label>
+                                <Input placeholder="Transferencia, tarjeta, efectivo…" value={editForm.paymentMethod ?? ""} onChange={e => setEditForm(f => ({ ...f, paymentMethod: e.target.value }))} className="bg-background h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1 sm:col-span-2">
+                                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Observaciones internas</label>
+                                <textarea value={editForm.internalNotes ?? ""} onChange={e => setEditForm(f => ({ ...f, internalNotes: e.target.value }))} rows={2} placeholder="Notas internas (no visibles para el profesional)" className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-y" />
+                              </div>
+                            </div>
+                          </div>
+
                           <div className="flex gap-2 justify-end pt-1">
                             <Button variant="outline" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancelar</Button>
                             <Button size="sm" onClick={() => saveEdit(u.id)} disabled={saving} className="bg-primary text-white gap-1">

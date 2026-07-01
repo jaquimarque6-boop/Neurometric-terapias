@@ -23,6 +23,8 @@ function normalizeName(s: string | null | undefined): string {
     .trim();
 }
 
+const COMMERCIAL_STATUSES = ["trial", "paying", "overdue", "courtesy", "churned"] as const;
+
 function userToJson(u: typeof usersTable.$inferSelect) {
   return {
     id: u.id,
@@ -32,6 +34,15 @@ function userToJson(u: typeof usersTable.$inferSelect) {
     specialty: u.specialty ?? null,
     active: u.active,
     createdAt: u.createdAt.toISOString(),
+    // Datos comerciales (metadatos administrativos, separados de pagos clínicos).
+    commercialStatus: u.commercialStatus,
+    trialStartDate: u.trialStartDate ?? null,
+    trialEndDate: u.trialEndDate ?? null,
+    lastPaymentDate: u.lastPaymentDate ?? null,
+    nextDueDate: u.nextDueDate ?? null,
+    monthlyAmount: u.monthlyAmount ?? null,
+    paymentMethod: u.paymentMethod ?? null,
+    internalNotes: u.internalNotes ?? null,
   };
 }
 
@@ -62,6 +73,7 @@ router.get("/users", async (req, res) => {
         userId: registrosClinicosTable.userId,
         professionalId: registrosClinicosTable.professionalId,
         professionalName: registrosClinicosTable.professionalName,
+        fecha: registrosClinicosTable.fecha,
         createdAt: registrosClinicosTable.createdAt,
       })
       .from(registrosClinicosTable),
@@ -120,9 +132,13 @@ router.get("/users", async (req, res) => {
     if (!s) continue;
     s.sesionesRegistradas++;
     s.pacientesConSesion.add(r.patientId);
-    if (r.createdAt && r.createdAt >= monthStart) s.sesionesEsteMes++;
-    if (r.createdAt && (!s.ultimaActividad || r.createdAt > s.ultimaActividad)) {
-      s.ultimaActividad = r.createdAt;
+    // Preferimos la fecha clínica real (r.fecha, texto YYYY-MM-DD que escribe el
+    // profesional) y usamos created_at solo como respaldo si la fecha no es válida.
+    const parsed = r.fecha ? new Date(`${r.fecha}T00:00:00`) : null;
+    const eff = parsed && !isNaN(parsed.getTime()) ? parsed : r.createdAt;
+    if (eff && eff >= monthStart) s.sesionesEsteMes++;
+    if (eff && (!s.ultimaActividad || eff > s.ultimaActividad)) {
+      s.ultimaActividad = eff;
     }
   }
 
@@ -206,7 +222,11 @@ router.patch("/users/:id", async (req, res) => {
     return res.status(403).json({ error: "Solo administradores pueden gestionar otros usuarios" });
   }
 
-  const { name, email, role, specialty, active, password } = req.body;
+  const {
+    name, email, role, specialty, active, password,
+    commercialStatus, trialStartDate, trialEndDate, lastPaymentDate,
+    nextDueDate, monthlyAmount, paymentMethod, internalNotes,
+  } = req.body;
 
   if (!isAdmin && (role !== undefined || active !== undefined)) {
     return res.status(403).json({ error: "No tienes permiso para cambiar el rol o el estado de la cuenta" });
@@ -224,6 +244,28 @@ router.patch("/users/:id", async (req, res) => {
   if (isAdmin) {
     if (role !== undefined) updates.role = role;
     if (active !== undefined) updates.active = active;
+    // Datos comerciales (solo admin). No afectan login/auth ni pagos clínicos.
+    if (commercialStatus !== undefined) {
+      if (!COMMERCIAL_STATUSES.includes(commercialStatus)) {
+        return res.status(400).json({ error: "Estado comercial inválido" });
+      }
+      updates.commercialStatus = commercialStatus;
+    }
+    if (trialStartDate !== undefined) updates.trialStartDate = trialStartDate || null;
+    if (trialEndDate !== undefined) updates.trialEndDate = trialEndDate || null;
+    if (lastPaymentDate !== undefined) updates.lastPaymentDate = lastPaymentDate || null;
+    if (nextDueDate !== undefined) updates.nextDueDate = nextDueDate || null;
+    if (monthlyAmount !== undefined) {
+      if (monthlyAmount === "" || monthlyAmount == null) {
+        updates.monthlyAmount = null;
+      } else if (isNaN(Number(monthlyAmount))) {
+        return res.status(400).json({ error: "Monto mensual inválido" });
+      } else {
+        updates.monthlyAmount = String(monthlyAmount);
+      }
+    }
+    if (paymentMethod !== undefined) updates.paymentMethod = paymentMethod?.trim() || null;
+    if (internalNotes !== undefined) updates.internalNotes = internalNotes?.trim() || null;
   }
 
   const [updated] = await db

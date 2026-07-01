@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, date, numeric } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -9,6 +9,16 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   specialty: text("specialty"),
   active: boolean("active").notNull().default(true),
+  // Estado comercial (metadatos administrativos, independientes del login `active`
+  // y del módulo de pagos clínicos): trial | paying | overdue | courtesy | churned.
+  commercialStatus: text("commercial_status").notNull().default("trial"),
+  trialStartDate: date("trial_start_date"),
+  trialEndDate: date("trial_end_date"),
+  lastPaymentDate: date("last_payment_date"),
+  nextDueDate: date("next_due_date"),
+  monthlyAmount: numeric("monthly_amount"),
+  paymentMethod: text("payment_method"),
+  internalNotes: text("internal_notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

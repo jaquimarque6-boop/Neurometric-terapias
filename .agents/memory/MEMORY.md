@@ -1,3 +1,4 @@
 - [Production topology](production-topology.md) — prod is Netlify + Render backend + own DB, NOT the Replit deploy; Replit Publish does not manage prod schema.
 - [Query cache & navigation](query-cache-navigation.md) — "need F5 to load" = QueryClient staleTime cache; fix is refetchOnMount:"always"; reuse generated query keys (manual ad-hoc keys = duplicate caches).
+- [Users commercial metadata](users-commercial-metadata.md) — `active` (login) vs `commercial_status` (billing) vs clinical `pagos` are 3 separate axes; session metrics date by registros_clinicos.fecha, not created_at.
 - [Diagnosis storage & multiselect](diagnosis-storage.md) — diagnoses stored comma-separated (no join table); parse+serialize BOTH sides before comparing; IA uses only the first (primary).
