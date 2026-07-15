@@ -413,14 +413,30 @@ export default function RegistroPagos() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Wallet className="h-6 w-6 text-primary" />
-              Registro de Pagos
+              {activeTab === "pagos" ? (
+                <>
+                  <Wallet className="h-6 w-6 text-primary" />
+                  💰 Pagos
+                </>
+              ) : (
+                <>
+                  <Receipt className="h-6 w-6 text-primary" />
+                  🧾 Gastos
+                </>
+              )}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {filterMes && filterMes !== "todos" ? mesLabel(filterMes) : "Todos los meses"}
+              {activeTab === "pagos" && (
+                <>
+                  {" · "}
+                  {filterCriterio === "fecha" ? "por fecha de ingreso" : "por mes abonado"}
+                </>
+              )}
               {" · "}
-              {filterCriterio === "fecha" ? "por fecha de ingreso" : "por mes abonado"}
-              {" · Cobros registrados por paciente"}
+              {activeTab === "pagos"
+                ? "Cobros registrados de los pacientes."
+                : "Gastos registrados del profesional."}
             </p>
           </div>
           {activeTab === "pagos" ? (
@@ -436,23 +452,40 @@ export default function RegistroPagos() {
           )}
         </div>
 
-        {/* Resumen del mes: cobrado / gastos / saldo */}
-        <div className="grid grid-cols-3 gap-3 rounded-xl border bg-card p-4">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Cobrado del mes</p>
-            <p className="font-bold text-base sm:text-lg text-emerald-600 leading-tight">{formatMonto(totalCobrado)}</p>
+        {/* Resumen del mes — el contenido se adapta a la pestaña activa */}
+        {activeTab === "pagos" ? (
+          <div className="grid grid-cols-3 gap-3 rounded-xl border bg-card p-4">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Cobrado del mes</p>
+              <p className="font-bold text-base sm:text-lg text-emerald-600 leading-tight">{formatMonto(totalCobrado)}</p>
+            </div>
+            <div className="text-center border-x border-border/60">
+              <p className="text-xs text-muted-foreground">Gastos del mes</p>
+              <p className="font-bold text-base sm:text-lg text-rose-600 leading-tight">{formatMonto(totalGastos)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Saldo</p>
+              <p className={`font-bold text-base sm:text-lg leading-tight ${saldo >= 0 ? "text-foreground" : "text-rose-600"}`}>
+                {formatMonto(saldo)}
+              </p>
+            </div>
           </div>
-          <div className="text-center border-x border-border/60">
-            <p className="text-xs text-muted-foreground">Gastos del mes</p>
-            <p className="font-bold text-base sm:text-lg text-rose-600 leading-tight">{formatMonto(totalGastos)}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 rounded-xl border bg-card p-4">
+            <div className="text-center border-r border-border/60">
+              <p className="text-xs text-muted-foreground">Gastos del mes</p>
+              <p className="font-bold text-base sm:text-lg text-rose-600 leading-tight">{formatMonto(totalGastos)}</p>
+              <p className="text-xs text-muted-foreground">{gastosFiltrados.length} gasto{gastosFiltrados.length !== 1 ? "s" : ""}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Saldo del mes</p>
+              <p className={`font-bold text-base sm:text-lg leading-tight ${saldo >= 0 ? "text-foreground" : "text-rose-600"}`}>
+                {formatMonto(saldo)}
+              </p>
+              <p className="text-xs text-muted-foreground">Cobrado − Gastos</p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Saldo</p>
-            <p className={`font-bold text-base sm:text-lg leading-tight ${saldo >= 0 ? "text-foreground" : "text-rose-600"}`}>
-              {formatMonto(saldo)}
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-1 bg-muted/60 border border-border/60 rounded-xl p-1 w-fit">
@@ -476,19 +509,6 @@ export default function RegistroPagos() {
 
         {activeTab === "gastos" ? (
           <div className="space-y-4">
-            <div className="rounded-xl border bg-card p-4 flex items-center gap-3 max-w-sm">
-              <div className="h-10 w-10 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-                <Receipt className="h-5 w-5 text-rose-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Total de gastos {filterMes && filterMes !== "todos" ? `· ${mesLabel(filterMes)}` : "· todos los meses"}
-                </p>
-                <p className="font-bold text-lg text-foreground leading-tight">{formatMonto(totalGastos)}</p>
-                <p className="text-xs text-muted-foreground">{gastosFiltrados.length} gasto{gastosFiltrados.length !== 1 ? "s" : ""}</p>
-              </div>
-            </div>
-
             <div className="flex flex-wrap gap-3 items-center">
               <Select value={filterMes} onValueChange={setFilterMes}>
                 <SelectTrigger className="w-44">
