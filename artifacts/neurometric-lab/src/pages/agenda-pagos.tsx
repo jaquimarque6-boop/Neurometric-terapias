@@ -79,6 +79,19 @@ type Pago = {
 
 type Patient = { id: number; name: string };
 
+type Gasto = {
+  id: number;
+  fecha: string;
+  monto: string;
+  observacion?: string | null;
+};
+
+const emptyGastoForm = {
+  fecha: new Date().toISOString().slice(0, 10),
+  monto: "",
+  observacion: "",
+};
+
 const emptyForm = {
   patientId: "",
   monto: "",
@@ -103,6 +116,12 @@ export default function RegistroPagos() {
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Pago | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"pagos" | "gastos">("pagos");
+  const [gastoDialogOpen, setGastoDialogOpen] = useState(false);
+  const [gastoEditTarget, setGastoEditTarget] = useState<Gasto | null>(null);
+  const [gastoForm, setGastoForm] = useState(emptyGastoForm);
+  const [gastoDeleteTarget, setGastoDeleteTarget] = useState<Gasto | null>(null);
 
   // Acceso directo desde la agenda: /agenda-pagos?patientId=5&nuevo=1 preselecciona
   // el paciente y abre el formulario de registro de pago.
@@ -233,6 +252,115 @@ export default function RegistroPagos() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  // ─── Gastos ────────────────────────────────────────────────────────────────
+  const { data: gastos = [], isLoading: gastosLoading } = useQuery<Gasto[]>({
+    queryKey: ["gastos"],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/gastos`, { credentials: "include" });
+      if (!r.ok) throw new Error("Error");
+      return r.json();
+    },
+  });
+
+  const gastosFiltrados = useMemo(() => {
+    if (!filterMes || filterMes === "todos") return gastos;
+    return gastos.filter(g => (g.fecha ?? "").slice(0, 7) === filterMes);
+  }, [gastos, filterMes]);
+
+  function patchGastosCache(updater: (old: Gasto[]) => Gasto[]) {
+    qc.setQueriesData<Gasto[]>({ queryKey: ["gastos"] }, (old) => updater(old ?? []));
+    qc.invalidateQueries({ queryKey: ["gastos"] });
+  }
+
+  const createGastoMutation = useMutation({
+    mutationFn: async (data: typeof emptyGastoForm): Promise<Gasto> => {
+      const r = await fetch(`${API_BASE}/api/gastos`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha: data.fecha,
+          monto: parseFloat(data.monto),
+          observacion: data.observacion || null,
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Error");
+      return r.json();
+    },
+    onSuccess: (nuevo) => {
+      patchGastosCache(old => [...old, nuevo].sort((a, b) => a.fecha.localeCompare(b.fecha)));
+      toast({ title: "Gasto registrado" });
+      setGastoDialogOpen(false);
+      setGastoForm(emptyGastoForm);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateGastoMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: typeof emptyGastoForm }): Promise<Gasto> => {
+      const r = await fetch(`${API_BASE}/api/gastos/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha: data.fecha,
+          monto: parseFloat(data.monto),
+          observacion: data.observacion || null,
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Error");
+      return r.json();
+    },
+    onSuccess: (updated) => {
+      patchGastosCache(old => old.map(g => g.id === updated.id ? updated : g));
+      toast({ title: "Gasto actualizado" });
+      setGastoDialogOpen(false);
+      setGastoEditTarget(null);
+      setGastoForm(emptyGastoForm);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteGastoMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`${API_BASE}/api/gastos/${id}`, { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Error");
+      return r.json();
+    },
+    onSuccess: (_, deletedId) => {
+      patchGastosCache(old => old.filter(g => g.id !== deletedId));
+      toast({ title: "Gasto eliminado" });
+      setGastoDeleteTarget(null);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  function openCreateGasto() {
+    setGastoEditTarget(null);
+    setGastoForm(emptyGastoForm);
+    setGastoDialogOpen(true);
+  }
+
+  function openEditGasto(g: Gasto) {
+    setGastoEditTarget(g);
+    setGastoForm({ fecha: g.fecha, monto: g.monto, observacion: g.observacion ?? "" });
+    setGastoDialogOpen(true);
+  }
+
+  function handleGastoSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = parseFloat(gastoForm.monto);
+    if (!gastoForm.fecha || !gastoForm.monto || !isFinite(n) || n <= 0) {
+      toast({ title: "Campos incompletos", description: "Ingresá fecha y un monto mayor a 0.", variant: "destructive" });
+      return;
+    }
+    if (gastoEditTarget) {
+      updateGastoMutation.mutate({ id: gastoEditTarget.id, data: gastoForm });
+    } else {
+      createGastoMutation.mutate(gastoForm);
+    }
+  }
+
   function openCreate() {
     setEditTarget(null);
     setForm(emptyForm);
@@ -275,6 +403,8 @@ export default function RegistroPagos() {
   const totalCobrado = pagosFiltrados.reduce((acc, p) => acc + parseFloat(p.monto), 0);
   const countParticular = pagosFiltrados.filter(p => p.tipo === "particular").length;
   const countObraSocial = pagosFiltrados.filter(p => p.tipo === "obra_social").length;
+  const totalGastos = gastosFiltrados.reduce((acc, g) => acc + parseFloat(g.monto), 0);
+  const saldo = totalCobrado - totalGastos;
 
   return (
     <AppLayout>
@@ -293,12 +423,152 @@ export default function RegistroPagos() {
               {" · Cobros registrados por paciente"}
             </p>
           </div>
-          <Button onClick={openCreate} className="gap-2 bg-primary hover:bg-primary/90">
-            <Plus className="h-4 w-4" />
-            Registrar pago
-          </Button>
+          {activeTab === "pagos" ? (
+            <Button onClick={openCreate} className="gap-2 bg-primary hover:bg-primary/90">
+              <Plus className="h-4 w-4" />
+              Registrar pago
+            </Button>
+          ) : (
+            <Button onClick={openCreateGasto} className="gap-2 bg-primary hover:bg-primary/90">
+              <Plus className="h-4 w-4" />
+              Registrar gasto
+            </Button>
+          )}
         </div>
 
+        {/* Resumen del mes: cobrado / gastos / saldo */}
+        <div className="grid grid-cols-3 gap-3 rounded-xl border bg-card p-4">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">Cobrado del mes</p>
+            <p className="font-bold text-base sm:text-lg text-emerald-600 leading-tight">{formatMonto(totalCobrado)}</p>
+          </div>
+          <div className="text-center border-x border-border/60">
+            <p className="text-xs text-muted-foreground">Gastos del mes</p>
+            <p className="font-bold text-base sm:text-lg text-rose-600 leading-tight">{formatMonto(totalGastos)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">Saldo</p>
+            <p className={`font-bold text-base sm:text-lg leading-tight ${saldo >= 0 ? "text-foreground" : "text-rose-600"}`}>
+              {formatMonto(saldo)}
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-1 bg-muted/60 border border-border/60 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setActiveTab("pagos")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "pagos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Pagos
+          </button>
+          <button
+            onClick={() => setActiveTab("gastos")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "gastos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Gastos
+          </button>
+        </div>
+
+        {activeTab === "gastos" ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-card p-4 flex items-center gap-3 max-w-sm">
+              <div className="h-10 w-10 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
+                <Receipt className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Total de gastos {filterMes && filterMes !== "todos" ? `· ${mesLabel(filterMes)}` : "· todos los meses"}
+                </p>
+                <p className="font-bold text-lg text-foreground leading-tight">{formatMonto(totalGastos)}</p>
+                <p className="text-xs text-muted-foreground">{gastosFiltrados.length} gasto{gastosFiltrados.length !== 1 ? "s" : ""}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
+              <Select value={filterMes} onValueChange={setFilterMes}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los meses</SelectItem>
+                  {mesOptions.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="rounded-xl border bg-card overflow-hidden">
+              {gastosLoading ? (
+                <div className="p-6 space-y-3">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+                </div>
+              ) : gastosFiltrados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                  <Receipt className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">Sin gastos registrados</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usá el botón "Registrar gasto" para ingresar un gasto.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="font-semibold">Fecha</TableHead>
+                      <TableHead className="font-semibold">Monto</TableHead>
+                      <TableHead className="font-semibold">Observación</TableHead>
+                      <TableHead className="font-semibold text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {gastosFiltrados.map(g => (
+                      <TableRow key={g.id} className="hover:bg-muted/20 transition-colors">
+                        <TableCell className="text-sm">
+                          {new Date(g.fecha + "T12:00:00").toLocaleDateString("es-CL")}
+                        </TableCell>
+                        <TableCell className="font-mono font-semibold text-foreground">
+                          {formatMonto(g.monto)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-[18rem] truncate">
+                          {g.observacion || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={() => openEditGasto(g)}
+                              title="Editar"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-rose-600"
+                              onClick={() => setGastoDeleteTarget(g)}
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
@@ -467,7 +737,80 @@ export default function RegistroPagos() {
             </Table>
           )}
         </div>
+        </>
+        )}
       </div>
+
+      {/* Add / Edit Gasto Dialog */}
+      <Dialog open={gastoDialogOpen} onOpenChange={open => { if (!open) { setGastoDialogOpen(false); setGastoEditTarget(null); setGastoForm(emptyGastoForm); } else setGastoDialogOpen(true); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{gastoEditTarget ? "Editar gasto" : "Registrar gasto"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleGastoSubmit} className="space-y-4 pt-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Fecha *</Label>
+                <Input
+                  type="date"
+                  value={gastoForm.fecha}
+                  onChange={e => setGastoForm(f => ({ ...f, fecha: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Monto (CLP) *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="ej. 15000"
+                  value={gastoForm.monto}
+                  onChange={e => setGastoForm(f => ({ ...f, monto: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observación (opcional)</Label>
+              <Input
+                placeholder="ej. materiales, impresiones…"
+                value={gastoForm.observacion}
+                onChange={e => setGastoForm(f => ({ ...f, observacion: e.target.value }))}
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => { setGastoDialogOpen(false); setGastoEditTarget(null); setGastoForm(emptyGastoForm); }}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={createGastoMutation.isPending || updateGastoMutation.isPending}>
+                {gastoEditTarget ? "Guardar cambios" : "Registrar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Gasto confirm */}
+      <Dialog open={!!gastoDeleteTarget} onOpenChange={open => { if (!open) setGastoDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar gasto</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            ¿Eliminar el gasto de {gastoDeleteTarget ? formatMonto(gastoDeleteTarget.monto) : ""} del{" "}
+            {gastoDeleteTarget ? new Date(gastoDeleteTarget.fecha + "T12:00:00").toLocaleDateString("es-CL") : ""}?
+            Esta acción no se puede deshacer.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGastoDeleteTarget(null)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => gastoDeleteTarget && deleteGastoMutation.mutate(gastoDeleteTarget.id)}
+              disabled={deleteGastoMutation.isPending}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={open => { if (!open) closeDialog(); else setDialogOpen(true); }}>

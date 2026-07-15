@@ -1,0 +1,91 @@
+Quiero implementar tres mejoras simples para aumentar la adhesión y facilitar el uso de Neurometric Terapias.
+
+Antes de modificar, auditá brevemente qué datos y componentes ya existen. Reutilizar lo actual y evitar una refactorización grande.
+
+## 1. Asistente de bienvenida
+
+Mostrar un recorrido breve únicamente la primera vez que ingresa cada profesional.
+
+Pasos:
+
+1. Crear o abrir un paciente.
+2. Completar anamnesis.
+3. Registrar una sesión rápida o completa.
+4. Crear objetivos terapéuticos.
+5. Subir documentación.
+6. Registrar un pago.
+
+Requisitos:
+
+* Diseño simple, con botones “Anterior”, “Siguiente” y “Finalizar”.
+* Permitir “Omitir” y “No volver a mostrar”.
+* Guardar localmente que el usuario ya completó u omitió el recorrido.
+* Agregar después una opción discreta “Ver guía de uso” para volver a abrirlo.
+* No bloquear el ingreso a la plataforma.
+
+## 2. Cumpleaños de pacientes
+
+Aprovechar la fecha de nacimiento ya incorporada.
+
+En el panel principal agregar una tarjeta compacta:
+
+“Cumpleaños próximos”
+
+Mostrar solamente pacientes activos/no archivados que cumplan:
+
+* hoy;
+* durante los próximos 7 días.
+
+Mostrar:
+
+* nombre;
+* fecha;
+* edad que cumple.
+
+Ejemplo:
+
+🎉 Hoy: Sofía Pérez — cumple 8 años
+🎂 18/07: Octavio Moreno — cumple 6 años
+
+Si ningún paciente cumple próximamente, mostrar un mensaje discreto y no una tarjeta vacía.
+
+La edad debe calcularse desde fecha de nacimiento. Los pacientes que solo tengan edad manual no aparecen en cumpleaños.
+
+## 3. Gastos simples dentro de Pagos
+
+Dentro de la pantalla actual de Registro de Pagos agregar dos pestañas:
+
+* Pagos
+* Gastos
+
+En Gastos permitir únicamente:
+
+* Fecha
+* Monto manual
+* Observación libre
+
+Sin categorías, métodos ni opciones adicionales.
+
+Mostrar:
+
+* total de gastos del mes;
+* listado de gastos del mes;
+* editar;
+* eliminar con confirmación.
+
+En la cabecera del módulo mostrar un resumen simple:
+
+* Cobrado del mes
+* Gastos del mes
+* Saldo
+
+Saldo = cobrado - gastos.
+
+## Importante
+
+* No tocar la lógica actual de pagos de pacientes.
+* No mezclar gastos con pagos clínicos.
+* No modificar login, permisos, sesiones, objetivos, documentación ni IA.
+* Mantener pacientes existentes y datos actuales.
+* Si Gastos requiere una tabla nueva, explicarme primero el esquema mínimo y el SQL necesario para producción.
+* Implementar con la menor cantidad posible de archivos.

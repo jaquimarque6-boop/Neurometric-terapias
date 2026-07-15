@@ -127,6 +127,32 @@ export default function Dashboard() {
   const isAdmin    = user?.role === "admin";
   const quickLinks = QUICK_LINKS(isAdmin);
 
+  // ── Cumpleaños próximos (hoy + 7 días), solo pacientes con fecha de nacimiento ──
+  const cumpleanos = (() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const out: { id: number; name: string; fecha: Date; esHoy: boolean; cumpleAnios: number }[] = [];
+    for (const p of patients as any[]) {
+      const fn = p.fechaNacimiento;
+      if (typeof fn !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fn)) continue;
+      const [y, m, d] = fn.split("-").map(Number);
+      // Próxima ocurrencia del cumpleaños (este año o el próximo)
+      let prox = new Date(hoy.getFullYear(), m - 1, d);
+      prox.setHours(0, 0, 0, 0);
+      if (prox < hoy) prox = new Date(hoy.getFullYear() + 1, m - 1, d);
+      const diffDias = Math.round((prox.getTime() - hoy.getTime()) / 86400000);
+      if (diffDias > 7) continue;
+      out.push({
+        id: p.id,
+        name: p.name,
+        fecha: prox,
+        esHoy: diffDias === 0,
+        cumpleAnios: prox.getFullYear() - y,
+      });
+    }
+    return out.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+  })();
+
   const stats = [
     { label: "Pacientes",         value: totalPatients,  icon: Users      },
     { label: "Objetivos activos", value: activeGoals,    icon: Target     },
@@ -235,6 +261,34 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* ── Cumpleaños próximos ───────────────────────────────────────── */}
+        {cumpleanos.length > 0 ? (
+          <div className="bg-card rounded-2xl border border-border/50 shadow-sm px-4 py-4">
+            <h2 className="text-sm font-semibold text-foreground mb-2.5">🎂 Cumpleaños próximos</h2>
+            <div className="space-y-1.5">
+              {cumpleanos.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => navigate(`/patients/${c.id}`)}
+                  className="w-full flex items-center gap-2 text-left text-sm rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="shrink-0">{c.esHoy ? "🎉" : "🎂"}</span>
+                  <span className="text-foreground min-w-0 truncate">
+                    <span className="font-medium">
+                      {c.esHoy ? "Hoy" : format(c.fecha, "dd/MM")}:
+                    </span>{" "}
+                    {c.name} — cumple {c.cumpleAnios} año{c.cumpleAnios !== 1 ? "s" : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground px-1">
+            🎂 Sin cumpleaños en los próximos 7 días.
+          </p>
+        )}
 
         {/* ── Stats ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2.5">

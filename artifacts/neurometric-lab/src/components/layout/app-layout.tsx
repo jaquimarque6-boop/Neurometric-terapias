@@ -2,7 +2,8 @@ import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
-import { Bell, LogOut, ChevronDown, Menu } from "lucide-react";
+import { Bell, LogOut, ChevronDown, Menu, HelpCircle } from "lucide-react";
+import { WelcomeTour, openTour } from "@/components/welcome-tour";
 import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
@@ -127,6 +128,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openTour()}>
+                    <HelpCircle className="h-4 w-4" />
+                    Ver guía de uso
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive focus:bg-destructive/8 cursor-pointer gap-2"
                     onClick={handleLogout}
@@ -151,6 +157,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         </div>
       </div>
+      <WelcomeTour />
     </SidebarProvider>
   );
 }
