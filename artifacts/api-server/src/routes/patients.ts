@@ -176,6 +176,17 @@ router.post("/patients", async (req, res) => {
     }
   }
 
+  // Sanitise fecha de nacimiento — optional, must be YYYY-MM-DD and not in the future
+  let fechaNacimiento: string | null = null;
+  if (typeof body.fechaNacimiento === "string" && body.fechaNacimiento.trim()) {
+    const v = body.fechaNacimiento.trim();
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T12:00:00`) : new Date(NaN);
+    if (isNaN(d.getTime()) || d.getTime() > Date.now()) {
+      return res.status(400).json({ error: "Fecha de nacimiento inválida." });
+    }
+    fechaNacimiento = v;
+  }
+
   // Determine assigned professional
   let assignedProfessionalId: number | null = null;
   let profesionalNombre: string | null = body.profesionalNombre ?? null;
@@ -197,6 +208,7 @@ router.post("/patients", async (req, res) => {
     const [patient] = await db.insert(patientsTable).values({
       name: body.name.trim(),
       age,
+      fechaNacimiento,
       diagnosis: body.diagnosis?.trim() || null,
       profesionalNombre,
       assignedProfessionalId,
@@ -270,9 +282,25 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
     profesionalNombre = body.profesionalNombre ?? null;
   }
 
+  // Sanitise fecha de nacimiento — optional, must be YYYY-MM-DD and not in the future
+  let fechaNacimiento = existing.fechaNacimiento;
+  if (body.fechaNacimiento !== undefined) {
+    if (typeof body.fechaNacimiento === "string" && body.fechaNacimiento.trim()) {
+      const v = body.fechaNacimiento.trim();
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T12:00:00`) : new Date(NaN);
+      if (isNaN(d.getTime()) || d.getTime() > Date.now()) {
+        return res.status(400).json({ error: "Fecha de nacimiento inválida." });
+      }
+      fechaNacimiento = v;
+    } else {
+      fechaNacimiento = null;
+    }
+  }
+
   const [updated] = await db.update(patientsTable).set({
     name: body.name ?? existing.name,
-    age: body.age ?? existing.age,
+    age: body.age !== undefined ? body.age : existing.age,
+    fechaNacimiento,
     diagnosis: body.diagnosis ?? existing.diagnosis,
     profesionalNombre,
     assignedProfessionalId,

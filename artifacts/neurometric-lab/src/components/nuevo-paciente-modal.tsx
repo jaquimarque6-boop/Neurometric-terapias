@@ -21,13 +21,13 @@ export function NuevoPacienteModal({
   const { toast }     = useToast();
   const createPatient = useCreatePatient();
 
-  const [form, setForm] = useState({ name: "", age: "", diagnosis: "" });
+  const [form, setForm] = useState({ name: "", age: "", fechaNacimiento: "", diagnosis: "" });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const canSave = form.name.trim().length > 0;
 
   const handleClose = () => {
-    setForm({ name: "", age: "", diagnosis: "" });
+    setForm({ name: "", age: "", fechaNacimiento: "", diagnosis: "" });
     onClose();
   };
 
@@ -37,6 +37,7 @@ export function NuevoPacienteModal({
     const body: Record<string, any> = {
       name: form.name.trim(),
       age: form.age ? parseInt(form.age) : undefined,
+      fechaNacimiento: form.fechaNacimiento || undefined,
       diagnosis: form.diagnosis.trim() || undefined,
     };
 
@@ -98,7 +99,26 @@ export function NuevoPacienteModal({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="np-age" className="text-sm font-medium text-foreground/80">Edad</label>
+              <label htmlFor="np-fecha-nac" className="text-sm font-medium text-foreground/80">
+                Fecha de nacimiento <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <Input
+                id="np-fecha-nac"
+                type="date"
+                max={new Date().toISOString().split("T")[0]}
+                value={form.fechaNacimiento}
+                onChange={e => set("fechaNacimiento", e.target.value)}
+                className="bg-muted/50 max-w-[12rem]"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Si la cargas, la edad se calcula sola y se mantiene siempre actualizada.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="np-age" className="text-sm font-medium text-foreground/80">
+                Edad <span className="text-muted-foreground font-normal">(si no conoces la fecha de nacimiento)</span>
+              </label>
               <Input
                 id="np-age"
                 type="number"
@@ -109,6 +129,7 @@ export function NuevoPacienteModal({
                 value={form.age}
                 onChange={e => set("age", e.target.value)}
                 className="bg-muted/50 max-w-[10rem]"
+                disabled={!!form.fechaNacimiento}
               />
             </div>
 

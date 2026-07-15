@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Stethoscope, Search, Plus, X, Pencil, Check } from "lucide-react";
+import { Stethoscope, Search, Plus, X, Pencil, Check, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +73,12 @@ export function DiagnosisPicker({
 
   const remove = (v: string) => onChange(value.filter(x => x !== v));
 
+  // El primero de la lista es el diagnóstico PRINCIPAL; este botón lo reordena al frente.
+  const makePrincipal = (v: string) => {
+    if (value[0] === v) return;
+    onChange([v, ...value.filter(x => x !== v)]);
+  };
+
   const addCustom = () => {
     const t = customText.trim();
     if (!t) return;
@@ -111,13 +117,21 @@ export function DiagnosisPicker({
           </button>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {value.map(v => (
+            {value.map((v, i) => (
               <span
                 key={v}
-                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                style={{ background: `${BRAND_TEAL}1f`, color: "#3f6b56" }}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+                style={
+                  i === 0 && value.length > 1
+                    ? { background: BRAND_TEAL, color: "#fff" }
+                    : { background: `${BRAND_TEAL}1f`, color: "#3f6b56" }
+                }
               >
+                {i === 0 && value.length > 1 && <Star className="h-3 w-3 fill-current" />}
                 {getDiagnosisLabel(v)}
+                {i === 0 && value.length > 1 && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Principal</span>
+                )}
               </span>
             ))}
           </div>
@@ -151,24 +165,50 @@ export function DiagnosisPicker({
 
       {/* Seleccionados */}
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {value.map(v => (
-            <span
-              key={v}
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
-              style={{ background: `${BRAND_TEAL}1f`, color: "#3f6b56" }}
-            >
-              {getDiagnosisLabel(v)}
-              <button
-                type="button"
-                onClick={() => remove(v)}
-                className="hover:opacity-70"
-                aria-label={`Quitar ${getDiagnosisLabel(v)}`}
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-1.5">
+            {value.map((v, i) => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+                style={
+                  i === 0 && value.length > 1
+                    ? { background: BRAND_TEAL, color: "#fff" }
+                    : { background: `${BRAND_TEAL}1f`, color: "#3f6b56" }
+                }
               >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
+                {i === 0 && value.length > 1 && <Star className="h-3 w-3 fill-current" />}
+                {getDiagnosisLabel(v)}
+                {i === 0 && value.length > 1 && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Principal</span>
+                )}
+                {i > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => makePrincipal(v)}
+                    className="hover:opacity-70"
+                    title="Marcar como diagnóstico principal"
+                    aria-label={`Marcar ${getDiagnosisLabel(v)} como principal`}
+                  >
+                    <Star className="h-3 w-3" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => remove(v)}
+                  className="hover:opacity-70"
+                  aria-label={`Quitar ${getDiagnosisLabel(v)}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          {value.length > 1 && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              El primero es el diagnóstico principal. Toca la estrella para cambiarlo; el resto quedan como asociados.
+            </p>
+          )}
         </div>
       )}
 

@@ -21,6 +21,7 @@ import { useLocation } from "wouter";
 import { useListPatients } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
+import { formatEdad, formatEdadCorta } from "@/utils/edad";
 
 const HOUR_PX = 32;
 const START_HOUR = 7;
@@ -444,6 +445,9 @@ export default function AgendaPage() {
                           <div className="px-1 py-0.5 h-full flex flex-col justify-start">
                             <span className={`text-[10px] font-semibold truncate leading-tight ${colors.text}`}>
                               {displayName}
+                              {citaPatient && formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age) && (
+                                <span className="font-normal opacity-60"> · {formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age)}</span>
+                              )}
                             </span>
                             {h > 24 && (
                               <span className={`text-[9px] leading-none ${colors.text} opacity-50`}>
@@ -670,9 +674,9 @@ export default function AgendaPage() {
                       <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
                         <User className="h-3.5 w-3.5 shrink-0" />
                         {p.name}
-                        {p.dateOfBirth && (
+                        {formatEdad(p.fechaNacimiento, p.age) && (
                           <span className="text-muted-foreground font-normal">
-                            · {new Date().getFullYear() - new Date(p.dateOfBirth).getFullYear()} años
+                            · {formatEdad(p.fechaNacimiento, p.age)}
                           </span>
                         )}
                       </div>

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { getDiagnosisLabel } from "@/utils/diagnosis-map";
+import { formatEdadCorta } from "@/utils/edad";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/api";
@@ -248,9 +249,9 @@ export default function Patients() {
                         >
                           {patient.name}
                         </span>
-                        {patient.age && (
+                        {formatEdadCorta((patient as any).fechaNacimiento, patient.age) && (
                           <span className="text-xs text-muted-foreground shrink-0 leading-none">
-                            {patient.age}a
+                            {formatEdadCorta((patient as any).fechaNacimiento, patient.age)}
                           </span>
                         )}
                       </div>
@@ -386,9 +387,9 @@ export default function Patients() {
                               <span className="font-semibold text-sm truncate leading-none text-muted-foreground">
                                 {patient.name}
                               </span>
-                              {patient.age && (
+                              {formatEdadCorta((patient as any).fechaNacimiento, patient.age) && (
                                 <span className="text-xs text-muted-foreground/60 shrink-0 leading-none">
-                                  {patient.age}a
+                                  {formatEdadCorta((patient as any).fechaNacimiento, patient.age)}
                                 </span>
                               )}
                             </div>

@@ -63,6 +63,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
+import { formatEdad } from "@/utils/edad";
 import { API_BASE } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -291,7 +292,7 @@ const PSICOPED_PROGRESO: Record<string, string> = {
 };
 
 function generarResumenProceso(
-  patient: { name: string; age?: number | null; diagnosis?: string | null },
+  patient: { name: string; age?: number | null; fechaNacimiento?: string | null; diagnosis?: string | null },
   goals: Goal[], registros: RC[]
 ): string {
   const logrados  = goals.filter(g => g.status === "logrado");
@@ -309,7 +310,8 @@ function generarResumenProceso(
   const nombre = patient.name.split(" ")[0];
 
   let txt = `A lo largo de las ${registros.length} sesión${registros.length !== 1 ? "es" : ""} de intervención terapéutica realizadas`;
-  if (patient.age) txt += ` con ${nombre}, de ${patient.age} años,`;
+  const edadTxt = formatEdad(patient.fechaNacimiento, patient.age);
+  if (edadTxt) txt += ` con ${nombre}, de ${edadTxt},`;
   else txt += ` con ${nombre},`;
 
   if (areas.length > 0)
@@ -354,8 +356,14 @@ function generarResumenProceso(
     txt += `\n\nEn cuanto al desarrollo de las sesiones, se ha registrado: "${nota.slice(0, 220)}${nota.length > 220 ? "…" : ""}"`;
   }
 
-  if (patient.diagnosis)
-    txt += `\n\nDiagnóstico de referencia: ${getDiagnosisLabel(patient.diagnosis)}.`;
+  if (patient.diagnosis) {
+    const diagList = patient.diagnosis.split(",").map(s => s.trim()).filter(Boolean);
+    const principal = diagList[0];
+    const asociados = diagList.slice(1);
+    txt += `\n\nDiagnóstico principal: ${getDiagnosisLabel(principal)}.`;
+    if (asociados.length > 0)
+      txt += ` Diagnósticos asociados: ${asociados.map(d => getDiagnosisLabel(d)).join(", ")}.`;
+  }
 
   return txt;
 }
@@ -814,7 +822,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                 <div>
                   <h1 className="text-2xl font-bold font-display text-foreground">{patient.name}</h1>
                   <div className="doc-meta flex flex-wrap gap-x-5 gap-y-0.5 mt-2 text-xs text-muted-foreground">
-                    {patient.age && <span>Edad: <strong className="text-foreground/80">{patient.age} años</strong></span>}
+                    {formatEdad((patient as any).fechaNacimiento, patient.age) && <span>Edad: <strong className="text-foreground/80">{formatEdad((patient as any).fechaNacimiento, patient.age)}</strong></span>}
                     {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{getDiagnosisLabel((patient as any).diagnosis)}</strong></span>}
                     {patient.fechaInicio && <span>Inicio: <strong className="text-foreground/80">{formatFecha(patient.fechaInicio)}</strong></span>}
                     <span>Sesiones: <strong className="text-foreground/80">{totalSessions}</strong></span>
@@ -1191,6 +1199,7 @@ export default function PatientProfile() {
   const [showEditPatient, setShowEditPatient] = useState(false);
   const [epName, setEpName]           = useState("");
   const [epAge, setEpAge]             = useState("");
+  const [epFechaNacimiento, setEpFechaNacimiento] = useState("");
   const [epDiagnosis, setEpDiagnosis] = useState("");
   const [epProf, setEpProf]           = useState("");
   const [epObs, setEpObs]             = useState("");
@@ -1321,6 +1330,7 @@ export default function PatientProfile() {
     if (showEditPatient && patient) {
       setEpName(patient.name ?? "");
       setEpAge(patient.age != null ? String(patient.age) : "");
+      setEpFechaNacimiento((patient as any).fechaNacimiento ?? "");
       setEpDiagnosis((patient as any).diagnosis ?? "");
       setEpProf((patient as any).profesionalNombre ?? "");
       setEpObs((patient as any).observaciones ?? "");
@@ -1347,6 +1357,7 @@ export default function PatientProfile() {
         body: JSON.stringify({
           name: epName.trim(),
           age: epAge ? parseInt(epAge) : null,
+          fechaNacimiento: epFechaNacimiento || null,
           diagnosis: epDiagnosis || null,
           observaciones: epObs || null,
         }),
@@ -1724,7 +1735,7 @@ export default function PatientProfile() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-foreground/70 mt-2">
-                  {patient.age && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-muted-foreground" />{patient.age} años</span>}
+                  {formatEdad((patient as any).fechaNacimiento, patient.age) && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-muted-foreground" />{formatEdad((patient as any).fechaNacimiento, patient.age)}</span>}
                   {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-muted-foreground" />Franja {(patient as any).franjaEtaria}</span>}
                   {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-muted-foreground" />{(patient as any).profesionalNombre}</span>}
                 </div>
@@ -2598,7 +2609,26 @@ export default function PatientProfile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">Edad</label>
+                  <label htmlFor="ep-fecha-nac" className="text-xs font-semibold text-foreground/70">
+                    Fecha de nacimiento <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </label>
+                  <Input
+                    id="ep-fecha-nac"
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    value={epFechaNacimiento}
+                    onChange={e => setEpFechaNacimiento(e.target.value)}
+                    className="bg-muted/50 max-w-[12rem]"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Si la cargas, la edad se calcula sola y se mantiene actualizada.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">
+                    Edad {epFechaNacimiento ? "(automática por fecha de nacimiento)" : "(manual)"}
+                  </label>
                   <Input
                     id="ep-age"
                     value={epAge}
@@ -2609,6 +2639,7 @@ export default function PatientProfile() {
                     min={0}
                     max={120}
                     className="bg-muted/50 max-w-[10rem]"
+                    disabled={!!epFechaNacimiento}
                   />
                 </div>
 

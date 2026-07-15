@@ -11,6 +11,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
+import { formatEdad, splitDiagnosis } from "../lib/edad";
 
 const router: IRouter = Router();
 
@@ -222,10 +223,11 @@ router.post("/ai/perfil-generate", async (req, res) => {
   // ── 1. Datos clínicos + anamnesis del paciente ────────────────────────────
   const patientContext = [
     `Nombre: ${patient.name}`,
-    patient.age ? `Edad: ${patient.age} años` : null,
+    formatEdad(patient.fechaNacimiento, patient.age) ? `Edad: ${formatEdad(patient.fechaNacimiento, patient.age)}` : null,
     patient.fechaNacimiento ? `Fecha de nacimiento: ${patient.fechaNacimiento}` : null,
     patient.franjaEtaria ? `Franja etaria: ${patient.franjaEtaria}` : null,
-    patient.diagnosis ? `Diagnóstico: ${patient.diagnosis}` : null,
+    splitDiagnosis(patient.diagnosis).principal ? `Diagnóstico principal: ${splitDiagnosis(patient.diagnosis).principal}` : null,
+    splitDiagnosis(patient.diagnosis).asociados.length ? `Diagnósticos asociados: ${splitDiagnosis(patient.diagnosis).asociados.join(", ")}` : null,
     patient.fechaInicio ? `Inicio del tratamiento: ${patient.fechaInicio}` : null,
     patient.escolaridad ? `Escolaridad: ${trunc(patient.escolaridad, 250)}` : null,
     patient.motivoConsulta ? `Motivo de consulta: ${trunc(patient.motivoConsulta, 500)}` : null,

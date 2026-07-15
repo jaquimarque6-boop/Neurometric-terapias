@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getProfesion, getDiagnosesByProfesion, getBancoAreas } from "@/utils/profession-map";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
+import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import { useAuth } from "@/contexts/auth-context";
 import { EvalSugerida } from "@/components/eval-sugerida";
@@ -1366,7 +1367,7 @@ export default function NuevaSesion() {
   // ── Report suggestion builder ──────────────────────────────────────────────
   const buildResumenSugerido = (): string => {
     const nombre = patient?.name?.split(" ")[0] ?? "el/la paciente";
-    const edad = patient?.age ? `${patient.age} años` : null;
+    const edad = patient ? formatEdad(patient.fechaNacimiento, patient.age) : null;
     const diag = (sessionDiagnosis ?? "").trim();
 
     type DiagCtx = { area: string; focus: string; progress: string; recomendacion: string };

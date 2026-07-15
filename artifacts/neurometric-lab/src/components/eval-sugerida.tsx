@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Brain, CheckCircle2, Lightbulb, ClipboardCheck, Eye } from "lucide-react";
-import { DIAGNOSIS_AREAS, getDiagnosisLabel } from "@/utils/diagnosis-map";
+import { DIAGNOSIS_AREAS, getDiagnosisLabel, parseDiagnoses } from "@/utils/diagnosis-map";
 
 interface AreaGuide {
   queEvaluar: string[];
@@ -368,6 +368,10 @@ const KEYWORD_AREA_MAP: Array<{ keywords: string[]; area: string }> = [
 
 function resolveAreas(diagnosis: string): string[] {
   if (!diagnosis) return [];
+  // Con diagnósticos múltiples (lista separada por comas), las evaluaciones
+  // sugeridas se orientan por el diagnóstico PRINCIPAL (el primero de la lista).
+  const principal = parseDiagnoses(diagnosis)[0] ?? diagnosis;
+  diagnosis = principal;
   const mapped = DIAGNOSIS_AREAS[diagnosis];
   if (mapped && mapped.length > 0) return mapped;
   const lower = diagnosis.toLowerCase();

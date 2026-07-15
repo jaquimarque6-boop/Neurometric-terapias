@@ -13,6 +13,7 @@ import { API_BASE } from "@/lib/api";
 import { LastSessionSummary } from "@/components/last-session-summary";
 import { getProfesion } from "@/utils/profession-map";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
+import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -330,9 +331,9 @@ export default function SesionRapida() {
               ))}
             </select>
           )}
-          {selectedPatient && selectedPatient.age && (
+          {selectedPatient && formatEdad((selectedPatient as any).fechaNacimiento, selectedPatient.age) && (
             <p className="text-xs text-muted-foreground pl-1">
-              {selectedPatient.age} años
+              {formatEdad((selectedPatient as any).fechaNacimiento, selectedPatient.age)}
             </p>
           )}
         </div>
