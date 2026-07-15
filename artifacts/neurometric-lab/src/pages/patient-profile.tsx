@@ -2629,18 +2629,27 @@ export default function PatientProfile() {
                   <label htmlFor="ep-age" className="text-xs font-semibold text-foreground/70">
                     Edad {epFechaNacimiento ? "(automática por fecha de nacimiento)" : "(manual)"}
                   </label>
-                  <Input
-                    id="ep-age"
-                    value={epAge}
-                    onChange={e => setEpAge(e.target.value)}
-                    placeholder="Ej. 8"
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    max={120}
-                    className="bg-muted/50 max-w-[10rem]"
-                    disabled={!!epFechaNacimiento}
-                  />
+                  {epFechaNacimiento ? (
+                    <Input
+                      id="ep-age"
+                      value={formatEdad(epFechaNacimiento, null) ?? ""}
+                      readOnly
+                      disabled
+                      className="bg-muted/50 max-w-[12rem]"
+                    />
+                  ) : (
+                    <Input
+                      id="ep-age"
+                      value={epAge}
+                      onChange={e => setEpAge(e.target.value)}
+                      placeholder="Ej. 8"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={120}
+                      className="bg-muted/50 max-w-[10rem]"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
