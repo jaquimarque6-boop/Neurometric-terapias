@@ -1,8 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable, patientsTable, registrosClinicosTable } from "@workspace/db/schema";
-import { eq, ne } from "drizzle-orm";
+import {
+  usersTable, patientsTable, registrosClinicosTable,
+  registrosTable, goalsTable, goalProgressTable, sessionsTable,
+  patientProfessionalsTable, citasTable, pagosTable, gastosTable,
+  patientFilesTable, deletionLogTable,
+} from "@workspace/db/schema";
+import { eq, ne, inArray, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { storageConfigured, deleteStorageObject } from "../lib/supabaseStorage";
 
 const router: IRouter = Router();
 
@@ -295,6 +301,203 @@ router.delete("/users/:id", async (req, res) => {
 
   if (!updated) return res.status(404).json({ error: "Usuario no encontrado" });
   return res.json(userToJson(updated));
+});
+
+// ─── Eliminación definitiva ───────────────────────────────────────────────────
+
+// Helper: patients whose PRIMARY professional is this user. Patients assigned to
+// other professionals are never touched.
+async function getOwnedPatientIds(userId: number): Promise<number[]> {
+  const rows = await db
+    .select({ id: patientsTable.id })
+    .from(patientsTable)
+    .where(eq(patientsTable.assignedProfessionalId, userId));
+  return rows.map((r) => r.id);
+}
+
+// GET /api/users/:id/deletion-preview — real counts of what a permanent delete
+// would remove (admin only). Read-only.
+router.get("/users/:id/deletion-preview", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+  const patientIds = await getOwnedPatientIds(id);
+
+  const countWhere = async (table: any, cond: any) =>
+    (await db.select({ id: table.id }).from(table).where(cond)).length;
+
+  // Solo se cuentan (y luego se borran) filas de pacientes CUYO profesional
+  // principal es el usuario a eliminar. Las filas históricas del usuario en
+  // pacientes de otros profesionales se conservan (se desvinculan, no se borran).
+  const registros = patientIds.length
+    ? await countWhere(registrosClinicosTable, inArray(registrosClinicosTable.patientId, patientIds))
+    : 0;
+
+  const documentos = patientIds.length
+    ? await countWhere(patientFilesTable, inArray(patientFilesTable.patientId, patientIds))
+    : 0;
+
+  const sesiones = patientIds.length
+    ? await countWhere(sessionsTable, inArray(sessionsTable.patientId, patientIds))
+    : 0;
+
+  const pagos = patientIds.length
+    ? await countWhere(pagosTable, inArray(pagosTable.patientId, patientIds))
+    : 0;
+
+  const gastos = await countWhere(gastosTable, eq(gastosTable.userId, id));
+
+  return res.json({
+    userId: id,
+    userName: user.name,
+    pacientes: patientIds.length,
+    registros,
+    documentos,
+    sesiones,
+    pagos,
+    gastos,
+  });
+});
+
+// DELETE /api/users/:id/permanent — permanent, transactional delete of the user,
+// their assigned patients and ALL dependent data. Storage objects are removed
+// after the DB transaction commits; failures there are logged in deletion_log
+// (orphan files, never orphan metadata). Requires body { confirm: "ELIMINAR" }.
+router.delete("/users/:id/permanent", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+
+  if (id === req.session.userId) {
+    return res.status(400).json({ error: "No puedes eliminar tu propio usuario" });
+  }
+  if (req.body?.confirm !== "ELIMINAR") {
+    return res.status(400).json({ error: "Confirmación inválida: debes escribir ELIMINAR" });
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+  const adminId = req.session.userId;
+  const [admin] = await db.select().from(usersTable).where(eq(usersTable.id, adminId));
+
+  try {
+    const patientIds = await getOwnedPatientIds(id);
+
+    // Collect storage paths BEFORE deleting metadata.
+    const files = patientIds.length
+      ? await db
+          .select({ id: patientFilesTable.id, storagePath: patientFilesTable.storagePath })
+          .from(patientFilesTable)
+          .where(inArray(patientFilesTable.patientId, patientIds))
+      : [];
+
+    let registrosDeleted = 0;
+
+    await db.transaction(async (tx) => {
+      // Delete ONLY rows belonging to patients whose primary professional is
+      // this user. Historical rows the user left on OTHER professionals'
+      // patients are preserved and merely unlinked (user_id → null), so no
+      // third-party clinical data is ever destroyed.
+      if (patientIds.length > 0) {
+        const goalIds = (
+          await tx.select({ id: goalsTable.id }).from(goalsTable)
+            .where(inArray(goalsTable.patientId, patientIds))
+        ).map((g) => g.id);
+        if (goalIds.length > 0) {
+          await tx.delete(goalProgressTable).where(inArray(goalProgressTable.goalId, goalIds));
+        }
+        await tx.delete(goalsTable).where(inArray(goalsTable.patientId, patientIds));
+        await tx.delete(registrosTable).where(inArray(registrosTable.patientId, patientIds));
+        const regs = await tx.delete(registrosClinicosTable)
+          .where(inArray(registrosClinicosTable.patientId, patientIds))
+          .returning({ id: registrosClinicosTable.id });
+        registrosDeleted = regs.length;
+        await tx.delete(sessionsTable).where(inArray(sessionsTable.patientId, patientIds));
+        await tx.delete(patientProfessionalsTable).where(inArray(patientProfessionalsTable.patientId, patientIds));
+        await tx.delete(citasTable).where(inArray(citasTable.patientId, patientIds));
+        await tx.delete(pagosTable).where(inArray(pagosTable.patientId, patientIds));
+        await tx.delete(patientFilesTable).where(inArray(patientFilesTable.patientId, patientIds));
+        await tx.delete(patientsTable).where(inArray(patientsTable.id, patientIds));
+      }
+
+      // Unlink (not delete) remaining rows that reference the user on other
+      // professionals' patients, so no dangling user_id references remain.
+      await tx.update(registrosClinicosTable).set({ userId: null })
+        .where(eq(registrosClinicosTable.userId, id));
+      await tx.update(citasTable).set({ userId: null })
+        .where(eq(citasTable.userId, id));
+      await tx.update(pagosTable).set({ userId: null })
+        .where(eq(pagosTable.userId, id));
+
+      // Personal data of the user
+      await tx.delete(gastosTable).where(eq(gastosTable.userId, id));
+
+      // Finally the user row itself
+      await tx.delete(usersTable).where(eq(usersTable.id, id));
+    });
+
+    // Post-commit steps. The DB deletion already succeeded at this point, so
+    // failures here must NEVER be reported as a rollback — only as warnings.
+    const storageErrors: string[] = [];
+    let filesDeleted = 0;
+    if (files.length > 0 && storageConfigured()) {
+      for (const f of files) {
+        try {
+          await deleteStorageObject(f.storagePath);
+          filesDeleted++;
+        } catch (e: any) {
+          storageErrors.push(`${f.storagePath}: ${e?.message ?? e}`);
+        }
+      }
+    } else if (files.length > 0) {
+      storageErrors.push("Storage no configurado: archivos no borrados del bucket");
+    }
+
+    try {
+      await db.insert(deletionLogTable).values({
+        adminId,
+        adminName: admin?.name ?? `admin#${adminId}`,
+        deletedUserId: id,
+        deletedUserName: user.name,
+        deletedUserEmail: user.email,
+        patientsDeleted: patientIds.length,
+        recordsDeleted: registrosDeleted,
+        filesDeleted,
+        storageErrors: storageErrors.length ? storageErrors.join(" | ") : null,
+      });
+    } catch (e: any) {
+      console.error(`[DELETE /api/users/${id}/permanent] deletion_log falló →`, e?.message ?? e);
+      storageErrors.push("No se pudo registrar el log de auditoría (la eliminación sí se completó)");
+    }
+
+    console.log(
+      `[DELETE /api/users/${id}/permanent] ✓ usuario "${user.name}" eliminado por admin=${adminId}` +
+      ` | pacientes=${patientIds.length} registros=${registrosDeleted} archivos=${filesDeleted}/${files.length}` +
+      (storageErrors.length ? ` | errores storage=${storageErrors.length}` : "")
+    );
+
+    return res.json({
+      ok: true,
+      deletedUserId: id,
+      pacientes: patientIds.length,
+      registros: registrosDeleted,
+      documentos: files.length,
+      archivosBorrados: filesDeleted,
+      storageWarnings: storageErrors.length ? storageErrors.length : undefined,
+    });
+  } catch (err: any) {
+    console.error(`[DELETE /api/users/${id}/permanent] ERROR →`, err?.message ?? err);
+    return res.status(500).json({
+      error: "No se pudo completar la eliminación. No se borró ningún dato (la transacción fue revertida).",
+    });
+  }
 });
 
 export default router;

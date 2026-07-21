@@ -13,3 +13,4 @@ export * from "./express-sessions";
 export * from "./pagos";
 export * from "./patient-files";
 export * from "./gastos";
+export * from "./deletion-log";

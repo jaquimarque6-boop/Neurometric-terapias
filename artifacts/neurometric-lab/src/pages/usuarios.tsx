@@ -14,6 +14,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertTriangle } from "lucide-react";
+
+type DeletionPreview = {
+  userId: number;
+  userName: string;
+  pacientes: number;
+  registros: number;
+  documentos: number;
+  sesiones: number;
+  pagos: number;
+  gastos: number;
+};
 
 const SPECIALTIES = [
   "Fonoaudiología",
@@ -258,12 +273,51 @@ export default function Usuarios() {
     if (r.ok) { toast({ title: u.active ? "Usuario desactivado" : "Usuario activado" }); await loadAll(); }
   };
 
-  // ── Delete user ────────────────────────────────────────────────────────────
-  const handleDelete = async (u: AppUser) => {
-    if (!window.confirm(`¿Desactivar permanentemente a ${u.name}?`)) return;
-    const r = await fetch(`${API_BASE}/api/users/${u.id}`, { method: "DELETE", credentials: "include" });
-    if (r.ok) { toast({ title: "Usuario desactivado" }); await loadAll(); }
-    else toast({ title: "Error al eliminar usuario", variant: "destructive" });
+  // ── Eliminación definitiva ─────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget]   = useState<AppUser | null>(null);
+  const [deletePreview, setDeletePreview] = useState<DeletionPreview | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting]           = useState(false);
+
+  const openPermanentDelete = async (u: AppUser) => {
+    setDeleteTarget(u);
+    setDeletePreview(null);
+    setDeleteConfirm("");
+    const r = await fetch(`${API_BASE}/api/users/${u.id}/deletion-preview`, { credentials: "include" });
+    if (r.ok) {
+      setDeletePreview(await r.json());
+    } else {
+      const e = await r.json().catch(() => ({}));
+      toast({ title: e.error ?? "No se pudo obtener el detalle de eliminación", variant: "destructive" });
+      setDeleteTarget(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!deleteTarget || deleteConfirm !== "ELIMINAR") return;
+    setDeleting(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/users/${deleteTarget.id}/permanent`, {
+        method: "DELETE", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "ELIMINAR" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        toast({
+          title: "Usuario eliminado definitivamente",
+          description: `Se borraron ${data.pacientes} paciente(s), ${data.registros} registro(s) y ${data.documentos} documento(s).`,
+        });
+        setDeleteTarget(null);
+        await loadAll();
+      } else {
+        toast({ title: data.error ?? "No se pudo eliminar. No se borró ningún dato.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error de conexión. No se borró ningún dato.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // ── Inline edit ────────────────────────────────────────────────────────────
@@ -752,9 +806,9 @@ export default function Usuarios() {
                               </button>
                               {u.id !== currentUser?.id && (
                                 <button
-                                  onClick={() => handleDelete(u)}
+                                  onClick={() => openPermanentDelete(u)}
                                   className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                                  title="Eliminar usuario"
+                                  title="Eliminar definitivamente"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1058,6 +1112,70 @@ export default function Usuarios() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Modal de eliminación definitiva ─────────────────────────────── */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Eliminar definitivamente
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción eliminará permanentemente al usuario, sus pacientes y toda la información clínica asociada. No se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTarget && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-sm font-semibold text-foreground mb-2">
+                  Se eliminará a <span className="text-destructive">{deleteTarget.name}</span> junto con:
+                </p>
+                {deletePreview ? (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• <span className="font-semibold text-foreground">{deletePreview.pacientes}</span> paciente{deletePreview.pacientes !== 1 ? "s" : ""} asignado{deletePreview.pacientes !== 1 ? "s" : ""}</li>
+                    <li>• <span className="font-semibold text-foreground">{deletePreview.registros}</span> registro{deletePreview.registros !== 1 ? "s" : ""} clínico{deletePreview.registros !== 1 ? "s" : ""}</li>
+                    <li>• <span className="font-semibold text-foreground">{deletePreview.sesiones}</span> sesión{deletePreview.sesiones !== 1 ? "es" : ""}</li>
+                    <li>• <span className="font-semibold text-foreground">{deletePreview.pagos}</span> pago{deletePreview.pagos !== 1 ? "s" : ""} y <span className="font-semibold text-foreground">{deletePreview.gastos}</span> gasto{deletePreview.gastos !== 1 ? "s" : ""}</li>
+                    <li>• <span className="font-semibold text-foreground">{deletePreview.documentos}</span> documento{deletePreview.documentos !== 1 ? "s" : ""} (incluye archivos en el almacenamiento)</li>
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Calculando datos a eliminar…</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground mb-1.5">
+                  Escribí <span className="font-bold text-destructive">ELIMINAR</span> para confirmar:
+                </p>
+                <Input
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="ELIMINAR"
+                  autoComplete="off"
+                  className="bg-muted/30"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePermanentDelete}
+              disabled={deleting || !deletePreview || deleteConfirm !== "ELIMINAR"}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting ? "Eliminando…" : "Eliminar definitivamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
