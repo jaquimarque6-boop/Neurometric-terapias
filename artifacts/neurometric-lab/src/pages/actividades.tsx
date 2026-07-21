@@ -1,7 +1,8 @@
 import { ExternalLink, BookOpen, Mic, Brain, Lightbulb, FileText } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 
-const BASE_URL = "https://therapy-spark-toolkit.lovable.app";
+const BASE_URL = ACTIVIDADES_URL;
 
 const QUICK_LINKS = [
   {

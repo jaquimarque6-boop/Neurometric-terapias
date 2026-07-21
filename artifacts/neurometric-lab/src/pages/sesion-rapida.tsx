@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 import { LastSessionSummary } from "@/components/last-session-summary";
 import { getProfesion } from "@/utils/profession-map";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
@@ -475,6 +476,17 @@ export default function SesionRapida() {
 
         {/* ── Actions ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2.5 pb-6">
+
+          {/* Banco de Actividades (nueva pestaña, no interrumpe la sesión) */}
+          <Button
+            asChild
+            variant="outline"
+            className="w-full gap-2 border-sky-200 text-sky-700 hover:bg-sky-50 hover:border-sky-300"
+          >
+            <a href={ACTIVIDADES_URL} target="_blank" rel="noopener noreferrer">
+              🎮 Abrir Banco de Actividades
+            </a>
+          </Button>
 
           {/* AI Organizer */}
           <Button

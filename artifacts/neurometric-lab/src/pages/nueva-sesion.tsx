@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { API_BASE } from "@/lib/api";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -3010,6 +3011,19 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Save bar ──────────────────────────────────────────────────── */}
+        {patient && (
+          <div className="pb-3">
+            <Button
+              asChild
+              variant="outline"
+              className="w-full gap-2 border-sky-200 text-sky-700 hover:bg-sky-50 hover:border-sky-300"
+            >
+              <a href={ACTIVIDADES_URL} target="_blank" rel="noopener noreferrer">
+                🎮 Abrir Banco de Actividades
+              </a>
+            </Button>
+          </div>
+        )}
         {patient && (
           <div className="flex gap-3 pb-8">
             <Button variant="outline" className="w-28" onClick={() => window.history.length > 1 ? window.history.back() : navigate(preselectedId ? `/patients/${preselectedId}` : "/")}>
