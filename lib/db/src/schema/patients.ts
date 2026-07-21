@@ -23,6 +23,8 @@ export const patientsTable = pgTable("patients", {
   vozHabla: text("voz_habla"),
   deglucion: text("deglucion"),
   impresionClinica: text("impresion_clinica"),
+  rutinasHabitos: text("rutinas_habitos"),
+  entornoParticipacion: text("entorno_participacion"),
   informeEvolucion: text("informe_evolucion"),
   informeFamilia: text("informe_familia"),
   informeMensual: text("informe_mensual"),

@@ -15,7 +15,7 @@ import {
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
   Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2,
-  Copy, RefreshCw,
+  Copy, RefreshCw, Moon,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
@@ -1385,6 +1385,8 @@ export default function PatientProfile() {
   const [anVoz, setAnVoz]                     = useState("");
   const [anDeglucion, setAnDeglucion]         = useState("");
   const [anImpresion, setAnImpresion]         = useState("");
+  const [anRutinas, setAnRutinas]             = useState("");
+  const [anEntorno, setAnEntorno]             = useState("");
   const [isSavingAn, setIsSavingAn]           = useState(false);
   const [anDirty, setAnDirty]                 = useState(false);
 
@@ -1554,6 +1556,8 @@ export default function PatientProfile() {
       setAnVoz((patient as any).vozHabla ?? "");
       setAnDeglucion((patient as any).deglucion ?? "");
       setAnImpresion((patient as any).impresionClinica ?? "");
+      setAnRutinas((patient as any).rutinasHabitos ?? "");
+      setAnEntorno((patient as any).entornoParticipacion ?? "");
       setAnDirty(false);
     }
   }, [patient?.id]);
@@ -1575,6 +1579,8 @@ export default function PatientProfile() {
           vozHabla: anVoz || null,
           deglucion: anDeglucion || null,
           impresionClinica: anImpresion || null,
+          rutinasHabitos: anRutinas || null,
+          entornoParticipacion: anEntorno || null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2035,6 +2041,49 @@ export default function PatientProfile() {
                   ],
                   placeholder: "Hipótesis clínica inicial, áreas a evaluar, presentación en sesión, factores protectores y de riesgo…",
                   usos: ["informe clínico", "interconsulta"],
+                },
+                {
+                  key: "rutinas",
+                  label: "Rutinas y hábitos",
+                  icon: <Moon className="h-4 w-4" />,
+                  accent: "border-l-indigo-400 bg-indigo-50",
+                  iconColor: "text-indigo-600",
+                  headerBg: "bg-indigo-50 border-b border-indigo-200",
+                  value: anRutinas,
+                  setter: (v: string) => { setAnRutinas(v); setAnDirty(true); },
+                  preguntas: [
+                    "¿Cuántas horas duerme?",
+                    "¿Dónde y con quién duerme?",
+                    "¿Cómo son sus rutinas de sueño?",
+                    "¿Cuánto tiempo utiliza pantallas por día?",
+                    "¿Cómo es la alimentación?",
+                    "¿Presenta selectividad alimentaria?",
+                    "¿Realiza actividad física?",
+                    "¿Control de esfínteres acorde a la edad?",
+                  ],
+                  placeholder: "Describe las rutinas diarias, hábitos de sueño, alimentación, pantallas y otros aspectos relevantes...",
+                  usos: ["informe clínico", "ficha escolar", "interconsulta"],
+                },
+                {
+                  key: "entorno",
+                  label: "Entorno y participación",
+                  icon: <Home className="h-4 w-4" />,
+                  accent: "border-l-rose-400 bg-rose-50",
+                  iconColor: "text-rose-600",
+                  headerBg: "bg-rose-50 border-b border-rose-200",
+                  value: anEntorno,
+                  setter: (v: string) => { setAnEntorno(v); setAnDirty(true); },
+                  preguntas: [
+                    "Escolaridad.",
+                    "Curso o nivel.",
+                    "Relación con pares.",
+                    "Juego e intereses.",
+                    "Actividades recreativas.",
+                    "Participación familiar.",
+                    "¿Cómo se desenvuelve en diferentes contextos (hogar, escuela, comunidad)?",
+                  ],
+                  placeholder: "Describe el contexto familiar, escolar y social, participación e intereses del paciente...",
+                  usos: ["informe clínico", "ficha escolar", "interconsulta"],
                 },
               ];
 

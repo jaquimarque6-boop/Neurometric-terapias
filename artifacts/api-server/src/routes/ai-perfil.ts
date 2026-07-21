@@ -239,6 +239,8 @@ router.post("/ai/perfil-generate", async (req, res) => {
     patient.atencionConducta ? `Atención y conducta (evaluación inicial): ${trunc(patient.atencionConducta, 400)}` : null,
     patient.vozHabla ? `Voz y habla (evaluación inicial): ${trunc(patient.vozHabla, 300)}` : null,
     patient.deglucion ? `Deglución (evaluación inicial): ${trunc(patient.deglucion, 250)}` : null,
+    patient.rutinasHabitos ? `Rutinas y hábitos: ${trunc(patient.rutinasHabitos, 400)}` : null,
+    patient.entornoParticipacion ? `Entorno y participación: ${trunc(patient.entornoParticipacion, 400)}` : null,
   ].filter(Boolean).join("\n");
 
   // ── 2. Profesionales asignados ────────────────────────────────────────────

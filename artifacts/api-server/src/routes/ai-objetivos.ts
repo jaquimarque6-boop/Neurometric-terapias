@@ -118,6 +118,8 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
     patient.vozHabla ? `Voz/habla (evaluación): ${trunc(patient.vozHabla)}` : null,
     patient.deglucion ? `Deglución (evaluación): ${trunc(patient.deglucion)}` : null,
     patient.escolaridad ? `Escolaridad: ${trunc(patient.escolaridad, 200)}` : null,
+    patient.rutinasHabitos ? `Rutinas y hábitos: ${trunc(patient.rutinasHabitos, 300)}` : null,
+    patient.entornoParticipacion ? `Entorno y participación: ${trunc(patient.entornoParticipacion, 300)}` : null,
   ].filter(Boolean).join("\n");
 
   // Current goals (to avoid duplicating)
