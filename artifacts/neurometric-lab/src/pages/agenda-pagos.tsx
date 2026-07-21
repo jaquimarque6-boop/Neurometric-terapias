@@ -416,7 +416,7 @@ export default function RegistroPagos() {
               {activeTab === "pagos" ? (
                 <>
                   <Wallet className="h-6 w-6 text-primary" />
-                  💰 Pagos
+                  💰 Ingresos
                 </>
               ) : (
                 <>
@@ -495,7 +495,7 @@ export default function RegistroPagos() {
               activeTab === "pagos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Pagos
+            Ingresos
           </button>
           <button
             onClick={() => setActiveTab("gastos")}

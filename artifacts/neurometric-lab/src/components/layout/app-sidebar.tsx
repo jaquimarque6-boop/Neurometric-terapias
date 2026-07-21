@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
   { title: "Panel",              url: "/",              icon: LayoutDashboard },
   { title: "Pacientes",          url: "/patients",      icon: Users,           adminHidden: true },
   { title: "Agenda",             url: "/agenda",        icon: CalendarDays,    adminHidden: true },
-  { title: "Pagos / Gastos",     url: "/agenda-pagos",  icon: Wallet,          adminHidden: true },
+  { title: "Ingresos / Gastos",  url: "/agenda-pagos",  icon: Wallet,          adminHidden: true },
   { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList,   adminHidden: true },
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
