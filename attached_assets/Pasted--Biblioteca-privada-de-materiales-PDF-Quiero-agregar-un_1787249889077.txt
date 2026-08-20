@@ -1,0 +1,80 @@
+# Biblioteca privada de materiales PDF
+
+Quiero agregar una función muy simple para que cada profesional pueda guardar sus propios materiales en PDF dentro de Neurometric Actividades.
+
+## Funcionalidad
+
+Crear una sección:
+
+**📁 Mis materiales**
+
+Cada profesional debe poder:
+
+* Subir archivos PDF.
+* Ver el listado de sus propios PDFs.
+* Abrir el PDF.
+* Descargarlo o imprimirlo.
+* Buscar por nombre.
+* Eliminar un material que haya subido.
+
+## Privacidad
+
+Neurometric Actividades es de uso individual por profesional.
+
+Por lo tanto:
+
+* Cada profesional solo puede ver sus propios materiales.
+* Un profesional no puede acceder a los materiales de otro.
+* No crear sistema de compartir.
+* No crear permisos por centro.
+* No agregar roles nuevos.
+* No asociar los materiales a pacientes.
+
+## Interfaz
+
+Mantener el diseño actual de Neurometric Actividades.
+
+La pantalla puede ser muy simple:
+
+**📁 Mis materiales**
+
+[ + Subir PDF ]
+
+Luego una lista con:
+
+**Nombre del archivo** | **Fecha** | **Abrir** | **Eliminar**
+
+Al subir:
+
+* Aceptar solamente PDF.
+* Mostrar claramente si la subida fue exitosa.
+* Mostrar error claro si el archivo no es válido o falla la subida.
+* No perder ni modificar materiales existentes.
+
+## Almacenamiento y seguridad
+
+Antes de implementar, revisar el sistema de almacenamiento existente y reutilizarlo si es adecuado.
+
+Los archivos deben quedar privados y asociados al profesional que los subió.
+
+El backend debe validar que un profesional solo pueda:
+
+* ver sus propios archivos;
+* abrir sus propios archivos;
+* eliminar sus propios archivos.
+
+No exponer claves privadas ni permitir acceso directo público al bucket.
+
+## Importante
+
+No implementar todavía:
+
+* IA.
+* análisis automático.
+* categorías.
+* compartir materiales.
+* asociación con pacientes.
+
+Primero quiero una versión mínima y estable de **Mis materiales**, únicamente para subir, guardar, abrir, descargar, buscar y eliminar PDFs.
+
+Antes de modificar la base de datos, indicame qué tabla/campos y almacenamiento vas a utilizar y si podés reutilizar alguna estructura existente.
