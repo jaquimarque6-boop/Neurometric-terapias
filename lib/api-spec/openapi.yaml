@@ -23,6 +23,8 @@ tags:
     description: Professional staff
   - name: actividades
     description: Suggested activities
+  - name: professional-files
+    description: Private PDF materials for the authenticated professional
   - name: patient-professionals
     description: Patient-professional assignments
 paths:
@@ -384,6 +386,103 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Actividad"
+
+  /professional-files:
+    get:
+      operationId: listProfessionalFiles
+      tags: [professional-files]
+      summary: List the authenticated professional's private PDFs
+      responses:
+        "200":
+          description: Private PDF materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfessionalFile"
+    post:
+      operationId: createProfessionalFile
+      tags: [professional-files]
+      summary: Save metadata after uploading a private PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfessionalFile"
+      responses:
+        "201":
+          description: Material saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalFile"
+
+  /professional-files/upload-url:
+    post:
+      operationId: requestProfessionalFileUploadUrl
+      tags: [professional-files]
+      summary: Request a signed upload URL for a PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfessionalFileUploadRequest"
+      responses:
+        "200":
+          description: Signed upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalFileUploadResponse"
+
+  /professional-files/{id}/download:
+    get:
+      operationId: getProfessionalFileDownloadUrl
+      tags: [professional-files]
+      summary: Get a signed PDF download URL
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Signed PDF URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                required: [url]
+
+  /professional-files/{id}:
+    delete:
+      operationId: deleteProfessionalFile
+      tags: [professional-files]
+      summary: Delete one of the authenticated professional's PDFs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Material deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
 
   /patient-professionals:
     get:
@@ -797,6 +896,60 @@ components:
         createdAt:
           type: string
       required: [id, titulo, tipo, createdAt]
+
+    ProfessionalFile:
+      type: object
+      properties:
+        id:
+          type: integer
+        uploadedBy:
+          type: integer
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        storagePath:
+          type: string
+        createdAt:
+          type: string
+      required: [id, uploadedBy, originalName, mimeType, sizeBytes, storagePath, createdAt]
+
+    CreateProfessionalFile:
+      type: object
+      properties:
+        originalName:
+          type: string
+        mimeType:
+          type: string
+          enum: [application/pdf]
+        size:
+          type: integer
+        storagePath:
+          type: string
+      required: [originalName, mimeType, size, storagePath]
+
+    ProfessionalFileUploadRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        mimeType:
+          type: string
+          enum: [application/pdf]
+        size:
+          type: integer
+      required: [name, mimeType, size]
+
+    ProfessionalFileUploadResponse:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+        storagePath:
+          type: string
+      required: [uploadUrl, storagePath]
 
     PatientProfessional:
       type: object

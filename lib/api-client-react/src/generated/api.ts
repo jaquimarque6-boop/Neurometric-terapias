@@ -23,9 +23,12 @@ import type {
   CreatePatient,
   CreatePatientProfessional,
   CreateProfessional,
+  CreateProfessionalFile,
   CreateRegistroClinico,
   DashboardStats,
   DeletePatient200,
+  DeleteProfessionalFile200,
+  GetProfessionalFileDownloadUrl200,
   Goal,
   GoalLibraryItem,
   HealthStatus,
@@ -36,6 +39,9 @@ import type {
   Patient,
   PatientProfessional,
   Professional,
+  ProfessionalFile,
+  ProfessionalFileUploadRequest,
+  ProfessionalFileUploadResponse,
   Registro,
   RegistroClinico,
   UpdateGoal,
@@ -1671,6 +1677,442 @@ export function useListActividades<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List the authenticated professional's private PDFs
+ */
+export const getListProfessionalFilesUrl = () => {
+  return `/api/professional-files`;
+};
+
+export const listProfessionalFiles = async (
+  options?: RequestInit,
+): Promise<ProfessionalFile[]> => {
+  return customFetch<ProfessionalFile[]>(getListProfessionalFilesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListProfessionalFilesQueryKey = () => {
+  return [`/api/professional-files`] as const;
+};
+
+export const getListProfessionalFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProfessionalFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProfessionalFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListProfessionalFilesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProfessionalFiles>>
+  > = ({ signal }) => listProfessionalFiles({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProfessionalFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProfessionalFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProfessionalFiles>>
+>;
+export type ListProfessionalFilesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List the authenticated professional's private PDFs
+ */
+
+export function useListProfessionalFiles<
+  TData = Awaited<ReturnType<typeof listProfessionalFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProfessionalFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProfessionalFilesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save metadata after uploading a private PDF
+ */
+export const getCreateProfessionalFileUrl = () => {
+  return `/api/professional-files`;
+};
+
+export const createProfessionalFile = async (
+  createProfessionalFile: CreateProfessionalFile,
+  options?: RequestInit,
+): Promise<ProfessionalFile> => {
+  return customFetch<ProfessionalFile>(getCreateProfessionalFileUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createProfessionalFile),
+  });
+};
+
+export const getCreateProfessionalFileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProfessionalFile>>,
+    TError,
+    { data: BodyType<CreateProfessionalFile> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProfessionalFile>>,
+  TError,
+  { data: BodyType<CreateProfessionalFile> },
+  TContext
+> => {
+  const mutationKey = ["createProfessionalFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProfessionalFile>>,
+    { data: BodyType<CreateProfessionalFile> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createProfessionalFile(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProfessionalFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProfessionalFile>>
+>;
+export type CreateProfessionalFileMutationBody =
+  BodyType<CreateProfessionalFile>;
+export type CreateProfessionalFileMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save metadata after uploading a private PDF
+ */
+export const useCreateProfessionalFile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProfessionalFile>>,
+    TError,
+    { data: BodyType<CreateProfessionalFile> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProfessionalFile>>,
+  TError,
+  { data: BodyType<CreateProfessionalFile> },
+  TContext
+> => {
+  return useMutation(getCreateProfessionalFileMutationOptions(options));
+};
+
+/**
+ * @summary Request a signed upload URL for a PDF
+ */
+export const getRequestProfessionalFileUploadUrlUrl = () => {
+  return `/api/professional-files/upload-url`;
+};
+
+export const requestProfessionalFileUploadUrl = async (
+  professionalFileUploadRequest: ProfessionalFileUploadRequest,
+  options?: RequestInit,
+): Promise<ProfessionalFileUploadResponse> => {
+  return customFetch<ProfessionalFileUploadResponse>(
+    getRequestProfessionalFileUploadUrlUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(professionalFileUploadRequest),
+    },
+  );
+};
+
+export const getRequestProfessionalFileUploadUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>,
+    TError,
+    { data: BodyType<ProfessionalFileUploadRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>,
+  TError,
+  { data: BodyType<ProfessionalFileUploadRequest> },
+  TContext
+> => {
+  const mutationKey = ["requestProfessionalFileUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>,
+    { data: BodyType<ProfessionalFileUploadRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestProfessionalFileUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestProfessionalFileUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>
+>;
+export type RequestProfessionalFileUploadUrlMutationBody =
+  BodyType<ProfessionalFileUploadRequest>;
+export type RequestProfessionalFileUploadUrlMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a signed upload URL for a PDF
+ */
+export const useRequestProfessionalFileUploadUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>,
+    TError,
+    { data: BodyType<ProfessionalFileUploadRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestProfessionalFileUploadUrl>>,
+  TError,
+  { data: BodyType<ProfessionalFileUploadRequest> },
+  TContext
+> => {
+  return useMutation(
+    getRequestProfessionalFileUploadUrlMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Get a signed PDF download URL
+ */
+export const getGetProfessionalFileDownloadUrlUrl = (id: number) => {
+  return `/api/professional-files/${id}/download`;
+};
+
+export const getProfessionalFileDownloadUrl = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GetProfessionalFileDownloadUrl200> => {
+  return customFetch<GetProfessionalFileDownloadUrl200>(
+    getGetProfessionalFileDownloadUrlUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProfessionalFileDownloadUrlQueryKey = (id: number) => {
+  return [`/api/professional-files/${id}/download`] as const;
+};
+
+export const getGetProfessionalFileDownloadUrlQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProfessionalFileDownloadUrlQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>
+  > = ({ signal }) =>
+    getProfessionalFileDownloadUrl(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProfessionalFileDownloadUrlQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>
+>;
+export type GetProfessionalFileDownloadUrlQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a signed PDF download URL
+ */
+
+export function useGetProfessionalFileDownloadUrl<
+  TData = Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProfessionalFileDownloadUrl>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProfessionalFileDownloadUrlQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete one of the authenticated professional's PDFs
+ */
+export const getDeleteProfessionalFileUrl = (id: number) => {
+  return `/api/professional-files/${id}`;
+};
+
+export const deleteProfessionalFile = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteProfessionalFile200> => {
+  return customFetch<DeleteProfessionalFile200>(
+    getDeleteProfessionalFileUrl(id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteProfessionalFileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProfessionalFile>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProfessionalFile>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteProfessionalFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProfessionalFile>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteProfessionalFile(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProfessionalFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProfessionalFile>>
+>;
+
+export type DeleteProfessionalFileMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete one of the authenticated professional's PDFs
+ */
+export const useDeleteProfessionalFile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProfessionalFile>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProfessionalFile>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteProfessionalFileMutationOptions(options));
+};
 
 /**
  * @summary List patient-professional assignments

@@ -171,6 +171,48 @@ export interface Actividad {
   createdAt: string;
 }
 
+export interface ProfessionalFile {
+  id: number;
+  uploadedBy: number;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storagePath: string;
+  createdAt: string;
+}
+
+export type CreateProfessionalFileMimeType =
+  (typeof CreateProfessionalFileMimeType)[keyof typeof CreateProfessionalFileMimeType];
+
+export const CreateProfessionalFileMimeType = {
+  "application/pdf": "application/pdf",
+} as const;
+
+export interface CreateProfessionalFile {
+  originalName: string;
+  mimeType: CreateProfessionalFileMimeType;
+  size: number;
+  storagePath: string;
+}
+
+export type ProfessionalFileUploadRequestMimeType =
+  (typeof ProfessionalFileUploadRequestMimeType)[keyof typeof ProfessionalFileUploadRequestMimeType];
+
+export const ProfessionalFileUploadRequestMimeType = {
+  "application/pdf": "application/pdf",
+} as const;
+
+export interface ProfessionalFileUploadRequest {
+  name: string;
+  mimeType: ProfessionalFileUploadRequestMimeType;
+  size: number;
+}
+
+export interface ProfessionalFileUploadResponse {
+  uploadUrl: string;
+  storagePath: string;
+}
+
 export interface PatientProfessional {
   id: number;
   patientId: number;
@@ -276,6 +318,14 @@ export type ListActividadesParams = {
   franjaEtaria?: string;
   area?: string;
   tipo?: string;
+};
+
+export type GetProfessionalFileDownloadUrl200 = {
+  url: string;
+};
+
+export type DeleteProfessionalFile200 = {
+  success: boolean;
 };
 
 export type ListPatientProfessionalsParams = {

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Wallet,
   Download,
+  FolderLock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
   { title: "Actividades",        url: "/actividades",   icon: Sparkles,        adminHidden: true },
+  { title: "Mis materiales",     url: "/mis-materiales", icon: FolderLock,      adminHidden: true },
   { title: "Respaldo de datos",  url: "/respaldo",      icon: Download,        adminHidden: true },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3,       adminHidden: true },

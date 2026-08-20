@@ -380,6 +380,68 @@ export const ListActividadesResponseItem = zod.object({
 export const ListActividadesResponse = zod.array(ListActividadesResponseItem);
 
 /**
+ * @summary List the authenticated professional's private PDFs
+ */
+export const ListProfessionalFilesResponseItem = zod.object({
+  id: zod.number(),
+  uploadedBy: zod.number(),
+  originalName: zod.string(),
+  mimeType: zod.string(),
+  sizeBytes: zod.number(),
+  storagePath: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListProfessionalFilesResponse = zod.array(
+  ListProfessionalFilesResponseItem,
+);
+
+/**
+ * @summary Save metadata after uploading a private PDF
+ */
+export const CreateProfessionalFileBody = zod.object({
+  originalName: zod.string(),
+  mimeType: zod.enum(["application/pdf"]),
+  size: zod.number(),
+  storagePath: zod.string(),
+});
+
+/**
+ * @summary Request a signed upload URL for a PDF
+ */
+export const RequestProfessionalFileUploadUrlBody = zod.object({
+  name: zod.string(),
+  mimeType: zod.enum(["application/pdf"]),
+  size: zod.number(),
+});
+
+export const RequestProfessionalFileUploadUrlResponse = zod.object({
+  uploadUrl: zod.string(),
+  storagePath: zod.string(),
+});
+
+/**
+ * @summary Get a signed PDF download URL
+ */
+export const GetProfessionalFileDownloadUrlParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProfessionalFileDownloadUrlResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
+ * @summary Delete one of the authenticated professional's PDFs
+ */
+export const DeleteProfessionalFileParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteProfessionalFileResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary List patient-professional assignments
  */
 export const ListPatientProfessionalsQueryParams = zod.object({

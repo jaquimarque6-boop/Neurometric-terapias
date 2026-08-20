@@ -24,6 +24,7 @@ const Sessions = lazy(() => import("@/pages/sessions"));
 const Registros = lazy(() => import("@/pages/registros"));
 const Objetivos = lazy(() => import("@/pages/objetivos"));
 const Actividades = lazy(() => import("@/pages/actividades"));
+const MisMateriales = lazy(() => import("@/pages/mis-materiales"));
 const Reportes = lazy(() => import("@/pages/reportes"));
 const Professionals = lazy(() => import("@/pages/professionals"));
 const GoalLibrary = lazy(() => import("@/pages/goal-library"));
@@ -113,6 +114,7 @@ function Router() {
       <Route path="/registros" component={() => <ProtectedRoute component={Registros} />} />
       <Route path="/objetivos" component={() => <ProtectedRoute component={Objetivos} />} />
       <Route path="/actividades" component={() => <ProtectedRoute component={Actividades} />} />
+      <Route path="/mis-materiales" component={() => <ProtectedRoute component={MisMateriales} />} />
       <Route path="/reportes" component={() => <ProtectedRoute component={Reportes} />} />
       <Route path="/professionals" component={() => <AdminRoute component={Professionals} />} />
       <Route path="/goal-library" component={() => <ProtectedRoute component={GoalLibrary} />} />

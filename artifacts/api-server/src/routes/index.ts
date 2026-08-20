@@ -21,6 +21,7 @@ import aiInformeRouter from "./ai-informe";
 import aiObjetivosRouter from "./ai-objetivos";
 import aiPerfilRouter from "./ai-perfil";
 import exportRouter from "./export";
+import professionalFilesRouter from "./professional-files";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(aiInformeRouter);
 router.use(aiObjetivosRouter);
 router.use(aiPerfilRouter);
 router.use(exportRouter);
+  router.use(professionalFilesRouter);
 
 export default router;
