@@ -1,0 +1,101 @@
+Necesito mejorar el módulo ACTUAL de informes clínicos de Neurometric Terapias.
+
+IMPORTANTE:
+Antes de modificar cualquier archivo, realizar una AUDITORÍA SOLO LECTURA del funcionamiento actual.
+
+NO modificar código.
+NO ejecutar migraciones.
+NO modificar la base de datos.
+NO modificar RLS.
+NO eliminar archivos ni datos.
+NO cambiar autenticación.
+NO modificar producción.
+
+OBJETIVO DE LA AUDITORÍA
+
+Quiero identificar exactamente cómo funciona actualmente la generación de informes y PDF.
+
+Revisar:
+
+1. Flujo completo de generación del informe.
+2. Componentes frontend involucrados.
+3. Servicios/backend/API utilizados.
+4. Consultas a Supabase o base de datos relacionadas con informes.
+5. Cómo se obtienen:
+
+   * datos del paciente;
+   * anamnesis;
+   * diagnóstico;
+   * objetivos;
+   * evoluciones;
+   * sesiones;
+   * observaciones;
+   * demás información clínica.
+6. Lógica que decide qué información incluir en el informe.
+7. Lógica de generación del PDF.
+8. Qué sucede cuando el paciente NO tiene objetivos cargados.
+9. Identificar por qué actualmente el PDF puede quedar vacío cuando no existen objetivos.
+10. Identificar dónde se genera actualmente la redacción en tercera persona.
+11. Identificar si existe actualmente generación mediante IA y qué prompt/instrucciones utiliza.
+12. Identificar cómo se almacenan actualmente los modelos/documentos del profesional, si existe alguna funcionalidad relacionada.
+13. Revisar permisos y RLS de las tablas relacionadas, SIN modificarlos.
+14. Identificar qué archivos deberían modificarse para implementar las mejoras.
+
+PROBLEMAS QUE QUIERO SOLUCIONAR
+
+PROBLEMA 1:
+La IA está copiando demasiado literalmente las evoluciones clínicas.
+
+Ejemplo de registro:
+
+"trabajamos ejercicios para fortalecer la lengua para la produccion de la r
+soplo, movimiento rapido de la lengua
+ra er ir or ur
+masajes y estimulacion co…"
+
+Esto debería transformarse en una redacción clínica profesional y coherente, sin inventar información.
+
+PROBLEMA 2:
+Cuando no existen objetivos cargados, actualmente el informe/PDF puede quedar vacío.
+
+Los objetivos NO deben ser un requisito para generar el informe.
+
+PROBLEMA 3:
+La redacción actual puede resultar poco natural por utilizar repetidamente el nombre del paciente y estructuras rígidas en tercera persona.
+
+PROBLEMA 4:
+Quiero permitir en el futuro que cada profesional pueda subir su propio modelo de informe para utilizarlo como estructura y referencia de estilo.
+
+IMPORTANTE SOBRE SEGURIDAD CLÍNICA
+
+La IA nunca debe inventar:
+
+* avances;
+* resultados;
+* diagnósticos;
+* antecedentes;
+* pruebas;
+* porcentajes;
+* conductas;
+* evolución;
+* logros terapéuticos;
+* recomendaciones no registradas.
+
+Debe trabajar únicamente con información disponible en Neurometric.
+
+El modelo personalizado del profesional debe utilizarse como plantilla/estructura y referencia de estilo, NO como fuente de datos clínicos de otro paciente.
+
+NO implementar todavía estos cambios.
+
+Al finalizar la auditoría, entregar:
+
+1. Archivos involucrados.
+2. Flujo actual de generación del informe.
+3. Causa exacta del PDF vacío cuando no hay objetivos.
+4. Cómo se genera actualmente el texto.
+5. Cómo están relacionadas las fuentes de información.
+6. Qué cambios concretos proponés.
+7. Riesgos o posibles efectos sobre funcionalidades existentes.
+8. Plan de implementación seguro.
+
+NO realizar ningún cambio hasta presentar este diagnóstico.
