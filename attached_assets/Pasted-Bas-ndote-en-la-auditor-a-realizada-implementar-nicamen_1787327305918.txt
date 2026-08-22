@@ -1,0 +1,405 @@
+Basándote en la auditoría realizada, implementar únicamente las mejoras necesarias en el módulo ACTUAL de informes clínicos.
+
+IMPORTANTE:
+
+* No crear un módulo de informes nuevo.
+* No reemplazar la arquitectura actual.
+* No eliminar funcionalidades existentes.
+* No modificar autenticación.
+* No modificar producción.
+* No realizar migraciones de base de datos salvo que sean estrictamente necesarias y sean informadas previamente.
+* No eliminar datos existentes.
+* Mantener el actual sistema de impresión mediante window.print().
+* Mantener la posibilidad de edición manual antes de guardar.
+* Realizar cambios pequeños, aislados y reversibles.
+* Antes de modificar archivos, verificar nuevamente el código actual para evitar asumir estructuras que hayan cambiado.
+
+OBJETIVO
+
+Mejorar la calidad clínica y la confiabilidad del informe generado actualmente, especialmente cuando existen evoluciones clínicas pero no hay objetivos cargados.
+
+==================================================
+
+1. INFORMES SIN OBJETIVOS
+   ==================================================
+
+Actualmente el informe depende demasiado de los objetivos para construir determinadas secciones.
+
+Modificar la lógica para que la ausencia de objetivos NO impida generar un informe útil.
+
+Si existen:
+
+* anamnesis;
+* diagnóstico;
+* motivo de consulta;
+* observaciones clínicas;
+* registros de sesiones;
+* recomendaciones registradas;
+* otros datos clínicos disponibles;
+
+el informe debe poder generarse aunque:
+
+goals = []
+
+o no existan objetivos para el paciente.
+
+Cuando no existan objetivos:
+
+* no inventar objetivos;
+* no inventar logros;
+* no mostrar porcentajes;
+* no crear una sección vacía innecesaria;
+* utilizar la información real de las sesiones y observaciones para construir la evolución.
+
+El informe debe poder decir, de forma profesional:
+
+"Durante el período informado se realizaron X sesiones de intervención terapéutica. El abordaje estuvo orientado a..."
+
+siempre que esos datos estén efectivamente registrados.
+
+==================================================
+2. ELIMINAR COPIA LITERAL DE LAS EVOLUCIONES
+============================================
+
+Corregir la redacción local actual para que NO inserte automáticamente fragmentos textuales de las observaciones dentro del informe.
+
+Actualmente existen funciones que hacen:
+
+"De las observaciones clínicas registradas se destaca:
+"[texto original]""
+
+Eliminar este comportamiento como contenido final del informe.
+
+Las notas clínicas pueden utilizarse como fuente para construir la síntesis, pero no deben copiarse literalmente.
+
+Ejemplo de información registrada:
+
+"trabajamos ejercicios para fortalecer la lengua para la produccion de la r
+soplo, movimiento rapido de la lengua
+ra er ir or ur
+masajes y estimulacion co…"
+
+El informe debe transformar esta información en lenguaje clínico profesional, por ejemplo:
+
+"El abordaje terapéutico estuvo orientado al fortalecimiento y coordinación de los movimientos linguales y al trabajo de las habilidades necesarias para favorecer la producción del fonema /r/. Se realizaron actividades de movilidad y rapidez lingual, ejercicios de soplo, estimulación orofacial y práctica de diferentes combinaciones silábicas."
+
+La redacción final debe ser una síntesis, NO una transcripción.
+
+==================================================
+3. REGLA CLÍNICA FUNDAMENTAL: NO INVENTAR
+=========================================
+
+Mantener y reforzar la regla:
+
+La información que no esté registrada NO puede ser inventada.
+
+No afirmar:
+
+* avances;
+* mejorías;
+* logros;
+* adquisición de habilidades;
+* resultados;
+* porcentajes;
+* cumplimiento;
+* autonomía;
+* evolución favorable;
+
+si estos datos no están explícitamente respaldados por la información disponible.
+
+Ejemplo:
+
+Si se registra:
+
+"Se trabajó producción de /r/"
+
+NO escribir:
+
+"Se evidenció una evolución favorable en la producción de /r/."
+
+Sí se puede escribir:
+
+"El abordaje estuvo orientado al trabajo de la producción del fonema /r/."
+
+==================================================
+4. CORREGIR FRASES AUTOMÁTICAS NO RESPALDADAS
+=============================================
+
+Revisar las funciones de redacción local:
+
+* generarResumenProceso
+* generarConductaSesiones
+* generarNarrativaArea
+* generarSugerenciasFamilia
+
+Eliminar o modificar frases que puedan afirmar hechos clínicos no registrados.
+
+Por ejemplo, no generar automáticamente:
+
+"Se ha observado una actitud general de participación..."
+
+si no existe un registro que lo respalde.
+
+Tampoco generar automáticamente:
+
+"Celebrar los logros..."
+
+si no existen logros registrados.
+
+Las recomendaciones para familia deben basarse en recomendaciones efectivamente registradas o en información clínica explícita.
+
+Si no hay información suficiente para generar una recomendación específica, es preferible omitirla antes que inventarla.
+
+==================================================
+5. ELIMINAR PORCENTAJES ARTIFICIALES
+====================================
+
+Corregir la lógica detectada en backend:
+
+activo → 20
+en progreso → 55
+logrado → 100
+
+Estos valores NO representan necesariamente un progreso clínico real.
+
+No enviar a la IA porcentajes derivados de estados.
+
+Regla:
+
+* Si existe progressPct real registrado, puede utilizarse.
+* Si no existe progressPct real, utilizar únicamente el estado del objetivo.
+* Nunca convertir automáticamente un estado en un porcentaje.
+
+==================================================
+6. MEJORAR EL PROMPT DE IA
+==========================
+
+Modificar el prompt de:
+
+POST /api/ai/informe-generate
+
+para indicar explícitamente:
+
+La tarea no es transcribir las evoluciones.
+
+La tarea es sintetizar la información clínica disponible y transformarla en una redacción profesional.
+
+La IA debe:
+
+* sintetizar;
+* ordenar;
+* corregir errores;
+* mejorar gramática;
+* evitar repeticiones;
+* utilizar lenguaje clínico;
+* mantener el significado de los registros;
+* diferenciar actividades realizadas de resultados obtenidos;
+* utilizar tercera persona o redacción impersonal según la configuración existente;
+* omitir información no disponible.
+
+La IA NO debe:
+
+* copiar literalmente las evoluciones;
+* inventar resultados;
+* inventar avances;
+* inventar diagnósticos;
+* inventar porcentajes;
+* inventar recomendaciones;
+* expandir siglas cuyo significado no esté registrado.
+
+==================================================
+7. DIAGNÓSTICOS Y SIGLAS
+========================
+
+Mantener los diagnósticos tal como están registrados.
+
+Ejemplo:
+
+"TSH"
+
+No interpretar ni expandir automáticamente la sigla si el sistema no tiene registrada su definición.
+
+El diagnóstico debe aparecer en su sección correspondiente.
+
+No mezclarlo artificialmente con la narrativa del informe.
+
+==================================================
+8. REDACCIÓN MÁS NATURAL
+========================
+
+Evitar repetir constantemente:
+
+"Helena..."
+"Helena..."
+"Helena..."
+
+o:
+
+"El paciente..."
+"El paciente..."
+"El paciente..."
+
+Utilizar estructuras clínicas naturales como:
+
+"Durante las sesiones..."
+"Se realizaron actividades..."
+"El abordaje terapéutico estuvo orientado a..."
+"En las intervenciones realizadas..."
+"Se registró..."
+"Se trabajó sobre..."
+
+La redacción debe parecer realizada por un profesional y no por una plantilla automática.
+
+==================================================
+9. GENERACIÓN DEL INFORME CON INFORMACIÓN DISPONIBLE
+====================================================
+
+Crear una lógica clara de prioridad de fuentes:
+
+1. Información clínica registrada del paciente.
+2. Registros de sesiones.
+3. Objetivos y progreso REAL, si existen.
+4. Recomendaciones registradas.
+5. Demás información clínica relevante.
+
+Los objetivos deben ser una fuente de información, no una condición para generar el informe.
+
+==================================================
+10. VALIDACIÓN ANTES DE IMPRIMIR
+================================
+
+Antes de ejecutar window.print():
+
+verificar que exista contenido clínico real.
+
+Si el informe está completamente vacío, mostrar:
+
+"No hay información clínica suficiente para generar este informe."
+
+No imprimir un documento vacío.
+
+Si existe información clínica suficiente aunque no haya objetivos, permitir la impresión normalmente.
+
+NO modificar el sistema actual de PDF/impresión. Solo mejorar el contenido que llega al proceso de impresión.
+
+==================================================
+11. SEGURIDAD DEL ENDPOINT DE IA
+================================
+
+Revisar específicamente:
+
+POST /api/ai/informe-generate
+
+Actualmente la auditoría detectó que verifica sesión pero aparentemente no realiza una validación propia suficiente de pertenencia/acceso al paciente.
+
+Antes de devolver información clínica a la IA, el backend debe verificar que el usuario autenticado tiene autorización para acceder al paciente solicitado, respetando el modelo de permisos actual de Neurometric.
+
+NO modificar el modelo de permisos existente.
+
+Agregar únicamente la validación necesaria para evitar que un usuario pueda solicitar mediante API un patientId al que no tiene acceso.
+
+Realizar el mismo análisis para los endpoints directamente relacionados con información clínica que vayan a ser utilizados por la generación del informe.
+
+==================================================
+12. NO IMPLEMENTAR TODAVÍA LOS MODELOS PERSONALIZADOS
+=====================================================
+
+Por ahora NO implementar la subida de modelos personalizados de informe.
+
+Primero estabilizar:
+
+* generación sin objetivos;
+* síntesis clínica;
+* eliminación de copia literal;
+* eliminación de información inventada;
+* eliminación de porcentajes artificiales;
+* validación de acceso;
+* validación antes de imprimir.
+
+La funcionalidad de "Mis modelos de informe" será una segunda etapa.
+
+==================================================
+13. COMPATIBILIDAD
+==================
+
+Conservar:
+
+* el informe actual;
+* guardado en patients.informe_evolucion;
+* informe para familia;
+* edición manual;
+* generación con IA;
+* sugerencias existentes cuando sean compatibles;
+* window.print();
+* formato actual de impresión;
+* estructura actual de la ficha del paciente.
+
+No romper otras partes de la ficha del paciente.
+
+==================================================
+14. PRUEBAS OBLIGATORIAS
+========================
+
+Antes de finalizar, probar al menos estos escenarios:
+
+CASO A:
+Paciente con objetivos + sesiones + anamnesis.
+
+CASO B:
+Paciente sin objetivos + sesiones + anamnesis.
+
+CASO C:
+Paciente sin objetivos + varias evoluciones clínicas.
+
+CASO D:
+Paciente con objetivos pero sin evoluciones.
+
+CASO E:
+Paciente con muy poca información clínica.
+
+CASO F:
+Evoluciones escritas con errores, abreviaturas y lenguaje coloquial.
+
+CASO G:
+Paciente con diagnóstico registrado como sigla.
+
+CASO H:
+Verificar que un usuario sin acceso al paciente no pueda generar un informe mediante el endpoint de IA.
+
+En todos los casos verificar:
+
+* que no haya PDF vacío cuando existe información clínica;
+* que no se copien literalmente las evoluciones;
+* que no se inventen avances;
+* que no aparezcan porcentajes artificiales;
+* que el informe siga siendo editable;
+* que window.print() continúe funcionando.
+
+==================================================
+15. IMPORTANTE: INFORMAR ANTES DE CAMBIOS ESTRUCTURALES
+=======================================================
+
+Si durante la implementación se detecta que es necesario:
+
+* modificar la base de datos;
+* crear migraciones;
+* modificar RLS;
+* modificar permisos;
+* cambiar estructuras persistidas;
+* modificar producción;
+
+DETENERSE y explicar exactamente qué cambio sería necesario antes de ejecutarlo.
+
+No realizar cambios estructurales automáticamente.
+
+Al finalizar, entregar:
+
+1. Archivos modificados.
+2. Qué cambió en cada archivo.
+3. Cómo se solucionó el problema de informes sin objetivos.
+4. Cómo se evitó la copia literal.
+5. Cómo se evitó inventar información.
+6. Cómo se eliminaron los porcentajes artificiales.
+7. Qué validación de acceso se agregó.
+8. Qué pruebas se realizaron.
+9. Si quedó pendiente alguna modificación estructural.
