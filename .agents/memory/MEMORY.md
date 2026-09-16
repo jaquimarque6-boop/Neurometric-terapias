@@ -4,3 +4,4 @@
 - [Edad del paciente](edad-paciente.md) — fecha_nacimiento wins over manual age; <6 años shows meses; always render via shared formatEdad helpers, never raw `age`.
 - [Users commercial metadata](users-commercial-metadata.md) — `active` (login) vs `commercial_status` (billing) vs clinical `pagos` are 3 separate axes; session metrics date by registros_clinicos.fecha, not created_at.
 - [Actividades identity model](actividades-identity-model.md) — one account owns one professional library; session userId is the ownership key, not professionals.id.
+- [Password seed safety](password-seed-safety.md) — startup account initialization may create missing users, but must never replace credentials for existing users.

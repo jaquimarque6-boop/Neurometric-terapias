@@ -1,0 +1,80 @@
+Basándote exclusivamente en la auditoría anterior, implementar una corrección mínima del sistema de autenticación.
+
+IMPORTANTE:
+No modificar Supabase Auth.
+No ejecutar migraciones.
+No modificar esquema de base de datos.
+No modificar RLS.
+No cambiar el sistema actual de sesiones/tokens.
+No modificar los procesos de migración todavía.
+No modificar los cambios pendientes del módulo de informes.
+No hacer deploy automáticamente.
+
+OBJETIVO 1 — ensureTempAdmin
+
+Corregir ensureTempAdmin() para que NUNCA sobrescriba password_hash de una cuenta que ya existe.
+
+Comportamiento esperado:
+
+- Si la cuenta administrativa temporal NO existe:
+  puede crearla según la lógica actual.
+
+- Si la cuenta YA existe:
+  NO modificar password_hash.
+  NO regenerar su contraseña.
+  NO reemplazar una contraseña cambiada manualmente.
+
+Puede conservar únicamente las acciones de inicialización que sean necesarias para role/active si actualmente forman parte de su función y no afectan credenciales.
+
+Ninguna rutina ejecutada durante el startup del backend debe modificar automáticamente la contraseña de un usuario existente.
+
+OBJETIVO 2 — diagnóstico seguro de fallos de login
+
+Agregar logging seguro al POST /api/auth/login para poder diagnosticar los casos de usuarios que no logran ingresar.
+
+Registrar únicamente información necesaria para distinguir:
+
+- usuario no encontrado;
+- contraseña incorrecta;
+- usuario inactivo;
+- login exitoso.
+
+NO registrar:
+- contraseña;
+- password_hash;
+- token;
+- cookie;
+- secretos;
+- credenciales completas.
+
+El log puede incluir el email normalizado necesario para identificar qué cuenta tuvo el problema, pero nunca la contraseña ni su hash.
+
+OBJETIVO 3 — NO cambiar todavía otras hipótesis
+
+Por ahora NO corregir:
+- emails históricos con mayúsculas;
+- usuarios importados;
+- migraciones;
+- revocación de sesiones;
+- passwordChangedAt;
+- cookies;
+- localStorage.
+
+Primero necesitamos observar qué ocurre con los usuarios reales.
+
+VERIFICACIONES
+
+Antes de finalizar:
+
+1. Confirmar que cambiar una contraseña mediante PATCH /api/users/:id sigue actualizando users.password_hash.
+2. Confirmar que reiniciar el backend ya NO modifica ese password_hash.
+3. Confirmar que el login sigue usando bcrypt.compare.
+4. Confirmar que admin y profesionales pueden continuar autenticándose con la lógica existente.
+5. Confirmar que no se modificó la base de datos ni su esquema.
+6. Confirmar que no se tocaron los archivos pendientes del módulo de informes.
+7. Mostrar exactamente los archivos y líneas modificados.
+8. Ejecutar las comprobaciones posibles sin modificar usuarios reales.
+
+Si encontrás que hace falta una migración o cambio estructural, DETENERTE y explicarlo antes de hacerlo.
+
+NO hacer commit ni deploy todavía.

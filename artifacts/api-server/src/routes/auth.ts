@@ -33,20 +33,25 @@ function userToJson(u: typeof usersTable.$inferSelect) {
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
+    console.warn("[auth/login] intento rechazado: datos incompletos");
     return res.status(400).json({ error: "Email y contraseña son requeridos" });
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
   if (!user) {
+    console.warn(`[auth/login] usuario no encontrado email=${normalizedEmail}`);
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
   if (!user.active) {
+    console.warn(`[auth/login] usuario inactivo email=${normalizedEmail} userId=${user.id}`);
     return res.status(403).json({ error: "Usuario inactivo. Contacte al administrador." });
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    console.warn(`[auth/login] contraseña incorrecta email=${normalizedEmail} userId=${user.id}`);
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
@@ -67,7 +72,7 @@ router.post("/auth/login", async (req, res) => {
       console.error("[auth/login] session.save error:", err);
       return res.status(500).json({ error: "Error al guardar sesión" });
     }
-    console.log(`[auth/login] sesión guardada userId=${user.id} role=${user.role}`);
+    console.log(`[auth/login] login exitoso email=${normalizedEmail} userId=${user.id} role=${user.role}`);
     // Return token alongside user data so the frontend can send it via
     // Authorization header as a fallback for browsers that block cross-site cookies.
     return res.json({ ...userToJson(user), token });
@@ -161,12 +166,12 @@ export async function seedAdminIfNeeded() {
 }
 
 export async function ensureJaquiAdmin() {
-  const passwordHash = await bcrypt.hash("12345678", 10);
   const existing = await db.select({ id: usersTable.id, role: usersTable.role })
     .from(usersTable)
     .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
 
   if (existing.length === 0) {
+    const passwordHash = await bcrypt.hash("12345678", 10);
     await db.insert(usersTable).values({
       email: "jaquimarque6@gmail.com",
       passwordHash,
@@ -179,7 +184,7 @@ export async function ensureJaquiAdmin() {
     console.log("[seed] Admin jaquimarque6@gmail.com created.");
   } else if (existing[0].role !== "admin") {
     await db.update(usersTable)
-      .set({ role: "admin", active: true, passwordHash })
+      .set({ role: "admin", active: true })
       .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
     console.log("[seed] Admin jaquimarque6@gmail.com updated to admin role.");
   }
@@ -187,12 +192,12 @@ export async function ensureJaquiAdmin() {
 
 export async function ensureTempAdmin() {
   const email = "admin@neurometric.com";
-  const passwordHash = await bcrypt.hash("12345678", 10);
   const existing = await db.select({ id: usersTable.id, role: usersTable.role })
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
   if (existing.length === 0) {
+    const passwordHash = await bcrypt.hash("12345678", 10);
     await db.insert(usersTable).values({
       email,
       passwordHash,
@@ -205,7 +210,7 @@ export async function ensureTempAdmin() {
     console.log("[seed] Admin admin@neurometric.com created.");
   } else {
     await db.update(usersTable)
-      .set({ role: "admin", active: true, passwordHash })
+      .set({ role: "admin", active: true })
       .where(eq(usersTable.email, email));
     console.log("[seed] Admin admin@neurometric.com ensured.");
   }
