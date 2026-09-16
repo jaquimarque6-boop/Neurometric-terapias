@@ -49,7 +49,11 @@ Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
 - Si algún dato no está disponible, indícalo con "No registrado" o redacta con lo que sí existe.
 - Lenguaje: español rioplatense, tercera persona, tono profesional clínico y empático.
-- Si hay pocos datos, redacta de forma breve y honesta. No rellenes con texto genérico.
+- Si hay pocos datos, redacta de forma breve y honesta. No rellenes con texto genérico ni recomendaciones no registradas.
+- Distingue siempre entre una actividad realizada y un resultado obtenido. Describe el resultado únicamente cuando esté explícitamente registrado.
+- Sintetiza las notas breves, coloquiales, con errores o abreviaturas en redacción clínica profesional. No las copies literalmente ni incluyas fragmentos textuales extensos.
+- No conviertas estados de objetivos en porcentajes. Usa porcentajes únicamente cuando estén registrados como progressPct.
+- Evita repetir el nombre del paciente. Prefiere estructuras como "Durante las sesiones", "Se realizaron actividades", "El abordaje terapéutico estuvo orientado a", "Se trabajó sobre" y "Se registró".
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
   const disciplines: Record<Discipline, string> = {
@@ -57,23 +61,23 @@ Reglas estrictas:
 Especialidad: FONOAUDIOLOGÍA.
 Enfocate en: lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).
 Terminología a usar: "producción fonológica", "inteligibilidad del habla", "estructuración del lenguaje", "comprensión auditiva", "habilidades pragmáticas", "comunicación intencional", "sistemas de comunicación aumentativa", "patrón articulatorio", "discriminación auditiva", "narrativa oral".
-Al describir evolución: mencionar cambios en la claridad del habla, ampliación del vocabulario, longitud de enunciados, uso comunicativo del lenguaje, avances en comprensión de consignas.`,
+Al describir evolución: mencionar cambios en la claridad del habla, ampliación del vocabulario, longitud de enunciados, uso comunicativo del lenguaje o comprensión de consignas únicamente si están registrados explícitamente.`,
 
     "psicopedagogía": `
 Especialidad: PSICOPEDAGOGÍA.
 Enfocate en: procesos de aprendizaje, atención sostenida y selectiva, memoria operativa, funciones ejecutivas, lectoescritura, comprensión lectora, cálculo.
 Terminología a usar: "estrategias cognitivas", "procesos de aprendizaje", "nivel de adquisición", "metacognición", "planificación y organización", "flexibilidad cognitiva", "inhibición de respuestas", "decodificación lectora", "conciencia fonológica", "procesamiento de la información".
-Al describir evolución: mencionar cambios en el rendimiento en tareas, estrategias adquiridas, autonomía en la tarea, generalización de habilidades al contexto escolar.`,
+Al describir evolución: mencionar cambios en el rendimiento, estrategias adquiridas, autonomía o generalización únicamente si están registrados explícitamente.`,
 
     "terapia_ocupacional": `
 Especialidad: TERAPIA OCUPACIONAL.
 Enfocate en: autonomía personal, actividades de la vida diaria (AVD), motricidad fina y gruesa, integración sensorial, participación en contextos cotidianos.
 Terminología a usar: "desempeño ocupacional", "participación", "adaptaciones", "integración sensorial", "umbral sensorial", "coordinación bimanual", "prensión", "modulación sensorial", "rol ocupacional", "AVD básicas e instrumentales", "habilidades de desempeño".
-Al describir evolución: mencionar cambios en la independencia funcional, tolerancia sensorial, ejecución de rutinas, calidad de la coordinación motriz, adaptaciones implementadas.`,
+Al describir evolución: mencionar cambios en la independencia funcional, tolerancia sensorial, ejecución de rutinas, coordinación motriz o adaptaciones únicamente si están registrados explícitamente.`,
 
     "general": `
 Redacta el informe con terminología clínica general apropiada para terapias del neurodesarrollo.
-Menciona las áreas de trabajo según los objetivos registrados.`,
+Menciona las áreas de trabajo según los objetivos registrados. Si no hay objetivos, utiliza las áreas que estén explícitamente presentes en las sesiones o en la información clínica; si tampoco aparecen, devuelve un objeto vacío.`,
   };
 
   return base + disciplines[discipline];
@@ -110,29 +114,32 @@ router.post("/ai/informe-generate", async (req, res) => {
   const { patientId, rango = "mes" } = req.body as { patientId: number; rango?: string };
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
 
+  // Resolve and authorize the patient before loading any clinical data.
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
   // ── Fetch all data in parallel ─────────────────────────────────────────────
   const [
-    [patient],
     allGoals,
     allRegistrosClinicos,
     allRegistros,
     assignments,
   ] = await Promise.all([
-    db.select().from(patientsTable).where(eq(patientsTable.id, patientId)),
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
     db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.patientId, patientId)),
     db.select().from(registrosTable).where(eq(registrosTable.patientId, patientId)),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);
 
-  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
-
   // ── Fetch professionals and goal progress ──────────────────────────────────
   const profIds = assignments.map(a => a.professionalId);
   const [professionals, allGoalProgress] = await Promise.all([
     profIds.length > 0
       ? db.select().from(professionalsTable).where(inArray(professionalsTable.id, profIds))
-      : Promise.resolve([]),
+      : Promise.resolve([] as typeof goalProgressTable.$inferSelect[]),
     allGoals.length > 0
       ? db.select().from(goalProgressTable)
           .where(inArray(goalProgressTable.goalId, allGoals.map(g => g.id)))
@@ -197,9 +204,8 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   // ── 3. Objetivos terapéuticos con historial de progreso ──────────────────
   const goalsContext = allGoals.length === 0
-    ? "Sin objetivos registrados."
+    ? "No hay objetivos terapéuticos registrados. Esto no impide generar el informe: utiliza los demás datos clínicos disponibles y no inventes objetivos ni áreas."
     : allGoals.map(g => {
-        const pct = g.progressPct ?? (g.status === "logrado" ? 100 : g.status === "en progreso" ? 55 : g.status === "activo" ? 20 : 0);
         const progEntries = (progressByGoal.get(g.id) ?? [])
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
@@ -216,9 +222,10 @@ router.post("/ai/informe-generate", async (req, res) => {
           : null;
 
         const lines = [
-          `[${g.status.toUpperCase()} — ${pct}%] ${g.title}`,
+          `[${g.status.toUpperCase()}] ${g.title}`,
           `  área: ${g.areaClinica ?? g.category}${g.nivelDificultad ? ` | nivel: ${g.nivelDificultad}` : ""}${g.fechaAsignacion ? ` | asignado: ${g.fechaAsignacion}` : ""}`,
         ];
+        if (g.progressPct != null) lines[0] += ` — progreso registrado: ${g.progressPct}%`;
         if (g.description) lines.push(`  descripción: ${trunc(g.description, 200)}`);
         if (g.notas) lines.push(`  notas: ${trunc(g.notas, 200)}`);
         if (progressHistory) lines.push(`  historial de progreso:\n${progressHistory}`);
@@ -310,12 +317,12 @@ ${perfContext}` : ""}
 ═══════════════════════════════════════
 INSTRUCCIÓN
 ═══════════════════════════════════════
-Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
+Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Los objetivos son opcionales:
 {
-  "resumen": "Motivo de intervención + evolución general del proceso basada en las sesiones registradas. Menciona cantidad de sesiones, áreas abordadas, objetivos logrados y en curso. Refleja el progreso real del historial. 180-280 palabras.",
-  "conducta": "Patrones de comportamiento en sesión: nivel atencional, disposición, respuesta a consignas, necesidad de apoyo, autonomía. Basado exclusivamente en las observaciones registradas. 100-180 palabras.",
+  "resumen": "Motivo de intervención y síntesis del proceso basada en la información clínica disponible. Menciona la cantidad de sesiones y las áreas u objetivos solo cuando estén registrados. Diferencia actividades realizadas de resultados explícitamente documentados. Si no hay datos para afirmar evolución, indícalo sin completar con frases genéricas.",
+  "conducta": "Síntesis de la conducta en sesión únicamente cuando existan observaciones registradas: atención, disposición, respuesta a consignas, necesidad de apoyo y autonomía. Si no hay observaciones, indica No registrado.",
   "areas": ${areasJsonShape},
-  "sugerencias": "Recomendaciones específicas y concretas para la familia, derivadas de los objetivos y áreas de trabajo reales del paciente. Usar viñetas con •. Lenguaje claro y accesible. 120-200 palabras."
+  "sugerencias": "Recomendaciones para la familia únicamente a partir de recomendaciones registradas o de actividades explícitamente documentadas. No agregues recomendaciones clínicas nuevas. Si no hay recomendaciones registradas, indica No registrado."
 }`;
 
   // ── Call OpenAI ───────────────────────────────────────────────────────────

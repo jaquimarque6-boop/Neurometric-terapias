@@ -1,0 +1,157 @@
+La auditoría anterior confirmó que el Agent NO llegó a modificar el módulo de informes.
+
+Ahora implementar únicamente esta PRIMERA ETAPA.
+
+NO modificar:
+
+* base de datos;
+* migraciones;
+* RLS;
+* autenticación general;
+* almacenamiento;
+* generación de PDF;
+* window.print();
+* estructura de patients.informe_evolucion.
+
+NO implementar todavía modelos personalizados de informe.
+
+OBJETIVO
+
+Mejorar exclusivamente la generación del informe clínico mediante IA.
+
+ARCHIVOS PRINCIPALES A REVISAR
+
+* artifacts/api-server/src/routes/ai-informe.ts
+* artifacts/neurometric-lab/src/pages/patient-profile.tsx
+
+1. INFORME SIN OBJETIVOS
+
+Modificar la generación para que los objetivos sean opcionales.
+
+Si el paciente no tiene objetivos, la IA debe poder generar el informe utilizando:
+
+* motivo de consulta;
+* diagnóstico;
+* anamnesis;
+* observaciones clínicas;
+* registros de sesiones;
+* recomendaciones registradas;
+* demás información clínica disponible.
+
+No devolver un informe vacío simplemente porque no existan objetivos.
+
+2. NO TRANSCRIBIR EVOLUCIONES
+
+Las notas de sesión pueden estar escritas de forma breve, coloquial, con errores o abreviaturas.
+
+NO copiarlas literalmente.
+
+Transformarlas en una síntesis clínica profesional.
+
+Ejemplo:
+
+Registro:
+"trabajamos ejercicios para fortalecer la lengua para la produccion de la r
+soplo, movimiento rapido de la lengua
+ra er ir or ur
+masajes y estimulacion co…"
+
+Resultado esperado:
+
+"El abordaje terapéutico estuvo orientado al fortalecimiento y coordinación de los movimientos linguales y al trabajo de las habilidades necesarias para favorecer la producción del fonema /r/. Se realizaron actividades de movilidad y rapidez lingual, ejercicios de soplo, estimulación orofacial y práctica de diferentes combinaciones silábicas."
+
+El ejemplo es orientativo. Utilizar siempre los datos reales del paciente.
+
+3. PROHIBIDO INVENTAR
+
+La IA no debe afirmar:
+
+* avances;
+* mejorías;
+* logros;
+* adquisición de habilidades;
+* resultados;
+* porcentajes;
+* evolución favorable;
+
+si no están registrados explícitamente.
+
+Diferenciar siempre:
+
+ACTIVIDAD REALIZADA
+
+de
+
+RESULTADO OBTENIDO.
+
+Ejemplo:
+
+Si el registro dice:
+"Se trabajó producción de /r/."
+
+No escribir:
+"Se evidenció una evolución favorable en la producción de /r/."
+
+Sí escribir:
+"El abordaje estuvo orientado al trabajo de la producción del fonema /r/."
+
+4. ELIMINAR PORCENTAJES ARTIFICIALES
+
+En ai-informe.ts NO enviar a la IA:
+
+activo = 20%
+en progreso = 55%
+logrado = 100%
+
+Un estado no equivale a un porcentaje clínico.
+
+Solo utilizar progressPct cuando exista un porcentaje real registrado.
+
+5. REDACCIÓN
+
+Mantener la tercera persona/redacción clínica actual, pero hacerla más natural.
+
+Evitar repetir constantemente el nombre del paciente.
+
+Priorizar estructuras como:
+
+"Durante las sesiones..."
+"Se realizaron actividades..."
+"El abordaje terapéutico estuvo orientado a..."
+"Se trabajó sobre..."
+"Se registró..."
+
+El resultado debe parecer un informe clínico profesional y no una transcripción de evoluciones.
+
+6. IMPRESIÓN
+
+NO modificar window.print().
+
+Únicamente verificar que cuando exista información clínica suficiente, el contenido generado llegue correctamente al informe actual y pueda imprimirse.
+
+Si no existe información clínica suficiente, mostrar un aviso al profesional en lugar de imprimir un informe clínicamente vacío.
+
+7. SEGURIDAD DEL ENDPOINT
+
+En POST /api/ai/informe-generate, antes de obtener información clínica del patientId recibido, verificar que el usuario autenticado tenga permiso para acceder a ese paciente según el modelo de permisos actual.
+
+No modificar el sistema general de permisos.
+
+8. REGLA DE IMPLEMENTACIÓN
+
+Hacer solamente estos cambios.
+
+No refactorizar otros módulos.
+No corregir los errores generales de TypeScript del proyecto.
+No modificar archivos no relacionados salvo que sea estrictamente necesario para esta implementación.
+
+ANTES DE TERMINAR:
+
+* ejecutar las pruebas disponibles relacionadas con el backend;
+* comprobar que el frontend inicia;
+* comprobar que el backend inicia;
+* verificar que no se modificó la base de datos;
+* verificar que no se modificó window.print();
+* informar exactamente qué archivos fueron modificados.
+
+Si encontrás que para implementar alguno de estos puntos es necesario hacer una migración, cambiar el esquema, RLS o una modificación estructural, DETENETE y explicame el cambio antes de ejecutarlo.

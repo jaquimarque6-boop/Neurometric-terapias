@@ -650,6 +650,24 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
     return acc;
   }, {});
   const areas = Object.keys(areaGroups).sort();
+  const hasClinicalSourceData = Boolean(
+    goals.length > 0 ||
+    filteredRegistros.length > 0 ||
+    [
+      patient.motivoConsulta,
+      patient.diagnosis,
+      patient.antecedentes,
+      patient.historiaFamiliar,
+      patient.impresionClinica,
+      patient.observaciones,
+      patient.lenguajeComunicacion,
+      patient.atencionConducta,
+      patient.vozHabla,
+      patient.deglucion,
+      patient.rutinasHabitos,
+      patient.entornoParticipacion,
+    ].some(value => value?.trim())
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -699,6 +717,14 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   };
 
   const handlePrint = () => {
+    if (!hasClinicalSourceData) {
+      toast({
+        title: "Informe sin información clínica",
+        description: "No hay objetivos, sesiones ni datos clínicos suficientes para imprimir un informe.",
+        variant: "destructive",
+      });
+      return;
+    }
     const contentId = view === "familia" ? "informe-familia-content" : "informe-clinico-content";
     const content   = document.getElementById(contentId)?.innerHTML;
     if (!content) return;

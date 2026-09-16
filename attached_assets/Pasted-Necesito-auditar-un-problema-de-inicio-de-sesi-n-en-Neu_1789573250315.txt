@@ -1,0 +1,95 @@
+Necesito auditar un problema de inicio de sesión en Neurometric Terapias.
+
+CONTEXTO REAL:
+- Algunos usuarios reportaron fallas para ingresar.
+- Yo pude reproducir un problema con una cuenta después de cambiarle la contraseña.
+- Actualmente existe/migró lógica de autenticación y puede haber usuarios con diferentes estados de migración.
+- No asumir que la causa es la contraseña hasta comprobarlo.
+
+IMPORTANTE:
+AUDITORÍA SOLO LECTURA.
+
+NO modificar código.
+NO cambiar contraseñas.
+NO crear usuarios.
+NO eliminar usuarios.
+NO ejecutar migraciones.
+NO modificar base de datos.
+NO modificar Supabase Auth.
+NO modificar producción.
+NO hacer deploy.
+NO corregir nada todavía.
+
+OBJETIVO:
+Determinar por qué algunos usuarios pueden fallar al iniciar sesión y, especialmente, qué ocurre cuando se cambia una contraseña.
+
+REVISAR:
+
+1. Flujo completo actual de login:
+   frontend → endpoint/backend → sistema de autenticación → respuesta.
+
+2. Identificar todos los lugares donde actualmente pueden existir credenciales:
+   - auth.users / Supabase Auth;
+   - tabla de usuarios de la aplicación;
+   - password legacy/hash, si todavía existe;
+   - cualquier mecanismo de migración automática.
+
+3. Explicar exactamente qué ocurre para:
+   A. usuario legacy que nunca migró;
+   B. usuario ya migrado;
+   C. usuario al que se le cambia la contraseña;
+   D. usuario migrado que luego cambia contraseña.
+
+4. Revisar la función actual de CAMBIO/RESET de contraseña.
+
+Comprobar específicamente:
+- dónde actualiza la contraseña;
+- si actualiza Supabase Auth;
+- si actualiza también alguna contraseña legacy;
+- si pueden quedar dos contraseñas diferentes para el mismo usuario;
+- qué sistema consulta posteriormente el login.
+
+5. Buscar posibles estados inconsistentes, por ejemplo:
+   auth.users existe pero la contraseña fue modificada solamente en la tabla legacy,
+   o viceversa.
+
+6. Revisar logs recientes de autenticación disponibles, SIN exponer contraseñas, tokens ni datos sensibles.
+
+Buscar:
+- 401;
+- credenciales inválidas;
+- usuario no encontrado;
+- errores de migración;
+- errores de Supabase Auth;
+- fallos posteriores al cambio de contraseña.
+
+7. Revisar si el problema puede depender de:
+   - mayúsculas/minúsculas del email;
+   - espacios;
+   - usuario activo/inactivo;
+   - duplicados;
+   - usuarios migrados parcialmente;
+   - password hash;
+   - sesión/cookie/token anterior;
+   - cambio de contraseña.
+
+8. NO mostrar contraseñas, hashes completos, tokens ni secretos en el informe.
+
+9. Determinar si el fallo de build/deploy reciente tiene alguna relación con autenticación.
+No asumir que están relacionados: comprobarlo.
+
+ENTREGAR:
+
+- flujo actual de autenticación;
+- causa o causas encontradas;
+- evidencia concreta;
+- qué tipos de usuarios están afectados;
+- qué sucede exactamente al cambiar una contraseña;
+- si existe inconsistencia entre Auth y el sistema legacy;
+- archivos involucrados;
+- propuesta de corrección mínima y segura;
+- riesgos de esa corrección.
+
+NO IMPLEMENTAR LA SOLUCIÓN.
+
+Esperar mi autorización después de la auditoría.
