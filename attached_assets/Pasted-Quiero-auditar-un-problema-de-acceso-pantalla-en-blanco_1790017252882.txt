@@ -1,0 +1,320 @@
+Quiero auditar un problema de acceso/pantalla en blanco en Neurometric Terapias.
+
+IMPORTANTE:
+ESTA ETAPA ES SOLO AUDITORÍA.
+
+NO modificar código.
+NO modificar usuarios.
+NO modificar contraseñas.
+NO modificar autenticación.
+NO modificar base de datos.
+NO ejecutar migraciones.
+NO modificar Supabase.
+NO modificar sesiones ni tokens.
+NO hacer deploy.
+NO modificar otras funciones de la plataforma.
+
+--------------------------------------------------
+PROBLEMA OBSERVADO
+--------------------------------------------------
+
+La plataforma funciona correctamente cuando ingreso desde el navegador/acceso que utilizo habitualmente y donde ya tengo sesión iniciada.
+
+Puedo entrar al Panel y utilizar Neurometric Terapias normalmente.
+
+Sin embargo, desde otro acceso/navegador aparece una pantalla completamente en blanco.
+
+YA PUDE IDENTIFICAR UNA URL CONCRETA DONDE OCURRE:
+
+https://neurometricterapias.com/seleccion
+
+Al abrir directamente esa URL, la página queda completamente en blanco.
+
+No aparece:
+
+- login
+- selector
+- menú
+- loader
+- mensaje de error
+- redirección
+- ningún contenido visible
+
+Esto es especialmente importante porque podría afectar a usuarios nuevos, usuarios que cambian de dispositivo o usuarios cuya sesión expiró.
+
+--------------------------------------------------
+OBJETIVO
+--------------------------------------------------
+
+Encontrar la causa raíz exacta de la pantalla blanca y determinar si puede afectar el primer acceso de usuarios nuevos.
+
+NO corregir todavía.
+
+--------------------------------------------------
+1. REPRODUCIR EL PROBLEMA
+--------------------------------------------------
+
+Probar:
+
+A) https://neurometricterapias.com/seleccion
+
+sin:
+
+- cookies
+- localStorage
+- token guardado
+- sesión previa
+
+Simular un navegador completamente nuevo.
+
+También probar:
+
+B) ventana incógnito
+
+C) navegador diferente
+
+D) usuario con sesión válida
+
+E) usuario sin sesión
+
+F) sesión expirada
+
+Comparar los resultados.
+
+--------------------------------------------------
+2. PROBAR TAMBIÉN LA URL PRINCIPAL
+--------------------------------------------------
+
+Abrir:
+
+https://neurometricterapias.com/
+
+Determinar qué sucede cuando:
+
+A) existe una sesión válida
+B) no existe sesión
+C) existe token local pero no cookie
+D) existe cookie pero no token local
+E) la sesión está vencida
+
+Documentar a qué página intenta enviar al usuario en cada situación.
+
+--------------------------------------------------
+3. INVESTIGAR /seleccion
+--------------------------------------------------
+
+Identificar:
+
+- qué componente corresponde a /seleccion;
+- dónde está declarada la ruta;
+- si tiene algún AuthGuard o protección;
+- si depende del usuario autenticado;
+- si depende de localStorage;
+- si depende de un token;
+- si depende de información que puede ser null/undefined;
+- si espera información que solamente existe después de iniciar sesión.
+
+Revisar si existe algún caso donde el componente simplemente devuelve null o no renderiza nada.
+
+--------------------------------------------------
+4. REVISAR EL FLUJO DE AUTENTICACIÓN
+--------------------------------------------------
+
+Revisar especialmente:
+
+- login.tsx
+- auth-context.tsx
+- main.tsx
+- router/rutas
+- guards de autenticación
+- /api/auth/login
+- /api/auth/me
+- manejo del token en localStorage
+- interceptor Bearer
+- cookie de sesión
+- estados loading
+- authenticated
+- unauthenticated
+
+IMPORTANTE:
+
+La aplicación utiliza users.password_hash + bcrypt y sesiones/tokens propios.
+
+NO migrar a Supabase Auth.
+NO cambiar el sistema de autenticación.
+
+Ya se corrigió anteriormente un problema donde las rutinas ensureTempAdmin() y ensureJaquiAdmin() podían sobrescribir passwordHash al iniciar el backend.
+
+NO modificar esa corrección salvo que exista evidencia concreta de que está relacionada con este problema.
+
+--------------------------------------------------
+5. BUSCAR ESTADOS QUE PUEDAN GENERAR PANTALLA BLANCA
+--------------------------------------------------
+
+Buscar especialmente situaciones como:
+
+if (loading) return null
+
+if (!user) return null
+
+if (!session) return null
+
+o equivalentes.
+
+También:
+
+- errores no capturados;
+- promises rechazadas;
+- propiedades de undefined/null;
+- redirecciones que no terminan;
+- loops de navegación;
+- componentes que esperan datos que nunca llegan;
+- estados de autenticación que quedan cargando indefinidamente.
+
+La aplicación nunca debería quedar completamente blanca.
+
+Si no hay sesión debería, según corresponda, mostrar login o redirigir correctamente.
+
+--------------------------------------------------
+6. CONSOLA DEL NAVEGADOR
+--------------------------------------------------
+
+Reproducir la pantalla blanca y registrar exactamente:
+
+- errores JavaScript;
+- warnings relevantes;
+- stack trace;
+- archivo;
+- línea;
+- componente involucrado.
+
+No quedarse solamente con el mensaje general.
+
+Seguir el stack hasta identificar el origen.
+
+--------------------------------------------------
+7. NETWORK
+--------------------------------------------------
+
+Durante el acceso en blanco revisar:
+
+- documentos;
+- JS;
+- CSS;
+- API requests;
+- redirecciones.
+
+Buscar especialmente respuestas:
+
+401
+403
+404
+500
+
+Revisar:
+
+/api/auth/me
+
+y cualquier request inicial necesario para renderizar /seleccion.
+
+Indicar:
+
+request
+status
+response
+qué hace el frontend después de recibir esa respuesta.
+
+--------------------------------------------------
+8. COMPARAR NAVEGADOR QUE FUNCIONA VS. NAVEGADOR QUE FALLA
+--------------------------------------------------
+
+Quiero saber exactamente qué diferencia existe.
+
+Comparar:
+
+- cookies
+- localStorage
+- token
+- sesión
+- datos de usuario
+- rutas
+- requests iniciales
+
+Determinar qué dato presente en el navegador donde funciona permite que la aplicación cargue y qué falta en el navegador limpio.
+
+NO mostrar tokens completos ni información sensible.
+
+--------------------------------------------------
+9. REVISAR PRIMER ACCESO DE UN USUARIO NUEVO
+--------------------------------------------------
+
+Esto es MUY IMPORTANTE.
+
+Simular una profesional que recibe acceso por primera vez.
+
+Debe poder hacer:
+
+abrir Neurometric Terapias
+→ ver login
+→ ingresar
+→ acceder correctamente a la plataforma.
+
+Comprobar si en algún punto de ese flujo puede aparecer la pantalla blanca.
+
+También comprobar qué sucede si:
+
+- guarda /seleccion como favorito;
+- vuelve varios días después;
+- su sesión expiró;
+- cambia de computadora;
+- cambia de navegador.
+
+--------------------------------------------------
+10. NO CONFUNDIR ESTE PROBLEMA CON CONTRASEÑAS
+--------------------------------------------------
+
+No modificar password_hash ni restablecer contraseñas para solucionar la pantalla blanca.
+
+Primero determinar si el problema ocurre ANTES o DESPUÉS de autenticarse.
+
+--------------------------------------------------
+ENTREGA FINAL DE LA AUDITORÍA
+--------------------------------------------------
+
+Quiero un informe breve pero concreto con:
+
+1. ¿Pudiste reproducir la pantalla blanca?
+
+2. URL exacta donde ocurre.
+
+3. Condiciones necesarias para que ocurra:
+   - sin sesión
+   - sesión expirada
+   - navegador nuevo
+   - etc.
+
+4. Error exacto encontrado en consola.
+
+5. Requests que fallan en Network.
+
+6. Archivo y línea responsables.
+
+7. Componente responsable.
+
+8. Causa raíz.
+
+9. Por qué funciona desde mi navegador habitual pero no desde el otro.
+
+10. Si puede afectar a usuarios nuevos.
+
+11. Si puede afectar a usuarios que vuelven después de varios días.
+
+12. Propuesta de corrección MÍNIMA.
+
+13. Archivos que sería necesario modificar para corregirlo.
+
+14. Confirmar explícitamente qué cosas NO sería necesario tocar.
+
+NO IMPLEMENTAR LA CORRECCIÓN.
+
+Esperar mi autorización después de mostrar la auditoría.
