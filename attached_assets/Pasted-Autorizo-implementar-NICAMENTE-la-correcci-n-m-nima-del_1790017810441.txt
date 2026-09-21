@@ -1,0 +1,104 @@
+Autorizo implementar ÚNICAMENTE la corrección mínima del problema detectado
+en ProtectedRoute.
+
+OBJETIVO:
+
+Una ruta protegida NUNCA debe quedar completamente en blanco cuando
+el usuario no está autenticado.
+
+Actualmente en:
+
+artifacts/neurometric-lab/src/App.tsx
+
+existe este comportamiento:
+
+if (!user) return null;
+
+y la navegación a /login depende de un useEffect.
+
+CORRECCIÓN:
+
+Modificar únicamente ProtectedRoute para que:
+
+1. Mientras loading === true:
+   mostrar un estado visible de carga.
+
+2. Cuando loading === false y no existe usuario:
+   redirigir de forma segura a /login.
+
+3. Nunca retornar null dejando la pantalla vacía.
+
+4. Si la redirección necesita un instante para completarse,
+   mostrar un estado visible como:
+   "Redirigiendo al inicio de sesión…"
+
+IMPORTANTE:
+
+Mantener exactamente el sistema actual de autenticación.
+
+NO modificar:
+
+- backend de autenticación
+- auth.ts
+- login.tsx
+- auth-context.tsx
+- password_hash
+- contraseñas
+- ensureTempAdmin()
+- ensureJaquiAdmin()
+- cookies
+- sesiones
+- tokens
+- Supabase Auth
+- base de datos
+- migraciones
+- RLS
+- informes
+- pacientes
+- otras funciones de la plataforma
+
+NO agregar todavía ErrorBoundary.
+No hay evidencia de fallo de chunks en producción y quiero separar
+ambas modificaciones.
+
+DESPUÉS DE IMPLEMENTAR:
+
+1. Ejecutar build de producción del frontend.
+
+2. Verificar que no se introduzcan nuevos errores de TypeScript/build.
+
+3. Probar:
+
+A)
+Abrir /seleccion con sesión válida.
+Debe mostrar Seleccion normalmente.
+
+B)
+Abrir /seleccion sin sesión.
+Debe terminar en /login.
+En ningún momento debe quedar una pantalla blanca.
+
+C)
+Abrir /seleccion en navegador limpio/incógnito.
+Debe terminar en /login.
+
+D)
+Simular sesión expirada.
+Debe terminar en /login.
+
+E)
+Abrir /
+sin sesión.
+Debe mostrar correctamente el login.
+
+F)
+Iniciar sesión normalmente.
+Debe continuar funcionando el flujo actual.
+
+4. Confirmar exactamente qué archivo y líneas fueron modificados.
+
+5. Mostrarme el diff final.
+
+6. Confirmar explícitamente que no se modificó ningún otro sistema.
+
+No realizar otras mejoras ni refactorizaciones.

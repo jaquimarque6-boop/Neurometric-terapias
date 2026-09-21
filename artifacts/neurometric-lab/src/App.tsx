@@ -63,7 +63,15 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground text-sm animate-pulse">
+          Redirigiendo al inicio de sesión…
+        </div>
+      </div>
+    );
+  }
 
   return <Component />;
 }
