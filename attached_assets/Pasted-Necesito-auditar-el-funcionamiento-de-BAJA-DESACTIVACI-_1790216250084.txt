@@ -1,0 +1,187 @@
+Necesito auditar el funcionamiento de BAJA, DESACTIVACIÓN y ELIMINACIÓN
+de usuarios/profesionales en Neurometric Terapias.
+
+IMPORTANTE:
+Esta etapa es SOLO AUDITORÍA.
+
+NO modificar código.
+NO modificar base de datos.
+NO eliminar usuarios.
+NO eliminar pacientes.
+NO hacer migraciones.
+NO hacer deploy.
+NO cambiar autenticación ni contraseñas.
+
+CONTEXTO
+
+Actualmente, cuando desde administración se elimina un usuario,
+aparentemente el sistema no lo elimina realmente sino que establece:
+
+active = false
+
+Además, los pacientes y otros datos relacionados con ese profesional
+permanecen guardados.
+
+Quiero corregir esto, pero ANTES necesito conocer todas las relaciones
+para evitar pérdida accidental de información clínica.
+
+AUDITAR:
+
+1. Qué sucede exactamente hoy cuando un administrador utiliza
+"Eliminar usuario".
+
+Identificar:
+- componente/botón frontend;
+- endpoint utilizado;
+- lógica backend;
+- cambios realizados en la tabla users;
+- si existe eliminación física o solamente active=false.
+
+2. Identificar TODAS las tablas y registros que pueden estar relacionados
+con un usuario/profesional.
+
+Revisar especialmente, pero no limitarse a:
+
+- users
+- professionals
+- patients
+- sesiones/registros clínicos
+- objetivos
+- progreso de objetivos
+- agenda/citas
+- archivos
+- informes
+- anamnesis
+- pagos clínicos
+- actividades
+- cualquier otra tabla que tenga:
+  user_id
+  professional_id
+  assigned_professional_id
+  created_by
+  owner_id
+  o cualquier relación equivalente.
+
+3. Determinar qué ocurre actualmente con los PACIENTES cuando el profesional
+es desactivado.
+
+¿Siguen visibles?
+¿Para quién?
+¿Quedan asociados al profesional desactivado?
+¿Puede otro profesional acceder a ellos?
+¿Puede el administrador reasignarlos?
+
+4. Determinar qué ocurriría si se intentara eliminar físicamente un usuario.
+
+Identificar:
+- foreign keys;
+- ON DELETE CASCADE;
+- ON DELETE SET NULL;
+- restricciones;
+- tablas que impedirían el borrado;
+- información que se eliminaría automáticamente.
+
+NO realizar el borrado. Solo analizarlo.
+
+5. Diferenciar conceptualmente estas acciones:
+
+A) DESACTIVAR USUARIO
+La persona deja de poder ingresar pero se conserva toda su información.
+
+B) ELIMINAR CUENTA
+Se elimina la cuenta de acceso, pero debe definirse qué ocurre con la
+información clínica relacionada.
+
+C) ELIMINAR DATOS
+Eliminación definitiva de información asociada, únicamente cuando
+corresponda y mediante una acción explícita.
+
+Analizar si la arquitectura actual permite separar correctamente
+estas tres acciones.
+
+6. Diseñar una opción segura para administración que permita:
+
+DESACTIVAR
+→ conserva cuenta y datos
+→ impide acceso.
+
+ELIMINAR CUENTA
+→ requiere confirmación fuerte
+→ muestra antes qué información está relacionada
+→ permite resolver los pacientes asociados.
+
+Antes de eliminar una cuenta con pacientes asociados debería poder elegirse,
+según lo que permita la arquitectura:
+
+- reasignar pacientes a otro profesional;
+- dejar pacientes sin profesional;
+- cancelar la eliminación.
+
+NO asumir que eliminar un profesional implica eliminar sus pacientes.
+
+7. Analizar qué debería pasar con:
+
+- sesiones históricas;
+- informes;
+- objetivos;
+- anamnesis;
+- archivos clínicos;
+- citas anteriores;
+- pagos;
+- registros creados por ese profesional.
+
+Quiero conservar la trazabilidad histórica cuando corresponda.
+
+8. Revisar también usuarios que puedan existir sin un registro válido
+en professionals y profesionales sin usuario.
+
+Detectar posibles registros huérfanos.
+
+9. Informar cuántos usuarios existen actualmente por estado:
+
+- activos
+- inactivos
+
+y, si es posible sin exponer datos sensibles:
+
+- cuántos inactivos todavía tienen pacientes asociados;
+- cuántos tienen registros clínicos asociados;
+- cuántos parecen no tener ningún dato relacionado.
+
+NO listar contraseñas, hashes ni información clínica de pacientes.
+
+10. Revisar el problema ya detectado con tokens Bearer:
+
+Actualmente se observó que active=false impide un nuevo login,
+pero determinados tokens ya emitidos podrían seguir siendo aceptados
+hasta su vencimiento.
+
+Confirmar exactamente qué rutas podrían verse afectadas y proponer
+cómo lograr que una desactivación revoque efectivamente el acceso.
+
+NO implementar todavía.
+
+11. Revisar si existe algún mecanismo actual para:
+
+- reactivar usuario;
+- recuperar usuario eliminado/desactivado;
+- reasignar pacientes;
+- archivar profesionales.
+
+12. Proponer la solución mínima y segura para mejorar la administración
+de usuarios SIN rediseñar todo el sistema de autenticación.
+
+ENTREGAR:
+
+1. Comportamiento actual.
+2. Mapa completo de relaciones.
+3. Riesgos de eliminación.
+4. Situación de pacientes de profesionales inactivos.
+5. Registros huérfanos encontrados.
+6. Riesgo de sesiones/tokens después de desactivar.
+7. Propuesta de UX para Desactivar / Eliminar cuenta.
+8. Estrategia de reasignación de pacientes.
+9. Cambios técnicos necesarios.
+10. Plan de implementación por fases.
+
+NO IMPLEMENTAR NADA TODAVÍA.
