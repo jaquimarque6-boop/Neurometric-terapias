@@ -1,0 +1,120 @@
+Necesito realizar una auditoría SOLO LECTURA de Neurometric Terapias.
+
+NO modificar código.
+NO modificar base de datos.
+NO crear tablas.
+NO hacer migraciones.
+NO cambiar autenticación.
+NO cambiar contraseñas.
+NO hacer deploy.
+
+CONTEXTO
+
+Estoy evaluando migrar Neurometric Actividades desde Lovable y quiero que
+eventualmente ambas plataformas puedan utilizar el mismo sistema de usuarios
+y control de acceso.
+
+La auditoría de Actividades confirmó que actualmente:
+
+- Actividades NO tiene usuarios propios.
+- NO tiene login.
+- NO tiene suscripciones.
+- NO comparte autenticación con Terapias.
+- Cualquiera con la URL puede ingresar.
+- Sus datos se guardan principalmente en localStorage del navegador.
+- La única conexión actual con Terapias es un enlace.
+- Actividades utiliza dos funciones externas para IA/voz.
+
+ANTES DE DISEÑAR LA INTEGRACIÓN necesito entender exactamente cómo funciona
+la autenticación y el acceso en Neurometric Terapias.
+
+AUDITAR:
+
+1. ¿Dónde están almacenados actualmente los usuarios de Terapias?
+
+2. ¿Cómo funciona el login?
+   Identificar:
+   - frontend
+   - endpoint de login
+   - tabla de usuarios
+   - sistema de contraseñas
+   - sesiones
+   - cookies/tokens
+   - persistencia de sesión
+
+3. ¿Qué roles existen actualmente?
+
+4. ¿Cómo se determina si un usuario está activo o dado de baja?
+
+5. ¿Existe actualmente información sobre:
+   - suscripción
+   - prueba gratuita
+   - fecha de alta
+   - fecha de vencimiento
+   - plan
+   - pago
+   - estado de la suscripción?
+
+6. ¿Cómo se habilita o deshabilita actualmente el acceso de una profesional?
+
+7. ¿Existe alguna forma segura de que otra aplicación de Neurometric
+(Neurometric Actividades) pueda reconocer la sesión de una usuaria de Terapias?
+
+8. Analizar cuál sería la forma más segura de conseguir:
+
+   Una cuenta Neurometric
+        ↓
+   Terapias
+        +
+   Actividades
+
+sin obligar a las usuarias actuales a registrarse nuevamente ni cambiar
+contraseña.
+
+9. ¿Sería posible que Terapias genere una sesión/token seguro que Actividades
+pueda validar?
+
+10. ¿Conviene:
+   A) compartir autenticación;
+   B) implementar SSO/token entre aplicaciones;
+   C) integrar Actividades dentro del mismo proyecto;
+   D) otra arquitectura?
+
+Comparar las opciones específicamente con la arquitectura ACTUAL.
+
+11. ¿Cómo podríamos controlar que solamente una profesional con acceso
+habilitado pueda entrar a Actividades?
+
+12. ¿Cómo debería prepararse la arquitectura para que en el futuro existan:
+
+- usuarios de Terapias;
+- usuarios que solo tengan Actividades;
+- usuarios con ambas plataformas;
+- Creadoras Neurometric;
+- administradora;
+- eventualmente diferentes planes.
+
+13. Identificar qué archivos, endpoints, tablas y variables intervienen
+actualmente en autenticación y autorización.
+
+14. Evaluar riesgos de seguridad o compatibilidad de conectar Actividades
+con el sistema actual.
+
+IMPORTANTE:
+
+Neurometric Terapias tiene usuarias reales actualmente.
+
+NO implementar absolutamente nada.
+NO cambiar passwords.
+NO tocar las funciones existentes de autenticación.
+NO crear usuarios.
+NO migrar datos.
+
+Entregar solamente:
+
+1. Arquitectura actual.
+2. Hallazgos.
+3. Riesgos.
+4. Opciones de integración.
+5. Recomendación de arquitectura.
+6. Plan por fases para realizarlo sin afectar a las usuarias actuales.
