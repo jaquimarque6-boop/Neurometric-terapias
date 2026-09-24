@@ -3,6 +3,9 @@ import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
@@ -104,55 +107,111 @@ app.use(session({
   },
 }));
 
-// ─── Token-based auth fallback ────────────────────────────────────────────────
+function isPublicApiRoute(req: express.Request): boolean {
+  return (
+    req.url.startsWith("/api/auth/login") ||
+    req.url.startsWith("/api/auth/register") ||
+    req.url.startsWith("/api/auth/logout") ||
+    req.url.startsWith("/api/health")
+  );
+}
+
+// ─── Centralized current-user validation ──────────────────────────────────────
 // Cross-origin deployments (Netlify ↔ Render) suffer from third-party cookie
 // blocking in Safari and Chrome 120+. If the session cookie was dropped by the
 // browser, we fall back to a signed Bearer token sent via Authorization header.
-// All existing route files check req.session.userId — populating it here means
-// every route works without changes.
-app.use((req, _res, next) => {
+//
+// Every authenticated request now resolves the user from the database before
+// reaching a route. This deliberately ignores the role carried by a Bearer
+// token: active status and the current role must come from `users`.
+app.use(async (req, res, next) => {
   // Only log auth resolution for /api routes to avoid noise on static assets.
   const isApi = req.url.startsWith("/api");
 
+  // Login, public registration, logout, and health must be able to run without
+  // a currently valid account. Logout also needs to work for a just-deactivated
+  // account so its old cookie can be destroyed cleanly.
+  if (isPublicApiRoute(req)) return next();
+
+  let authSource: "cookie-session" | "bearer-token" | null = null;
+
   if (req.session.userId) {
+    authSource = "cookie-session";
     if (isApi) {
       console.log(
         `[auth] ✓ cookie-session | ${req.method} ${req.url}` +
         ` | userId=${req.session.userId} role=${req.session.userRole ?? "?"}`
       );
     }
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-    const claims = verifyAuthToken(token);
-    if (claims) {
-      req.session.userId    = claims.userId;
-      req.session.userRole  = claims.role;
-      if (isApi) {
-        console.log(
-          `[auth] ✓ bearer-token | ${req.method} ${req.url}` +
-          ` | userId=${claims.userId} role=${claims.role}` +
+  } else {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const claims = verifyAuthToken(token);
+      if (claims) {
+        // The token identifies the account, but its role is not authoritative.
+        req.session.userId = claims.userId;
+        authSource = "bearer-token";
+        if (isApi) {
+          console.log(
+            `[auth] ✓ bearer-token | ${req.method} ${req.url}` +
+            ` | userId=${claims.userId}` +
+            ` | origin=${req.headers.origin ?? "none"}`
+          );
+        }
+      } else if (isApi) {
+        console.warn(
+          `[auth] ✗ token inválido o expirado | ${req.method} ${req.url}` +
           ` | origin=${req.headers.origin ?? "none"}`
         );
       }
     } else if (isApi) {
-      console.warn(
-        `[auth] ✗ token inválido o expirado | ${req.method} ${req.url}` +
+      console.log(
+        `[auth] · sin credenciales | ${req.method} ${req.url}` +
+        ` | cookie=${req.headers.cookie ? "presente" : "ausente"}` +
+        ` | authHeader=${authHeader ? "presente-no-bearer" : "ausente"}` +
         ` | origin=${req.headers.origin ?? "none"}`
       );
     }
-  } else if (isApi && !req.url.startsWith("/api/auth/login") && !req.url.startsWith("/api/health")) {
-    console.log(
-      `[auth] · sin credenciales | ${req.method} ${req.url}` +
-      ` | cookie=${req.headers.cookie ? "presente" : "ausente"}` +
-      ` | authHeader=${authHeader ? "presente-no-bearer" : "ausente"}` +
-      ` | origin=${req.headers.origin ?? "none"}`
-    );
   }
-  next();
+
+  if (!authSource || !req.session.userId) return next();
+
+  try {
+    const [currentUser] = await db
+      .select({
+        id: usersTable.id,
+        role: usersTable.role,
+        active: usersTable.active,
+        professionalId: usersTable.professionalId,
+        name: usersTable.name,
+        email: usersTable.email,
+        specialty: usersTable.specialty,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.session.userId));
+
+    if (!currentUser || !currentUser.active) {
+      return req.session.destroy((err) => {
+        if (err) console.error("[auth] error al destruir sesión inválida:", err);
+        return res.status(401).json({ error: "No autenticado" });
+      });
+    }
+
+    // Refresh all authorization-relevant session fields from the database.
+    // This immediately reflects active/role changes without forcing active
+    // users to log in again.
+    req.session.userId = currentUser.id;
+    req.session.userRole = currentUser.role;
+    req.session.professionalId = currentUser.professionalId ?? null;
+    req.session.userName = currentUser.name;
+    req.session.userEmail = currentUser.email;
+    req.session.userSpecialty = currentUser.specialty ?? null;
+    return next();
+  } catch (err) {
+    console.error("[auth] error al validar usuario actual:", err);
+    return res.status(503).json({ error: "No se pudo validar la sesión" });
+  }
 });
 
 app.use("/api", router);

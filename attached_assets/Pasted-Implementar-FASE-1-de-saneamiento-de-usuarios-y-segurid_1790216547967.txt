@@ -1,0 +1,165 @@
+Implementar FASE 1 de saneamiento de usuarios y seguridad en Neurometric Terapias.
+
+IMPORTANTE:
+Trabajar sobre la arquitectura actual.
+NO rediseñar autenticación.
+NO migrar usuarios.
+NO modificar contraseñas.
+NO eliminar usuarios existentes.
+NO eliminar pacientes ni información clínica.
+NO modificar el sistema de informes.
+NO tocar Neurometric Actividades.
+
+OBJETIVO
+
+Corregir la desactivación de usuarios para que una cuenta desactivada
+pierda realmente el acceso y cerrar los problemas de autorización
+detectados en la auditoría.
+
+1. DESACTIVACIÓN SEGURA
+
+Mantener:
+
+users.active = false
+
+como mecanismo de baja lógica.
+
+Al desactivar un usuario:
+
+- conservar usuario;
+- conservar pacientes;
+- conservar sesiones;
+- conservar objetivos;
+- conservar informes;
+- conservar archivos;
+- conservar pagos;
+- conservar toda la información clínica.
+
+Pero el usuario debe perder el acceso efectivamente.
+
+Implementar validación centralizada en backend para que las rutas
+autenticadas comprueben que:
+
+- el usuario todavía existe;
+- active = true;
+- su rol actual sea el autorizado para la operación.
+
+No confiar exclusivamente en el role almacenado dentro de un Bearer token.
+
+2. SESIONES EXISTENTES
+
+Al desactivar una cuenta, impedir que sesiones o tokens emitidos
+previamente permitan continuar trabajando.
+
+Elegir la solución mínima compatible con la arquitectura actual.
+
+No cambiar las contraseñas.
+
+No obligar a los usuarios activos a iniciar sesión nuevamente si no es
+estrictamente necesario.
+
+3. CAMBIO DE ROL
+
+Un token antiguo no debe conservar privilegios de admin si el usuario
+actualmente ya no tiene ese rol.
+
+Para operaciones sensibles, utilizar el estado y rol actual del usuario
+en base de datos.
+
+4. RUTAS /professionals
+
+La auditoría detectó rutas de professionals sin protección suficiente.
+
+Revisarlas y exigir autenticación/autorización adecuada.
+
+No modificar su comportamiento funcional más allá de seguridad.
+
+5. RUTAS /patient-professionals
+
+Aplicar autenticación y autorización.
+
+Un profesional no debe poder consultar o modificar relaciones de
+pacientes que no le correspondan.
+
+El administrador debe conservar las capacidades administrativas actuales.
+
+6. POST /api/auth/register
+
+La auditoría detectó que acepta role enviado por el cliente.
+
+Corregirlo para impedir que un usuario pueda autoasignarse privilegios
+administrativos.
+
+Si el registro público no se utiliza actualmente en producción,
+NO eliminarlo todavía sin comprobar dependencias.
+
+Aplicar una política segura de roles permitidos.
+
+7. ELIMINACIÓN PERMANENTE
+
+NO modificar todavía /api/users/:id/permanent.
+
+NO ejecutar eliminaciones.
+
+Pero en la interfaz de Usuarios:
+
+si actualmente la papelera permite ejecutar esta eliminación peligrosa,
+deshabilitar temporalmente esa acción o reemplazarla por un mensaje:
+
+"Eliminación definitiva temporalmente deshabilitada.
+Podés dar de baja el acceso del usuario sin eliminar su información clínica."
+
+La acción DESACTIVAR debe continuar funcionando.
+
+La acción REACTIVAR debe continuar funcionando.
+
+8. PRUEBAS OBLIGATORIAS
+
+Probar:
+
+A. profesional activo → puede ingresar;
+B. profesional desactivado → no puede iniciar sesión;
+C. profesional con sesión abierta → al ser desactivado pierde acceso;
+D. usuario reactivado → vuelve a poder ingresar normalmente;
+E. cambio admin → professional → token anterior no mantiene permisos admin;
+F. professional → no accede a funciones administrativas;
+G. rutas professionals → requieren autorización;
+H. rutas patient-professionals → requieren autorización;
+I. register → no permite crear un admin arbitrariamente;
+J. ningún paciente fue eliminado;
+K. ningún registro clínico fue eliminado;
+L. ningún usuario existente fue eliminado.
+
+9. COMPATIBILIDAD
+
+Verificar que sigan funcionando:
+
+- login;
+- logout;
+- pacientes;
+- sesiones;
+- objetivos;
+- agenda;
+- archivos;
+- informes;
+- pagos;
+- administración de usuarios.
+
+Al finalizar entregar:
+
+1. archivos modificados;
+2. comportamiento anterior;
+3. comportamiento nuevo;
+4. estrategia utilizada para invalidar acceso;
+5. rutas protegidas;
+6. pruebas realizadas;
+7. resultado del build/typecheck;
+8. cualquier riesgo pendiente.
+
+NO avanzar todavía con:
+- reasignación de pacientes;
+- eliminación definitiva;
+- limpieza de los 59 usuarios dados de baja;
+- migración de Actividades;
+- SSO;
+- Creadores.

@@ -67,7 +67,7 @@ router.post("/auth/login", async (req, res) => {
   // immediate follow-up request (GET /api/auth/me), causing a 401.
   const token = createAuthToken(user.id, user.role);
 
-  req.session.save((err) => {
+  return req.session.save((err) => {
     if (err) {
       console.error("[auth/login] session.save error:", err);
       return res.status(500).json({ error: "Error al guardar sesión" });
@@ -128,6 +128,11 @@ router.post("/auth/register", async (req, res) => {
   if (!email || !password || !name) {
     return res.status(400).json({ error: "Email, contraseña y nombre son requeridos" });
   }
+  // Public registration may create only a professional. Admin accounts must
+  // be created or promoted through the protected administration flow.
+  if (role !== undefined && role !== "professional") {
+    return res.status(403).json({ error: "El registro público solo permite crear profesionales" });
+  }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
   if (existing.length > 0) {
@@ -139,7 +144,7 @@ router.post("/auth/register", async (req, res) => {
     email: email.toLowerCase().trim(),
     passwordHash,
     name,
-    role: role ?? "professional",
+    role: "professional",
     specialty: specialty ?? null,
     active: true,
     professionalId: null,
@@ -166,7 +171,7 @@ export async function seedAdminIfNeeded() {
 }
 
 export async function ensureJaquiAdmin() {
-  const existing = await db.select({ id: usersTable.id, role: usersTable.role })
+  const existing = await db.select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
 
@@ -182,17 +187,12 @@ export async function ensureJaquiAdmin() {
       active: true,
     });
     console.log("[seed] Admin jaquimarque6@gmail.com created.");
-  } else if (existing[0].role !== "admin") {
-    await db.update(usersTable)
-      .set({ role: "admin", active: true })
-      .where(eq(usersTable.email, "jaquimarque6@gmail.com"));
-    console.log("[seed] Admin jaquimarque6@gmail.com updated to admin role.");
   }
 }
 
 export async function ensureTempAdmin() {
   const email = "admin@neurometric.com";
-  const existing = await db.select({ id: usersTable.id, role: usersTable.role })
+  const existing = await db.select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
@@ -208,11 +208,6 @@ export async function ensureTempAdmin() {
       active: true,
     });
     console.log("[seed] Admin admin@neurometric.com created.");
-  } else {
-    await db.update(usersTable)
-      .set({ role: "admin", active: true })
-      .where(eq(usersTable.email, email));
-    console.log("[seed] Admin admin@neurometric.com ensured.");
   }
 }
 

@@ -806,9 +806,13 @@ export default function Usuarios() {
                               </button>
                               {u.id !== currentUser?.id && (
                                 <button
-                                  onClick={() => openPermanentDelete(u)}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                                  title="Eliminar definitivamente"
+                                  onClick={() => toast({
+                                    title: "Eliminación definitiva temporalmente deshabilitada",
+                                    description: "Podés dar de baja el acceso del usuario sin eliminar su información clínica.",
+                                  })}
+                                  className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-colors"
+                                  title="Eliminación definitiva temporalmente deshabilitada"
+                                  aria-label="Eliminación definitiva temporalmente deshabilitada"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

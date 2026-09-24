@@ -6,7 +6,20 @@ import { eq, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.get("/professionals", async (_req, res) => {
+function requireAdmin(req: any, res: any): boolean {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: "No autenticado" });
+    return false;
+  }
+  if (req.session.userRole !== "admin") {
+    res.status(403).json({ error: "Solo administradores pueden gestionar profesionales" });
+    return false;
+  }
+  return true;
+}
+
+router.get("/professionals", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const professionals = await db.select().from(professionalsTable).orderBy(professionalsTable.createdAt);
 
   const withCounts = await Promise.all(professionals.map(async (pro) => {
@@ -21,6 +34,7 @@ router.get("/professionals", async (_req, res) => {
 });
 
 router.post("/professionals", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const body = CreateProfessionalBody.parse(req.body);
   const [professional] = await db.insert(professionalsTable).values(body).returning();
   res.status(201).json({ ...professional, createdAt: professional.createdAt.toISOString() });
