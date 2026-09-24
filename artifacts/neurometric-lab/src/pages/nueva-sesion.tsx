@@ -5,7 +5,7 @@ import {
   ArrowLeft, ClipboardList, Search, ChevronDown, CheckSquare, Square, User,
   Plus, X, BookOpen, Sparkles, Brain, Home, TrendingUp, Info, ChevronRight,
   Mic, MicOff, Check, BookmarkPlus, Stethoscope, ChevronUp, Volume2, Lightbulb,
-  RefreshCw, CheckCircle2,
+  RefreshCw, CheckCircle2, Camera, ImagePlus, AlertTriangle, Loader2,
 } from "lucide-react";
 import { getProfesion, getDiagnosesByProfesion, getBancoAreas } from "@/utils/profession-map";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
@@ -33,6 +33,59 @@ import { ACTIVIDADES_URL } from "@/lib/actividades";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
+const MANUSCRIPT_INPUT_MAX_BYTES = 12 * 1024 * 1024;
+const MANUSCRIPT_OUTPUT_MAX_BYTES = 8 * 1024 * 1024;
+const MANUSCRIPT_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function bytesFromBase64(base64: string): number {
+  const padding = (base64.match(/=*$/)?.[0].length ?? 0);
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
+
+async function compressManuscriptImage(file: File): Promise<{
+  dataUrl: string;
+  mimeType: "image/jpeg";
+  sizeBytes: number;
+}> {
+  if (!MANUSCRIPT_MIME_TYPES.has(file.type)) {
+    throw new Error("Elegí una imagen JPG, PNG o WebP.");
+  }
+  if (!file.size) throw new Error("El archivo está vacío.");
+  if (file.size > MANUSCRIPT_INPUT_MAX_BYTES) {
+    throw new Error("La imagen supera el máximo de 12 MB.");
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("No se pudo leer la imagen."));
+      element.src = sourceUrl;
+    });
+
+    const maxDimension = 2400;
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No se pudo preparar la imagen.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    for (const quality of [0.9, 0.82, 0.74, 0.66]) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      const base64 = dataUrl.split(",")[1] ?? "";
+      const sizeBytes = bytesFromBase64(base64);
+      if (sizeBytes > 0 && sizeBytes <= MANUSCRIPT_OUTPUT_MAX_BYTES) {
+        return { dataUrl, mimeType: "image/jpeg", sizeBytes };
+      }
+    }
+    throw new Error("La imagen sigue siendo demasiado grande después de comprimirla.");
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
 
 // Phoneme acquisition order — TSH clinical reference
 const PHONEME_GROUPS: { phonemes: string[] }[] = [
@@ -1009,6 +1062,120 @@ export default function NuevaSesion() {
   const stopRecording = () => {
     recognitionRef.current?.stop();
     setIsRecording(false);
+  };
+
+  // ── Manuscript photo transcription (temporary, no persistence) ────────────
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [showManuscriptCapture, setShowManuscriptCapture] = useState(false);
+  const [manuscriptFile, setManuscriptFile] = useState<File | null>(null);
+  const [manuscriptPreviewUrl, setManuscriptPreviewUrl] = useState<string | null>(null);
+  const [manuscriptTranscription, setManuscriptTranscription] = useState("");
+  const [manuscriptWarnings, setManuscriptWarnings] = useState<string[]>([]);
+  const [manuscriptQuality, setManuscriptQuality] = useState<"good" | "fair" | "poor" | null>(null);
+  const [manuscriptResultReady, setManuscriptResultReady] = useState(false);
+  const [manuscriptError, setManuscriptError] = useState("");
+  const [isTranscribingManuscript, setIsTranscribingManuscript] = useState(false);
+
+  useEffect(() => {
+    if (!manuscriptFile) {
+      setManuscriptPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(manuscriptFile);
+    setManuscriptPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [manuscriptFile]);
+
+  const resetManuscriptDraft = () => {
+    setManuscriptFile(null);
+    setManuscriptTranscription("");
+    setManuscriptWarnings([]);
+    setManuscriptQuality(null);
+    setManuscriptResultReady(false);
+    setManuscriptError("");
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+  };
+
+  const openManuscriptCapture = () => {
+    if (!patient) {
+      toast({ title: "Seleccioná un paciente primero", variant: "destructive" });
+      return;
+    }
+    resetManuscriptDraft();
+    setShowManuscriptCapture(true);
+  };
+
+  const handleManuscriptFile = (file?: File) => {
+    if (!file) return;
+    setManuscriptError("");
+    setManuscriptResultReady(false);
+    setManuscriptTranscription("");
+    setManuscriptWarnings([]);
+    setManuscriptQuality(null);
+
+    if (!MANUSCRIPT_MIME_TYPES.has(file.type)) {
+      setManuscriptFile(null);
+      setManuscriptError("Elegí una imagen JPG, PNG o WebP.");
+      return;
+    }
+    if (!file.size) {
+      setManuscriptFile(null);
+      setManuscriptError("El archivo está vacío.");
+      return;
+    }
+    if (file.size > MANUSCRIPT_INPUT_MAX_BYTES) {
+      setManuscriptFile(null);
+      setManuscriptError("La imagen supera el máximo de 12 MB.");
+      return;
+    }
+    setManuscriptFile(file);
+  };
+
+  const handleManuscriptTranscribe = async () => {
+    if (!patient || !manuscriptFile) return;
+    setIsTranscribingManuscript(true);
+    setManuscriptError("");
+    try {
+      const compressed = await compressManuscriptImage(manuscriptFile);
+      const response = await fetch(`${API_BASE}/api/ai/manuscrito-transcribe`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: patient.id,
+          imageData: compressed.dataUrl,
+          mimeType: compressed.mimeType,
+          sizeBytes: compressed.sizeBytes,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "No se pudo transcribir la imagen.");
+
+      setManuscriptTranscription(typeof data.transcription === "string" ? data.transcription : "");
+      setManuscriptWarnings(Array.isArray(data.warnings) ? data.warnings.filter((v: unknown): v is string => typeof v === "string") : []);
+      setManuscriptQuality(data.quality === "good" || data.quality === "fair" || data.quality === "poor" ? data.quality : "fair");
+      setManuscriptResultReady(true);
+    } catch (error: any) {
+      setManuscriptError(error?.message ?? "No se pudo transcribir la imagen.");
+    } finally {
+      setIsTranscribingManuscript(false);
+    }
+  };
+
+  const useManuscriptTranscription = () => {
+    const reviewedText = manuscriptTranscription.trim();
+    if (!reviewedText) {
+      setManuscriptError("Revisá la transcripción antes de usarla.");
+      return;
+    }
+    setObservaciones(prev => prev.trim()
+      ? `${prev.trimEnd()}\n\n${reviewedText}`
+      : reviewedText);
+    setShowManuscriptCapture(false);
+    resetManuscriptDraft();
+    toast({ title: "Transcripción agregada a Observaciones" });
   };
 
   // Clinical detail cache: goal.id → { libraryEntry, activities }
@@ -3007,6 +3174,40 @@ export default function NuevaSesion() {
                 </p>
               )}
             </div>
+            <div className="pt-1 border-t border-border/40">
+              <button
+                type="button"
+                onClick={openManuscriptCapture}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50/60 px-3 py-2.5 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+              >
+                <Camera className="h-4 w-4" />
+                Fotografiar anotaciones
+              </button>
+              <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+                La imagen se usa solo para obtener una transcripción editable.
+              </p>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                className="hidden"
+                onChange={event => {
+                  handleManuscriptFile(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={event => {
+                  handleManuscriptFile(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -3045,6 +3246,180 @@ export default function NuevaSesion() {
         )}
 
       </div>
+
+      <Dialog
+        open={showManuscriptCapture}
+        onOpenChange={open => {
+          if (open) {
+            setShowManuscriptCapture(true);
+          } else if (!isTranscribingManuscript) {
+            setShowManuscriptCapture(false);
+            resetManuscriptDraft();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-violet-600" />
+              Fotografiar anotaciones
+            </DialogTitle>
+            <DialogDescription>
+              La imagen se procesa temporalmente para obtener una transcripción. No se guarda como archivo del paciente.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!manuscriptFile && (
+            <div className="grid gap-3 py-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+              >
+                <Camera className="h-7 w-7" />
+                Tomar foto
+                <span className="text-[11px] font-normal text-violet-600/80">Prioriza la cámara trasera</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-muted/30 p-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <ImagePlus className="h-7 w-7 text-muted-foreground" />
+                Elegir desde galería
+                <span className="text-[11px] font-normal text-muted-foreground">También funciona en computadora</span>
+              </button>
+            </div>
+          )}
+
+          {manuscriptFile && manuscriptPreviewUrl && (
+            <div className="space-y-3">
+              <div className={`overflow-hidden rounded-xl border bg-muted/20 ${manuscriptResultReady ? "max-h-40" : "max-h-72"}`}>
+                <img
+                  src={manuscriptPreviewUrl}
+                  alt="Vista previa de las anotaciones"
+                  className="mx-auto max-h-72 w-full object-contain"
+                />
+              </div>
+              <p className="truncate text-xs text-muted-foreground">
+                {manuscriptFile.name} · {(manuscriptFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            </div>
+          )}
+
+          {manuscriptError && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{manuscriptError}</span>
+            </div>
+          )}
+
+          {manuscriptFile && !manuscriptResultReady && (
+            <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+              <Button
+                type="button"
+                onClick={handleManuscriptTranscribe}
+                disabled={isTranscribingManuscript}
+                className="w-full gap-2 bg-violet-600 text-white hover:bg-violet-700"
+              >
+                {isTranscribingManuscript
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Transcribiendo…</>
+                  : "Usar esta foto"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isTranscribingManuscript}
+                onClick={resetManuscriptDraft}
+                className="w-full"
+              >
+                Repetir / cambiar foto
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isTranscribingManuscript}
+                onClick={() => {
+                  setShowManuscriptCapture(false);
+                  resetManuscriptDraft();
+                }}
+                className="w-full"
+              >
+                Cancelar
+              </Button>
+            </DialogFooter>
+          )}
+
+          {manuscriptResultReady && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                <p className="font-semibold">Texto detectado</p>
+                <p className="mt-1">
+                  Revisá la transcripción antes de continuar. Algunas partes de la escritura pueden no haber sido interpretadas correctamente.
+                </p>
+              </div>
+
+              {manuscriptWarnings.length > 0 && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-800">
+                  <p className="flex items-center gap-1.5 font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Advertencias de lectura
+                  </p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                    {manuscriptWarnings.map((warning, index) => (
+                      <li key={`${warning}-${index}`}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {manuscriptQuality === "poor" && (
+                <p className="text-xs font-medium text-red-600">
+                  La calidad parece baja. Podés repetir la foto antes de usar esta transcripción.
+                </p>
+              )}
+
+              <Textarea
+                value={manuscriptTranscription}
+                onChange={event => setManuscriptTranscription(event.target.value)}
+                rows={9}
+                className="min-h-[180px] resize-y text-sm leading-relaxed"
+                aria-label="Texto detectado editable"
+              />
+
+              <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+                <Button
+                  type="button"
+                  onClick={useManuscriptTranscription}
+                  disabled={!manuscriptTranscription.trim()}
+                  className="w-full bg-violet-600 text-white hover:bg-violet-700"
+                >
+                  Usar transcripción
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetManuscriptDraft}
+                  className="w-full"
+                >
+                  Volver a tomar / elegir foto
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowManuscriptCapture(false);
+                    resetManuscriptDraft();
+                  }}
+                  className="w-full"
+                >
+                  Cancelar
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDiagScopeModal} onOpenChange={setShowDiagScopeModal}>
         <DialogContent className="sm:max-w-md">

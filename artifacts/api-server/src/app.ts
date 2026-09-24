@@ -76,6 +76,9 @@ app.use(cors({
   },
   credentials: true,
 }));
+// The manuscript endpoint receives one compressed image as JSON. Keep the
+// larger body limit scoped to that route instead of changing all API payloads.
+app.use("/api/ai/manuscrito-transcribe", express.json({ limit: "12mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

@@ -20,6 +20,7 @@ import patientFilesRouter from "./patient-files";
 import aiInformeRouter from "./ai-informe";
 import aiObjetivosRouter from "./ai-objetivos";
 import aiPerfilRouter from "./ai-perfil";
+import aiManuscritoRouter from "./ai-manuscrito";
 import exportRouter from "./export";
 import professionalFilesRouter from "./professional-files";
 
@@ -46,6 +47,7 @@ router.use(citasRouter);
 router.use(aiInformeRouter);
 router.use(aiObjetivosRouter);
 router.use(aiPerfilRouter);
+router.use(aiManuscritoRouter);
 router.use(exportRouter);
   router.use(professionalFilesRouter);
 

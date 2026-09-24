@@ -1,0 +1,343 @@
+Implementar FASE 1 de "Fotografiar anotaciones" en Neurometric Terapias.
+
+Basarse estrictamente en la auditoría realizada.
+
+OBJETIVO DE ESTA FASE
+
+Implementar únicamente:
+
+FOTO / IMAGEN
+→ IA multimodal
+→ TRANSCRIPCIÓN
+→ REVISIÓN Y EDICIÓN POR LA PROFESIONAL
+
+NO implementar todavía:
+- organización automática como registro clínico;
+- creación de objetivos;
+- progreso de objetivos;
+- guardado automático;
+- cambios en base de datos;
+- almacenamiento permanente de fotografías.
+
+La finalidad de esta fase es probar qué tan bien funciona la lectura
+de anotaciones manuscritas reales antes de ampliar la funcionalidad.
+
+
+1. UBICACIÓN
+
+Integrar la función inicialmente en:
+
+nueva-sesion.tsx
+
+Dentro del flujo actual de Registrar sesión.
+
+No crear otra pantalla de registro ni otro sistema de sesiones.
+
+
+2. ENTRADAS
+
+Mantener las opciones actuales de escritura y dictado.
+
+Agregar claramente:
+
+📷 Fotografiar anotaciones
+
+Al seleccionarla ofrecer:
+
+📷 Tomar foto
+🖼️ Elegir desde galería
+
+
+3. CELULAR
+
+Debe funcionar correctamente desde:
+
+- Android;
+- iPhone/iPad;
+- navegador móvil.
+
+Para "Tomar foto" utilizar una implementación web compatible que
+priorice la cámara trasera cuando el dispositivo lo permita.
+
+Debe existir siempre "Elegir desde galería" como alternativa.
+
+En computadora debe permitir seleccionar una imagen.
+
+
+4. PREVIEW
+
+Antes de procesar mostrar la fotografía.
+
+Permitir:
+
+- Usar esta foto
+- Repetir/cambiar foto
+- Cancelar
+
+Para esta primera fase procesar UNA sola imagen.
+
+NO implementar todavía múltiples hojas.
+
+
+5. VALIDACIONES
+
+Aceptar únicamente formatos de imagen compatibles.
+
+Validar:
+- MIME;
+- tamaño;
+- archivo vacío;
+- errores de lectura.
+
+Aplicar compresión/resolución razonable antes del procesamiento para
+evitar enviar imágenes innecesariamente grandes.
+
+No reducir tanto la calidad que perjudique la lectura manuscrita.
+
+
+6. BACKEND
+
+Crear un endpoint específico para esta función.
+
+Ejemplo:
+
+POST /api/ai/manuscrito-transcribe
+
+No reutilizar:
+- ai-informe;
+- ai-objetivos;
+- ai-perfil.
+
+El endpoint debe requerir autenticación y respetar el sistema de
+autorización actual.
+
+
+7. IA
+
+Utilizar la infraestructura OpenAI existente.
+
+Usar capacidad multimodal para analizar la imagen.
+
+El objetivo de esta llamada es EXCLUSIVAMENTE TRANSCRIBIR.
+
+NO redactar un registro clínico.
+
+NO interpretar clínicamente.
+
+NO completar información faltante.
+
+NO inferir diagnósticos.
+
+NO inferir objetivos.
+
+NO generar recomendaciones.
+
+NO inferir resultados.
+
+
+8. REGLAS DE TRANSCRIPCIÓN
+
+Priorizar fidelidad sobre buena redacción.
+
+Mantener:
+- palabras originales;
+- abreviaturas;
+- números;
+- orden;
+- signos relevantes cuando sean identificables.
+
+NO expandir abreviaturas.
+
+NO corregir términos clínicos dudosos utilizando contexto.
+
+Cuando una palabra o fragmento no pueda identificarse con suficiente
+seguridad utilizar:
+
+[texto poco legible]
+
+o:
+
+[palabra no identificada]
+
+Nunca reemplazar silenciosamente una palabra dudosa por una palabra
+probable.
+
+
+9. RESPUESTA
+
+La respuesta del backend debe ser estructurada.
+
+Por ejemplo:
+
+{
+  "transcription": "...",
+  "warnings": [],
+  "quality": "good"
+}
+
+No confiar en texto libre si puede evitarse.
+
+No incluir información clínica que no provenga de la imagen.
+
+
+10. PRIVACIDAD
+
+La imagen debe utilizarse únicamente como insumo temporal.
+
+Para este MVP preferir:
+
+imagen seleccionada
+→ backend
+→ procesamiento multimodal
+→ respuesta de texto
+→ liberar imagen
+
+NO:
+- crear patient_files;
+- subirla como documentación permanente;
+- crear metadata permanente;
+- guardar la fotografía en la ficha;
+- guardar Base64 en la base de datos.
+
+Si técnicamente se requiere almacenamiento temporal, debe eliminarse
+garantizadamente después del procesamiento, incluso ante errores.
+
+
+11. REVISIÓN
+
+Después del procesamiento mostrar:
+
+"Texto detectado"
+
+con un textarea EDITABLE.
+
+Mostrar claramente:
+
+"Revisá la transcripción antes de continuar.
+Algunas partes de la escritura pueden no haber sido interpretadas
+correctamente."
+
+La profesional debe poder modificar libremente el texto.
+
+
+12. ACCIONES
+
+En esta primera fase ofrecer:
+
+- Volver a tomar/elegir foto
+- Cancelar
+- Usar transcripción
+
+Al tocar:
+
+"Usar transcripción"
+
+colocar el texto REVISADO en el campo Observaciones del formulario
+actual.
+
+NO guardar todavía la sesión.
+
+La profesional continúa utilizando el formulario normal y recién se
+guarda cuando utiliza el botón habitual de guardar sesión.
+
+
+13. MUY IMPORTANTE
+
+El paciente:
+
+- se selecciona mediante el sistema actual;
+- NO se identifica desde la fotografía.
+
+No extraer de la imagen:
+- patientId;
+- professionalId;
+- userId;
+- permisos;
+- relaciones;
+- objetivos.
+
+No modificar ningún dato existente del paciente.
+
+
+14. ERRORES
+
+Si la imagen parece:
+- borrosa;
+- demasiado oscura;
+- ilegible;
+- cortada;
+
+devolver una advertencia.
+
+Nunca fabricar una transcripción aparentemente completa para compensar
+una imagen deficiente.
+
+La profesional debe poder repetir la foto.
+
+
+15. SEGURIDAD
+
+No exponer:
+- OPENAI_API_KEY;
+- variables de entorno;
+- secretos;
+- contenido interno del servidor.
+
+Toda llamada a OpenAI debe realizarse desde backend.
+
+No llamar directamente a OpenAI desde el navegador.
+
+
+16. NO TOCAR
+
+No modificar:
+- esquema de registros_clinicos;
+- patients;
+- goals;
+- goal_progress;
+- patient_files;
+- informes;
+- autenticación;
+- usuarios;
+- pagos;
+- Neurometric Actividades.
+
+No cambiar el funcionamiento actual de Escribir o Dictar.
+
+
+17. PRUEBAS
+
+Probar al menos:
+
+- imagen manuscrita clara;
+- letra cursiva;
+- abreviaturas;
+- imagen borrosa;
+- imagen girada;
+- archivo no imagen;
+- archivo demasiado grande;
+- cancelar;
+- volver a elegir imagen;
+- editar transcripción;
+- usar transcripción;
+- comprobar que llega a Observaciones;
+- comprobar que NO se guarda sesión automáticamente;
+- comprobar que NO queda la fotografía guardada.
+
+
+18. ENTREGA
+
+Informar:
+
+1. archivos modificados;
+2. endpoint creado;
+3. modelo utilizado;
+4. tamaño/resolución máxima;
+5. cómo se procesa temporalmente la imagen;
+6. comportamiento en celular;
+7. manejo de texto ilegible;
+8. pruebas realizadas;
+9. build/typecheck;
+10. cualquier riesgo pendiente.
+
+NO avanzar todavía con "Organizar como registro".
