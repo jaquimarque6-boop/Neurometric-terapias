@@ -1,0 +1,257 @@
+Quiero evaluar una nueva función para Neurometric Terapias:
+
+📷 REGISTRAR UNA SESIÓN A PARTIR DE UNA FOTO DE ANOTACIONES MANUSCRITAS.
+
+IMPORTANTE:
+ESTA ETAPA ES SOLO AUDITORÍA.
+
+NO modificar código.
+NO modificar base de datos.
+NO crear tablas.
+NO cambiar el registro clínico actual.
+NO modificar prompts actuales.
+NO hacer deploy.
+NO implementar todavía la función.
+
+OBJETIVO FUNCIONAL
+
+Quiero que una profesional pueda estar en "Registrar sesión" y elegir
+una opción similar a:
+
+📷 Fotografiar anotaciones
+
+La profesional podría:
+
+1. sacar una foto desde el celular;
+   o subir una imagen ya existente;
+
+2. Neurometric leería las anotaciones manuscritas;
+
+3. mostraría el texto detectado;
+
+4. permitiría elegir:
+
+   A. "Transcribir tal cual"
+   B. "Organizar como registro clínico"
+
+5. Si elige organizar, la IA debería utilizar SOLAMENTE la información
+detectada en las anotaciones y acomodarla dentro de la estructura actual
+del registro de sesión.
+
+6. La IA NO debe inventar:
+   - actividades;
+   - respuestas del paciente;
+   - evolución;
+   - logros;
+   - dificultades;
+   - recomendaciones;
+   - diagnósticos;
+   - objetivos no mencionados.
+
+7. SIEMPRE debe mostrarse una vista previa editable.
+
+La profesional debe poder:
+
+REVISAR → EDITAR → CONFIRMAR → GUARDAR.
+
+Nunca guardar automáticamente información clínica generada desde una foto.
+
+
+AUDITORÍA SOLICITADA
+
+1. Analizar cómo funciona actualmente "Registrar sesión".
+
+Identificar:
+
+- componente frontend;
+- formulario;
+- campos;
+- estado;
+- endpoint utilizado;
+- tablas;
+- relación con paciente;
+- relación con profesional;
+- objetivos;
+- actividades;
+- recomendaciones;
+- cualquier generación mediante IA existente.
+
+2. Enumerar exactamente qué campos del registro actual podrían completarse
+a partir de las anotaciones.
+
+No diseñar campos nuevos todavía.
+
+3. Revisar qué infraestructura de IA ya existe en Neurometric Terapias.
+
+Identificar:
+
+- proveedor/es;
+- endpoints;
+- modelos utilizados;
+- variables de entorno;
+- funciones actuales de IA;
+- si actualmente existe soporte para imágenes/visión;
+- si algún modelo existente puede recibir imágenes.
+
+IMPORTANTE:
+No mostrar valores de API keys ni secretos.
+
+4. Determinar si la infraestructura actual permite enviar una imagen a un
+modelo con capacidad visual para interpretar escritura manuscrita.
+
+Comparar:
+
+A. reutilizar el proveedor/modelo actual;
+B. agregar capacidad de visión al backend actual;
+C. utilizar OCR tradicional;
+D. otra alternativa.
+
+Priorizar:
+- buena lectura de manuscritos;
+- seguridad;
+- simplicidad;
+- costo razonable;
+- funcionamiento desde celular.
+
+5. Analizar cómo debería cargarse la imagen.
+
+Necesito que desde celular sea cómodo:
+
+📷 Sacar foto
+🖼️ Elegir desde galería
+
+Determinar si puede hacerse con el sistema de archivos/imágenes actual
+o si necesita un flujo específico.
+
+6. Analizar privacidad.
+
+La foto puede contener información clínica.
+
+Determinar si es necesario almacenarla.
+
+Preferencia:
+si solamente se necesita para interpretar las anotaciones, NO conservar
+la fotografía permanentemente.
+
+Proponer un flujo temporal:
+
+imagen
+→ procesamiento
+→ texto
+→ revisión profesional
+→ guardar solamente registro confirmado
+→ descartar imagen.
+
+7. Diseñar conceptualmente el modo:
+
+"TRANSCRIBIR TAL CUAL"
+
+Debe intentar conservar el contenido original sin convertirlo en una
+redacción clínica diferente.
+
+Si una palabra no puede leerse con suficiente seguridad, NO inventarla.
+
+Debe señalar algo como:
+
+[texto poco legible]
+
+o equivalente.
+
+8. Diseñar conceptualmente:
+
+"ORGANIZAR COMO REGISTRO"
+
+La IA recibe el texto extraído y la estructura REAL del registro actual.
+
+Debe:
+
+- organizar;
+- mejorar redacción;
+- eliminar repeticiones cuando corresponda;
+- mantener el significado clínico;
+- NO agregar información inexistente.
+
+9. Analizar si conviene hacer:
+
+FOTO
+→ extracción/transcripción
+→ profesional revisa
+→ organización clínica
+
+o:
+
+FOTO
+→ IA genera directamente registro estructurado.
+
+Recomendar la alternativa más segura clínicamente.
+
+10. Analizar costos aproximados por procesamiento según la infraestructura
+actual.
+
+No necesito todavía precios comerciales exactos.
+
+Necesito saber principalmente:
+
+- si cada foto implica una llamada IA;
+- si organizar después implica una segunda llamada;
+- si podría resolverse en una sola;
+- impacto aproximado frente al uso actual de IA.
+
+11. Analizar qué sucede con:
+
+- foto borrosa;
+- letra ilegible;
+- varias hojas;
+- foto girada;
+- poca iluminación;
+- anotaciones con flechas/abreviaturas;
+- mezcla de texto manuscrito e impreso.
+
+La aplicación debe fallar de forma segura y pedir revisión, no completar
+información inventada.
+
+12. Proponer UX.
+
+Quiero evaluar algo sencillo dentro de Registrar sesión:
+
+¿Cómo querés registrar?
+
+🎙️ Dictar
+📷 Fotografiar anotaciones
+⌨️ Escribir
+
+Pero primero verificar si ya existe dictado u otra funcionalidad similar
+para no duplicarla.
+
+13. MUY IMPORTANTE:
+
+Esta función debe alimentar el REGISTRO CLÍNICO ACTUAL.
+
+NO crear un segundo sistema de sesiones.
+NO crear registros paralelos.
+NO cambiar el modelo clínico sin necesidad.
+
+14. Evaluar si esta función podría funcionar tanto en:
+
+- computadora;
+- Android;
+- iPhone/iPad;
+- PWA si corresponde.
+
+15. Entregar:
+
+A. arquitectura actual del registro;
+B. IA disponible actualmente;
+C. viabilidad de lectura de manuscritos;
+D. campos que podrían completarse;
+E. flujo recomendado;
+F. propuesta de interfaz;
+G. privacidad y almacenamiento;
+H. costos/llamadas necesarias;
+I. riesgos clínicos;
+J. archivos que habría que modificar;
+K. cambios de backend necesarios;
+L. cambios de base de datos, si realmente fueran necesarios;
+M. plan de implementación por fases.
+
+NO IMPLEMENTAR NADA TODAVÍA.
