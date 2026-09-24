@@ -16,6 +16,11 @@ import { getProfesion } from "@/utils/profession-map";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
+import { ManuscriptCaptureDialog } from "@/components/manuscript-capture-dialog";
+import {
+  OrganizedRecordDialog,
+  type OrganizedRecordFields,
+} from "@/components/organized-record-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -101,6 +106,7 @@ export default function SesionRapida() {
 
   const [isSaving, setIsSaving]             = useState(false);
   const [saved, setSaved]                   = useState(false);
+  const [organizedProposal, setOrganizedProposal] = useState<OrganizedRecordFields | null>(null);
 
   const profesion = getProfesion(user?.specialty);
 
@@ -211,6 +217,31 @@ export default function SesionRapida() {
     } finally {
       setIsOrganizando(false);
     }
+  };
+
+  const organizeManuscriptTranscription = async (text: string) => {
+    const response = await fetch(`${API_BASE}/api/ai/manuscrito-organize`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error ?? "No se pudo organizar la transcripción.");
+    setOrganizedProposal({
+      diagnostico: typeof data.diagnostico === "string" ? data.diagnostico : "",
+      resumenSesion: typeof data.resumenSesion === "string" ? data.resumenSesion : "",
+      observaciones: typeof data.observaciones === "string" ? data.observaciones : "",
+      recomendacionesHogar: typeof data.recomendacionesHogar === "string" ? data.recomendacionesHogar : "",
+    });
+  };
+
+  const applyOrganizedProposal = (fields: OrganizedRecordFields) => {
+    setSessionDiagnoses(parseDiagnoses(fields.diagnostico));
+    setResumen(fields.resumenSesion);
+    setObservacion(fields.observaciones);
+    setOrganizedProposal(null);
+    toast({ title: "Propuesta aplicada al formulario", description: "Revisá los campos antes de guardar la sesión." });
   };
 
   // ── Save ───────────────────────────────────────────────────────────────────
@@ -474,6 +505,25 @@ export default function SesionRapida() {
           />
         </div>
 
+        {selectedPatient && (
+          <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4 space-y-2">
+            <ManuscriptCaptureDialog
+              patientId={selectedId}
+              useLabel="Usar como transcripción"
+              onUseTranscription={reviewedText => {
+                setObservacion(prev => prev.trim()
+                  ? `${prev.trimEnd()}\n\n${reviewedText}`
+                  : reviewedText);
+                toast({ title: "Transcripción agregada a Observación libre" });
+              }}
+              onOrganizeTranscription={organizeManuscriptTranscription}
+            />
+            <p className="text-center text-[11px] text-muted-foreground">
+              La imagen se usa solo para obtener una transcripción editable.
+            </p>
+          </div>
+        )}
+
         {/* ── Actions ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2.5 pb-6">
 
@@ -605,6 +655,22 @@ export default function SesionRapida() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <OrganizedRecordDialog
+        open={organizedProposal !== null}
+        proposal={organizedProposal}
+        fieldKeys={["diagnostico", "resumenSesion", "observaciones"]}
+        existing={{
+          diagnostico: diagnosticoSesion,
+          resumenSesion: resumen,
+          observaciones: observacion,
+          recomendacionesHogar: "",
+        }}
+        onOpenChange={open => {
+          if (!open) setOrganizedProposal(null);
+        }}
+        onApply={applyOrganizedProposal}
+      />
     </AppLayout>
   );
 }

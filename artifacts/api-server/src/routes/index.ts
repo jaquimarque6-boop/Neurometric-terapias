@@ -21,6 +21,7 @@ import aiInformeRouter from "./ai-informe";
 import aiObjetivosRouter from "./ai-objetivos";
 import aiPerfilRouter from "./ai-perfil";
 import aiManuscritoRouter from "./ai-manuscrito";
+import aiManuscritoOrganizeRouter from "./ai-manuscrito-organize";
 import exportRouter from "./export";
 import professionalFilesRouter from "./professional-files";
 
@@ -48,6 +49,7 @@ router.use(aiInformeRouter);
 router.use(aiObjetivosRouter);
 router.use(aiPerfilRouter);
 router.use(aiManuscritoRouter);
+router.use(aiManuscritoOrganizeRouter);
 router.use(exportRouter);
   router.use(professionalFilesRouter);
 

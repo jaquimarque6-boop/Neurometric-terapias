@@ -1,0 +1,356 @@
+Quiero avanzar con la siguiente fase de "Fotografiar anotaciones".
+
+La transcripción desde fotografía ya está implementada en Sesión completa.
+
+Ahora implementar EN UNA MISMA ETAPA:
+
+A. Fotografiar anotaciones también en SESIÓN RÁPIDA.
+B. Agregar "Organizar como registro" tanto en SESIÓN COMPLETA como en
+   SESIÓN RÁPIDA.
+
+IMPORTANTE:
+
+NO crear sistemas paralelos.
+NO duplicar endpoints innecesariamente.
+NO modificar base de datos.
+NO modificar la estructura de registros_clinicos.
+NO guardar fotografías.
+NO crear objetivos automáticamente.
+NO guardar nada clínico sin confirmación de la profesional.
+
+--------------------------------------------------
+1. REUTILIZAR LA FUNCIÓN DE FOTOGRAFÍA
+--------------------------------------------------
+
+La función ya implementada en Sesión completa debe reutilizarse.
+
+Revisar si la lógica puede extraerse a componentes/helpers compartidos
+para evitar duplicación entre:
+
+- nueva-sesion.tsx
+- sesion-rapida.tsx
+
+Reutilizar:
+
+- carga de imagen;
+- cámara/galería;
+- preview;
+- compresión;
+- validaciones;
+- endpoint de transcripción;
+- manejo de errores;
+- advertencias;
+- textarea de revisión.
+
+NO crear otro endpoint de transcripción para Sesión rápida.
+
+--------------------------------------------------
+2. AGREGAR FOTO A SESIÓN RÁPIDA
+--------------------------------------------------
+
+En:
+
+artifacts/neurometric-lab/src/pages/sesion-rapida.tsx
+
+agregar:
+
+📷 Fotografiar anotaciones
+
+Mantener las opciones actuales de escribir y dictar.
+
+Flujo:
+
+Tomar foto / Elegir galería
+→ Preview
+→ Transcribir
+→ Texto detectado editable
+→ Profesional revisa/corrige
+
+Después debe poder elegir:
+
+"Usar como transcripción"
+
+o:
+
+"✨ Organizar como registro"
+
+--------------------------------------------------
+3. ORGANIZAR COMO REGISTRO
+--------------------------------------------------
+
+Crear una función específica para organizar EL TEXTO YA REVISADO.
+
+NO enviar nuevamente la fotografía.
+
+Flujo obligatorio:
+
+FOTO
+→ TRANSCRIPCIÓN IA
+→ PROFESIONAL REVISA
+→ TEXTO CORREGIDO
+→ ORGANIZACIÓN IA
+→ PROFESIONAL REVISA CAMPOS
+→ GUARDADO NORMAL
+
+Nunca:
+
+FOTO → REGISTRO FINAL AUTOMÁTICO.
+
+--------------------------------------------------
+4. ENDPOINT DE ORGANIZACIÓN
+--------------------------------------------------
+
+Crear un endpoint específico, por ejemplo:
+
+POST /api/ai/manuscrito-organize
+
+Debe:
+
+- requerir autenticación;
+- recibir texto, no imagen;
+- usar la infraestructura OpenAI existente;
+- devolver JSON estructurado;
+- no guardar nada en base de datos.
+
+NO reutilizar ai-informe ni ai-objetivos.
+
+--------------------------------------------------
+5. CAMPOS PERMITIDOS
+--------------------------------------------------
+
+La organización solamente puede proponer contenido para campos que
+REALMENTE existen en el registro actual:
+
+{
+  "diagnostico": "",
+  "resumenSesion": "",
+  "observaciones": "",
+  "recomendacionesHogar": ""
+}
+
+Pero aplicar estas reglas:
+
+DIAGNÓSTICO:
+Solo completar si está escrito explícitamente en la transcripción.
+NO inferir diagnósticos.
+
+RESUMEN DE SESIÓN:
+Organizar qué se trabajó durante la sesión únicamente con información
+presente en el texto.
+
+OBSERVACIONES:
+Organizar respuestas, dificultades, ayudas, participación u otras
+observaciones SOLO cuando estén mencionadas.
+
+RECOMENDACIONES PARA EL HOGAR:
+Solo completar si la profesional escribió explícitamente una indicación
+o recomendación.
+
+Si no existe información para un campo:
+
+devolver "" o null.
+
+NO completar por sentido común.
+
+--------------------------------------------------
+6. REGLAS CLÍNICAS OBLIGATORIAS
+--------------------------------------------------
+
+La IA puede:
+
+- ordenar;
+- redactar;
+- agrupar información;
+- eliminar repeticiones;
+- mejorar claridad.
+
+La IA NO puede:
+
+- inventar actividades;
+- inventar respuestas;
+- inventar evolución;
+- inventar logros;
+- inventar dificultades;
+- inventar recomendaciones;
+- inferir diagnósticos;
+- crear objetivos;
+- modificar porcentajes;
+- generar información no presente.
+
+Ante duda:
+
+NO COMPLETAR.
+
+--------------------------------------------------
+7. SESIÓN COMPLETA
+--------------------------------------------------
+
+Después de revisar la transcripción mostrar:
+
+[Usar transcripción]
+[✨ Organizar como registro]
+
+Si elige "Usar transcripción":
+
+mantener el comportamiento actual:
+→ texto revisado a Observaciones.
+
+Si elige "Organizar como registro":
+
+→ enviar texto revisado al endpoint de organización;
+→ recibir propuesta estructurada;
+→ completar los campos correspondientes del formulario ACTUAL.
+
+NO guardar automáticamente.
+
+La profesional debe poder revisar y editar todo antes de guardar.
+
+Los objetivos y goal_progress siguen funcionando exactamente como ahora.
+
+NO asignar información de la fotografía automáticamente a objetivos.
+
+--------------------------------------------------
+8. SESIÓN RÁPIDA
+--------------------------------------------------
+
+Implementar el mismo flujo.
+
+Respetar únicamente los campos que realmente utiliza Sesión rápida.
+
+No agregarle funcionalidades propias de Sesión completa.
+
+No agregar manejo de objetivos si actualmente Sesión rápida no lo tiene.
+
+--------------------------------------------------
+9. PROTECCIÓN DE CONTENIDO YA ESCRITO
+--------------------------------------------------
+
+MUY IMPORTANTE:
+
+Si la profesional ya escribió contenido en alguno de los campos y luego
+usa "Organizar como registro", NO sobrescribir silenciosamente lo que ya
+había escrito.
+
+Si existe contenido previo:
+
+mostrar confirmación o permitir revisar qué contenido será incorporado.
+
+Preferir combinar de manera visible antes que reemplazar datos sin aviso.
+
+--------------------------------------------------
+10. REVISIÓN FINAL
+--------------------------------------------------
+
+Después de organizar, mostrar claramente:
+
+"Propuesta generada a partir de tus anotaciones.
+Revisala antes de guardar."
+
+Los campos deben seguir siendo editables.
+
+El guardado debe hacerse exclusivamente mediante el mecanismo normal
+existente de cada tipo de sesión.
+
+--------------------------------------------------
+11. PRIVACIDAD
+--------------------------------------------------
+
+Mantener la política del MVP:
+
+- imagen temporal;
+- no patient_files;
+- no almacenamiento permanente;
+- no Base64 en DB;
+- no fotografía en ficha del paciente.
+
+La segunda llamada de organización recibe solamente el TEXTO revisado.
+
+--------------------------------------------------
+12. UX
+--------------------------------------------------
+
+En ambas sesiones debería quedar conceptualmente:
+
+¿Cómo querés registrar?
+
+⌨️ Escribir
+🎙️ Dictar
+📷 Fotografiar anotaciones
+
+Si usa fotografía:
+
+1. Tomar/elegir foto
+2. Revisar imagen
+3. Procesar
+4. Revisar texto detectado
+
+Luego:
+
+[Usar transcripción]
+[✨ Organizar como registro]
+
+Si organiza:
+
+5. Neurometric organiza
+6. Se completan los campos del formulario
+7. Profesional revisa
+8. Guardar sesión
+
+Mantener la interfaz simple y adaptada a celular.
+
+--------------------------------------------------
+13. NO IMPLEMENTAR TODAVÍA
+--------------------------------------------------
+
+No implementar:
+
+- múltiples fotografías;
+- reconocimiento automático de paciente;
+- creación automática de objetivos;
+- asociación automática con objetivos;
+- progreso automático;
+- almacenamiento de fotografías;
+- cambios de esquema;
+- historial de fotografías.
+
+--------------------------------------------------
+14. PRUEBAS
+--------------------------------------------------
+
+Probar en Sesión completa y Sesión rápida:
+
+A. escribir manualmente sigue funcionando;
+B. dictado sigue funcionando;
+C. fotografiar funciona;
+D. transcripción puede editarse;
+E. "Usar transcripción" funciona;
+F. "Organizar como registro" funciona;
+G. no inventa campos cuando falta información;
+H. recomendación solo aparece si estaba escrita;
+I. diagnóstico solo aparece si estaba escrito;
+J. campos quedan editables;
+K. no guarda automáticamente;
+L. contenido previo no se pierde silenciosamente;
+M. foto no queda almacenada;
+N. guardado final utiliza el registro clínico existente;
+O. responsive móvil funciona.
+
+--------------------------------------------------
+15. ENTREGA
+--------------------------------------------------
+
+Al terminar informar:
+
+1. archivos modificados;
+2. componentes reutilizables creados;
+3. endpoint reutilizado para transcripción;
+4. endpoint creado para organización;
+5. modelo utilizado;
+6. estructura JSON devuelta;
+7. diferencias entre Sesión completa y Sesión rápida;
+8. comportamiento cuando ya había texto escrito;
+9. pruebas realizadas;
+10. build/typecheck;
+11. riesgos pendientes.
+
+No avanzar con objetivos automáticos ni múltiples fotografías.
