@@ -1,0 +1,205 @@
+QUIERO HACER UNA AUDITORÍA TÉCNICA SOLAMENTE DE LECTURA.
+
+NO MODIFICAR CÓDIGO.
+NO MODIFICAR BASE DE DATOS.
+NO CREAR TABLAS.
+NO CREAR MIGRACIONES.
+NO CAMBIAR AUTENTICACIÓN.
+NO DESPLEGAR NADA.
+
+Contexto:
+
+Tengo dos aplicaciones:
+
+1. Neurometric Terapias
+Esta es la aplicación que estás auditando actualmente.
+
+2. Neurometric Actividades
+Es una aplicación independiente que actualmente:
+- no tiene usuarios ni login
+- no tiene suscripciones
+- no comparte sesión con Terapias
+- guarda pacientes, sesiones, evaluaciones, historias sociales, biblioteca, favoritos y preferencias principalmente en localStorage
+- cualquiera con la URL puede ingresar
+- actualmente está alojada/desarrollada con Lovable
+
+Mi objetivo futuro es que una profesional pueda tener una identidad Neurometric y acceder de forma segura a Terapias y Actividades, sin depender de Lovable y sin perder los datos actuales de Actividades.
+
+IMPORTANTE:
+No quiero simplemente compartir cookies, localStorage ni fabricar un token casero entre aplicaciones.
+
+Quiero diseñar una arquitectura segura y mantenible.
+
+AUDITAR EN TERAPIAS:
+
+1. AUTENTICACIÓN ACTUAL
+
+Documentar exactamente:
+- cómo se crea un usuario
+- tabla y campos involucrados
+- cómo funciona POST /api/auth/login
+- cómo se valida la contraseña
+- cómo se crea la sesión
+- dónde se guarda la sesión
+- cookies utilizadas
+- Bearer token si existe
+- duración de sesión
+- logout
+- middleware de autenticación
+- validación de active
+- roles existentes
+- cómo se obtiene el usuario actual
+
+2. IDENTIDAD
+
+Determinar cuál debería ser el identificador estable de una persona para compartir identidad con otra aplicación.
+
+Analizar:
+- users.id
+- email
+- professional_id
+- cualquier otro identificador
+
+Explicar cuál conviene usar y por qué.
+
+3. ESTADO COMERCIAL / ACCESO
+
+Auditar:
+- commercial_status
+- trial
+- paying
+- overdue
+- courtesy
+- churned
+- fechas de prueba
+- fechas de pago
+- active
+
+Explicar claramente qué campos hoy realmente bloquean acceso y cuáles son solo informativos.
+
+4. SUSCRIPCIONES
+
+Confirmar si existe o no actualmente:
+- tabla de suscripciones
+- planes
+- productos
+- entitlements/permisos por producto
+- historial de pagos de la suscripción SaaS
+
+No confundir los pagos clínicos de pacientes con pagos de suscripción de Neurometric.
+
+5. POSIBLE INTEGRACIÓN CON ACTIVIDADES
+
+Sin implementar nada, analizar cómo podría hacerse para que:
+
+- una profesional inicie sesión con su cuenta Neurometric
+- Terapias y Actividades sigan siendo aplicaciones separadas
+- Actividades pueda verificar de forma segura quién es la profesional
+- Actividades pueda saber si tiene derecho a acceder
+- no sea necesario volver a iniciar sesión constantemente
+- una cuenta pueda en el futuro tener acceso a:
+    - Terapias
+    - Actividades
+    - ambas
+    - futuros productos Neurometric
+
+Comparar al menos estas alternativas:
+
+A. Compartir directamente la sesión actual
+B. SSO mediante código de autorización de un solo uso
+C. Servicio central de identidad Neurometric
+
+Indicar ventajas, riesgos y complejidad de cada una.
+
+6. MODELO FUTURO DE PRODUCTOS
+
+Analizar si tendría sentido introducir algo similar a:
+
+user_app_memberships
+
+con conceptos como:
+- user_id
+- application
+- status
+- trial_start
+- trial_end
+- access_until
+- created_at
+
+NO crear la tabla.
+
+Solo evaluar cómo encajaría con el sistema actual.
+
+7. ACTIVIDADES Y DATOS
+
+Teniendo en cuenta que Actividades actualmente guarda datos en localStorage:
+
+proponer cómo podríamos pasar progresivamente a datos asociados a una cuenta.
+
+Debe contemplar:
+- pacientes
+- sesiones
+- evaluaciones
+- historias sociales
+- favoritos
+- preferencias
+- biblioteca personal
+
+No asumir que debemos migrar todo de una vez.
+
+8. USUARIAS ACTUALES
+
+Analizar qué pasaría con:
+- profesionales actuales de Terapias
+- usuarias que hoy usan Actividades sin cuenta
+- una profesional que usa ambas
+- una nueva profesional que solo quiera Actividades
+
+9. CREADORES NEUROMETRIC
+
+Considerar desde ahora que en el futuro Actividades tendrá creadoras externas que aportarán materiales.
+
+La arquitectura futura debería permitir diferenciar:
+- usuaria profesional
+- creadora
+- administradora
+
+Pero NO implementar todavía roles ni tablas de creadoras.
+
+Solo indicar cómo evitar diseñar ahora algo que nos limite después.
+
+10. MIGRACIÓN / INDEPENDENCIA DE LOVABLE
+
+Proponer el orden técnico más seguro para:
+
+- mantener Actividades funcionando
+- sacar progresivamente dependencias de Lovable
+- reemplazar LOVABLE_API_KEY
+- configurar una clave propia para IA
+- configurar ElevenLabs si decidimos conservar voz natural
+- mantener enlaces /casa existentes
+- preservar datos locales actuales
+- posteriormente cambiar dominio/hosting
+
+ENTREGA FINAL:
+
+Quiero:
+
+A. Arquitectura actual de Terapias.
+B. Arquitectura actual de Actividades según el contexto proporcionado.
+C. Arquitectura recomendada de identidad Neurometric.
+D. Flujo exacto de login/acceso entre las dos aplicaciones.
+E. Modelo conceptual de datos necesario.
+F. Estrategia para datos actuales de localStorage.
+G. Estrategia para usuarias actuales.
+H. Riesgos de seguridad.
+I. Qué NO debemos hacer.
+J. Plan de implementación dividido en fases pequeñas y reversibles.
+
+Al final indicar claramente:
+
+FASE 1 RECOMENDADA
+
+pero NO implementarla.
+
+No modificar absolutamente nada durante esta auditoría.
