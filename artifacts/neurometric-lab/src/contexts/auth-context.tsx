@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   API_BASE,
@@ -33,14 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
-  // The initial /me request can overlap with a login submitted from the
-  // login page. A late 401 from that initial request must never erase the
-  // user established by the newer login operation.
-  const authOperationRef = useRef(0);
 
   const fetchMe = useCallback(async () => {
-    const operation = ++authOperationRef.current;
-
     try {
       const headers: Record<string, string> = {};
       const token = getAuthToken();
@@ -50,14 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         headers,
       });
-
-      // A login/logout started while this request was in flight owns the
-      // current auth state. Ignore this stale response.
-      if (operation !== authOperationRef.current) return;
-
       if (r.ok) {
         const data = await r.json();
-        if (operation !== authOperationRef.current) return;
         if (data?.id) {
           // Persist any fresh token the server emits — this transparently
           // upgrades users who logged in before the token system existed
@@ -77,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch {
-      if (operation !== authOperationRef.current) return;
       setUser(null);
     }
   }, []);
@@ -101,10 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const login = async (email: string, password: string) => {
-    // Invalidate the bootstrap /me request before sending credentials. Its
-    // response must not win a race against this explicit login attempt.
-    const operation = ++authOperationRef.current;
-
     // Wipe any leftover dead token before issuing the login request. Without
     // this, the global fetch interceptor would attach a stale Authorization
     // header — harmless to the backend (login ignores it) but it muddies logs
@@ -166,10 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Respuesta inesperada del servidor. Intenta de nuevo.");
     }
 
-    if (operation !== authOperationRef.current) {
-      throw new Error("La sesión cambió mientras se iniciaba. Intenta nuevamente.");
-    }
-
     // Persist signed token — works on all browsers regardless of cookie policy.
     if (data.token) {
       setAuthToken(data.token);
@@ -181,20 +160,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     markSession();
     queryClient.clear();
     setUser(data);
-    // Login has now established the authoritative auth state. Do not leave
-    // protected routes waiting for the unrelated bootstrap request.
-    setLoading(false);
     console.info(`[auth] ✓ usuario ${data.email} (rol=${data.role}) autenticado`);
   };
 
   const logout = async () => {
-    ++authOperationRef.current;
     clearAuthToken();
     clearSessionMarker();
     await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
     queryClient.clear();
     setUser(null);
-    setLoading(false);
   };
 
   const refreshUser = async () => {
