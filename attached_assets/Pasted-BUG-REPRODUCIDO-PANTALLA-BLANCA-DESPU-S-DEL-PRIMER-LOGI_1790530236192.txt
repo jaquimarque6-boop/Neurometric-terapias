@@ -1,0 +1,43 @@
+BUG REPRODUCIDO — PANTALLA BLANCA DESPUÉS DEL PRIMER LOGIN
+Pudimos hacer manualmente la prueba que faltaba.
+Resultado:
+1. Creé un usuario profesional nuevo desde el panel administrativo.
+2. Sin editar ni restablecer su contraseña, intenté ingresar con ese usuario.
+3. La autenticación funciona con la contraseña creada originalmente.
+4. Inmediatamente después del login, la aplicación queda completamente en blanco.
+5. Sin cambiar usuario ni contraseña, hago F5 / recargar página.
+6. Después de F5, la aplicación abre correctamente y el usuario ya está autenticado.
+Por lo tanto, NO parece ser un problema de creación de contraseña.
+El bug reproducible es:
+login exitoso → sesión creada → pantalla blanca → F5 → aplicación funciona
+Quiero que audites y CORRIJAS este flujo.
+Revisar especialmente:
+- handler del formulario de login;
+- qué ocurre inmediatamente después de recibir 200 del login;
+- actualización del estado/contexto de autenticación;
+- almacenamiento del token;
+- cookie/sesión;
+- llamada posterior a /api/auth/me;
+- ProtectedRoute;
+- navegación/redirección posterior al login;
+- posibles condiciones de carrera entre setUser, token, sesión y navigate;
+- componentes que puedan devolver null mientras se resuelve autenticación;
+- carga inicial de datos del profesional;
+- errores JavaScript no controlados durante esa primera navegación.
+El hecho de que F5 lo resuelva sin volver a autenticar demuestra que la sesión/token ya quedó creado correctamente. El problema está en la transición del frontend después del login o en la carga inicial posterior.
+IMPORTANTE:
+Ya tuvimos anteriormente una pantalla blanca relacionada con ProtectedRoute, donde se devolvía null antes de completar una redirección. Revisar que no exista un patrón equivalente en este flujo.
+Implementar una solución robusta:
+- nunca dejar una pantalla blanca;
+- durante la validación mostrar un estado de carga;
+- después de login exitoso actualizar correctamente el estado de autenticación antes de renderizar rutas protegidas;
+- si falla /auth/me o la carga inicial, mostrar un error o volver al login, nunca null indefinidamente;
+- mantener compatibilidad con sesión y Bearer token actuales.
+No modificar contraseñas, usuarios ni datos clínicos.
+Después de corregir, probar:
+A. usuario recién creado → primer login → abre sin F5
+B. cerrar sesión → volver a entrar → abre sin F5
+C. login en incógnito → abre sin F5
+D. contraseña incorrecta → muestra error y no pantalla blanca
+E. usuario inactivo → muestra el mensaje correspondiente y no pantalla blanca
+Informar causa exacta encontrada, archivos modificados y resultados de las pruebas.

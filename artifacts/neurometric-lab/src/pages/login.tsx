@@ -7,13 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Wait for AuthProvider's user state to be observable before changing
+  // routes. This prevents navigation from racing the context update.
+  useEffect(() => {
+    if (!redirecting || !user) return;
+    console.info("[login] estado de auth confirmado — redirigiendo a /seleccion");
+    setLocation("/seleccion");
+  }, [redirecting, user, setLocation]);
 
   // On mount: wipe any leftover invalid token so the next login starts clean.
   // Stale "Sesión expirada" / "Reconectando…" toasts auto-dismiss via their
@@ -48,12 +57,13 @@ export default function LoginPage() {
     try {
       console.info("[login] POST /api/auth/login → enviando");
       await login(emailTrimmed, passwordVal);
-      console.info("[login] ✓ login OK — redirigiendo a /seleccion");
-      setLocation("/seleccion");
+      setRedirecting(true);
+      console.info("[login] ✓ login OK — esperando estado de auth");
     } catch (err: any) {
       const msg = err?.message ?? "Error al iniciar sesión";
       console.warn("[login] ✗ fallo:", msg);
       setError(msg);
+      setRedirecting(false);
     } finally {
       setLoading(false);
     }
@@ -138,11 +148,13 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || redirecting}
               className="w-full h-10 mt-1"
             >
               {loading ? (
                 <span className="animate-pulse">Iniciando sesión…</span>
+              ) : redirecting ? (
+                <span className="animate-pulse">Abriendo tu sesión…</span>
               ) : (
                 <>
                   <LogIn className="h-4 w-4" />

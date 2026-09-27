@@ -1,4 +1,4 @@
-import { useEffect, useRef, lazy, Suspense } from "react";
+import { Component, useEffect, useRef, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -95,7 +95,15 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
     );
   }
 
-  if (!user || user.role !== "admin") return null;
+  if (!user || user.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground text-sm animate-pulse">
+          Redirigiendo…
+        </div>
+      </div>
+    );
+  }
 
   return <Component />;
 }
@@ -108,6 +116,51 @@ function PageFallback() {
       <div className="text-muted-foreground text-sm animate-pulse">Cargando…</div>
     </div>
   );
+}
+
+type RouteErrorBoundaryState = { error: Error | null };
+
+class RouteErrorBoundary extends Component<{ children: ReactNode }, RouteErrorBoundaryState> {
+  state: RouteErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[app] error no controlado durante la navegación:", error, info);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md rounded-2xl border border-card-border bg-card p-7 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-foreground">No se pudo abrir esta sección</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            La sesión sigue protegida. Puedes reintentar la carga o volver al inicio de sesión.
+          </p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button
+              type="button"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+              onClick={() => window.location.reload()}
+            >
+              Reintentar
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground"
+              onClick={() => { window.location.href = `${import.meta.env.BASE_URL}login`; }}
+            >
+              Volver al login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
 
 function Router() {
@@ -228,9 +281,11 @@ function App() {
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <SessionGuard />
-              <Suspense fallback={<PageFallback />}>
-                <Router />
-              </Suspense>
+              <RouteErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <Router />
+                </Suspense>
+              </RouteErrorBoundary>
             </WouterRouter>
             <Toaster />
           </TooltipProvider>
