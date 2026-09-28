@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Activity, Eye, EyeOff, LogIn } from "lucide-react";
+import { Activity, Eye, EyeOff, Gift, LogIn, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_COMMERCIAL_NUMBER ?? "").replace(/\D/g, "");
+
+function getReferralCode() {
+  const ref = new URLSearchParams(window.location.search).get("ref")?.trim().toLowerCase();
+  return ref === "kilead" || ref === "anggy" ? ref : null;
+}
+
+function buildWhatsAppUrl(message: string) {
+  if (!WHATSAPP_NUMBER) return null;
+  const referral = getReferralCode();
+  const messageWithReferral = referral ? `${message}\n\nReferencia: ${referral}` : message;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(messageWithReferral)}`;
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -14,6 +28,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [whatsappNotice, setWhatsappNotice] = useState<string | null>(null);
 
   // On mount: wipe any leftover invalid token so the next login starts clean.
   // Stale "Sesión expirada" / "Reconectando…" toasts auto-dismiss via their
@@ -57,6 +72,18 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openWhatsApp = (message: string) => {
+    const url = buildWhatsAppUrl(message);
+    if (!url) {
+      setWhatsappNotice(
+        "WhatsApp comercial no configurado. Debe definirse VITE_WHATSAPP_COMMERCIAL_NUMBER en las variables de entorno del frontend."
+      );
+      return;
+    }
+    setWhatsappNotice(null);
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -151,6 +178,46 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span>o</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">¿Todavía no tenés acceso?</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full border-primary/30 text-primary hover:bg-primary/5 hover:text-primary"
+              onClick={() =>
+                openWhatsApp(
+                  "Hola Jacqueline 😊 Quiero probar Neurometric Terapias durante 15 días. Mi nombre es ___ y soy ___."
+                )
+              }
+            >
+              <Gift className="h-4 w-4" />
+              Solicitar 15 días gratis
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            className="mt-5 flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            onClick={() =>
+              openWhatsApp("Hola Jacqueline 😊 Estoy teniendo problemas para ingresar a Neurometric Terapias.")
+            }
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            ¿Tenés problemas para ingresar? Contactanos por WhatsApp
+          </button>
+
+          {whatsappNotice && (
+            <p role="status" className="mt-3 text-center text-xs text-muted-foreground">
+              {whatsappNotice}
+            </p>
+          )}
         </div>
 
       </div>

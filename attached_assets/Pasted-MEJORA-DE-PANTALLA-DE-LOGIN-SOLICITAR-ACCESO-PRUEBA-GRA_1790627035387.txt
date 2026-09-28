@@ -1,0 +1,59 @@
+MEJORA DE PANTALLA DE LOGIN — SOLICITAR ACCESO / PRUEBA GRATIS
+Quiero mejorar únicamente la interfaz de /login de Neurometric Terapias.
+IMPORTANTE:
+- NO modificar la lógica de autenticación.
+- NO modificar AuthProvider.
+- NO modificar sesiones, cookies ni Bearer token.
+- NO modificar backend.
+- NO modificar usuarios ni contraseñas.
+- NO modificar la navegación posterior al login.
+- El formulario actual de email + contraseña + botón “Ingresar” debe seguir funcionando exactamente igual.
+1. Agregar debajo del botón “Ingresar”
+Mostrar:
+¿Todavía no tenés acceso?
+Botón destacado:
+🎁 Solicitar 15 días gratis
+Al presionarlo debe abrir WhatsApp para contactar a Jacqueline con un mensaje prearmado:
+“Hola Jacqueline 😊 Quiero probar Neurometric Terapias durante 15 días. Mi nombre es ___ y soy ___.”
+Utilizar el número de WhatsApp comercial que ya esté configurado en el proyecto. Si no existe ninguno configurado, NO inventar un número: indicarme dónde debe configurarse.
+2. Ayuda de acceso
+Debajo, más discreto:
+¿Tenés problemas para ingresar? Contactanos por WhatsApp
+Debe abrir el mismo WhatsApp con:
+“Hola Jacqueline 😊 Estoy teniendo problemas para ingresar a Neurometric Terapias.”
+3. Preparar referidos
+Quiero que la página pueda recibir opcionalmente:
+?ref=kilead
+?ref=anggy
+Por ahora NO crear sistema de comisiones, usuarios afiliados ni tablas nuevas.
+Si existe ref, conservarlo al abrir WhatsApp y agregar al final del mensaje, por ejemplo:
+“Referencia: kilead”
+o
+“Referencia: anggy”
+No mostrar necesariamente esa referencia de forma prominente al visitante.
+Validar/sanitizar el parámetro antes de incluirlo en el mensaje.
+La finalidad es que yo pueda identificar manualmente quién llegó por cada colaboradora durante esta primera etapa.
+4. Diseño
+Mantener exactamente la estética actual de Neurometric Terapias.
+La jerarquía debe quedar:
+Iniciar sesión
+[Correo]
+[Contraseña]
+Ingresar
+——— o ———
+¿Todavía no tenés acceso?
+🎁 Solicitar 15 días gratis
+¿Tenés problemas para ingresar? Contactanos por WhatsApp
+No sobrecargar la pantalla.
+Debe verse correctamente en computadora y celular.
+5. Antes de terminar
+Verificar:
+- login existente continúa funcionando sin cambios;
+- botón de prueba abre WhatsApp;
+- ?ref=kilead llega en el mensaje;
+- ?ref=anggy llega en el mensaje;
+- sin ref funciona normalmente;
+- ayuda de acceso abre el mensaje correspondiente;
+- build de producción correcto.
+Informarme únicamente qué archivo(s) se modificaron y los resultados de estas pruebas.
+No hacer ningún cambio adicional fuera de esta pantalla.
