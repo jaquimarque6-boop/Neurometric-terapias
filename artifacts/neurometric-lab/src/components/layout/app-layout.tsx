@@ -7,6 +7,7 @@ import { WelcomeTour, openTour } from "@/components/welcome-tour";
 import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
+import { usePwa } from "@/pwa/experience";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ function MobileMenuButton() {
 }
 
 export function AppLayout({ children }: { children: ReactNode }) {
+  const { installMode, install } = usePwa();
   const { language, setLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -52,12 +54,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="nm-app-shell flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
 
           {/* Top header */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/60 bg-card/90 backdrop-blur-md px-4 sm:px-6">
+          <header className="nm-app-header sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/60 bg-card/90 backdrop-blur-md px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <MobileMenuButton />
               <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-muted/80 px-3 py-1.5 rounded-full border border-border/60">
@@ -67,6 +69,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-2">
+              {installMode && (
+                <Button variant="outline" size="sm" onClick={() => void install()} className="hidden lg:inline-flex text-xs">
+                  📱 Instalar Neurometric
+                </Button>
+              )}
               {/* Language switcher */}
               <div className="flex items-center gap-0.5 bg-muted/80 border border-border/60 rounded-full p-0.5">
                 <Button
@@ -128,6 +135,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {installMode && (
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => void install()}>
+                      📱 Instalar Neurometric
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openTour()}>
                     <HelpCircle className="h-4 w-4" />
                     Ver guía de uso
@@ -149,7 +161,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {/* NOTE: no overflow-x-hidden here — the informe preview needs horizontal
               scroll on mobile. The parent flex item has min-w-0 which already
               prevents the sidebar from leaking into this area. */}
-          <main className="flex-1 overflow-x-auto p-5 sm:p-7 lg:p-8">
+          <main className="nm-app-main flex-1 overflow-x-auto p-5 sm:p-7 lg:p-8">
             <div className="mx-auto w-full max-w-7xl">
               {children}
             </div>

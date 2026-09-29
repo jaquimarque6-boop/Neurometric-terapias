@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { VitePWA } from "vite-plugin-pwa";
 
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
 const isReplit = !!process.env.REPL_ID;
@@ -10,6 +11,7 @@ const rawPort = process.env.PORT;
 const port = rawPort ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH ?? "/";
+const pwaBase = `/${basePath.replace(/^\/|\/$/g, "")}${basePath === "/" ? "" : "/"}`;
 
 // Where the api-server listens in dev. Locally it runs on 3001
 // (see artifacts/api-server/.env) so it doesn't collide with Vite on 3000.
@@ -32,6 +34,35 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      registerType: "prompt",
+      injectRegister: null,
+      manifest: {
+        name: "Neurometric Terapias",
+        short_name: "Neurometric",
+        description: "Neurometric Terapias",
+        start_url: pwaBase,
+        scope: pwaBase,
+        display: "standalone",
+        orientation: "any",
+        theme_color: "#E07A5F",
+        background_color: "#FFFAF7",
+        icons: [
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+      },
+      injectManifest: {
+        globPatterns: ["**/*.{js,css}", "index.html", "icons/*.png"],
+        // Never precache public/images, uploads, files, APIs or external origins.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+      devOptions: { enabled: false },
+    }),
     ...replitPlugins,
   ],
   resolve: {

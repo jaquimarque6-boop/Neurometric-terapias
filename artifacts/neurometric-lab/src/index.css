@@ -3,6 +3,53 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+@supports (padding: env(safe-area-inset-bottom)) {
+  .nm-app-header {
+    padding-top: env(safe-area-inset-top);
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .nm-app-main {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+}
+
+.nm-offline-content { visibility: hidden !important; pointer-events: none !important; }
+body.nm-offline > :not(#root) { visibility: hidden !important; pointer-events: none !important; }
+.nm-offline-screen {
+  position: fixed; z-index: 99999; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; padding: 2rem; text-align: center;
+  background: #fffcfa; color: #333;
+}
+.nm-offline-screen h1 { font-size: 1.35rem; font-weight: 700; }
+.nm-offline-screen p { max-width: 28rem; line-height: 1.6; }
+.nm-offline-screen button, .nm-update-notice button, .nm-install-help button {
+  border-radius: .6rem; padding: .5rem 1rem; background: #e07a5f; color: white; cursor: pointer;
+}
+.nm-update-notice {
+  position: fixed; z-index: 9999; bottom: max(1rem, env(safe-area-inset-bottom)); right: 1rem;
+  max-width: 28rem; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  border: 1px solid #eedbd4; border-radius: .75rem; padding: .8rem;
+  background: #fffcfa; box-shadow: 0 8px 24px #3332; color: #333; font-size: .875rem;
+}
+.nm-update-notice button:last-child { background: transparent; color: #333; }
+.nm-install-help {
+  position: fixed; z-index: 10000; inset: 0; display: flex; align-items: center;
+  justify-content: center; padding: 1.5rem; background: #0007;
+}
+.nm-install-help > div {
+  display: grid; gap: 1rem; max-width: 23rem; border-radius: 1rem;
+  padding: 1.5rem; background: #fffcfa; color: #333;
+}
+.nm-install-help h2 { font-weight: 700; font-size: 1.2rem; }
+@media print {
+  body.nm-offline #root { display: none !important; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

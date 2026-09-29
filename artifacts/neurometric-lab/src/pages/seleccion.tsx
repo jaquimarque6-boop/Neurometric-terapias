@@ -1,9 +1,11 @@
 import { useLocation } from "wouter";
 import { Activity, Stethoscope, Gamepad2, ArrowRight, ExternalLink } from "lucide-react";
+import { usePwa } from "@/pwa/experience";
 
 const BANCO_ACTIVIDADES_URL = "https://therapy-spark-toolkit.lovable.app/";
 
 export default function SeleccionPage() {
+  const { installMode, install } = usePwa();
   const [, setLocation] = useLocation();
 
   const irAGestionClinica = () => setLocation("/");
@@ -15,6 +17,13 @@ export default function SeleccionPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-3xl">
+        {installMode && (
+          <div className="mb-5 text-right">
+            <button type="button" onClick={() => void install()} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted">
+              📱 Instalar Neurometric
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="text-center mb-10">

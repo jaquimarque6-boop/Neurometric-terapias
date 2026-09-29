@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/providers/language-provider";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { PwaExperience } from "@/pwa/experience";
 
 // Eager: login is the entry screen and NotFound is the cheap fallback. Keeping
 // them in the initial chunk avoids a loading flash on first paint.
@@ -226,6 +227,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <TooltipProvider>
+            <PwaExperience>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <SessionGuard />
               <Suspense fallback={<PageFallback />}>
@@ -233,6 +235,7 @@ function App() {
               </Suspense>
             </WouterRouter>
             <Toaster />
+            </PwaExperience>
           </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>
