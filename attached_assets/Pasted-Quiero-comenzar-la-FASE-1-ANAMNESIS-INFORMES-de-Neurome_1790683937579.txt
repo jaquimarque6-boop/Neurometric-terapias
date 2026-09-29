@@ -1,0 +1,195 @@
+Quiero comenzar la FASE 1: ANAMNESIS + INFORMES de Neurometric Terapias.
+
+La Fase 0 de seguridad ya está terminada, probada y desplegada.
+NO modificar nada de autenticación ni seguridad salvo que sea imprescindible para reutilizar los controles existentes.
+
+OBJETIVOS
+
+A) ANAMNESIS
+
+Actualmente la anamnesis se guarda correctamente dentro de patients y funciona como una única ficha editable.
+
+QUIERO CONSERVAR ESTE CONCEPTO.
+
+No quiero crear una versión nueva cada vez que el profesional presiona Guardar.
+
+Quiero:
+
+1. Mantener la anamnesis actual editable.
+2. Al guardar, registrar:
+   - fecha/hora de última actualización;
+   - usuario/profesional que realizó la última actualización.
+3. Mostrar en la interfaz, de manera discreta:
+   “Última actualización: DD/MM/AAAA HH:mm · por [profesional]”
+4. Al volver a abrir el paciente, recuperar normalmente la última anamnesis.
+5. Mantener el mensaje claro de confirmación de guardado.
+
+No quiero todavía un historial visual de versiones de anamnesis.
+
+IMPORTANTE:
+No romper pacientes que ya tienen anamnesis guardadas.
+
+--------------------------------------------------
+
+B) INFORMES
+
+Actualmente informe_evolucion e informe_familia dentro de patients conservan solamente la última copia.
+
+Quiero que, a partir de ahora, los informes puedan guardarse como DOCUMENTOS INDEPENDIENTES e históricos.
+
+Cada informe guardado debe conservar como mínimo:
+
+- id
+- patient_id
+- tipo de informe
+- título
+- contenido estructurado completo
+- fecha de creación
+- fecha de última modificación
+- usuario/profesional autor
+- rango/período utilizado para generarlo
+- cantidad de registros clínicos/sesiones utilizadas para generarlo, cuando corresponda
+
+Flujo:
+
+Generar informe
+→ revisar/editar
+→ Guardar informe
+→ queda almacenado como documento independiente.
+
+Después debe poder volver a abrirse.
+
+Guardar un informe nuevo NO debe eliminar ni sobrescribir informes anteriores.
+
+Si se abre un informe histórico y se edita, actualizar ese documento específico, no crear copias accidentalmente.
+
+--------------------------------------------------
+
+C) INFORMES GUARDADOS EN LA FICHA
+
+Agregar una sección clara:
+
+“Informes guardados”
+
+Mostrar por ejemplo:
+
+Informe de evolución
+29/09/2026
+Jacqueline Márquez
+
+Informe para familia
+15/12/2026
+Jacqueline Márquez
+
+Desde allí permitir:
+- abrir;
+- visualizar;
+- editar;
+- imprimir/guardar como PDF utilizando el sistema de impresión existente.
+
+NO generar PDFs automáticamente ni almacenarlos en Storage en esta fase.
+
+--------------------------------------------------
+
+D) DOCUMENTACIÓN
+
+La sección Documentación existente debe continuar funcionando exactamente como ahora.
+
+No mezclar todavía los informes históricos con patient_files.
+
+Si resulta simple y seguro, puede mostrarse dentro de Documentación una subsección/enlace “Informes generados en Neurometric”, pero los informes deben seguir siendo registros estructurados de la base de datos, NO archivos PDF.
+
+Si esto complica la implementación, dejarlo para una fase posterior.
+
+--------------------------------------------------
+
+E) CONSISTENCIA DEL INFORME
+
+Actualmente el generador puede analizar un subconjunto de registros clínicos según el rango elegido.
+
+Quiero que la interfaz deje claro qué información se utilizó.
+
+Antes o después de generar mostrar algo como:
+
+“Período analizado: 01/07/2026 – 29/09/2026”
+“Registros clínicos utilizados: 2”
+
+Además:
+
+- revisar el prompt del generador para evitar expresiones como “única sesión” cuando el conteo recibido no sea 1;
+- NO inventar sesiones;
+- diferenciar claramente total de registros del paciente y registros incluidos en el período;
+- conservar junto al informe guardado el rango y cantidad utilizada.
+
+No unificar ni migrar ahora sessions, registros y registros_clinicos.
+Eso queda fuera de alcance.
+
+--------------------------------------------------
+
+SEGURIDAD
+
+Reutilizar access-policy y los controles de acceso ya existentes.
+
+Un profesional solo puede:
+- generar;
+- guardar;
+- abrir;
+- editar;
+- imprimir
+
+informes de pacientes a los que tenga acceso.
+
+Admin conserva su acceso actual.
+
+--------------------------------------------------
+
+MIGRACIÓN
+
+Antes de crearla:
+- proponé la estructura mínima necesaria;
+- evitá modificar innecesariamente patients;
+- preferí una tabla específica para informes históricos si es la opción más limpia.
+
+La migración debe ser compatible con los pacientes e informes existentes.
+
+IMPORTANTE:
+NO borrar los campos actuales informe_evolucion/informe_familia todavía.
+
+Los informes antiguos existentes deben conservarse.
+
+Si es razonablemente seguro migrarlos a la nueva estructura, explicame primero cómo lo harías antes de ejecutar una migración destructiva o de transformación de datos.
+
+--------------------------------------------------
+
+NO TOCAR
+
+- login
+- AuthProvider/AuthContext
+- cookies
+- sesiones
+- tokens
+- contraseñas
+- flujo de creación de usuarios
+- pagos
+- agenda
+- archivos de pacientes
+- notas manuscritas
+- PWA
+- módulo Actividades
+- Fase 0 de seguridad
+
+--------------------------------------------------
+
+FORMA DE TRABAJO
+
+PRIMERO:
+
+1. Mostrame la estructura mínima propuesta.
+2. Indicame tablas/columnas nuevas.
+3. Indicame archivos que vas a modificar.
+4. Explicame qué pasará con los informes ya existentes.
+5. Indicame riesgos.
+
+NO implementes todavía.
+
+Esperá mi aprobación antes de modificar código o crear migraciones.
