@@ -32,14 +32,25 @@ export const ListCollaboratorsResponse = zod.array(
 
 export const createCollaboratorBodyPasswordMin = 8;
 
-export const CreateCollaboratorBody = zod.object({
-  name: zod.string(),
-  email: zod.string().email(),
-  password: zod.string().min(createCollaboratorBodyPasswordMin),
-  country: zod.string(),
-  code: zod.string(),
-  commissionPercent: zod.string(),
-});
+export const CreateCollaboratorBody = zod
+  .object({
+    name: zod.string(),
+    email: zod.string().email().optional(),
+    password: zod.string().min(createCollaboratorBodyPasswordMin).optional(),
+    existingUserId: zod
+      .number()
+      .min(1)
+      .optional()
+      .describe(
+        "Existing professional user ID; omit email and password when supplied.",
+      ),
+    country: zod.string(),
+    code: zod.string(),
+    commissionPercent: zod.string(),
+  })
+  .describe(
+    "Admin only. Supply existingUserId alone to link a professional, or omit it and provide email and password to create a collaborator-only account. The two modes cannot be mixed.",
+  );
 
 export const UpdateCollaboratorParams = zod.object({
   id: zod.coerce.number(),

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOwnCollaboratorDashboard } from "@/hooks/use-collaborators";
 
 type NavItem = {
   title: string;
@@ -62,12 +63,16 @@ export function AppSidebar() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "admin";
+  const ownDashboard = useOwnCollaboratorDashboard();
 
   const visibleItems = navItems.filter(item => {
     if (item.adminOnly && !isAdmin) return false;
     if (item.adminHidden && isAdmin) return false;
     return true;
   });
+  if (user?.role === "professional" && ownDashboard.isSuccess && ownDashboard.data) {
+    visibleItems.splice(visibleItems.length - 1, 0, { title: "Mi panel de colaboradora", url: "/colaboradora", icon: HeartHandshake });
+  }
 
   return (
     <Sidebar

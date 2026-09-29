@@ -1,0 +1,39 @@
+Necesito hacer un ajuste antes de crear la primera colaboradora real.
+Angie ya tiene una cuenta professional en Neurometric y solamente tiene ese email. No quiero obligarla a crear otro email ni quitarle su acceso profesional.
+Quiero que un usuario profesional existente pueda ser también colaborador, manteniendo su rol professional.
+Revisá la implementación actual y adaptala de la forma más pequeña y segura posible.
+Objetivo:
+- Desde “Nueva colaboradora”, permitir seleccionar/vincular un usuario profesional existente.
+- Si se vincula un usuario existente, NO crear otro usuario.
+- NO cambiar su rol professional.
+- NO cambiar contraseña.
+- NO modificar sus pacientes, sesiones ni permisos profesionales.
+- Crear solamente la relación correspondiente en collaborators.
+- Ese usuario debe poder seguir usando Neurometric normalmente como profesional y además acceder a /colaboradora.
+Para usuarios que sean solamente colaboradores y no profesionales, conservar la posibilidad actual de crear una cuenta específica con rol collaborator.
+Autorización
+No relajes la barrera de seguridad del rol collaborator.
+Para un usuario professional vinculado a collaborators, los permisos clínicos deben seguir siendo exactamente los de su rol profesional actual.
+Los endpoints del panel de colaboradora deben comprobar además que el usuario autenticado tenga una relación válida en collaborators.
+Nunca aceptar un collaborator_id del frontend como fuente de identidad.
+Un profesional que NO esté vinculado a collaborators no debe poder acceder al panel.
+Interfaz
+En “Nueva colaboradora” quiero dos opciones claras:
+Vincular usuario existente
+o
+Crear nuevo acceso de colaboradora
+Para Angie utilizaremos “Vincular usuario existente”.
+Pruebas obligatorias
+Probá con datos sintéticos:
+- professional existente + collaborator → conserva acceso profesional;
+- puede acceder a /colaboradora;
+- ve solamente sus estadísticas de colaboradora;
+- professional común → no puede acceder al panel;
+- collaborator puro → mantiene las restricciones actuales;
+- collaborator A → no puede acceder a información de B;
+- admin → conserva funcionamiento actual.
+No uses a Angie en las pruebas.
+No modifiques la migración ya aplicada en producción si no es necesario. collaborators.user_id ya permite vincular un usuario existente.
+No hagas cambios fuera de este ajuste.
+Al terminar, indicame archivos modificados, pruebas y resultados.
+No hagas push ni deploy. Esperá mi aprobación.

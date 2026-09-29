@@ -21,11 +21,19 @@ export interface Collaborator {
   createdAt: string;
 }
 
+/**
+ * Admin only. Supply existingUserId alone to link a professional, or omit it and provide email and password to create a collaborator-only account. The two modes cannot be mixed.
+ */
 export interface CollaboratorInput {
   name: string;
-  email: string;
+  email?: string;
   /** @minLength 8 */
-  password: string;
+  password?: string;
+  /**
+   * Existing professional user ID; omit email and password when supplied.
+   * @minimum 1
+   */
+  existingUserId?: number;
   country: string;
   code: string;
   commissionPercent: string;

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Activity, LogOut } from "lucide-react";
+import { Activity, ArrowLeft, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
-import { useOwnCollaboratorDashboard } from "@/hooks/use-collaborators";
+import { ApiError, useOwnCollaboratorDashboard } from "@/hooks/use-collaborators";
 import { DashboardSkeleton, DashboardView, ErrorPanel } from "@/components/collaborators/dashboard-view";
 
 // Private portal for the collaborator role. Separate minimal layout: no
@@ -20,6 +20,7 @@ export default function ColaboradoraPortal() {
   };
 
   const firstName = (data?.name ?? user?.name ?? "").split(" ")[0];
+  const unlinked = error instanceof ApiError && error.status === 403;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -34,9 +35,16 @@ export default function ColaboradoraPortal() {
               <p className="text-[11px] text-muted-foreground">Programa de Colaboradoras</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} disabled={leaving} className="gap-1.5 text-muted-foreground">
-            <LogOut className="h-4 w-4" /> {leaving ? "Saliendo…" : "Cerrar sesión"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {user?.role === "professional" && (
+              <Button variant="outline" size="sm" onClick={() => setLocation("/")} className="gap-1.5" data-testid="button-return-professional">
+                <ArrowLeft className="h-4 w-4" /> Volver a mi panel profesional
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={handleLogout} disabled={leaving} className="gap-1.5 text-muted-foreground">
+              <LogOut className="h-4 w-4" /> {leaving ? "Saliendo…" : "Cerrar sesión"}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -52,6 +60,11 @@ export default function ColaboradoraPortal() {
 
         {isLoading ? (
           <DashboardSkeleton />
+        ) : unlinked ? (
+          <div className="rounded-2xl border border-border/60 bg-card p-6 text-sm" data-testid="status-collaborator-access-denied">
+            <p className="font-semibold">Tu usuario no tiene acceso al panel de colaboradora.</p>
+            <p className="mt-1 text-muted-foreground">Si creés que deberías tener acceso, consultá con la administración.</p>
+          </div>
         ) : isError || !data ? (
           <ErrorPanel
             message={(error as Error)?.message ?? "No se pudo cargar tu panel."}

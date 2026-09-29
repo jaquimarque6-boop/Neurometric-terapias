@@ -92,12 +92,12 @@ function CollaboratorRoute({ component: Component }: { component: React.Componen
   useEffect(() => {
     if (!loading) {
       if (!user) setLocation("/login");
-      else if (user.role !== "collaborator") setLocation("/");
+      else if (user.role !== "collaborator" && user.role !== "professional") setLocation("/");
     }
   }, [loading, user, setLocation]);
 
   if (loading) return <PageFallback />;
-  if (!user || user.role !== "collaborator") return null;
+  if (!user || (user.role !== "collaborator" && user.role !== "professional")) return null;
   return <Component />;
 }
 

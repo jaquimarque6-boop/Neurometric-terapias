@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, collaboratorsTable, referralAttributionsTable, saasReceiptsTable, saasStatusEventsTable, usersTable } from "@workspace/db";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { activeReferral, businessDate, businessMonth, centsString, changeCommercialStatus, decimalCents, normalizeCode, validCode } from "../lib/collaborators";
 
@@ -31,29 +31,45 @@ router.get("/collaborators", async (req, res) => {
 
 router.post("/collaborators", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const { name, email, password, country, commissionPercent } = req.body ?? {};
+  const { name, email, password, country, commissionPercent, existingUserId } = req.body ?? {};
   const code = normalizeCode(req.body?.code);
-  if (![name, email, password, country].every(v => typeof v === "string" && v.trim()) ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8 ||
-    !validCode(code) || !percentOk(commissionPercent) || req.body.active !== undefined) {
+  const linking = existingUserId !== undefined;
+  if (![name, country].every(v => typeof v === "string" && v.trim()) ||
+    !validCode(code) || !percentOk(commissionPercent) || req.body?.active !== undefined) {
     return res.status(400).json({ error: "Datos de colaboradora inválidos" });
   }
+  if (linking
+    ? !Number.isSafeInteger(existingUserId) || existingUserId < 1 || email !== undefined || password !== undefined
+    : typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ error: "Seleccioná un profesional existente o ingresá email y contraseña para el nuevo acceso" });
+  }
   try {
-    const hash = await bcrypt.hash(password, 10);
+    const hash = linking ? null : await bcrypt.hash(password, 10);
     const collaborator = await db.transaction(async tx => {
-      const [user] = await tx.insert(usersTable).values({
-        email: email.trim().toLowerCase(), passwordHash: hash, name: name.trim(), role: "collaborator",
-        professionalId: null, active: false,
-      }).returning();
+      let userId: number;
+      if (linking) {
+        await tx.execute(sql`SELECT id FROM users WHERE id = ${existingUserId} FOR UPDATE`);
+        const [user] = await tx.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, existingUserId));
+        if (!user || user.role !== "professional") return null;
+        userId = user.id;
+      } else {
+        const [user] = await tx.insert(usersTable).values({
+          email: email.trim().toLowerCase(), passwordHash: hash!, name: name.trim(), role: "collaborator",
+          professionalId: null, active: false,
+        }).returning();
+        userId = user.id;
+      }
       const [record] = await tx.insert(collaboratorsTable).values({
-        userId: user.id, name: name.trim(), country: country.trim(), code,
+        userId, name: name.trim(), country: country.trim(), code,
         commissionPercent, active: false,
       }).returning();
       return record;
     });
+    if (!collaborator) return res.status(404).json({ error: "Profesional no encontrado" });
     return res.status(201).json(collaborator);
   } catch (error: any) {
-    if (error?.code === "23505") return res.status(409).json({ error: "Email o código ya existe" });
+    if (error?.code === "23505" || error?.cause?.code === "23505") return res.status(409).json({ error: "Email, código o usuario ya existe" });
     throw error;
   }
 });
@@ -86,7 +102,7 @@ router.patch("/collaborators/:id", async (req, res) => {
       }).where(eq(collaboratorsTable.id, id)).returning();
       if (body.active !== undefined || body.name !== undefined) {
         await tx.update(usersTable).set({ ...(body.active !== undefined ? { active: body.active } : {}), ...(body.name !== undefined ? { name: body.name.trim() } : {}) })
-          .where(eq(usersTable.id, previous.userId));
+          .where(and(eq(usersTable.id, previous.userId), eq(usersTable.role, "collaborator")));
       }
       return updated;
     });
@@ -247,7 +263,7 @@ router.get("/collaborators/:id/dashboard", async (req, res) => {
 });
 router.get("/collaborator/dashboard", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "No autenticado" });
-  if (req.session.userRole !== "collaborator") return res.status(403).json({ error: "Solo colaboradoras" });
+  if (req.session.userRole !== "collaborator" && req.session.userRole !== "professional") return res.status(403).json({ error: "Solo colaboradoras" });
   const [collaborator] = await db.select({ id: collaboratorsTable.id }).from(collaboratorsTable).where(eq(collaboratorsTable.userId, req.session.userId));
   if (!collaborator) return res.status(403).json({ error: "Colaboradora no encontrada" });
   return res.json(await dashboard(collaborator.id));

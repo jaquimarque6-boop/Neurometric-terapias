@@ -9,6 +9,12 @@ Keep collaborator commerce separate from clinical billing and preserve existing 
 
 **How to apply:** Extend the exact collaborator endpoint allowlist only after privacy tests. Resolve ownership from current authenticated identity. Never return referred professionals' identities through the collaborator dashboard.
 
+A professional may also belong to the collaborator program without becoming a collaborator-role account.
+
+**Why:** Existing professionals must keep their single email, password, clinical access and data. The restricted collaborator role is only for dedicated collaborator accounts.
+
+**How to apply:** Link the existing professional account rather than replacing its role or credentials. Authorize its own aggregate portal through authenticated membership; keep the dedicated collaborator role's default-deny barrier unchanged.
+
 Freeze commission economics when confirming each receipt. Inactive collaborators stop new attributions but retain commissions on established referrals; login activation is a separate axis. Reactivations are not new subscriptions.
 
 **Why:** The approved recurring model protects attribution and historical earnings across rate changes and deliberately excludes refunds, partial payouts, and automated billing from V1.

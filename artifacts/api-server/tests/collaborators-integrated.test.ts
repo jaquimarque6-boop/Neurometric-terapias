@@ -28,7 +28,7 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
     await pool.end();
     throw new Error("Refusing development tests: current_database() must be exactly heliumdb");
   }
-  const { usersTable, collaboratorsTable, referralAttributionsTable, saasReceiptsTable, saasStatusEventsTable } = tables;
+  const { usersTable, patientsTable, collaboratorsTable, referralAttributionsTable, saasReceiptsTable, saasStatusEventsTable } = tables;
   const server = app.listen(0);
   await once(server, "listening");
   const address = server.address();
@@ -38,6 +38,7 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
   const codeA = `A${process.pid}${Date.now()}`.slice(0, 30);
   const codeB = `B${process.pid}${Date.now()}`.slice(0, 30);
   const ids: number[] = [];
+  const patientIds: number[] = [];
   const { eq, inArray, sql } = await import("drizzle-orm");
   const createUser = async (role: string) => {
     const [user] = await db.insert(usersTable).values({
@@ -55,13 +56,18 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    return { status: res.status, body: await res.json() as any };
+    const text = await res.text();
+    let parsed: any;
+    try { parsed = JSON.parse(text); }
+    catch { throw new Error(`${method} ${path} returned ${res.status} non-JSON response: ${text.slice(0, 120)}`); }
+    return { status: res.status, body: parsed };
   };
   after(async () => {
     // Only synthetic fixture IDs, never broad/truncate cleanup.
     try {
       if (ids.length) await db.transaction(async tx => {
         await tx.execute(sql`DELETE FROM express_sessions WHERE sess->>'userId' IN (${sql.join(ids.map(id => sql`${String(id)}`), sql`, `)})`);
+        if (patientIds.length) await tx.delete(patientsTable).where(inArray(patientsTable.id, patientIds));
         await tx.delete(saasReceiptsTable).where(inArray(saasReceiptsTable.professionalUserId, ids));
         await tx.delete(saasStatusEventsTable).where(inArray(saasStatusEventsTable.professionalUserId, ids));
         await tx.delete(referralAttributionsTable).where(inArray(referralAttributionsTable.professionalUserId, ids));
@@ -179,5 +185,91 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
     assert.equal(own.body.pending.ARS, "60.00");
     assert.equal(own.body.paid.ARS, "40.00");
     assert.equal(/professionalUserId|email|patient|phone|Synthetic professional/i.test(JSON.stringify(own.body)), false);
+  });
+
+  test("linking a professional preserves the entire user row and clinical access, while dashboards stay isolated", async () => {
+    const admin = await createUser("admin");
+    const linked = await createUser("professional");
+    const ordinary = await createUser("professional");
+    const b = await createUser("collaborator");
+    const before = (await db.select().from(usersTable).where(eq(usersTable.id, linked.id)))[0];
+    const [ownPatient, foreignPatient] = await db.insert(patientsTable).values([
+      { name: `${prefix}-own-patient`, assignedProfessionalId: linked.id },
+      { name: `${prefix}-foreign-patient`, assignedProfessionalId: ordinary.id },
+    ]).returning();
+    patientIds.push(ownPatient.id, foreignPatient.id);
+    const payload = { name: "Synthetic linked", country: "Test", code: `${codeA}L`, commissionPercent: "30.00", existingUserId: linked.id };
+    assert.equal((await request("POST", "/collaborators", ordinary, payload)).status, 403);
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, existingUserId: b.id })).status, 404);
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, existingUserId: -1 })).status, 400);
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, email: before.email })).status, 400);
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, password: "unexpected-password" })).status, 400);
+    const created = await request("POST", "/collaborators", admin, payload);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.userId, linked.id);
+    assert.equal(created.body.active, false);
+    assert.deepEqual((await db.select().from(usersTable).where(eq(usersTable.id, linked.id)))[0], before);
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, code: `${codeA}X` })).status, 409, "one collaborator row per user");
+    assert.equal((await request("POST", "/collaborators", admin, { ...payload, existingUserId: ordinary.id })).status, 409, "unique code");
+    const [otherRow] = await db.insert(collaboratorsTable).values({
+      userId: b.id, name: "Synthetic B", country: "Test", code: `${codeB}L`, commissionPercent: "25.00", active: true,
+    }).returning();
+    await db.insert(referralAttributionsTable).values({
+      collaboratorId: created.body.id, professionalUserId: ordinary.id,
+      codeUsed: payload.code, source: "admin_user_create", createdByUserId: admin.id,
+    });
+    const third = await createUser("professional");
+    await db.insert(referralAttributionsTable).values({
+      collaboratorId: otherRow.id, professionalUserId: third.id,
+      codeUsed: `${codeB}L`, source: "admin_user_create", createdByUserId: admin.id,
+    });
+    const own = await request("GET", "/collaborator/dashboard", linked);
+    const other = await request("GET", "/collaborator/dashboard", b);
+    assert.equal(own.status, 200);
+    assert.equal(other.status, 200);
+    assert.equal(own.body.code, payload.code);
+    assert.equal(own.body.referrals, 1);
+    assert.equal(other.body.referrals, 1);
+    assert.equal(other.body.code, `${codeB}L`);
+    assert.equal((await request("GET", "/collaborator/dashboard", ordinary)).status, 403);
+    assert.equal((await request("GET", "/collaborator/dashboard", admin)).status, 403);
+    assert.equal((await request("GET", "/collaborator/dashboard")).status, 401);
+    assert.deepEqual((await request("GET", `/collaborators/${otherRow.id}/dashboard`, admin)).body.code, `${codeB}L`);
+    assert.equal((await request("GET", `/collaborators/${otherRow.id}/dashboard`, linked)).status, 403);
+    assert.equal((await request("GET", `/collaborators/${created.body.id}/dashboard`, b)).status, 403);
+    assert.equal((await request("GET", "/patients", b)).status, 403);
+    assert.equal((await request("POST", "/patients", b, { name: `${prefix}-denied` })).status, 403);
+    assert.equal((await request("GET", `/patients/${ownPatient.id}`, b)).status, 403);
+    const clinical = await request("GET", "/patients", linked);
+    assert.equal(clinical.status, 200);
+    assert.ok(clinical.body.some((p: any) => p.id === ownPatient.id));
+    assert.ok(!clinical.body.some((p: any) => p.id === foreignPatient.id));
+    assert.equal((await request("GET", `/patients/${ownPatient.id}`, linked)).status, 200);
+    assert.equal((await request("GET", `/patients/${foreignPatient.id}`, linked)).status, 403);
+    assert.equal((await request("PATCH", `/patients/${ownPatient.id}`, linked, { name: `${prefix}-updated-patient` })).status, 200);
+    assert.equal((await request("PATCH", `/patients/${foreignPatient.id}`, linked, { name: `${prefix}-denied-update` })).status, 403);
+    assert.equal((await request("PATCH", `/patients/${ownPatient.id}`, b, { name: `${prefix}-denied-update` })).status, 403);
+    const added = await request("POST", "/patients", linked, { name: `${prefix}-new-patient` });
+    assert.equal(added.status, 201, JSON.stringify(added.body));
+    patientIds.push(added.body.id);
+    assert.equal(added.body.assignedProfessionalId, linked.id);
+    assert.equal((await request("GET", "/collaborators", admin)).status, 200);
+    assert.equal((await request("PATCH", `/collaborators/${created.body.id}`, admin, { active: true, name: "New display name" })).status, 200);
+    assert.deepEqual((await db.select().from(usersTable).where(eq(usersTable.id, linked.id)))[0], before, "admin collaborator updates must not modify linked professional");
+    assert.equal((await request("GET", "/patients", linked)).status, 200, "clinical access persists after updating collaborator");
+    assert.equal((await request("GET", "/collaborator/dashboard", linked)).status, 200);
+
+    const newAccount = await request("POST", "/collaborators", admin, {
+      name: "Synthetic new access", email: `${prefix}-new-access@example.test`,
+      password: "synthetic-password", country: "Test", code: `${codeA}N`, commissionPercent: "15.00",
+    });
+    assert.equal(newAccount.status, 201, JSON.stringify(newAccount.body));
+    ids.push(newAccount.body.userId);
+    const [newUser] = await db.select().from(usersTable).where(eq(usersTable.id, newAccount.body.userId));
+    assert.equal(newUser.role, "collaborator");
+    assert.equal(newUser.active, false);
+    assert.equal((await request("PATCH", `/collaborators/${newAccount.body.id}`, admin, { active: true })).status, 200);
+    assert.equal((await request("GET", "/collaborator/dashboard", { id: newUser.id, role: "collaborator" })).status, 200);
+    assert.equal((await request("GET", "/patients", { id: newUser.id, role: "collaborator" })).status, 403);
   });
 }

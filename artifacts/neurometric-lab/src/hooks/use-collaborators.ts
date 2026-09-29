@@ -69,8 +69,8 @@ export type SaasStatusResult = {
 };
 
 export type CreateCollaboratorInput = {
-  name: string; email: string; password: string; country: string; code: string; commissionPercent: string;
-};
+  name: string; country: string; code: string; commissionPercent: string;
+} & ({ existingUserId: number; email?: never; password?: never } | { existingUserId?: never; email: string; password: string });
 export type UpdateCollaboratorInput = Partial<Pick<Collaborator, "name" | "country" | "code" | "commissionPercent" | "active">>;
 export type CreateReceiptInput = {
   professionalUserId: number; amount: string; currency: string; receivedAt: string;
@@ -136,8 +136,10 @@ export function useOwnCollaboratorDashboard() {
   return useQuery({
     queryKey: keys.own(uid),
     queryFn: () => apiJson<CollaboratorDashboard>("/api/collaborator/dashboard"),
-    enabled: role === "collaborator",
-    retry: 1,
+    enabled: role === "collaborator" || role === "professional",
+    retry: (count, error) => !(error instanceof ApiError && error.status === 403) && count < 1,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }
 

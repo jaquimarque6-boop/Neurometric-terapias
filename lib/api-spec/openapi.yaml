@@ -47,7 +47,7 @@ paths:
       tags: [collaborators]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CollaboratorInput" } } } }
       responses:
-        "201": { description: Inactive collaborator created, content: { application/json: { schema: { $ref: "#/components/schemas/Collaborator" } } } }
+        "201": { description: Inactive collaborator created; linking an existing professional does not alter the user account, content: { application/json: { schema: { $ref: "#/components/schemas/Collaborator" } } } }
   /collaborators/{id}:
     patch:
       operationId: updateCollaborator
@@ -787,11 +787,13 @@ components:
         createdAt: { type: string, format: date-time }
     CollaboratorInput:
       type: object
-      required: [name, email, password, country, code, commissionPercent]
+      description: "Admin only. Supply existingUserId alone to link a professional, or omit it and provide email and password to create a collaborator-only account. The two modes cannot be mixed."
+      required: [name, country, code, commissionPercent]
       properties:
         name: { type: string }
         email: { type: string, format: email }
         password: { type: string, minLength: 8 }
+        existingUserId: { type: integer, minimum: 1, description: "Existing professional user ID; omit email and password when supplied." }
         country: { type: string }
         code: { type: string }
         commissionPercent: { type: string }

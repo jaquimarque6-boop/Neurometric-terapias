@@ -51,13 +51,20 @@ function CollaboratorDialog({ open, onClose, editing }: { open: boolean; onClose
   const { toast } = useToast();
   const create = useCreateCollaborator();
   const update = useUpdateCollaborator();
+  const professionals = useProfessionalUsers();
+  const collaborators = useCollaborators();
   const [f, setF] = useState({ name: "", email: "", password: "", country: "", code: "", commissionPercent: "" });
+  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [existingUserId, setExistingUserId] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [initFor, setInitFor] = useState<string>("");
+  const availableProfessionals = (professionals.data ?? []).filter(u => !collaborators.data?.some(c => c.userId === u.id));
 
   const key = open ? (editing ? `e${editing.id}` : "new") : "";
   if (key !== initFor) {
     setInitFor(key);
+    setMode("existing");
+    setExistingUserId("");
     setShowPwd(false);
     setF(editing
       ? { name: editing.name, email: "", password: "", country: editing.country, code: editing.code, commissionPercent: editing.commissionPercent }
@@ -68,6 +75,7 @@ function CollaboratorDialog({ open, onClose, editing }: { open: boolean; onClose
   const pending = create.isPending || update.isPending;
 
   const submit = () => {
+    if (pending) return;
     if (!f.name.trim() || !f.country.trim()) return toast({ title: "Nombre y país son obligatorios", variant: "destructive" });
     if (!code) return toast({ title: "Código inválido", description: "Solo letras y números, 2 a 32 caracteres.", variant: "destructive" });
     if (!validPercent(f.commissionPercent)) return toast({ title: "Porcentaje inválido (0 a 100, hasta 2 decimales)", variant: "destructive" });
@@ -83,13 +91,16 @@ function CollaboratorDialog({ open, onClose, editing }: { open: boolean; onClose
         onError: e => toast({ title: e.message, variant: "destructive" }),
       });
     } else {
-      if (!f.email.trim()) return toast({ title: "El email de acceso es obligatorio", variant: "destructive" });
-      if (f.password.trim().length < 6) return toast({ title: "La contraseña debe tener al menos 6 caracteres", variant: "destructive" });
-      create.mutate({
-        name: f.name.trim(), email: f.email.trim(), password: f.password.trim(),
-        country: f.country.trim(), code, commissionPercent: f.commissionPercent.trim(),
-      }, {
-        onSuccess: () => { toast({ title: "Colaboradora creada", description: "Queda inactiva hasta que la actives." }); onClose(); },
+      if (mode === "existing" && (!professionals.isSuccess || !collaborators.isSuccess || !availableProfessionals.some(u => String(u.id) === existingUserId))) {
+        return toast({ title: "Seleccioná una profesional disponible", variant: "destructive" });
+      }
+      if (mode === "new" && !f.email.trim()) return toast({ title: "El email de acceso es obligatorio", variant: "destructive" });
+      if (mode === "new" && f.password.trim().length < 8) return toast({ title: "La contraseña debe tener al menos 8 caracteres", variant: "destructive" });
+      const details = { name: f.name.trim(), country: f.country.trim(), code, commissionPercent: f.commissionPercent.trim() };
+      create.mutate(mode === "existing"
+        ? { ...details, existingUserId: Number(existingUserId) }
+        : { ...details, email: f.email.trim(), password: f.password.trim() }, {
+        onSuccess: () => { toast({ title: mode === "existing" ? "Profesional vinculada" : "Colaboradora creada", description: "Queda inactiva hasta que la actives." }); onClose(); },
         onError: e => toast({ title: e.message, variant: "destructive" }),
       });
     }
@@ -103,18 +114,45 @@ function CollaboratorDialog({ open, onClose, editing }: { open: boolean; onClose
           <DialogDescription>
             {editing
               ? "Cambiar el porcentaje no recalcula comisiones ya generadas. El código no puede cambiarse si ya tiene referidos o cobros."
-              : "Se crea también su usuario de acceso con rol colaboradora. Queda inactiva hasta activarla."}
+              : "Elegí cómo dar acceso al panel de colaboradora. La relación queda inactiva hasta que la actives."}
           </DialogDescription>
         </DialogHeader>
+        {!editing && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Tipo de acceso">
+              <Button type="button" variant={mode === "existing" ? "default" : "outline"} onClick={() => setMode("existing")} disabled={pending} data-testid="button-link-existing-user">Vincular usuario existente</Button>
+              <Button type="button" variant={mode === "new" ? "default" : "outline"} onClick={() => setMode("new")} disabled={pending} data-testid="button-create-collaborator-access">Crear nuevo acceso de colaboradora</Button>
+            </div>
+            {mode === "existing" && (
+              <div className="space-y-2">
+                <Field label="Usuario profesional" hint="Se conserva su cuenta, contraseña, rol y acceso profesional. Solo se agrega la relación de colaboradora.">
+                  <select value={existingUserId} onChange={e => {
+                    setExistingUserId(e.target.value);
+                    const selected = availableProfessionals.find(u => String(u.id) === e.target.value);
+                    if (selected) set("name", selected.name);
+                  }} disabled={pending || professionals.isPending || collaborators.isPending || professionals.isError || collaborators.isError} className={selectCls} data-testid="select-existing-professional">
+                    <option value="">{professionals.isPending || collaborators.isPending ? "Cargando profesionales…" : professionals.isError || collaborators.isError ? "No se pudo cargar la lista" : availableProfessionals.length ? "Elegir profesional" : "No hay profesionales disponibles"}</option>
+                    {availableProfessionals.map(u => <option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}
+                  </select>
+                </Field>
+                {(professionals.isError || collaborators.isError) && (
+                  <div className="text-sm text-destructive" data-testid="status-professional-list-error">
+                    No se pudo cargar la lista de profesionales. <Button type="button" size="sm" variant="outline" onClick={() => { if (professionals.isError) professionals.refetch(); if (collaborators.isError) collaborators.refetch(); }}>Reintentar</Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nombre"><Input value={f.name} onChange={e => set("name", e.target.value)} className="bg-muted/30" /></Field>
           <Field label="País"><Input value={f.country} onChange={e => set("country", e.target.value)} className="bg-muted/30" /></Field>
-          {!editing && (
+          {!editing && mode === "new" && (
             <>
               <Field label="Email de acceso"><Input type="email" autoComplete="off" value={f.email} onChange={e => set("email", e.target.value)} className="bg-muted/30" /></Field>
               <Field label="Contraseña">
                 <div className="relative">
-                  <Input type={showPwd ? "text" : "password"} autoComplete="new-password" value={f.password} onChange={e => set("password", e.target.value)} className="bg-muted/30 pr-10" placeholder="Mínimo 6 caracteres" />
+                  <Input type={showPwd ? "text" : "password"} autoComplete="new-password" value={f.password} onChange={e => set("password", e.target.value)} className="bg-muted/30 pr-10" placeholder="Mínimo 8 caracteres" />
                   <button type="button" tabIndex={-1} onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label="Mostrar contraseña">
                     {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
