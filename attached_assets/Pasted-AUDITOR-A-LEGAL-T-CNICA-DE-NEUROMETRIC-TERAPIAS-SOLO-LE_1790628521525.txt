@@ -1,0 +1,131 @@
+AUDITORÍA LEGAL/TÉCNICA DE NEUROMETRIC TERAPIAS — SOLO LECTURA
+Necesito preparar los Términos y Condiciones y la Política de Privacidad de Neurometric Terapias.
+Realizar una auditoría completa del funcionamiento ACTUAL del sistema.
+IMPORTANTE: SOLO AUDITORÍA.
+No modificar código, base de datos, usuarios, autenticación, permisos, infraestructura ni configuración.
+Necesito un informe documentado con archivos/rutas/tablas/endpoints concretos para los siguientes puntos:
+1. Datos de usuarios/profesionales
+- Qué datos personales se almacenan.
+- En qué tablas/campos.
+- Contraseñas y forma de almacenamiento.
+- Sesiones/autenticación.
+- Estados activo/inactivo y baja.
+2. Datos de pacientes
+- Datos identificatorios almacenados.
+- Datos clínicos.
+- Diagnósticos.
+- Anamnesis.
+- Objetivos y planes terapéuticos.
+- Registros/evoluciones.
+- Informes.
+- Turnos.
+- Pagos.
+- Documentación y archivos.
+Indicar tabla/campo/storage correspondiente.
+3. Historia clínica
+Determinar qué información constituye actualmente el registro clínico del paciente.
+Revisar si existe:
+- fecha y autor de cada registro;
+- historial de modificaciones;
+- posibilidad de editar/eliminar registros anteriores;
+- trazabilidad;
+- exportación/recuperación;
+- conservación al desactivar/eliminar profesional;
+- restricciones de acceso.
+NO corregir nada todavía. Informar riesgos encontrados.
+4. Anamnesis e informes
+Explicar exactamente:
+- dónde se guarda la anamnesis;
+- qué sucede al presionar “Guardar anamnesis”;
+- si existe historial/versiones;
+- dónde se guardan informes generados;
+- si generar un informe reemplaza el anterior;
+- si existe historial de informes;
+- qué ocurre con los PDF;
+- qué ocurre al eliminar/desactivar usuario o paciente.
+5. Archivos e imágenes
+Identificar:
+- dónde se almacenan archivos clínicos;
+- proveedor/storage;
+- permisos de acceso;
+- URLs públicas o privadas;
+- tiempo de conservación si existe;
+- proceso de eliminación.
+Revisar especialmente la nueva función de fotografía de notas manuscritas:
+- confirmar si la imagen se almacena o solamente se procesa en memoria;
+- a qué servicio se envía;
+- qué información recibe ese servicio.
+6. Inteligencia artificial
+Enumerar TODAS las funciones que envían información a modelos de IA.
+Para cada una indicar:
+- endpoint;
+- proveedor;
+- modelo si está disponible;
+- datos enviados;
+- si incluye datos identificatorios del paciente;
+- si incluye información clínica;
+- si incluye imágenes;
+- si la respuesta se guarda;
+- dónde se guarda;
+- si existe revisión profesional antes de incorporarla al registro.
+7. Proveedores externos
+Enumerar todos los terceros que puedan recibir, alojar o procesar datos:
+- Render
+- Netlify
+- PostgreSQL/proveedor de base
+- Supabase
+- OpenAI u otros proveedores de IA
+- almacenamiento de archivos
+- correo
+- analytics
+- cualquier otro servicio encontrado.
+No asumir que esos son los únicos. Auditar el código/configuración.
+NO mostrar claves, tokens ni secretos en el informe.
+8. Acceso y permisos
+Explicar qué puede ver:
+- administrador;
+- profesional;
+- profesional respecto de pacientes de otro profesional.
+Identificar endpoints clínicos sin autenticación o con autorización insuficiente.
+9. Baja de profesional
+Usar también lo ya auditado sobre desactivación/eliminación.
+Explicar qué ocurre con:
+- cuenta;
+- pacientes;
+- historia clínica;
+- informes;
+- archivos;
+- pagos;
+- sesiones;
+  cuando un profesional deja Neurometric.
+10. Baja/eliminación de paciente
+Explicar qué puede eliminarse actualmente y qué información desaparece.
+11. Backups y recuperación
+Indicar:
+- qué backups existen;
+- qué incluyen;
+- frecuencia si existe;
+- dónde se almacenan;
+- posibilidad real de recuperar información borrada/perdida.
+12. Exportación de datos
+Revisar qué puede descargar/exportar actualmente un profesional o administrador de un paciente y en qué formatos.
+13. Consentimientos y textos legales actuales
+Buscar en toda la aplicación:
+- términos y condiciones;
+- política de privacidad;
+- consentimiento;
+- aceptación de uso de IA;
+- aceptación de tratamiento de datos;
+- aviso sobre información clínica;
+- términos de prueba/suscripción;
+- baja/arrepentimiento.
+Indicar qué existe actualmente y qué no.
+14. Resultado
+Entregar una tabla final:
+Tema | Cómo funciona hoy | Evidencia técnica | Riesgo/observación | Acción futura sugerida
+Clasificar las observaciones técnicas como:
+🔴 importante antes de escalar
+🟡 recomendable
+🟢 correcto actualmente
+No implementar las acciones sugeridas.
+El objetivo de esta auditoría es que posteriormente podamos redactar documentación legal que describa fielmente cómo funciona Neurometric Terapias y decidir qué cambios técnicos son necesarios antes de crecer.
