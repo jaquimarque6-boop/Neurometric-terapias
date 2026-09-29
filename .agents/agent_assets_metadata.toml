@@ -6,3 +6,46 @@ id = "iu4AuGTRVdYj7hyd11zrx"
 uri = "file://neurometric_terapias_backup_final.tar.gz"
 type = "unspecified"
 title = "neurometric_terapias_backup_final.sql — Backup completo (comprimido)"
+logical_id = "9d4202fd-ca0c-46fb-b725-58d93215c2a3"
+
+[[outputs]]
+id = "gc3Vl2xQ_fsmv-o7G7cv-"
+uri = "file://artifacts/neurometric-lab/public/icons/icon-maskable-512.png"
+type = "image"
+title = "Icono Android · maskable 512 × 512"
+description = "Logo ampliado, conservando la zona circular segura de Android."
+logical_id = "6ca3644d-726f-4441-8a0e-6c0f785ca38b"
+content_hash = "sha256:88f150a6933c9e6fd31b478efaaecd07b45cca2d1d0e8d1bce44ddf8f0f6b860"
+size = 184773
+mtime_ms = 1790686261148
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:c0f78505-78e7-4692-9805-7db927e7fc92/6ca3644d-726f-4441-8a0e-6c0f785ca38b/be859b96-aa3e-40ad-82fa-b347240c0425"
+storage_version_token = "1790686306336875"
+content_type = "image/png"
+
+[[outputs]]
+id = "Mvvd3BfEiA_kgPXExfgOk"
+uri = "file://artifacts/neurometric-lab/public/icons/icon-512.png"
+type = "image"
+title = "Icono estándar · 512 × 512"
+description = "Logo original ampliado, sin rediseño."
+logical_id = "63676875-704a-4401-83ce-9531665f9514"
+content_hash = "sha256:b95201f1754a7d9e9220d7945f04131fa6de509ba342ddfdef1cde249c782c42"
+size = 247634
+mtime_ms = 1790686260944
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:c0f78505-78e7-4692-9805-7db927e7fc92/63676875-704a-4401-83ce-9531665f9514/b54c162e-ed06-4f8c-968c-4a1dcac3babc"
+storage_version_token = "1790686307218253"
+content_type = "image/png"
+
+[[outputs]]
+id = "DsTbqPmDNNu_Hii6jj6OE"
+uri = "file://artifacts/neurometric-lab/public/icons/icon-192.png"
+type = "image"
+title = "Icono estándar · 192 × 192"
+description = "Variante de menor tamaño con el mismo encuadre ampliado."
+logical_id = "f7383935-2e5d-4c40-92ac-5d143c8d8300"
+content_hash = "sha256:c759b18da8890afb93b97da3cbfb9b5667086cfdcc85161f2e9c170fff242b0c"
+size = 46244
+mtime_ms = 1790686260744
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:c0f78505-78e7-4692-9805-7db927e7fc92/f7383935-2e5d-4c40-92ac-5d143c8d8300/83b1f93b-9836-4331-bb48-da8895dd6d23"
+storage_version_token = "1790686307839214"
+content_type = "image/png"
