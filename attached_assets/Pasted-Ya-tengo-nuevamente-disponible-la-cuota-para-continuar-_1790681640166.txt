@@ -1,0 +1,182 @@
+Ya tengo nuevamente disponible la cuota para continuar.
+
+Quiero retomar la AUDITORÍA LEGAL + TÉCNICA de Neurometric Terapias que quedó interrumpida por el límite mensual.
+
+IMPORTANTE:
+- Esta tarea es SOLO DE LECTURA.
+- NO modifiques código.
+- NO hagas migraciones.
+- NO cambies base de datos.
+- NO hagas commits ni push.
+- NO despliegues nada.
+- NO corrijas todavía los problemas que encuentres.
+- NO toques autenticación, login ni sesiones.
+- No quiero una implementación: quiero terminar la auditoría.
+
+La auditoría anterior prácticamente no pudo completarse porque el agente alcanzó el límite de cuota pocos segundos después de comenzar.
+
+Por lo tanto, revisá nuevamente el repositorio de forma completa y entregame la auditoría terminada.
+
+Quiero revisar especialmente:
+
+1. USUARIOS Y PROFESIONALES
+- datos almacenados
+- autenticación
+- contraseñas
+- roles y permisos
+- activación/desactivación
+- eliminación de cuentas
+- trazabilidad
+
+2. PACIENTES
+- datos personales almacenados
+- relaciones con profesionales
+- permisos de acceso
+- archivado/eliminación
+- qué ocurre con la información clínica asociada
+
+3. HISTORIA CLÍNICA
+- sesiones
+- evoluciones
+- objetivos
+- antecedentes
+- registros clínicos
+- trazabilidad
+- posibilidad de edición/eliminación
+- autor y fecha de cada registro
+
+4. ANAMNESIS
+Quiero especial detalle porque será una de las próximas mejoras.
+Indicá:
+- dónde se guarda actualmente
+- tabla/campos
+- qué hace “Guardar anamnesis”
+- si persiste correctamente
+- cómo se recupera
+- si se sobrescribe
+- si existe fecha de creación/actualización
+- riesgos de pérdida o inconsistencia
+
+5. INFORMES
+También necesito especial detalle.
+Indicá:
+- cómo se generan
+- endpoint de IA utilizado
+- qué información se envía
+- dónde se guarda el informe generado
+- qué hace actualmente “Guardar informe”
+- si admite múltiples informes por paciente
+- si pueden recuperarse informes anteriores
+- fecha/autor/tipo/título
+- funcionamiento de impresión/PDF
+- relación con la sección Documentación
+
+Revisá también una inconsistencia ya observada:
+en un caso la ficha mostraba 2 sesiones pero el informe generado hablaba de “una sesión” / “esta única sesión”.
+Identificá técnicamente de dónde podría provenir.
+NO la corrijas todavía.
+
+6. ARCHIVOS E IMÁGENES
+- storage utilizado
+- permisos
+- archivos clínicos
+- imágenes
+- notas manuscritas
+- qué se persiste y qué no
+
+7. INTELIGENCIA ARTIFICIAL
+Listá TODAS las funciones de IA existentes:
+- endpoint
+- función
+- proveedor/modelo si puede determinarse
+- datos que recibe
+- si recibe datos clínicos/personales
+- si se envían imágenes
+- si la respuesta se almacena
+- si existe revisión profesional antes de guardar
+
+No mostrar secretos, API keys ni credenciales.
+
+8. PROVEEDORES EXTERNOS
+Identificá servicios utilizados por producción:
+Render, Netlify, PostgreSQL, Supabase, proveedores de IA, almacenamiento, email, analítica u otros que encuentres.
+
+Indicá qué tipo de información pasa por cada uno.
+
+NO mostrar secretos.
+
+9. PERMISOS Y ACCESO
+- qué puede ver admin
+- qué puede ver profesional
+- aislamiento entre profesionales
+- endpoints sensibles
+- posibles riesgos de acceso indebido
+
+10. BAJA/ELIMINACIÓN DE PROFESIONALES
+- desactivación
+- eliminación permanente
+- efecto sobre pacientes y registros clínicos
+- riesgos
+
+11. ELIMINACIÓN/ARCHIVADO DE PACIENTES
+- qué ocurre actualmente
+- qué información desaparece
+- qué información permanece
+- relaciones/cascadas
+
+12. BACKUPS Y RECUPERACIÓN
+- qué mecanismos existen
+- qué se respalda
+- posibilidad de recuperación
+- riesgos actuales
+
+13. EXPORTACIÓN
+- datos que puede exportar profesional/admin
+- historia clínica
+- informes
+- archivos
+- limitaciones
+
+14. ASPECTOS LEGALES YA IMPLEMENTADOS
+Buscá:
+- términos y condiciones
+- política de privacidad
+- consentimiento
+- aceptación de términos
+- registro de fecha y versión
+- tratamiento de datos clínicos
+- condiciones de IA
+- cancelación/baja
+- eliminación de datos
+- textos legales existentes
+
+No evalúes legislación desde conocimiento general.
+Solo informá qué existe técnicamente en el producto y qué falta.
+
+15. RESULTADO FINAL
+
+Entregame una tabla:
+
+Tema | Estado actual | Evidencia técnica | Riesgo | Acción futura recomendada
+
+Clasificá el riesgo como:
+🔴 Alto
+🟡 Medio
+🟢 Bajo
+
+Después incluí:
+
+A. Problemas críticos encontrados.
+B. Problemas importantes pero no urgentes.
+C. Aspectos correctamente implementados.
+D. Cambios recomendados antes de escalar Neurometric.
+E. Archivos/tablas/endpoints involucrados.
+F. Qué puntos requieren revisión posterior de abogado/contador y cuáles son puramente técnicos.
+
+IMPORTANTE:
+No implementes ninguna recomendación.
+No modifiques archivos.
+No generes migraciones.
+No hagas commit ni deploy.
+
+Al terminar, esperá mi aprobación.
