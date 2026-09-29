@@ -1,0 +1,257 @@
+Quiero comenzar una fase independiente: PWA DE NEUROMETRIC TERAPIAS.
+
+La Fase 0 de seguridad ya está terminada.
+La Fase 1 de Anamnesis + Informes está aprobada solo a nivel de diseño y NO debe implementarse todavía.
+
+OBJETIVO
+
+Quiero convertir el frontend web actual de Neurometric Terapias en una PWA instalable, manteniendo la aplicación web existente.
+
+Quiero que desde un celular una profesional pueda instalar Neurometric Terapias en la pantalla de inicio y que, al abrirla, se sienta como una aplicación:
+
+- nombre: Neurometric Terapias;
+- ícono propio;
+- apertura en modo standalone;
+- sin barra normal del navegador cuando se abre desde la instalación;
+- pantalla de inicio/splash coherente con la marca;
+- acceso directo desde la pantalla principal del celular;
+- funcionamiento normal de la aplicación existente.
+
+La web debe seguir funcionando normalmente para quienes no instalen la PWA.
+
+IMPORTANTE
+
+NO quiero convertirla todavía en aplicación nativa.
+NO quiero Play Store ni App Store en esta fase.
+NO usar Capacitor todavía.
+
+--------------------------------------------------
+
+1. AUDITORÍA INICIAL
+
+Antes de modificar nada, revisar:
+
+- configuración actual de Vite/frontend;
+- si existe manifest;
+- si existe service worker;
+- si ya hay configuración PWA parcial;
+- iconos existentes;
+- favicon;
+- comportamiento actual en móvil;
+- configuración de Netlify;
+- rutas SPA;
+- posibles conflictos con autenticación.
+
+Explicame brevemente qué existe actualmente.
+
+--------------------------------------------------
+
+2. MANIFEST
+
+Configurar correctamente el manifest de la PWA.
+
+Como mínimo:
+
+name:
+Neurometric Terapias
+
+short_name:
+Neurometric
+
+display:
+standalone
+
+start_url:
+/
+
+Definir también:
+- theme_color coherente con la marca;
+- background_color;
+- iconos apropiados;
+- orientación adaptable;
+- scope correcto.
+
+Reutilizar la identidad visual actual de Neurometric.
+
+Si los iconos actuales no tienen los tamaños/formato necesarios para PWA, indicarlo y generar las variantes necesarias a partir de los recursos gráficos existentes del proyecto, sin rediseñar la marca.
+
+--------------------------------------------------
+
+3. SERVICE WORKER Y CACHÉ
+
+Implementar el service worker utilizando una solución estándar y mantenible compatible con el stack actual.
+
+MUY IMPORTANTE:
+
+Neurometric maneja información clínica.
+
+NO quiero funcionamiento offline de historias clínicas.
+
+NO cachear:
+- respuestas de /api;
+- pacientes;
+- anamnesis;
+- informes;
+- registros clínicos;
+- objetivos;
+- sesiones;
+- archivos;
+- datos personales;
+- respuestas de IA;
+- tokens;
+- información autenticada.
+
+El service worker puede cachear únicamente recursos estáticos necesarios para cargar la aplicación, por ejemplo:
+- JS/CSS compilados;
+- iconos;
+- fuentes/local assets;
+- shell estático seguro.
+
+Las solicitudes a /api deben continuar dependiendo del backend y de la conexión.
+
+--------------------------------------------------
+
+4. ACTUALIZACIONES
+
+No quiero que una profesional quede usando durante días una versión vieja de Neurometric por culpa del caché de la PWA.
+
+Implementar una estrategia segura para detectar una nueva versión.
+
+Cuando exista una actualización disponible, preferentemente mostrar algo discreto como:
+
+“Nueva versión de Neurometric disponible”
+[Actualizar]
+
+Al aceptar, actualizar la aplicación de manera controlada.
+
+Evitar actualizaciones que puedan borrar información que el profesional esté escribiendo en un formulario.
+
+--------------------------------------------------
+
+5. INSTALACIÓN
+
+Agregar una opción discreta dentro de la aplicación para instalarla cuando el navegador lo permita.
+
+Ejemplo:
+
+📱 Instalar Neurometric
+
+No quiero un popup invasivo cada vez que entra.
+
+En navegadores compatibles, utilizar el mecanismo de instalación correspondiente.
+
+Para iPhone/iPad, donde el comportamiento puede ser diferente, mostrar instrucciones simples cuando corresponda, por ejemplo:
+
+“Para instalar Neurometric en tu iPhone:
+Compartir → Agregar a pantalla de inicio.”
+
+No mostrar esas instrucciones innecesariamente en Android/desktop.
+
+--------------------------------------------------
+
+6. EXPERIENCIA INSTALADA
+
+Cuando Neurometric se abra desde la PWA:
+
+- debe conservar el funcionamiento actual;
+- login debe funcionar igual;
+- navegación interna debe funcionar;
+- cámara para notas manuscritas debe seguir funcionando;
+- archivos y descargas deben seguir funcionando;
+- impresión/PDF debe continuar disponible cuando el dispositivo/navegador lo permita.
+
+No modificar la lógica de estas funciones para implementar la PWA.
+
+--------------------------------------------------
+
+7. AUTENTICACIÓN — NO TOCAR
+
+NO modificar:
+
+- login;
+- AuthProvider/AuthContext;
+- cookies;
+- sesiones;
+- tokens Bearer;
+- localStorage de autenticación;
+- backend de autenticación;
+- creación de usuarios;
+- contraseñas;
+- navegación posterior al login.
+
+La PWA debe adaptarse a la autenticación existente, no al revés.
+
+--------------------------------------------------
+
+8. SEGURIDAD Y PRIVACIDAD
+
+No almacenar datos clínicos adicionales en el dispositivo para conseguir funcionalidad offline.
+
+No introducir IndexedDB/localStorage para pacientes o historia clínica.
+
+No registrar datos clínicos en el service worker.
+
+No cachear endpoints autenticados.
+
+No incluir secretos en manifest, service worker ni frontend.
+
+--------------------------------------------------
+
+9. COMPATIBILIDAD
+
+Priorizar:
+
+- Android + Chrome;
+- iPhone/iPad + Safari;
+- escritorio Chrome/Edge.
+
+La web tradicional debe seguir funcionando.
+
+--------------------------------------------------
+
+10. PRUEBAS
+
+Después de implementar verificar:
+
+A. build frontend correcto;
+
+B. manifest válido;
+
+C. service worker registrado correctamente en producción/build;
+
+D. aplicación reconocida como instalable cuando el navegador lo soporte;
+
+E. modo standalone;
+
+F. navegación SPA después de instalar;
+
+G. /api no queda cacheado;
+
+H. login no fue modificado;
+
+I. usuario puede cerrar sesión y volver a ingresar;
+
+J. actualización de versión funciona correctamente;
+
+K. la web sigue funcionando sin instalar la PWA.
+
+--------------------------------------------------
+
+FORMA DE TRABAJO
+
+PRIMERO:
+
+1. Auditá la configuración PWA actual.
+2. Indicame qué archivos modificarías/crearías.
+3. Indicame qué estrategia de service worker proponés.
+4. Indicame cómo manejarías instalación Android/iOS.
+5. Indicame cómo manejarías las actualizaciones.
+6. Señalá cualquier riesgo.
+
+NO implementes todavía.
+
+Esperá mi aprobación antes de modificar archivos.
+
+NO hagas migraciones.
+NO modifiques backend salvo que detectes una necesidad imprescindible y, en ese caso, consultame antes.
+NO hagas commit, push ni deploy todavía.
