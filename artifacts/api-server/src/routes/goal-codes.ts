@@ -94,6 +94,8 @@ router.get("/goal-codes/check", async (req, res) => {
 
 // ─── Migrate goals without codes ──────────────────────────────────────────────
 router.post("/goal-codes/migrate", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (req.session.userRole !== "admin") return res.status(403).json({ error: "Solo administradores" });
   // Collect all existing codes first
   const [libraryGoals, patientGoals] = await Promise.all([
     db.select().from(goalLibraryTable),
@@ -142,7 +144,7 @@ router.post("/goal-codes/migrate", async (req, res) => {
     }
   }
 
-  res.json({
+  return res.json({
     migrated: results.length,
     results,
   });

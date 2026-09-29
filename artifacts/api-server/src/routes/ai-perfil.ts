@@ -12,6 +12,7 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
+import { canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
@@ -113,6 +114,9 @@ router.get("/ai/perfil/:patientId", async (req, res) => {
     .from(patientsTable)
     .where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!canAccessPatient(patient, sess)) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
 
   let perfil: PerfilIA | null = null;
   if (patient.perfilIa) {
@@ -145,6 +149,9 @@ router.put("/ai/perfil/:patientId", async (req, res) => {
     .from(patientsTable)
     .where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!canAccessPatient(patient, sess)) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
 
   const now = new Date();
   const createdAt = patient.perfilIaCreatedAt ?? now;
@@ -175,22 +182,24 @@ router.post("/ai/perfil-generate", async (req, res) => {
   const { patientId } = req.body as { patientId: number };
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
 
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!canAccessPatient(patient, sess)) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+
   // ── Fetch all data in parallel ─────────────────────────────────────────────
   const [
-    [patient],
     allGoals,
     allRegistrosClinicos,
     allRegistros,
     assignments,
   ] = await Promise.all([
-    db.select().from(patientsTable).where(eq(patientsTable.id, patientId)),
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
     db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.patientId, patientId)),
     db.select().from(registrosTable).where(eq(registrosTable.patientId, patientId)),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);
-
-  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
 
   // ── Fetch professionals and goal progress ──────────────────────────────────
   const profIds = assignments.map(a => a.professionalId);

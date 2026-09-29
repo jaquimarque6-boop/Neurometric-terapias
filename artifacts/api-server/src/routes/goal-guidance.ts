@@ -4,6 +4,7 @@ import OpenAI from "openai";
 const router: IRouter = Router();
 
 router.post("/goal-guidance", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const {
     title,
     area,

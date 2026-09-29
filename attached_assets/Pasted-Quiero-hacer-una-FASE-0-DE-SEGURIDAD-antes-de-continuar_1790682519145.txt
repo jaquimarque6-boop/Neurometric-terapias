@@ -1,0 +1,133 @@
+Quiero hacer una FASE 0 DE SEGURIDAD antes de continuar con nuevas funcionalidades.
+
+La auditoría legal-técnica detectó varias rutas con autenticación/autorización insuficiente.
+
+IMPORTANTE:
+NO quiero rediseñar el sistema de autenticación.
+
+NO modificar:
+- login
+- AuthProvider / AuthContext
+- cookies
+- sesiones
+- tokens Bearer
+- flujo de inicio/cierre de sesión
+- creación actual de usuarios
+- navegación después del login
+- frontend salvo que sea estrictamente necesario
+
+La plataforma está funcionando actualmente y quiero minimizar el riesgo de regresiones.
+
+OBJETIVO
+
+Corregir exclusivamente los controles de acceso de las rutas señaladas por la auditoría, reutilizando los mecanismos de autenticación y autorización que YA existen en otras rutas seguras del proyecto.
+
+Revisá específicamente:
+
+1. /api/goal-library
+- POST
+- PATCH
+- assign
+
+Actualmente hay operaciones que no exigen correctamente autenticación/propiedad.
+
+2. GET /api/patients/:id/suggested-goals
+
+Debe requerir usuario autenticado y comprobar que tenga acceso al paciente.
+
+3. CRUD /api/actividades
+
+Debe requerir autenticación y aplicar el criterio de acceso/propiedad apropiado según el funcionamiento actual.
+
+IMPORTANTE:
+No romper la biblioteca compartida/global si actualmente existe contenido que debe ser visible para todos los profesionales autenticados.
+Primero determiná qué operaciones son lectura global y cuáles son escritura administrativa/personal.
+
+4. POST /api/goal-codes/migrate
+
+Es una operación de migración.
+Debe quedar restringida adecuadamente; determinar si debe ser exclusivamente admin.
+
+5. POST /api/goal-guidance
+
+Actualmente puede consumir IA sin autenticación.
+Debe requerir usuario autenticado.
+
+6. IA de perfil del paciente:
+- GET /api/ai/perfil/:patientId
+- PUT /api/ai/perfil/:patientId
+- POST /api/ai/perfil-generate
+
+Además de autenticación, comprobar acceso real al paciente utilizando el mismo criterio seguro ya existente en otros endpoints clínicos.
+
+7. POST /api/ai/objetivos-suggest
+
+Comprobar acceso al paciente antes de cargar o enviar información clínica a IA.
+
+8. POST /api/registros-clinicos
+
+Antes de crear un registro, comprobar que el usuario tenga autorización sobre el paciente correspondiente.
+
+REGLA FUNDAMENTAL
+
+No inventes un sistema nuevo de permisos.
+
+Buscá en las rutas que ya tienen controles correctos de acceso a pacientes (por ejemplo informes, archivos o manuscritos) y reutilizá el mismo patrón/helper cuando sea posible.
+
+ADMIN:
+Debe conservar el acceso administrativo que ya posee actualmente.
+
+PROFESIONAL:
+Solo debe poder operar sobre pacientes a los que legítimamente tenga acceso según las reglas actuales del sistema.
+
+ANTES DE MODIFICAR
+
+1. Revisá cada ruta.
+2. Identificá qué control falta.
+3. Identificá qué patrón seguro existente vas a reutilizar.
+4. Mostrame un plan breve.
+
+Después podés implementar únicamente estas correcciones.
+
+NO:
+- cambies esquemas de base de datos;
+- hagas migraciones;
+- cambies autenticación general;
+- cambies login;
+- cambies contraseñas;
+- cambies comportamiento comercial;
+- agregues funcionalidades;
+- hagas refactorizaciones grandes.
+
+PRUEBAS OBLIGATORIAS
+
+Después de implementar, verificar:
+
+A. Admin puede seguir ingresando normalmente.
+
+B. Profesional puede seguir ingresando normalmente.
+
+C. Profesional puede acceder a SUS pacientes.
+
+D. Profesional NO puede acceder/procesar mediante estas rutas a pacientes ajenos.
+
+E. Funciones de IA autorizadas siguen funcionando para pacientes propios.
+
+F. Biblioteca/actividades siguen funcionando para usuarios autorizados.
+
+G. Usuario no autenticado recibe 401 en las operaciones protegidas.
+
+H. No se modificó el comportamiento del login.
+
+Ejecutá build/typecheck/tests disponibles y diferenciá errores nuevos de errores preexistentes.
+
+Al terminar informame:
+
+- archivos modificados;
+- rutas corregidas;
+- control agregado en cada una;
+- pruebas realizadas;
+- resultado;
+- cualquier comportamiento que NO hayas podido verificar.
+
+NO hagas cambios adicionales fuera de este alcance.

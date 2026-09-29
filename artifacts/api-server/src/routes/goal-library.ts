@@ -3,16 +3,17 @@ import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable, patientsTable } from "@workspace/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
 import { generateUniqueCode } from "../utils/code-generator";
+import { canAccessLibraryGoal, canAccessPatient } from "./access-policy";
 
 
 const router: IRouter = Router();
 
 // ─── List goal library with filters ──────────────────────────────────────────
 router.get("/goal-library", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const { area, subarea, franja, nivel, estado, q, franjaMin, franjaMax } = req.query as Record<string, string>;
   const session = (req as any).session;
   const userId: number | undefined = session?.userId;
-  const isAdmin = session?.userRole === "admin";
 
   let items = await db.select().from(goalLibraryTable)
     .orderBy(
@@ -24,9 +25,7 @@ router.get("/goal-library", async (req, res) => {
 
   // Only show custom goals belonging to the current user (or all for admin)
   items = items.filter(i => {
-    if (!i.isCustom) return true;
-    if (isAdmin) return true;
-    return i.createdBy === userId;
+    return canAccessLibraryGoal(i, { id: userId!, role: session.userRole ?? "professional" }, false);
   });
 
   if (area && area !== "all") {
@@ -69,7 +68,7 @@ router.get("/goal-library", async (req, res) => {
     );
   }
 
-  res.json(items.map(i => ({
+  return res.json(items.map(i => ({
     ...i,
     createdAt: i.createdAt.toISOString(),
   })));
@@ -77,9 +76,13 @@ router.get("/goal-library", async (req, res) => {
 
 // ─── Create goal in library ───────────────────────────────────────────────────
 router.post("/goal-library", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const body = req.body;
   const session = (req as any).session;
   const userId: number | undefined = session?.userId;
+  if (body.isCustom !== true && session.userRole !== "admin") {
+    return res.status(403).json({ error: "Sin acceso a la biblioteca global" });
+  }
 
   let idObjetivo = body.idObjetivo || undefined;
   if (!idObjetivo) {
@@ -124,12 +127,18 @@ router.post("/goal-library", async (req, res) => {
     nivel2Descripcion: body.nivel2Descripcion ?? null,
     nivel3Descripcion: body.nivel3Descripcion ?? null,
   }).returning();
-  res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
+  return res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
 // ─── Update goal in library ───────────────────────────────────────────────────
 router.patch("/goal-library/:id", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(goalLibraryTable).where(eq(goalLibraryTable.id, id));
+  if (!existing) return res.status(404).json({ error: "Goal not found" });
+  if (!canAccessLibraryGoal(existing, { id: req.session.userId, role: req.session.userRole ?? "professional" }, true)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
   const body = req.body;
   const updates: Record<string, any> = {};
   if (body.estadoBanco !== undefined) updates.estadoBanco = body.estadoBanco;
@@ -168,17 +177,24 @@ const DIAG_KEYWORDS: Record<string, string[]> = {
 
 // ─── Smart suggestions for a patient ─────────────────────────────────────────
 router.get("/patients/:id/suggested-goals", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const patientId = parseInt(req.params.id);
   const { diagnosis: diagnosisOverride, limit: limitParam } = req.query as Record<string, string>;
 
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Patient not found" });
+  if (!canAccessPatient(patient, { id: req.session.userId, role: req.session.userRole ?? "professional" })) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
 
   const existingGoals = await db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId));
   const assignedLibraryIds = new Set(existingGoals.map(g => g.goalLibraryId).filter(Boolean));
 
   const allLibraryGoals = await db.select().from(goalLibraryTable)
     .where(eq(goalLibraryTable.estadoBanco, "activo"));
+  const visibleLibraryGoals = allLibraryGoals.filter(g =>
+    canAccessLibraryGoal(g, { id: req.session.userId!, role: req.session.userRole ?? "professional" }, false)
+  );
 
   const patientAge = patient.age ? parseInt(String(patient.age)) : null;
   const franjaRaw = patient.franjaEtaria ?? "";
@@ -219,7 +235,7 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
     return score;
   };
 
-  const eligible = allLibraryGoals
+  const eligible = visibleLibraryGoals
     .filter(g => !assignedLibraryIds.has(g.id))
     .map(g => ({ ...g, _score: scoreGoal(g) }))
     .filter(g => g._score > 0)
@@ -259,18 +275,30 @@ router.get("/patients/:id/suggested-goals", async (req, res) => {
 
 // ─── Assign goal to patient ───────────────────────────────────────────────────
 router.post("/goal-library/:id/assign", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   const libraryId = parseInt(req.params.id);
   const body = req.body;
+  const patientId = Number(body.patientId);
+  if (!Number.isInteger(patientId) || patientId <= 0) {
+    return res.status(400).json({ error: "patientId inválido" });
+  }
+
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
+  if (!patient) return res.status(404).json({ error: "Patient not found" });
+  if (!canAccessPatient(patient, { id: req.session.userId, role: req.session.userRole ?? "professional" })) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
 
   const [libraryGoal] = await db.select().from(goalLibraryTable).where(eq(goalLibraryTable.id, libraryId));
   if (!libraryGoal) return res.status(404).json({ error: "Library goal not found" });
-
-  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, body.patientId));
+  if (!canAccessLibraryGoal(libraryGoal, { id: req.session.userId, role: req.session.userRole ?? "professional" }, false)) {
+    return res.status(403).json({ error: "Sin acceso a este objetivo" });
+  }
 
   const today = new Date().toISOString().split("T")[0];
 
   const [goal] = await db.insert(goalsTable).values({
-    patientId: body.patientId,
+    patientId,
     goalLibraryId: libraryId,
     codigo: libraryGoal.idObjetivo,
     title: libraryGoal.nombreObjetivo,

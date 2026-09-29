@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { registrosClinicosTable, patientsTable, professionalsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
@@ -62,7 +63,11 @@ router.post("/registros-clinicos", async (req, res) => {
   if (!patientId || !fecha) return res.status(400).json({ error: "patientId and fecha are required" });
 
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, parseInt(patientId)));
-  const patientName = patient?.name ?? null;
+  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!canAccessPatient(patient, sess)) {
+    return res.status(403).json({ error: "Sin acceso a este paciente" });
+  }
+  const patientName = patient.name;
 
   // Resolve professionalId and name: use the session user's linked professionalId if available,
   // otherwise fall back to their name so the record always shows who created it.
