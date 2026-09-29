@@ -1,4 +1,5 @@
 export * from "./patients";
+export * from "./patient-reports";
 export * from "./professionals";
 export * from "./sessions";
 export * from "./goals";

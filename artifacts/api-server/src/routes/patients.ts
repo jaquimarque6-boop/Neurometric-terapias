@@ -7,6 +7,14 @@ import {
   citasTable, pagosTable,
 } from "@workspace/db/schema";
 import { eq, count, inArray, and, sql } from "drizzle-orm";
+import { canAccessPatient } from "./access-policy";
+import { anamnesisMetadata } from "./anamnesis-metadata";
+
+async function anamnesisName(userId: number | null) {
+  if (userId == null) return null;
+  const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
+  return user?.name ?? null;
+}
 
 const router: IRouter = Router();
 
@@ -243,12 +251,13 @@ router.get("/patients/:id", async (req, res) => {
   if (!patient) return res.status(404).json({ error: "Patient not found" });
 
   // Access check
-  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+  if (!canAccessPatient(patient, sess)) {
     return res.status(403).json({ error: "Sin acceso a este paciente" });
   }
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
-  return res.json({ ...patient, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
+  const anamnesisUpdatedByName = await anamnesisName(patient.anamnesisUpdatedByUserId);
+  return res.json({ ...patient, anamnesisUpdatedByName, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
 });
 
 async function updatePatientById(id: number, body: any, req: any, res: any) {
@@ -259,7 +268,7 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
   if (!existing) return res.status(404).json({ error: "Patient not found" });
 
   // Access check
-  if (sess.role !== "admin" && existing.assignedProfessionalId !== sess.id) {
+  if (!canAccessPatient(existing, sess)) {
     return res.status(403).json({ error: "Sin acceso a este paciente" });
   }
 
@@ -298,6 +307,7 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
   }
 
   const [updated] = await db.update(patientsTable).set({
+    ...anamnesisMetadata(body, sess.id),
     name: body.name ?? existing.name,
     age: body.age !== undefined ? body.age : existing.age,
     fechaNacimiento,
@@ -323,7 +333,8 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
   }).where(eq(patientsTable.id, id)).returning();
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
-  return res.json({ ...updated, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
+  const anamnesisUpdatedByName = await anamnesisName(updated.anamnesisUpdatedByUserId);
+  return res.json({ ...updated, anamnesisUpdatedByName, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
 }
 
 router.put("/patients/:id", async (req, res) => {

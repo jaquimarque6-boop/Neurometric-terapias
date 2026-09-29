@@ -12,6 +12,8 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
+import { canAccessPatient } from "./access-policy";
+import { selectClinicalPeriod, validClinicalDay } from "./report-period";
 
 const router: IRouter = Router();
 
@@ -53,7 +55,7 @@ Reglas estrictas:
 - Distingue siempre entre una actividad realizada y un resultado obtenido. Describe el resultado únicamente cuando esté explícitamente registrado.
 - Sintetiza las notas breves, coloquiales, con errores o abreviaturas en redacción clínica profesional. No las copies literalmente ni incluyas fragmentos textuales extensos.
 - No conviertas estados de objetivos en porcentajes. Usa porcentajes únicamente cuando estén registrados como progressPct.
-- Evita repetir el nombre del paciente. Prefiere estructuras como "Durante las sesiones", "Se realizaron actividades", "El abordaje terapéutico estuvo orientado a", "Se trabajó sobre" y "Se registró".
+- Evita repetir el nombre del paciente. Describe solo registros presentes en el período; un registro en el período no implica que sea la única sesión de toda la historia clínica. Si no hay registros clínicos en el período no afirmes que hubo sesiones ni uses "Durante las sesiones".
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
   const disciplines: Record<Discipline, string> = {
@@ -83,23 +85,6 @@ Menciona las áreas de trabajo según los objetivos registrados. Si no hay objet
   return base + disciplines[discipline];
 }
 
-// ─── Range filter ─────────────────────────────────────────────────────────────
-
-function filterByRango(
-  registros: Array<{ fecha: string; createdAt: Date }>,
-  rango: string
-) {
-  const sorted = [...registros].sort(
-    (a, b) => new Date(b.fecha || b.createdAt.toISOString()).getTime()
-           - new Date(a.fecha || a.createdAt.toISOString()).getTime()
-  );
-  if (rango === "4") return sorted.slice(0, 4);
-  const dias = rango === "mes" ? 30 : rango === "3meses" ? 90 : 180;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - dias);
-  return sorted.filter(r => new Date(r.fecha || r.createdAt) >= cutoff);
-}
-
 function trunc(s: string | null | undefined, max = 400): string {
   if (!s) return "";
   return s.length > max ? s.slice(0, max) + "…" : s;
@@ -113,11 +98,12 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   const { patientId, rango = "mes" } = req.body as { patientId: number; rango?: string };
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
+  if (!["4", "mes", "3meses", "6meses"].includes(rango)) return res.status(400).json({ error: "Período inválido" });
 
   // Resolve and authorize the patient before loading any clinical data.
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
-  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+  if (!canAccessPatient(patient, sess)) {
     return res.status(403).json({ error: "Sin acceso a este paciente" });
   }
 
@@ -139,11 +125,11 @@ router.post("/ai/informe-generate", async (req, res) => {
   const [professionals, allGoalProgress] = await Promise.all([
     profIds.length > 0
       ? db.select().from(professionalsTable).where(inArray(professionalsTable.id, profIds))
-      : Promise.resolve([] as typeof goalProgressTable.$inferSelect[]),
+      : Promise.resolve([] as typeof professionalsTable.$inferSelect[]),
     allGoals.length > 0
       ? db.select().from(goalProgressTable)
           .where(inArray(goalProgressTable.goalId, allGoals.map(g => g.id)))
-      : Promise.resolve([]),
+      : Promise.resolve([] as typeof goalProgressTable.$inferSelect[]),
   ]);
 
   // ── Detect discipline ──────────────────────────────────────────────────────
@@ -152,7 +138,14 @@ router.post("/ai/informe-generate", async (req, res) => {
   const discipline = detectDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
 
   // ── Filter sessions by selected range ─────────────────────────────────────
-  const filteredRC = filterByRango(allRegistrosClinicos as any, rango) as typeof allRegistrosClinicos;
+  const period = selectClinicalPeriod(allRegistrosClinicos, rango);
+  const { selected: filteredRC, periodFrom, periodTo } = period;
+  const inPeriod = (value: string | Date | null) => {
+    if (!value || !periodFrom) return false;
+    const date = value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
+    if (!validClinicalDay(date) || (typeof value === "string" && !validClinicalDay(value))) return false;
+    return date >= periodFrom && date <= periodTo;
+  };
 
   // ── Group goal progress by goalId ─────────────────────────────────────────
   const progressByGoal = new Map<number, typeof allGoalProgress>();
@@ -163,7 +156,7 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   // ── Group legacy registros by objective name ───────────────────────────────
   const registrosByObj = new Map<string, typeof allRegistros>();
-  for (const r of allRegistros) {
+  for (const r of allRegistros.filter(r => inPeriod(r.fecha ?? r.createdAt))) {
     const key = r.objetivoNombre ?? "sin_objetivo";
     if (!registrosByObj.has(key)) registrosByObj.set(key, []);
     registrosByObj.get(key)!.push(r);
@@ -206,7 +199,7 @@ router.post("/ai/informe-generate", async (req, res) => {
   const goalsContext = allGoals.length === 0
     ? "No hay objetivos terapéuticos registrados. Esto no impide generar el informe: utiliza los demás datos clínicos disponibles y no inventes objetivos ni áreas."
     : allGoals.map(g => {
-        const progEntries = (progressByGoal.get(g.id) ?? [])
+        const progEntries = (progressByGoal.get(g.id) ?? []).filter(p => inPeriod(p.createdAt))
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
         const progressHistory = progEntries.length > 0
@@ -248,7 +241,7 @@ router.post("/ai/informe-generate", async (req, res) => {
       }).join("\n\n");
 
   // ── 5. Registros de desempeño por objetivo (tabla registros) ──────────────
-  const perfContext = allRegistros.length === 0
+  const perfContext = registrosByObj.size === 0
     ? null
     : Array.from(registrosByObj.entries())
         .slice(0, 20)
@@ -288,7 +281,7 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   const userPrompt = `Genera el informe clínico de evolución para el siguiente paciente.
 Disciplina detectada: ${discipline.toUpperCase()}.
-Período analizado: ${filteredRC.length} sesiones de ${allRegistrosClinicos.length} totales.
+Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Registros clínicos incluidos: ${filteredRC.length}. Total de registros clínicos del paciente: ${allRegistrosClinicos.length}. Los objetivos se muestran como contexto actual; los historiales de progreso y desempeño se limitan al período. No atribuyas al período actividades que no estén registradas allí.
 
 ═══════════════════════════════════════
 DATOS CLÍNICOS DEL PACIENTE
@@ -359,6 +352,19 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
       conducta: parsed.conducta ?? "",
       areas: parsed.areas ?? {},
       sugerencias: parsed.sugerencias ?? "",
+      periodKind: period.periodKind,
+      periodFrom: period.periodFrom,
+      periodTo: period.periodTo,
+      clinicalRecordsUsedCount: period.clinicalRecordsUsedCount,
+      clinicalRecordsTotalCount: period.clinicalRecordsTotalCount,
+      // Keep exactly the records that informed this generation with its draft.
+      // A later range change or clinical edit must not silently change the saved evidence.
+      clinicalSnapshot: filteredRC.map(r => ({
+        id: r.id, patientId: r.patientId, patientName: r.patientName,
+        professionalId: r.professionalId, professionalName: r.professionalName,
+        fecha: r.fecha, resumenSesion: r.resumenSesion, observaciones: r.observaciones,
+        recomendacionesHogar: r.recomendacionesHogar, createdAt: r.createdAt,
+      })),
       _meta: { discipline, sessions: sortedRC.length, goals: allGoals.length },
     });
   } catch (error: any) {

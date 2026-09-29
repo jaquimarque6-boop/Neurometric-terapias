@@ -24,6 +24,80 @@ export interface Patient {
   observaciones?: string;
   totalRegistros?: number;
   createdAt: string;
+  /** @nullable */
+  anamnesisUpdatedAt?: string | null;
+  /** @nullable */
+  anamnesisUpdatedByUserId?: number | null;
+  /** @nullable */
+  anamnesisUpdatedByName?: string | null;
+}
+
+export type PatientReportInputReportType =
+  (typeof PatientReportInputReportType)[keyof typeof PatientReportInputReportType];
+
+export const PatientReportInputReportType = {
+  evolution: "evolution",
+  family: "family",
+} as const;
+
+export type PatientReportInputContent = { [key: string]: unknown };
+
+export interface PatientReportInput {
+  reportType: PatientReportInputReportType;
+  title: string;
+  content: PatientReportInputContent;
+  /** @nullable */
+  periodKind?: string | null;
+  /** @nullable */
+  periodFrom?: string | null;
+  /** @nullable */
+  periodTo?: string | null;
+  /** @nullable */
+  clinicalRecordsUsedCount?: number | null;
+  /** @nullable */
+  clinicalRecordsTotalCount?: number | null;
+}
+
+export type PatientReportUpdateContent = { [key: string]: unknown };
+
+export interface PatientReportUpdate {
+  title: string;
+  content: PatientReportUpdateContent;
+  updatedAt: string;
+}
+
+export type PatientReportReportType =
+  (typeof PatientReportReportType)[keyof typeof PatientReportReportType];
+
+export const PatientReportReportType = {
+  evolution: "evolution",
+  family: "family",
+} as const;
+
+export type PatientReportContent = { [key: string]: unknown };
+
+export interface PatientReport {
+  id: number;
+  patientId: number;
+  reportType: PatientReportReportType;
+  title: string;
+  content: PatientReportContent;
+  createdAt: string;
+  updatedAt: string;
+  authorUserId: number;
+  /** @nullable */
+  authorName?: string | null;
+  updatedByUserId: number;
+  /** @nullable */
+  periodKind?: string | null;
+  /** @nullable */
+  periodFrom?: string | null;
+  /** @nullable */
+  periodTo?: string | null;
+  /** @nullable */
+  clinicalRecordsUsedCount?: number | null;
+  /** @nullable */
+  clinicalRecordsTotalCount?: number | null;
 }
 
 export interface CreatePatient {

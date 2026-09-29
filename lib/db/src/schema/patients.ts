@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
 
 export const patientsTable = pgTable("patients", {
   id: serial("id").primaryKey(),
@@ -25,6 +26,8 @@ export const patientsTable = pgTable("patients", {
   impresionClinica: text("impresion_clinica"),
   rutinasHabitos: text("rutinas_habitos"),
   entornoParticipacion: text("entorno_participacion"),
+  anamnesisUpdatedAt: timestamp("anamnesis_updated_at", { withTimezone: true }),
+  anamnesisUpdatedByUserId: integer("anamnesis_updated_by_user_id").references(() => usersTable.id),
   informeEvolucion: text("informe_evolucion"),
   informeFamilia: text("informe_familia"),
   informeMensual: text("informe_mensual"),

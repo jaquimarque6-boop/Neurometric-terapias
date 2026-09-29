@@ -65,6 +65,9 @@ import {
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { API_BASE } from "@/lib/api";
+import { historicalReportPatient, snapshotReportPatient } from "@/lib/report-snapshot";
+import { clinicalSnapshotForSave, prepareReportSave, type ReportPeriodMeta } from "@/lib/report-save";
+import { PatientReportsList } from "@/components/patient-reports-list";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Pago = {
@@ -580,10 +583,20 @@ function DocTextarea({
 
 // ─── InformeTab ───────────────────────────────────────────────────────────────
 type InformeProps = {
-  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null };
+  patient: { id: number; name: string; age?: number | null; diagnosis?: string | null; informeEvolucion?: string | null; informeFamilia?: string | null; fechaInicio?: string | null; motivoConsulta?: string | null; antecedentes?: string | null; historiaFamiliar?: string | null; impresionClinica?: string | null; observaciones?: string | null; lenguajeComunicacion?: string | null; atencionConducta?: string | null; vozHabla?: string | null; deglucion?: string | null; rutinasHabitos?: string | null; entornoParticipacion?: string | null };
   goals: Goal[];
   registros: RC[];
-  onSave: (fields: { informeEvolucion?: string; informeFamilia?: string }) => Promise<void>;
+};
+
+type ReportMeta = ReportPeriodMeta;
+type SavedReport = ReportMeta & {
+  id: number; patientId: number; reportType: "evolution" | "family"; title: string;
+  content: {
+    v: number; resumen?: string; conducta?: string; areas?: Record<string, string>;
+    sugerencias?: string; textoFamilia?: string; patientSnapshot?: Record<string, any>;
+    goalSnapshot?: Goal[]; clinicalSnapshot?: RC[];
+  };
+  authorName: string | null; createdAt: string; updatedAt: string;
 };
 
 type RangoSesiones = "4" | "mes" | "3meses" | "6meses";
@@ -605,42 +618,101 @@ function filtrarPorRango(registros: RC[], rango: RangoSesiones): RC[] {
   return sorted.filter(r => new Date(r.fecha || r.createdAt) >= corte);
 }
 
-function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
+function InformeTab({ patient: currentPatient, goals: currentGoals, registros: currentRegistros }: InformeProps) {
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [openedReport, setOpenedReport] = useState<SavedReport | null>(null);
+  const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
+  const [generatedSnapshot, setGeneratedSnapshot] = useState<RC[] | null>(null);
+  const [reportTitle, setReportTitle] = useState("");
+  const [loadingReports, setLoadingReports] = useState(true);
+  const savingRef = useRef(false);
+  const patient = openedReport
+    ? historicalReportPatient(openedReport.content.patientSnapshot, currentPatient.id)
+    : currentPatient;
+  const goals = openedReport ? (openedReport.content.goalSnapshot ?? []) : currentGoals;
+  const registros = openedReport ? (openedReport.content.clinicalSnapshot ?? []) : currentRegistros;
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
+  const documentDate = openedReport
+    ? format(new Date(openedReport.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })
+    : today;
   const [view, setView]     = useState<"clinico" | "familia">("clinico");
   const [isSaving, setIsSaving] = useState(false);
   const [rango, setRango]   = useState<RangoSesiones>("mes");
 
-  const initial = parseInformeData(patient.informeEvolucion);
+  const initial = parseInformeData(currentPatient.informeEvolucion);
   const [resumen,    setResumen]    = useState(initial.resumen);
   const [conducta,   setConducta]   = useState(initial.conducta);
   const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initial.areas);
   const [sugerencias, setSugerencias] = useState(initial.sugerencias);
-  const [textoFamilia, setTextoFamilia] = useState((patient as any).informeFamilia ?? "");
+  const [textoFamilia, setTextoFamilia] = useState(currentPatient.informeFamilia ?? "");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [pendingAIResult, setPendingAIResult] = useState<null | { resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string }>(null);
+  const [pendingAIResult, setPendingAIResult] = useState<null | ({ resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string; clinicalSnapshot: RC[] } & Partial<ReportMeta>)>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const { toast } = useToast();
+  const loadReports = async () => {
+    setLoadingReports(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports`, { credentials: "include" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setSavedReports(await response.json());
+    } catch (error: any) {
+      toast({ title: "No se pudieron cargar los informes guardados", description: error.message, variant: "destructive" });
+    } finally { setLoadingReports(false); }
+  };
+  useEffect(() => { void loadReports(); }, [currentPatient.id]);
 
   useEffect(() => {
-    const d = parseInformeData(patient.informeEvolucion);
+    if (openedReport) return;
+    const d = parseInformeData(currentPatient.informeEvolucion);
     setResumen(d.resumen);
     setConducta(d.conducta);
     setAreaTexts(d.areas);
     setSugerencias(d.sugerencias);
-    setTextoFamilia((patient as any).informeFamilia ?? "");
-  }, [patient.informeEvolucion, (patient as any).informeFamilia]);
+    setTextoFamilia(currentPatient.informeFamilia ?? "");
+  }, [currentPatient.id, currentPatient.informeEvolucion, currentPatient.informeFamilia]);
+
+  const openSavedReport = async (id: number) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports/${id}`, { credentials: "include" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const report = await response.json() as SavedReport;
+      setOpenedReport(report);
+      setGeneratedSnapshot(null);
+      setReportTitle(report.title);
+      setReportMeta(report);
+      setView(report.reportType === "family" ? "familia" : "clinico");
+      setResumen(report.content.resumen ?? "");
+      setConducta(report.content.conducta ?? "");
+      setAreaTexts(report.content.areas ?? {});
+      setSugerencias(report.content.sugerencias ?? "");
+      setTextoFamilia(report.content.textoFamilia ?? "");
+    } catch (error: any) {
+      toast({ title: "No se pudo abrir el informe", description: error.message, variant: "destructive" });
+    }
+  };
+  const newReport = () => {
+    setOpenedReport(null);
+    setReportMeta(null);
+    setGeneratedSnapshot(null);
+    setReportTitle("");
+    const old = parseInformeData(currentPatient.informeEvolucion);
+    setResumen(old.resumen); setConducta(old.conducta);
+    setAreaTexts(old.areas); setSugerencias(old.sugerencias);
+    setTextoFamilia(currentPatient.informeFamilia ?? "");
+  };
 
   // Sessions filtered to the selected range — used by all Sugerir buttons
   const filteredRegistros = useMemo(
-    () => filtrarPorRango(registros, rango),
-    [registros, rango]
+    () => openedReport ? registros : generatedSnapshot ?? filtrarPorRango(registros, rango),
+    [registros, rango, openedReport, generatedSnapshot]
   );
   const sinSesiones = filteredRegistros.length === 0;
+  const documentedSessions = openedReport
+    ? openedReport.clinicalRecordsUsedCount
+    : generatedSnapshot !== null ? reportMeta?.clinicalRecordsUsedCount ?? null : null;
 
   const achievedGoals  = goals.filter(g => g.status === "logrado");
   const workingGoals   = goals.filter(g => ["activo", "en progreso"].includes(g.status));
-  const totalSessions  = filteredRegistros.length;
 
   const reportGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
   const areaGroups  = reportGoals.reduce<Record<string, Goal[]>>((acc, g) => {
@@ -649,7 +721,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
     acc[a].push(g);
     return acc;
   }, {});
-  const areas = Object.keys(areaGroups).sort();
+  const areas = [...new Set([...Object.keys(areaGroups), ...Object.keys(areaTexts)])].sort();
   const hasClinicalSourceData = Boolean(
     goals.length > 0 ||
     filteredRegistros.length > 0 ||
@@ -670,14 +742,46 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   );
 
   const handleSave = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setIsSaving(true);
     try {
-      const informeEvolucion = JSON.stringify({ v: 4, resumen, conducta, areas: areaTexts, sugerencias });
-      await onSave({ informeEvolucion, informeFamilia: textoFamilia });
-    } finally { setIsSaving(false); }
+      const reportType = view === "familia" ? "family" : "evolution";
+      const title = reportTitle.trim() || (view === "familia" ? "Informe para familia" : "Informe de evolución");
+      const content = { v: 4, resumen, conducta, areas: areaTexts, sugerencias, textoFamilia,
+        goalSnapshot: goals, clinicalSnapshot: clinicalSnapshotForSave(openedReport, generatedSnapshot, reportMeta?.clinicalRecordsUsedCount ?? null),
+        patientSnapshot: snapshotReportPatient(patient) };
+      const request = prepareReportSave(reportType, title, content, reportMeta, openedReport);
+      const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports${request.reportId ? `/${request.reportId}` : ""}`, {
+        method: request.method, credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request.body),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error ?? `HTTP ${response.status}`);
+      }
+      const saved = await response.json() as SavedReport;
+      setOpenedReport(saved);
+      setGeneratedSnapshot(null);
+      setReportTitle(saved.title);
+      setReportMeta(saved);
+      setSavedReports(previous => request.reportId ? previous.map(report => report.id === saved.id ? saved : report) : [saved, ...previous]);
+      toast({ title: request.reportId ? "Cambios guardados" : "Informe guardado" });
+    } catch (error: any) {
+      toast({ title: "Error al guardar informe", description: error.message, variant: "destructive" });
+    } finally { savingRef.current = false; setIsSaving(false); }
   };
 
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
+    setOpenedReport(null);
+    setReportTitle("");
+    setGeneratedSnapshot(result.clinicalSnapshot);
+    setReportMeta({
+      periodKind: result.periodKind ?? null, periodFrom: result.periodFrom ?? null,
+      periodTo: result.periodTo ?? null, clinicalRecordsUsedCount: result.clinicalRecordsUsedCount ?? null,
+      clinicalRecordsTotalCount: result.clinicalRecordsTotalCount ?? null,
+    });
     if (result.resumen) setResumen(result.resumen);
     if (result.conducta) setConducta(result.conducta);
     if (result.areas && Object.keys(result.areas).length > 0) setAreaTexts(result.areas);
@@ -702,6 +806,12 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
         return;
       }
       const result = await resp.json();
+      if (!Array.isArray(result.clinicalSnapshot)
+          || !Number.isSafeInteger(result.clinicalRecordsUsedCount)
+          || result.clinicalSnapshot.length !== result.clinicalRecordsUsedCount
+          || !result.clinicalSnapshot.every((record: RC) => Number.isSafeInteger(record.id) && record.patientId === currentPatient.id)) {
+        throw new Error("El servidor no devolvió los registros clínicos del período generado. No se aplicó el borrador.");
+      }
       const hasContent = resumen.trim() || conducta.trim() || sugerencias.trim() || Object.values(areaTexts).some(v => v.trim());
       if (hasContent) {
         setPendingAIResult(result);
@@ -709,15 +819,15 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
       } else {
         applyAIResult(result);
       }
-    } catch {
-      toast({ title: "Error de conexión", description: "No se pudo contactar al servidor.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error al generar", description: error.message ?? "No se pudo contactar al servidor.", variant: "destructive" });
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
   const handlePrint = () => {
-    if (!hasClinicalSourceData) {
+    if (!hasClinicalSourceData && !openedReport) {
       toast({
         title: "Informe sin información clínica",
         description: "No hay objetivos, sesiones ni datos clínicos suficientes para imprimir un informe.",
@@ -759,13 +869,28 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
   textarea{display:none!important}
   .doc-text-area-print{display:block}
   @media print{body{padding:24px 32px}}
-</style></head><body>${content}<div class="footer"><span>Neurometric Terapias · Informe de Evolución</span><span>${today}</span></div></body></html>`);
+</style></head><body>${content}<div class="footer"><span>Neurometric Terapias · ${view === "familia" ? "Informe para familia" : "Informe de evolución"} · Fecha del informe: ${documentDate}</span><span>Impreso: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })}</span></div></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
 
   return (
     <div className="space-y-5">
+      <PatientReportsList reports={savedReports} selectedId={openedReport?.id ?? null}
+        loading={loadingReports} onOpen={id => void openSavedReport(id)} onNew={newReport} />
+      {(currentPatient.informeEvolucion || currentPatient.informeFamilia) && !openedReport && (
+        <p className="text-xs text-muted-foreground">Los informes anteriores siguen disponibles como borradores heredados. Podés guardarlos explícitamente como documentos nuevos; su fecha y autor originales no se conocen.</p>
+      )}
+      {openedReport && <p className="text-xs text-muted-foreground">Editando: {openedReport.title} · creado {new Date(openedReport.createdAt).toLocaleDateString("es-AR")} por {openedReport.authorName ?? "Autor no disponible"}.</p>}
+      <label className="block text-xs font-medium">Título del informe
+        <Input className="mt-1" value={reportTitle} maxLength={200} onChange={event => setReportTitle(event.target.value)}
+          placeholder={view === "familia" ? "Informe para familia" : "Informe de evolución"} />
+      </label>
+      {reportMeta?.clinicalRecordsUsedCount != null && (
+        <p className="text-xs text-muted-foreground">Período analizado: {reportMeta.periodFrom ?? "no determinado"} – {reportMeta.periodTo ?? "no determinado"}
+          {" · "}Registros clínicos utilizados: {reportMeta.clinicalRecordsUsedCount}
+          {" · "}Total de registros clínicos: {reportMeta.clinicalRecordsTotalCount ?? "desconocido"}</p>
+      )}
 
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -775,11 +900,11 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
-            <button onClick={() => setView("clinico")}
+            <button onClick={() => { if (view !== "clinico" && openedReport) newReport(); setView("clinico"); }}
               className={`px-3 py-1.5 transition-colors ${view === "clinico" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
               Clínico
             </button>
-            <button onClick={() => setView("familia")}
+            <button onClick={() => { if (view !== "familia" && openedReport) newReport(); setView("familia"); }}
               className={`px-3 py-1.5 transition-colors ${view === "familia" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
               Para familias
             </button>
@@ -798,7 +923,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" /> Generar con IA
+                <Sparkles className="h-3.5 w-3.5" /> {openedReport ? "Generar informe nuevo con IA" : "Generar con IA"}
               </>
             )}
           </Button>
@@ -810,14 +935,15 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
 
       {/* ── Session range selector ──────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground font-medium shrink-0">Período para generar:</span>
+        <span className="text-xs text-muted-foreground font-medium shrink-0">{openedReport ? "Período para generar un informe nuevo:" : "Período para generar:"}</span>
         <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs font-medium">
           {(["4", "mes", "3meses", "6meses"] as RangoSesiones[]).map(r => (
             <button
               key={r}
               type="button"
+              disabled={generatedSnapshot !== null}
               onClick={() => setRango(r)}
-              className={`px-3 py-1.5 transition-colors whitespace-nowrap ${
+              className={`px-3 py-1.5 transition-colors whitespace-nowrap disabled:opacity-50 ${
                 rango === r
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/40"
@@ -827,6 +953,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
             </button>
           ))}
         </div>
+        {generatedSnapshot !== null && <span className="text-xs text-muted-foreground">Período generado fijado. Elegí Nuevo informe para cambiarlo.</span>}
         {sinSesiones && registros.length > 0 && (
           <span className="text-xs text-amber-600 font-medium">
             No hay sesiones registradas en el período seleccionado
@@ -851,12 +978,12 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                     {formatEdad((patient as any).fechaNacimiento, patient.age) && <span>Edad: <strong className="text-foreground/80">{formatEdad((patient as any).fechaNacimiento, patient.age)}</strong></span>}
                     {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{getDiagnosisLabel((patient as any).diagnosis)}</strong></span>}
                     {patient.fechaInicio && <span>Inicio: <strong className="text-foreground/80">{formatFecha(patient.fechaInicio)}</strong></span>}
-                    <span>Sesiones: <strong className="text-foreground/80">{totalSessions}</strong></span>
+                    <span>Sesiones del período: <strong className="text-foreground/80">{documentedSessions ?? "No determinado"}</strong></span>
                   </div>
                 </div>
                 <div className="doc-header-right text-right text-xs text-muted-foreground">
                   <strong className="block text-sm text-foreground/80 mb-0.5">Informe de evolución</strong>
-                  <span>{today}</span>
+                  <span>{documentDate}</span>
                 </div>
               </div>
 
@@ -905,7 +1032,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                             </h4>
                             <button
                               type="button"
-                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area], filteredRegistros) }))}
+                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area] ?? [], filteredRegistros) }))}
                               className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
                             >
                               <Sparkles className="h-2.5 w-2.5" /> Sugerir
@@ -951,7 +1078,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} className="gap-2">
               <Save className="h-4 w-4" />
-              {isSaving ? "Guardando…" : "Guardar informe"}
+              {isSaving ? "Guardando…" : openedReport?.reportType === "evolution" ? "Guardar cambios" : "Guardar informe nuevo"}
             </Button>
           </div>
         </div>
@@ -968,7 +1095,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
               <div className="doc-header flex justify-between items-start pb-5 border-b border-border">
                 <div>
                   <h1 className="text-2xl font-bold font-display text-primary">{patient.name}</h1>
-                  <p className="doc-meta text-xs text-muted-foreground mt-1">Informe para la familia · {today}</p>
+                  <p className="doc-meta text-xs text-muted-foreground mt-1">Informe para la familia · {documentDate}</p>
                 </div>
               </div>
 
@@ -977,7 +1104,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
                 <DocSection title="Evolución del proceso terapéutico">
                   <div className="doc-stat-grid grid grid-cols-3 gap-3">
                     {[
-                      { emoji: "📅", val: totalSessions, label: totalSessions === 1 ? "sesión realizada" : "sesiones realizadas" },
+                      { emoji: "📅", val: documentedSessions ?? "No determinado", label: documentedSessions === 1 ? "sesión del período" : "sesiones del período" },
                       { emoji: "✅", val: achievedGoals.length, label: achievedGoals.length === 1 ? "objetivo alcanzado" : "objetivos alcanzados" },
                       { emoji: "🎯", val: workingGoals.length, label: workingGoals.length === 1 ? "objetivo en progreso" : "objetivos en progreso" },
                     ].map(s => (
@@ -1045,7 +1172,7 @@ function InformeTab({ patient, goals, registros, onSave }: InformeProps) {
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
               <Save className="h-4 w-4" />
-              {isSaving ? "Guardando…" : "Guardar para familias"}
+              {isSaving ? "Guardando…" : openedReport?.reportType === "family" ? "Guardar cambios" : "Guardar informe nuevo"}
             </Button>
           </div>
         </div>
@@ -1620,17 +1747,6 @@ export default function PatientProfile() {
     }
   };
 
-  const handleSaveInforme = async (fields: { informeEvolucion?: string; informeFamilia?: string }) => {
-    const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fields),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
-    toast({ title: "Informe guardado" });
-  };
-
   const registros = allRegistros as RC[];
   const goals     = allGoals as Goal[];
   const profs     = assignments as Array<{ id: number; professionalId: number; professionalName?: string | null; professionalSpecialty?: string | null }>;
@@ -2126,6 +2242,12 @@ export default function PatientProfile() {
                         <div className="flex items-center gap-2">
                           <ClipboardList className="h-4 w-4 text-primary" />
                           <CardTitle className="text-base font-semibold">Anamnesis clínica guiada</CardTitle>
+                          {(patient as any).anamnesisUpdatedAt && (
+                            <span className="text-xs text-muted-foreground">
+                              Última actualización: {new Date((patient as any).anamnesisUpdatedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              {" · por "}{(patient as any).anamnesisUpdatedByName ?? "usuario no disponible"}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           {anDirty && (
@@ -2482,7 +2604,6 @@ export default function PatientProfile() {
               patient={patient as any}
               goals={goals}
               registros={registros}
-              onSave={handleSaveInforme}
             />
           </TabsContent>
           <TabsContent value="timeline" className="mt-6">

@@ -32,6 +32,9 @@ export const ListPatientsResponseItem = zod.object({
   observaciones: zod.string().optional(),
   totalRegistros: zod.number().optional(),
   createdAt: zod.string(),
+  anamnesisUpdatedAt: zod.date().nullish(),
+  anamnesisUpdatedByUserId: zod.number().nullish(),
+  anamnesisUpdatedByName: zod.string().nullish(),
 });
 export const ListPatientsResponse = zod.array(ListPatientsResponseItem);
 
@@ -71,6 +74,9 @@ export const GetPatientResponse = zod.object({
   observaciones: zod.string().optional(),
   totalRegistros: zod.number().optional(),
   createdAt: zod.string(),
+  anamnesisUpdatedAt: zod.date().nullish(),
+  anamnesisUpdatedByUserId: zod.number().nullish(),
+  anamnesisUpdatedByName: zod.string().nullish(),
 });
 
 /**
@@ -105,6 +111,9 @@ export const UpdatePatientResponse = zod.object({
   observaciones: zod.string().optional(),
   totalRegistros: zod.number().optional(),
   createdAt: zod.string(),
+  anamnesisUpdatedAt: zod.date().nullish(),
+  anamnesisUpdatedByUserId: zod.number().nullish(),
+  anamnesisUpdatedByName: zod.string().nullish(),
 });
 
 /**
@@ -543,6 +552,98 @@ export const AssignGoalToPatientParams = zod.object({
 export const AssignGoalToPatientBody = zod.object({
   patientId: zod.number(),
   targetDate: zod.string().optional(),
+});
+
+export const ListPatientReportsParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const ListPatientReportsResponseItem = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  reportType: zod.enum(["evolution", "family"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  authorUserId: zod.number(),
+  authorName: zod.string().nullish(),
+  updatedByUserId: zod.number(),
+  periodKind: zod.string().nullish(),
+  periodFrom: zod.date().nullish(),
+  periodTo: zod.date().nullish(),
+  clinicalRecordsUsedCount: zod.number().nullish(),
+  clinicalRecordsTotalCount: zod.number().nullish(),
+});
+export const ListPatientReportsResponse = zod.array(
+  ListPatientReportsResponseItem,
+);
+
+export const CreatePatientReportParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const CreatePatientReportBody = zod.object({
+  reportType: zod.enum(["evolution", "family"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  periodKind: zod.string().nullish(),
+  periodFrom: zod.date().nullish(),
+  periodTo: zod.date().nullish(),
+  clinicalRecordsUsedCount: zod.number().nullish(),
+  clinicalRecordsTotalCount: zod.number().nullish(),
+});
+
+export const GetPatientReportParams = zod.object({
+  patientId: zod.coerce.number(),
+  reportId: zod.coerce.number(),
+});
+
+export const GetPatientReportResponse = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  reportType: zod.enum(["evolution", "family"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  authorUserId: zod.number(),
+  authorName: zod.string().nullish(),
+  updatedByUserId: zod.number(),
+  periodKind: zod.string().nullish(),
+  periodFrom: zod.date().nullish(),
+  periodTo: zod.date().nullish(),
+  clinicalRecordsUsedCount: zod.number().nullish(),
+  clinicalRecordsTotalCount: zod.number().nullish(),
+});
+
+export const UpdatePatientReportParams = zod.object({
+  patientId: zod.coerce.number(),
+  reportId: zod.coerce.number(),
+});
+
+export const UpdatePatientReportBody = zod.object({
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  updatedAt: zod.date(),
+});
+
+export const UpdatePatientReportResponse = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  reportType: zod.enum(["evolution", "family"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  authorUserId: zod.number(),
+  authorName: zod.string().nullish(),
+  updatedByUserId: zod.number(),
+  periodKind: zod.string().nullish(),
+  periodFrom: zod.date().nullish(),
+  periodTo: zod.date().nullish(),
+  clinicalRecordsUsedCount: zod.number().nullish(),
+  clinicalRecordsTotalCount: zod.number().nullish(),
 });
 
 /**

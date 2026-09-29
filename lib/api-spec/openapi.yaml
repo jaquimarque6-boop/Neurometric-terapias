@@ -614,6 +614,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/Goal"
 
+  /patients/{patientId}/reports:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: listPatientReports
+      tags: [patients]
+      responses:
+        "200":
+          description: Stored reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PatientReport" }
+    post:
+      operationId: createPatientReport
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatientReportInput" }
+      responses:
+        "201":
+          description: Stored report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientReport" }
+  /patients/{patientId}/reports/{reportId}:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getPatientReport
+      tags: [patients]
+      responses:
+        "200":
+          description: Stored report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientReport" }
+    put:
+      operationId: updatePatientReport
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatientReportUpdate" }
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientReport" }
+        "409":
+          description: Report was modified by another user
   /dashboard/stats:
     get:
       operationId: getDashboardStats
@@ -667,7 +733,53 @@ components:
           type: integer
         createdAt:
           type: string
+        anamnesisUpdatedAt:
+          type: ["string", "null"]
+          format: date-time
+        anamnesisUpdatedByUserId:
+          type: ["integer", "null"]
+        anamnesisUpdatedByName:
+          type: ["string", "null"]
       required: [id, name, createdAt]
+
+    PatientReportInput:
+      type: object
+      required: [reportType, title, content]
+      properties:
+        reportType: { type: string, enum: [evolution, family] }
+        title: { type: string }
+        content: { type: object, additionalProperties: true }
+        periodKind: { type: ["string", "null"] }
+        periodFrom: { type: ["string", "null"], format: date }
+        periodTo: { type: ["string", "null"], format: date }
+        clinicalRecordsUsedCount: { type: ["integer", "null"] }
+        clinicalRecordsTotalCount: { type: ["integer", "null"] }
+    PatientReportUpdate:
+      type: object
+      required: [title, content, updatedAt]
+      properties:
+        title: { type: string }
+        content: { type: object, additionalProperties: true }
+        updatedAt: { type: string, format: date-time }
+    PatientReport:
+      type: object
+      required: [id, patientId, reportType, title, content, createdAt, updatedAt, authorUserId, updatedByUserId]
+      properties:
+        id: { type: integer }
+        patientId: { type: integer }
+        reportType: { type: string, enum: [evolution, family] }
+        title: { type: string }
+        content: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        authorUserId: { type: integer }
+        authorName: { type: ["string", "null"] }
+        updatedByUserId: { type: integer }
+        periodKind: { type: ["string", "null"] }
+        periodFrom: { type: ["string", "null"], format: date }
+        periodTo: { type: ["string", "null"], format: date }
+        clinicalRecordsUsedCount: { type: ["integer", "null"] }
+        clinicalRecordsTotalCount: { type: ["integer", "null"] }
 
     CreatePatient:
       type: object

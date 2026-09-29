@@ -21,4 +21,10 @@ export interface Patient {
   observaciones?: string;
   totalRegistros?: number;
   createdAt: string;
+  /** @nullable */
+  anamnesisUpdatedAt?: Date | null;
+  /** @nullable */
+  anamnesisUpdatedByUserId?: number | null;
+  /** @nullable */
+  anamnesisUpdatedByName?: string | null;
 }
