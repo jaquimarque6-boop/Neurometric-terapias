@@ -19,6 +19,10 @@ import type {
 import type {
   Actividad,
   AssignGoalBody,
+  Collaborator,
+  CollaboratorDashboard,
+  CollaboratorInput,
+  CollaboratorUpdate,
   CreateGoal,
   CreatePatient,
   CreatePatientProfessional,
@@ -45,8 +49,14 @@ import type {
   ProfessionalFile,
   ProfessionalFileUploadRequest,
   ProfessionalFileUploadResponse,
+  ReferralValidity,
   Registro,
   RegistroClinico,
+  SaasPaymentInput,
+  SaasReceipt,
+  SaasReceiptInput,
+  SaasStatusInput,
+  SaasStatusResult,
   UpdateGoal,
   UpdatePatient,
   UpdateRegistroClinico,
@@ -60,6 +70,781 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+export const getValidateReferralUrl = (code: string) => {
+  return `/api/referrals/${code}`;
+};
+
+export const validateReferral = async (
+  code: string,
+  options?: RequestInit,
+): Promise<ReferralValidity> => {
+  return customFetch<ReferralValidity>(getValidateReferralUrl(code), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getValidateReferralQueryKey = (code: string) => {
+  return [`/api/referrals/${code}`] as const;
+};
+
+export const getValidateReferralQueryOptions = <
+  TData = Awaited<ReturnType<typeof validateReferral>>,
+  TError = ErrorType<unknown>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof validateReferral>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getValidateReferralQueryKey(code);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof validateReferral>>
+  > = ({ signal }) => validateReferral(code, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!code,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof validateReferral>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ValidateReferralQueryResult = NonNullable<
+  Awaited<ReturnType<typeof validateReferral>>
+>;
+export type ValidateReferralQueryError = ErrorType<unknown>;
+
+export function useValidateReferral<
+  TData = Awaited<ReturnType<typeof validateReferral>>,
+  TError = ErrorType<unknown>,
+>(
+  code: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof validateReferral>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getValidateReferralQueryOptions(code, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getListCollaboratorsUrl = () => {
+  return `/api/collaborators`;
+};
+
+export const listCollaborators = async (
+  options?: RequestInit,
+): Promise<Collaborator[]> => {
+  return customFetch<Collaborator[]>(getListCollaboratorsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCollaboratorsQueryKey = () => {
+  return [`/api/collaborators`] as const;
+};
+
+export const getListCollaboratorsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCollaborators>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCollaborators>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCollaboratorsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCollaborators>>
+  > = ({ signal }) => listCollaborators({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCollaborators>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCollaboratorsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCollaborators>>
+>;
+export type ListCollaboratorsQueryError = ErrorType<unknown>;
+
+export function useListCollaborators<
+  TData = Awaited<ReturnType<typeof listCollaborators>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCollaborators>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCollaboratorsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getCreateCollaboratorUrl = () => {
+  return `/api/collaborators`;
+};
+
+export const createCollaborator = async (
+  collaboratorInput: CollaboratorInput,
+  options?: RequestInit,
+): Promise<Collaborator> => {
+  return customFetch<Collaborator>(getCreateCollaboratorUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(collaboratorInput),
+  });
+};
+
+export const getCreateCollaboratorMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCollaborator>>,
+    TError,
+    { data: BodyType<CollaboratorInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCollaborator>>,
+  TError,
+  { data: BodyType<CollaboratorInput> },
+  TContext
+> => {
+  const mutationKey = ["createCollaborator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCollaborator>>,
+    { data: BodyType<CollaboratorInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCollaborator(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCollaboratorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCollaborator>>
+>;
+export type CreateCollaboratorMutationBody = BodyType<CollaboratorInput>;
+export type CreateCollaboratorMutationError = ErrorType<unknown>;
+
+export const useCreateCollaborator = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCollaborator>>,
+    TError,
+    { data: BodyType<CollaboratorInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCollaborator>>,
+  TError,
+  { data: BodyType<CollaboratorInput> },
+  TContext
+> => {
+  return useMutation(getCreateCollaboratorMutationOptions(options));
+};
+
+export const getUpdateCollaboratorUrl = (id: number) => {
+  return `/api/collaborators/${id}`;
+};
+
+export const updateCollaborator = async (
+  id: number,
+  collaboratorUpdate: CollaboratorUpdate,
+  options?: RequestInit,
+): Promise<Collaborator> => {
+  return customFetch<Collaborator>(getUpdateCollaboratorUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(collaboratorUpdate),
+  });
+};
+
+export const getUpdateCollaboratorMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCollaborator>>,
+    TError,
+    { id: number; data: BodyType<CollaboratorUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCollaborator>>,
+  TError,
+  { id: number; data: BodyType<CollaboratorUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateCollaborator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCollaborator>>,
+    { id: number; data: BodyType<CollaboratorUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCollaborator(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCollaboratorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCollaborator>>
+>;
+export type UpdateCollaboratorMutationBody = BodyType<CollaboratorUpdate>;
+export type UpdateCollaboratorMutationError = ErrorType<unknown>;
+
+export const useUpdateCollaborator = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCollaborator>>,
+    TError,
+    { id: number; data: BodyType<CollaboratorUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCollaborator>>,
+  TError,
+  { id: number; data: BodyType<CollaboratorUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateCollaboratorMutationOptions(options));
+};
+
+export const getGetAdminCollaboratorDashboardUrl = (id: number) => {
+  return `/api/collaborators/${id}/dashboard`;
+};
+
+export const getAdminCollaboratorDashboard = async (
+  id: number,
+  options?: RequestInit,
+): Promise<CollaboratorDashboard> => {
+  return customFetch<CollaboratorDashboard>(
+    getGetAdminCollaboratorDashboardUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAdminCollaboratorDashboardQueryKey = (id: number) => {
+  return [`/api/collaborators/${id}/dashboard`] as const;
+};
+
+export const getGetAdminCollaboratorDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAdminCollaboratorDashboardQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>
+  > = ({ signal }) =>
+    getAdminCollaboratorDashboard(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminCollaboratorDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>
+>;
+export type GetAdminCollaboratorDashboardQueryError = ErrorType<unknown>;
+
+export function useGetAdminCollaboratorDashboard<
+  TData = Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminCollaboratorDashboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminCollaboratorDashboardQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetCollaboratorDashboardUrl = () => {
+  return `/api/collaborator/dashboard`;
+};
+
+export const getCollaboratorDashboard = async (
+  options?: RequestInit,
+): Promise<CollaboratorDashboard> => {
+  return customFetch<CollaboratorDashboard>(getGetCollaboratorDashboardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCollaboratorDashboardQueryKey = () => {
+  return [`/api/collaborator/dashboard`] as const;
+};
+
+export const getGetCollaboratorDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCollaboratorDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCollaboratorDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCollaboratorDashboardQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCollaboratorDashboard>>
+  > = ({ signal }) => getCollaboratorDashboard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCollaboratorDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCollaboratorDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCollaboratorDashboard>>
+>;
+export type GetCollaboratorDashboardQueryError = ErrorType<unknown>;
+
+export function useGetCollaboratorDashboard<
+  TData = Awaited<ReturnType<typeof getCollaboratorDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCollaboratorDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCollaboratorDashboardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getListSaasReceiptsUrl = () => {
+  return `/api/saas/receipts`;
+};
+
+export const listSaasReceipts = async (
+  options?: RequestInit,
+): Promise<SaasReceipt[]> => {
+  return customFetch<SaasReceipt[]>(getListSaasReceiptsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSaasReceiptsQueryKey = () => {
+  return [`/api/saas/receipts`] as const;
+};
+
+export const getListSaasReceiptsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSaasReceipts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSaasReceipts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSaasReceiptsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSaasReceipts>>
+  > = ({ signal }) => listSaasReceipts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSaasReceipts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSaasReceiptsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSaasReceipts>>
+>;
+export type ListSaasReceiptsQueryError = ErrorType<unknown>;
+
+export function useListSaasReceipts<
+  TData = Awaited<ReturnType<typeof listSaasReceipts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSaasReceipts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSaasReceiptsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getCreateSaasReceiptUrl = () => {
+  return `/api/saas/receipts`;
+};
+
+export const createSaasReceipt = async (
+  saasReceiptInput: SaasReceiptInput,
+  options?: RequestInit,
+): Promise<SaasReceipt> => {
+  return customFetch<SaasReceipt>(getCreateSaasReceiptUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saasReceiptInput),
+  });
+};
+
+export const getCreateSaasReceiptMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSaasReceipt>>,
+    TError,
+    { data: BodyType<SaasReceiptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSaasReceipt>>,
+  TError,
+  { data: BodyType<SaasReceiptInput> },
+  TContext
+> => {
+  const mutationKey = ["createSaasReceipt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSaasReceipt>>,
+    { data: BodyType<SaasReceiptInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSaasReceipt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSaasReceiptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSaasReceipt>>
+>;
+export type CreateSaasReceiptMutationBody = BodyType<SaasReceiptInput>;
+export type CreateSaasReceiptMutationError = ErrorType<unknown>;
+
+export const useCreateSaasReceipt = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSaasReceipt>>,
+    TError,
+    { data: BodyType<SaasReceiptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSaasReceipt>>,
+  TError,
+  { data: BodyType<SaasReceiptInput> },
+  TContext
+> => {
+  return useMutation(getCreateSaasReceiptMutationOptions(options));
+};
+
+export const getPaySaasCommissionUrl = (id: number) => {
+  return `/api/saas/receipts/${id}/paid`;
+};
+
+export const paySaasCommission = async (
+  id: number,
+  saasPaymentInput?: SaasPaymentInput,
+  options?: RequestInit,
+): Promise<SaasReceipt> => {
+  return customFetch<SaasReceipt>(getPaySaasCommissionUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saasPaymentInput),
+  });
+};
+
+export const getPaySaasCommissionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof paySaasCommission>>,
+    TError,
+    { id: number; data: BodyType<SaasPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof paySaasCommission>>,
+  TError,
+  { id: number; data: BodyType<SaasPaymentInput> },
+  TContext
+> => {
+  const mutationKey = ["paySaasCommission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof paySaasCommission>>,
+    { id: number; data: BodyType<SaasPaymentInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return paySaasCommission(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PaySaasCommissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof paySaasCommission>>
+>;
+export type PaySaasCommissionMutationBody = BodyType<SaasPaymentInput>;
+export type PaySaasCommissionMutationError = ErrorType<unknown>;
+
+export const usePaySaasCommission = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof paySaasCommission>>,
+    TError,
+    { id: number; data: BodyType<SaasPaymentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof paySaasCommission>>,
+  TError,
+  { id: number; data: BodyType<SaasPaymentInput> },
+  TContext
+> => {
+  return useMutation(getPaySaasCommissionMutationOptions(options));
+};
+
+export const getChangeSaasStatusUrl = () => {
+  return `/api/saas/status`;
+};
+
+export const changeSaasStatus = async (
+  saasStatusInput: SaasStatusInput,
+  options?: RequestInit,
+): Promise<SaasStatusResult> => {
+  return customFetch<SaasStatusResult>(getChangeSaasStatusUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saasStatusInput),
+  });
+};
+
+export const getChangeSaasStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof changeSaasStatus>>,
+    TError,
+    { data: BodyType<SaasStatusInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof changeSaasStatus>>,
+  TError,
+  { data: BodyType<SaasStatusInput> },
+  TContext
+> => {
+  const mutationKey = ["changeSaasStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof changeSaasStatus>>,
+    { data: BodyType<SaasStatusInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return changeSaasStatus(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChangeSaasStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof changeSaasStatus>>
+>;
+export type ChangeSaasStatusMutationBody = BodyType<SaasStatusInput>;
+export type ChangeSaasStatusMutationError = ErrorType<unknown>;
+
+export const useChangeSaasStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof changeSaasStatus>>,
+    TError,
+    { data: BodyType<SaasStatusInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof changeSaasStatus>>,
+  TError,
+  { data: BodyType<SaasStatusInput> },
+  TContext
+> => {
+  return useMutation(getChangeSaasStatusMutationOptions(options));
+};
 
 /**
  * @summary Health check

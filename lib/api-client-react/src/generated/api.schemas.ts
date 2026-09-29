@@ -5,6 +5,148 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+export interface ReferralValidity {
+  valid: boolean;
+  code: string;
+}
+
+export interface Collaborator {
+  id: number;
+  userId: number;
+  name: string;
+  country: string;
+  code: string;
+  commissionPercent: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CollaboratorInput {
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  country: string;
+  code: string;
+  commissionPercent: string;
+}
+
+export interface CollaboratorUpdate {
+  name?: string;
+  country?: string;
+  code?: string;
+  commissionPercent?: string;
+  active?: boolean;
+}
+
+export interface MoneyByCurrency {
+  [key: string]: string;
+}
+
+export interface CollaboratorMonth {
+  month: string;
+  referrals: number;
+  newSubscriptions: number;
+  cancellations: number;
+  generated: MoneyByCurrency;
+  pending: MoneyByCurrency;
+  paid: MoneyByCurrency;
+}
+
+export interface CollaboratorDashboard {
+  name: string;
+  code: string;
+  link: string;
+  commissionPercent: string;
+  referrals: number;
+  activeSubscriptions: number;
+  newSubscriptionsThisMonth: number;
+  cancellationsThisMonth: number;
+  generatedThisMonth: MoneyByCurrency;
+  pending: MoneyByCurrency;
+  paid: MoneyByCurrency;
+  history: CollaboratorMonth[];
+}
+
+export interface SaasReceiptInput {
+  professionalUserId: number;
+  amount: string;
+  currency: string;
+  periodFrom: string;
+  periodTo: string;
+  receivedAt: string;
+  reference?: string;
+  idempotencyKey: string;
+}
+
+export interface SaasPaymentInput {
+  paymentReference?: string;
+}
+
+export interface SaasReceipt {
+  id: number;
+  professionalUserId: number;
+  amount: string;
+  currency: string;
+  periodFrom: string;
+  periodTo: string;
+  receivedAt: string;
+  /** @nullable */
+  reference: string | null;
+  idempotencyKey: string;
+  createdByUserId: number;
+  /** @nullable */
+  collaboratorId: number | null;
+  /** @nullable */
+  commissionPercentSnapshot: string | null;
+  /** @nullable */
+  commissionAmount: string | null;
+  /** @nullable */
+  paidAt: string | null;
+  /** @nullable */
+  paidByUserId: number | null;
+  /** @nullable */
+  paymentReference: string | null;
+  createdAt: string;
+}
+
+export type SaasStatusInputStatus =
+  (typeof SaasStatusInputStatus)[keyof typeof SaasStatusInputStatus];
+
+export const SaasStatusInputStatus = {
+  trial: "trial",
+  paying: "paying",
+  overdue: "overdue",
+  courtesy: "courtesy",
+  churned: "churned",
+} as const;
+
+export interface SaasStatusInput {
+  professionalUserId: number;
+  status: SaasStatusInputStatus;
+  effectiveDate?: string;
+}
+
+/**
+ * @nullable
+ */
+export type SaasStatusResultEvent =
+  | (typeof SaasStatusResultEvent)[keyof typeof SaasStatusResultEvent]
+  | null;
+
+export const SaasStatusResultEvent = {
+  first_paid: "first_paid",
+  cancellation: "cancellation",
+  reactivation: "reactivation",
+} as const;
+
+export interface SaasStatusResult {
+  professionalUserId: number;
+  status: string;
+  /** @nullable */
+  event: SaasStatusResultEvent;
+}
+
 export interface HealthStatus {
   status: string;
 }

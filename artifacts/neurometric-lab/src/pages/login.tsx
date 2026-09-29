@@ -6,22 +6,14 @@ import { clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_COMMERCIAL_NUMBER ?? "").replace(/\D/g, "");
+import { buildWhatsAppUrl } from "@/lib/referral";
+import { useReferral } from "@/providers/referral-provider";
 
-function getReferralCode() {
-  const ref = new URLSearchParams(window.location.search).get("ref")?.trim().toLowerCase();
-  return ref === "kilead" || ref === "anggy" ? ref : null;
-}
-
-function buildWhatsAppUrl(message: string) {
-  if (!WHATSAPP_NUMBER) return null;
-  const referral = getReferralCode();
-  const messageWithReferral = referral ? `${message}\n\nReferencia: ${referral}` : message;
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(messageWithReferral)}`;
-}
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_COMMERCIAL_NUMBER ?? "";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { referral } = useReferral();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,7 +55,8 @@ export default function LoginPage() {
     try {
       console.info("[login] POST /api/auth/login → enviando");
       await login(emailTrimmed, passwordVal);
-      console.info("[login] ✓ login OK — redirigiendo a /seleccion");
+      console.info("[login] ✓ login OK — redirigiendo");
+      // Route guards send collaborators to /colaboradora before any clinical page mounts.
       setLocation("/seleccion");
     } catch (err: any) {
       const msg = err?.message ?? "Error al iniciar sesión";
@@ -75,7 +68,8 @@ export default function LoginPage() {
   };
 
   const openWhatsApp = (message: string) => {
-    const url = buildWhatsAppUrl(message);
+    // Only a server-validated referral is appended; raw ?ref values never are.
+    const url = buildWhatsAppUrl(WHATSAPP_NUMBER, message, referral?.code ?? null);
     if (!url) {
       setWhatsappNotice(
         "WhatsApp comercial no configurado. Debe definirse VITE_WHATSAPP_COMMERCIAL_NUMBER en las variables de entorno del frontend."
@@ -193,7 +187,7 @@ export default function LoginPage() {
               className="mt-3 w-full border-primary/30 text-primary hover:bg-primary/5 hover:text-primary"
               onClick={() =>
                 openWhatsApp(
-                  "Hola Jacqueline 😊 Quiero probar Neurometric Terapias durante 15 días. Mi nombre es ___ y soy ___."
+                  "Hola Jacqueline, quiero probar Neurometric Terapias durante 15 días. Mi nombre es ___ y soy ___."
                 )
               }
             >
@@ -206,7 +200,7 @@ export default function LoginPage() {
             type="button"
             className="mt-5 flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
             onClick={() =>
-              openWhatsApp("Hola Jacqueline 😊 Estoy teniendo problemas para ingresar a Neurometric Terapias.")
+              openWhatsApp("Hola Jacqueline, estoy teniendo problemas para ingresar a Neurometric Terapias.")
             }
           >
             <MessageCircle className="h-3.5 w-3.5" />

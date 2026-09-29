@@ -112,10 +112,8 @@ app.use(session({
 
 function isPublicApiRoute(req: express.Request): boolean {
   return (
-    req.url.startsWith("/api/auth/login") ||
-    req.url.startsWith("/api/auth/register") ||
-    req.url.startsWith("/api/auth/logout") ||
-    req.url.startsWith("/api/health")
+    (req.method === "POST" && (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path === "/api/auth/logout")) ||
+    (req.method === "GET" && (req.path === "/api/healthz" || /^\/api\/referrals\/[A-Za-z0-9]{2,32}$/.test(req.path)))
   );
 }
 
@@ -134,7 +132,8 @@ app.use(async (req, res, next) => {
   // Login, public registration, logout, and health must be able to run without
   // a currently valid account. Logout also needs to work for a just-deactivated
   // account so its old cookie can be destroyed cleanly.
-  if (isPublicApiRoute(req)) return next();
+  if (isPublicApiRoute(req) && (req.path === "/api/auth/logout" ||
+      (!req.session.userId && !req.headers.authorization?.startsWith("Bearer ")))) return next();
 
   let authSource: "cookie-session" | "bearer-token" | null = null;
 
@@ -210,6 +209,10 @@ app.use(async (req, res, next) => {
     req.session.userName = currentUser.name;
     req.session.userEmail = currentUser.email;
     req.session.userSpecialty = currentUser.specialty ?? null;
+    if (currentUser.role === "collaborator" && !(
+      (req.method === "GET" && (req.path === "/api/auth/me" || req.path === "/api/collaborator/dashboard")) ||
+      (req.method === "POST" && req.path === "/api/auth/logout")
+    )) return res.status(403).json({ error: "Acceso denegado" });
     return next();
   } catch (err) {
     console.error("[auth] error al validar usuario actual:", err);

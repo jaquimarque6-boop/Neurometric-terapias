@@ -9,6 +9,8 @@ import {
 import { eq, ne, inArray, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { storageConfigured, deleteStorageObject } from "../lib/supabaseStorage";
+import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
+import { referralAttributionsTable, collaboratorsTable, saasReceiptsTable, saasStatusEventsTable } from "@workspace/db/schema";
 
 const router: IRouter = Router();
 
@@ -184,7 +186,9 @@ router.get("/users/professionals", async (req, res) => {
 router.post("/users", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
-  const { email, password, name, role, specialty } = req.body;
+  const { email, password, name, role, specialty, referralCode } = req.body;
+  if (role !== undefined && role !== "professional" && role !== "admin") return res.status(400).json({ error: "Rol inválido; use /api/collaborators para colaboradoras" });
+  if (referralCode && (role === "admin" || !await activeReferral(referralCode))) return res.status(400).json({ error: "Código de referido inválido o inactivo" });
   if (!email || !name) {
     return res.status(400).json({ error: "Email y nombre son requeridos" });
   }
@@ -201,7 +205,10 @@ router.post("/users", async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password.trim(), 10);
-  const [user] = await db.insert(usersTable).values({
+  let user: typeof usersTable.$inferSelect;
+  try {
+    user = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(usersTable).values({
     email: email.toLowerCase().trim(),
     passwordHash,
     name: name.trim(),
@@ -209,7 +216,15 @@ router.post("/users", async (req, res) => {
     specialty: specialty?.trim() || null,
     active: true,
     professionalId: null,
-  }).returning();
+    }).returning();
+    await attributeReferral(tx, created.id, referralCode, "admin_user_create", req.session.userId!);
+    return created;
+    });
+  } catch (error: any) {
+    if (error.message === "Código de referido inválido o inactivo") return res.status(400).json({ error: error.message });
+    if (error.code === "23505") return res.status(409).json({ error: "Email ya registrado" });
+    throw error;
+  }
 
   return res.status(201).json(userToJson(user));
 });
@@ -240,6 +255,14 @@ router.patch("/users/:id", async (req, res) => {
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!existing) return res.status(404).json({ error: "Usuario no encontrado" });
+  if (existing.role === "collaborator") return res.status(403).json({ error: "Use /api/collaborators para gestionar colaboradoras" });
+  if (existing.role === "collaborator" && role !== undefined && role !== "collaborator") return res.status(403).json({ error: "El rol colaboradora no se cambia desde usuarios" });
+  if (role === "collaborator") return res.status(403).json({ error: "Use /api/collaborators" });
+  if (role !== undefined && role !== "admin" && role !== "professional") return res.status(400).json({ error: "Rol inválido" });
+  if (existing.role === "professional" && role === "admin") {
+    const [attribution] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.professionalUserId, id));
+    if (attribution) return res.status(409).json({ error: "No se puede cambiar el rol de un referido consolidado" });
+  }
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (name !== undefined) updates.name = name.trim();
@@ -274,11 +297,14 @@ router.patch("/users/:id", async (req, res) => {
     if (internalNotes !== undefined) updates.internalNotes = internalNotes?.trim() || null;
   }
 
-  const [updated] = await db
-    .update(usersTable)
-    .set(updates)
-    .where(eq(usersTable.id, id))
-    .returning();
+  const updated = await db.transaction(async tx => {
+    if (updates.commercialStatus !== undefined && updates.commercialStatus !== existing.commercialStatus) {
+      await changeCommercialStatus(tx, id, updates.commercialStatus, req.session.userId!);
+      delete updates.commercialStatus;
+    }
+    const [record] = await tx.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
+    return record;
+  });
 
   return res.json(userToJson(updated));
 });
@@ -288,6 +314,8 @@ router.delete("/users/:id", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
   const id = parseInt(req.params.id);
+  const [target] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, id));
+  if (target?.role === "collaborator") return res.status(403).json({ error: "Use /api/collaborators para gestionar colaboradoras" });
 
   if (id === req.session.userId) {
     return res.status(400).json({ error: "No puedes desactivar tu propio usuario" });
@@ -383,6 +411,15 @@ router.delete("/users/:id/permanent", async (req, res) => {
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+  const [attributed] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.professionalUserId, id));
+  const [collaborator] = await db.select({ id: collaboratorsTable.id }).from(collaboratorsTable).where(eq(collaboratorsTable.userId, id));
+  const [receipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.professionalUserId, id));
+  const [event] = await db.select({ id: saasStatusEventsTable.id }).from(saasStatusEventsTable).where(eq(saasStatusEventsTable.professionalUserId, id));
+  const [actedEvent] = await db.select({ id: saasStatusEventsTable.id }).from(saasStatusEventsTable).where(eq(saasStatusEventsTable.actorUserId, id));
+  const [createdReceipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.createdByUserId, id));
+  const [paidReceipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.paidByUserId, id));
+  const [createdAttribution] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.createdByUserId, id));
+  if (attributed || collaborator || receipt || event || actedEvent || createdReceipt || paidReceipt || createdAttribution) return res.status(409).json({ error: "La cuenta tiene historial comercial protegido" });
 
   const adminId = req.session.userId;
   const [admin] = await db.select().from(usersTable).where(eq(usersTable.id, adminId));

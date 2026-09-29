@@ -4,6 +4,7 @@ import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { createAuthToken } from "../auth-token";
+import { attributeReferral, activeReferral } from "../lib/collaborators";
 
 const router: IRouter = Router();
 
@@ -124,7 +125,7 @@ router.post("/auth/logout", (req, res) => {
 });
 
 router.post("/auth/register", async (req, res) => {
-  const { email, password, name, role, specialty } = req.body;
+  const { email, password, name, role, specialty, referralCode } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: "Email, contraseña y nombre son requeridos" });
   }
@@ -133,6 +134,9 @@ router.post("/auth/register", async (req, res) => {
   if (role !== undefined && role !== "professional") {
     return res.status(403).json({ error: "El registro público solo permite crear profesionales" });
   }
+  if (referralCode && !await activeReferral(referralCode)) {
+    return res.status(400).json({ error: "Código de referido inválido o inactivo" });
+  }
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
   if (existing.length > 0) {
@@ -140,7 +144,10 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const [user] = await db.insert(usersTable).values({
+  let user: typeof usersTable.$inferSelect;
+  try {
+    user = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(usersTable).values({
     email: email.toLowerCase().trim(),
     passwordHash,
     name,
@@ -148,7 +155,15 @@ router.post("/auth/register", async (req, res) => {
     specialty: specialty ?? null,
     active: true,
     professionalId: null,
-  }).returning();
+    }).returning();
+    await attributeReferral(tx, created.id, referralCode, "public_register", null);
+    return created;
+    });
+  } catch (error: any) {
+    if (error.message === "Código de referido inválido o inactivo") return res.status(400).json({ error: error.message });
+    if (error.code === "23505") return res.status(409).json({ error: "Este email ya está registrado" });
+    throw error;
+  }
 
   return res.status(201).json(userToJson(user));
 });

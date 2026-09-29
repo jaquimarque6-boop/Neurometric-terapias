@@ -57,6 +57,7 @@ Thumbs.db
 
 # Database backups
 *.sql
+!scripts/collaborators-v1.sql
 *.tar.gz
 *.tar
 *.dump

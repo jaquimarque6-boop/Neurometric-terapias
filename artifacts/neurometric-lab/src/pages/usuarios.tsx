@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
+import { normalizeReferralCode } from "@/lib/referral";
+import { useReferral, validateReferralCode } from "@/providers/referral-provider";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -146,6 +148,7 @@ const emptyForm = {
   specialty: "",
   password: "",
   confirmPassword: "",
+  referralCode: "",
 };
 
 export default function Usuarios() {
@@ -174,6 +177,26 @@ export default function Usuarios() {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("todos");
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // ── Código de referido (opcional, solo profesionales) ──────────────────────
+  // El código se valida contra el servidor antes de enviarlo; el servidor lo
+  // vuelve a validar al crear la cuenta. El "código de este navegador" solo
+  // existe si el enlace ?ref= se abrió en ESTE navegador (no se comparte).
+  const { referral: browserReferral } = useReferral();
+  const [refState, setRefState] = useState<{ code: string; status: "idle" | "checking" | "valid" | "invalid" | "error" }>({ code: "", status: "idle" });
+  const setReferralInput = (v: string) => { set("referralCode", v.toUpperCase()); setRefState({ code: "", status: "idle" }); };
+  const checkReferral = async (raw: string) => {
+    const code = normalizeReferralCode(raw);
+    if (!code) { setRefState({ code: raw, status: "invalid" }); return; }
+    setRefState({ code, status: "checking" });
+    try {
+      const r = await validateReferralCode(code);
+      setRefState({ code: r.code, status: r.valid ? "valid" : "invalid" });
+      if (r.valid) setForm(f => ({ ...f, referralCode: r.code }));
+    } catch {
+      setRefState({ code, status: "error" });
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -249,16 +272,24 @@ export default function Usuarios() {
       toast({ title: "Las contraseñas no coinciden", variant: "destructive" });
       return;
     }
+    const wantsReferral = form.role === "professional" && form.referralCode.trim() !== "";
+    const refCode = normalizeReferralCode(form.referralCode);
+    if (wantsReferral && (refState.status !== "valid" || refState.code !== refCode)) {
+      toast({ title: "Validá el código de referido antes de crear", description: "O dejá el campo vacío.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
+      const body: Record<string, unknown> = { name: form.name.trim(), email: form.email.trim(), role: form.role, specialty: form.specialty || null, password: form.password.trim() };
+      if (wantsReferral && refCode) body.referralCode = refCode;
       const r = await fetch(`${API_BASE}/api/users`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), role: form.role, specialty: form.specialty || null, password: form.password.trim() }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); toast({ title: e.error ?? "Error al crear", variant: "destructive" }); return; }
       toast({ title: "Usuario creado" });
-      setForm(emptyForm); setShowForm(false);
+      setForm(emptyForm); setShowForm(false); setRefState({ code: "", status: "idle" });
       await loadAll();
     } finally { setSaving(false); }
   };
@@ -617,9 +648,28 @@ export default function Usuarios() {
                       {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
+                  {form.role === "professional" && (
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-sm font-medium">Código de referido <span className="text-muted-foreground font-normal">(opcional)</span></label>
+                      <div className="flex gap-2">
+                        <Input placeholder="Ej. CODIGO" value={form.referralCode} onChange={e => setReferralInput(e.target.value)} className="bg-muted/30 font-mono uppercase" />
+                        <Button type="button" variant="outline" disabled={!form.referralCode.trim() || refState.status === "checking"} onClick={() => checkReferral(form.referralCode)}>
+                          {refState.status === "checking" ? "Validando…" : "Validar"}
+                        </Button>
+                      </div>
+                      {refState.status === "valid" && <p className="text-[11px] text-emerald-700">Código válido: {refState.code}. La atribución queda fija al crear la cuenta.</p>}
+                      {refState.status === "invalid" && <p className="text-[11px] text-destructive">Código inexistente o inactivo.</p>}
+                      {refState.status === "error" && <p className="text-[11px] text-destructive">No se pudo validar. Reintentá.</p>}
+                      {browserReferral && !form.referralCode && (
+                        <button type="button" onClick={() => { set("referralCode", browserReferral.code); checkReferral(browserReferral.code); }} className="text-[11px] text-primary underline-offset-2 hover:underline">
+                          Usar el código detectado en este navegador: {browserReferral.code}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-3 pt-2 border-t border-border/40">
-                  <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); }}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => { setShowForm(false); setForm(emptyForm); setShowPwd(false); setRefState({ code: "", status: "idle" }); }}>Cancelar</Button>
                   <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !form.email.trim() || !form.password.trim() || form.password !== form.confirmPassword} className="bg-gradient-to-br from-accent to-accent/80 text-white gap-2">
                     {saving ? "Guardando…" : "Crear usuario"}
                   </Button>

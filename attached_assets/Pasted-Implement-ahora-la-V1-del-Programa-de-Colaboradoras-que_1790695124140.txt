@@ -1,0 +1,125 @@
+Implementá ahora la V1 del Programa de Colaboradoras que acabamos de diseñar y aprobar.
+No vuelvas a hacer una auditoría ni una nueva propuesta de arquitectura. Usá como base la arquitectura V1 simplificada de 4 tablas que quedó documentada en este proyecto:
+- collaborators
+- referral_attributions
+- saas_receipts
+- saas_status_events
+Implementá exactamente esa V1.
+Caso real futuro
+El primer caso será:
+- Angie Pico
+- Colombia
+- código ANGIE
+- comisión 40%
+- link https://neurometricterapias.com/?ref=angie
+No crees todavía a Angie ni uses datos reales. Durante desarrollo y pruebas utilizá solamente datos sintéticos.
+Implementar
+1. Gestión de colaboradoras desde Admin.
+2. Captura de ?ref= antes de la redirección.
+3. Validación del código contra las colaboradoras existentes.
+4. Persistencia durante 30 días.
+5. First valid referral wins durante esa ventana.
+6. Eliminación de la whitelist fija kilead/anggy como fuente de verdad.
+7. Atribución permanente al crear la cuenta profesional.
+8. Registro manual de cobros SaaS desde Admin.
+9. Generación automática de comisión cuando existe atribución.
+10. Congelamiento histórico del importe base, moneda, porcentaje y comisión.
+11. Protección contra doble clic/reintentos y comisiones duplicadas.
+12. Registro de comisión completa como pagada.
+13. Historial mínimo de primera alta paga, cancelación y reactivación.
+14. Panel privado /colaboradora.
+15. Estadísticas agregadas mensuales.
+Panel de colaboradora
+Mostrar:
+- saludo;
+- link personal + botón Copiar;
+- código;
+- porcentaje vigente;
+- referidos consolidados;
+- suscripciones activas;
+- nuevas suscripciones del mes;
+- bajas;
+- comisión generada este mes;
+- comisión pendiente;
+- comisión pagada;
+- historial mensual.
+Separar los importes por moneda.
+Seguridad — requisito obligatorio
+Incorporar collaborator como rol específico usando el login existente.
+No rediseñar la autenticación.
+Implementar simultáneamente una barrera de autorización del servidor:
+- collaborator solo puede acceder a operaciones necesarias de sesión y endpoints específicos de su panel;
+- cualquier otra ruta clínica o administrativa debe quedar denegada por defecto;
+- resolver siempre la colaboradora desde el usuario autenticado;
+- nunca confiar en collaborator_id enviado por frontend;
+- las APIs del panel NO deben devolver nombres, emails, teléfonos, IDs de profesionales, pacientes ni información clínica;
+- mantener intactos los permisos actuales de admin y professional.
+Probá accesos directos a endpoints prohibidos, no solamente que las opciones estén ocultas en frontend.
+Cobros y comisiones
+NO reutilizar pagos, patient_payments ni ninguna tabla clínica.
+Un cobro confirmado puede generar como máximo una comisión.
+Los cobros confirmados no se editan ni eliminan en V1.
+Cambiar posteriormente el porcentaje de una colaboradora NO debe recalcular comisiones históricas.
+No generar comisiones retroactivas automáticamente.
+Fuera de alcance
+NO implementar todavía:
+- Mercado Pago;
+- PayPal;
+- webhooks;
+- devoluciones/contracargos;
+- pagos parciales de comisiones;
+- conciliación bancaria;
+- conversión de monedas;
+- estadísticas de clics;
+- automatización de vencimientos;
+- reasignaciones de referidos.
+No modificar:
+- PWA;
+- pacientes;
+- agenda;
+- sesiones;
+- IA;
+- pagos clínicos;
+- Anamnesis/Informes de Fase 1.
+Base de datos
+Creá la migración aditiva necesaria.
+Podés ejecutarla solamente en la base de desarrollo para probar.
+NO ejecutar ninguna migración en producción.
+Pruebas obligatorias
+Probá como mínimo:
+- captura /?ref=angie;
+- persistencia del referido;
+- código inexistente/inactivo;
+- first-referral-wins;
+- imposibilidad de cambiar una atribución consolidada mediante URL;
+- cobro sin atribución = sin comisión;
+- cobro atribuido = comisión correcta;
+- doble clic/reintento = sin duplicado;
+- cambio posterior de porcentaje = histórico intacto;
+- cancelación;
+- reactivación;
+- marcar comisión pagada;
+- colaboradora A sin acceso a datos de B;
+- collaborator bloqueada en endpoints clínicos y administrativos;
+- respuestas del panel sin información identificatoria;
+- regresión de acceso de admin;
+- regresión de acceso de professional.
+Usá únicamente datos sintéticos y limpialos al finalizar.
+Al terminar
+Entregame:
+- qué implementaste;
+- tablas y campos finales;
+- migración creada;
+- archivos modificados;
+- funcionamiento del referido;
+- funcionamiento de cobros y comisiones;
+- funcionamiento del panel Admin;
+- funcionamiento del panel Colaboradora;
+- pruebas ejecutadas y resultados;
+- datos de prueba eliminados;
+- cualquier limitación encontrada.
+Podés hacer commit local al finalizar si todas las pruebas pasan.
+NO hagas Push.
+NO hagas Deploy.
+NO toques producción.
+Cuando termines, detenete y esperá mi aprobación.

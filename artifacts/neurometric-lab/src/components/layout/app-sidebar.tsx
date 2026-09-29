@@ -15,6 +15,7 @@ import {
   Wallet,
   Download,
   FolderLock,
+  HeartHandshake,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +53,7 @@ const navItems: NavItem[] = [
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
   { title: "Reportes",           url: "/reportes",      icon: BarChart3,       adminHidden: true },
   { title: "Usuarios",           url: "/usuarios",      icon: ShieldCheck,     adminOnly: true },
+  { title: "Colaboradoras",      url: "/colaboradoras", icon: HeartHandshake,  adminOnly: true },
   { title: "Mi perfil",          url: "/usuario",       icon: UserCircle      },
 ];
 

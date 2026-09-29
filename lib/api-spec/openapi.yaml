@@ -28,6 +28,78 @@ tags:
   - name: patient-professionals
     description: Patient-professional assignments
 paths:
+  /referrals/{code}:
+    get:
+      operationId: validateReferral
+      tags: [collaborators]
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Public code validity, content: { application/json: { schema: { $ref: "#/components/schemas/ReferralValidity" } } } }
+  /collaborators:
+    get:
+      operationId: listCollaborators
+      tags: [collaborators]
+      responses:
+        "200": { description: Admin list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Collaborator" } } } } }
+    post:
+      operationId: createCollaborator
+      tags: [collaborators]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CollaboratorInput" } } } }
+      responses:
+        "201": { description: Inactive collaborator created, content: { application/json: { schema: { $ref: "#/components/schemas/Collaborator" } } } }
+  /collaborators/{id}:
+    patch:
+      operationId: updateCollaborator
+      tags: [collaborators]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CollaboratorUpdate" } } } }
+      responses:
+        "200": { description: Updated collaborator, content: { application/json: { schema: { $ref: "#/components/schemas/Collaborator" } } } }
+  /collaborators/{id}/dashboard:
+    get:
+      operationId: getAdminCollaboratorDashboard
+      tags: [collaborators]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Aggregate dashboard, content: { application/json: { schema: { $ref: "#/components/schemas/CollaboratorDashboard" } } } }
+  /collaborator/dashboard:
+    get:
+      operationId: getCollaboratorDashboard
+      tags: [collaborators]
+      responses:
+        "200": { description: Own aggregate dashboard, content: { application/json: { schema: { $ref: "#/components/schemas/CollaboratorDashboard" } } } }
+  /saas/receipts:
+    get:
+      operationId: listSaasReceipts
+      tags: [collaborators]
+      responses:
+        "200": { description: Admin receipts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SaasReceipt" } } } } }
+    post:
+      operationId: createSaasReceipt
+      tags: [collaborators]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaasReceiptInput" } } } }
+      responses:
+        "201": { description: Confirmed receipt, content: { application/json: { schema: { $ref: "#/components/schemas/SaasReceipt" } } } }
+        "200": { description: Identical idempotent retry, content: { application/json: { schema: { $ref: "#/components/schemas/SaasReceipt" } } } }
+  /saas/receipts/{id}/paid:
+    post:
+      operationId: paySaasCommission
+      tags: [collaborators]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/SaasPaymentInput" } } } }
+      responses:
+        "200": { description: Fully paid receipt, content: { application/json: { schema: { $ref: "#/components/schemas/SaasReceipt" } } } }
+  /saas/status:
+    post:
+      operationId: changeSaasStatus
+      tags: [collaborators]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaasStatusInput" } } } }
+      responses:
+        "200": { description: Updated status, content: { application/json: { schema: { $ref: "#/components/schemas/SaasStatusResult" } } } }
   /healthz:
     get:
       operationId: healthCheck
@@ -695,6 +767,123 @@ paths:
 
 components:
   schemas:
+    ReferralValidity:
+      type: object
+      required: [valid, code]
+      properties:
+        valid: { type: boolean }
+        code: { type: string }
+    Collaborator:
+      type: object
+      required: [id, userId, name, country, code, commissionPercent, active, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        name: { type: string }
+        country: { type: string }
+        code: { type: string }
+        commissionPercent: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CollaboratorInput:
+      type: object
+      required: [name, email, password, country, code, commissionPercent]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        country: { type: string }
+        code: { type: string }
+        commissionPercent: { type: string }
+    CollaboratorUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        country: { type: string }
+        code: { type: string }
+        commissionPercent: { type: string }
+        active: { type: boolean }
+    MoneyByCurrency:
+      type: object
+      additionalProperties: { type: string }
+    CollaboratorMonth:
+      type: object
+      required: [month, referrals, newSubscriptions, cancellations, generated, pending, paid]
+      properties:
+        month: { type: string }
+        referrals: { type: integer }
+        newSubscriptions: { type: integer }
+        cancellations: { type: integer }
+        generated: { $ref: "#/components/schemas/MoneyByCurrency" }
+        pending: { $ref: "#/components/schemas/MoneyByCurrency" }
+        paid: { $ref: "#/components/schemas/MoneyByCurrency" }
+    CollaboratorDashboard:
+      type: object
+      required: [name, code, link, commissionPercent, referrals, activeSubscriptions, newSubscriptionsThisMonth, cancellationsThisMonth, generatedThisMonth, pending, paid, history]
+      properties:
+        name: { type: string }
+        code: { type: string }
+        link: { type: string }
+        commissionPercent: { type: string }
+        referrals: { type: integer }
+        activeSubscriptions: { type: integer }
+        newSubscriptionsThisMonth: { type: integer }
+        cancellationsThisMonth: { type: integer }
+        generatedThisMonth: { $ref: "#/components/schemas/MoneyByCurrency" }
+        pending: { $ref: "#/components/schemas/MoneyByCurrency" }
+        paid: { $ref: "#/components/schemas/MoneyByCurrency" }
+        history: { type: array, items: { $ref: "#/components/schemas/CollaboratorMonth" } }
+    SaasReceiptInput:
+      type: object
+      required: [professionalUserId, amount, currency, periodFrom, periodTo, receivedAt, idempotencyKey]
+      properties:
+        professionalUserId: { type: integer }
+        amount: { type: string }
+        currency: { type: string }
+        periodFrom: { type: string, format: date }
+        periodTo: { type: string, format: date }
+        receivedAt: { type: string, format: date }
+        reference: { type: string }
+        idempotencyKey: { type: string }
+    SaasPaymentInput:
+      type: object
+      properties:
+        paymentReference: { type: string }
+    SaasReceipt:
+      type: object
+      required: [id, professionalUserId, amount, currency, periodFrom, periodTo, receivedAt, reference, idempotencyKey, createdByUserId, collaboratorId, commissionPercentSnapshot, commissionAmount, paidAt, paidByUserId, paymentReference, createdAt]
+      properties:
+        id: { type: integer }
+        professionalUserId: { type: integer }
+        amount: { type: string }
+        currency: { type: string }
+        periodFrom: { type: string, format: date }
+        periodTo: { type: string, format: date }
+        receivedAt: { type: string, format: date }
+        reference: { type: ["string", "null"] }
+        idempotencyKey: { type: string }
+        createdByUserId: { type: integer }
+        collaboratorId: { type: ["integer", "null"] }
+        commissionPercentSnapshot: { type: ["string", "null"] }
+        commissionAmount: { type: ["string", "null"] }
+        paidAt: { type: ["string", "null"], format: date-time }
+        paidByUserId: { type: ["integer", "null"] }
+        paymentReference: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    SaasStatusInput:
+      type: object
+      required: [professionalUserId, status]
+      properties:
+        professionalUserId: { type: integer }
+        status: { type: string, enum: [trial, paying, overdue, courtesy, churned] }
+        effectiveDate: { type: string, format: date }
+    SaasStatusResult:
+      type: object
+      required: [professionalUserId, status, event]
+      properties:
+        professionalUserId: { type: integer }
+        status: { type: string }
+        event: { type: ["string", "null"], enum: [first_paid, cancellation, reactivation, null] }
     HealthStatus:
       type: object
       properties:

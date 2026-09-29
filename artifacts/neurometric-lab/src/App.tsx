@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/providers/language-provider";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { PwaExperience } from "@/pwa/experience";
+import { ReferralProvider } from "@/providers/referral-provider";
 
 // Eager: login is the entry screen and NotFound is the cheap fallback. Keeping
 // them in the initial chunk avoids a loading flash on first paint.
@@ -35,6 +36,8 @@ const AgendaPagos = lazy(() => import("@/pages/agenda-pagos"));
 const Usuario = lazy(() => import("@/pages/usuario"));
 const Usuarios = lazy(() => import("@/pages/usuarios"));
 const SesionRapida = lazy(() => import("@/pages/sesion-rapida"));
+const Colaboradoras = lazy(() => import("@/pages/colaboradoras"));
+const ColaboradoraPortal = lazy(() => import("@/pages/colaboradora"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +56,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   useEffect(() => {
     if (!loading && !user) {
       setLocation("/login");
+    } else if (!loading && user?.role === "collaborator") {
+      // Default deny: collaborators never render clinical pages or their hooks.
+      setLocation("/colaboradora");
     }
   }, [loading, user, setLocation]);
 
@@ -74,6 +80,24 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     );
   }
 
+  if (user.role !== "admin" && user.role !== "professional") return null;
+
+  return <Component />;
+}
+
+function CollaboratorRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) setLocation("/login");
+      else if (user.role !== "collaborator") setLocation("/");
+    }
+  }, [loading, user, setLocation]);
+
+  if (loading) return <PageFallback />;
+  if (!user || user.role !== "collaborator") return null;
   return <Component />;
 }
 
@@ -84,6 +108,7 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   useEffect(() => {
     if (!loading) {
       if (!user) setLocation("/login");
+      else if (user.role === "collaborator") setLocation("/colaboradora");
       else if (user.role !== "admin") setLocation("/");
     }
   }, [loading, user, setLocation]);
@@ -134,6 +159,8 @@ function Router() {
       <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
       <Route path="/sesion-rapida" component={() => <ProtectedRoute component={SesionRapida} />} />
       <Route path="/respaldo" component={() => <ProtectedRoute component={Respaldo} />} />
+      <Route path="/colaboradoras" component={() => <AdminRoute component={Colaboradoras} />} />
+      <Route path="/colaboradora" component={() => <CollaboratorRoute component={ColaboradoraPortal} />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -226,6 +253,7 @@ function App() {
     <LanguageProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <ReferralProvider>
           <TooltipProvider>
             <PwaExperience>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
@@ -237,6 +265,7 @@ function App() {
             <Toaster />
             </PwaExperience>
           </TooltipProvider>
+          </ReferralProvider>
         </AuthProvider>
       </QueryClientProvider>
     </LanguageProvider>

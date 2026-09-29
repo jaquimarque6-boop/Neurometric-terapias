@@ -7,6 +7,216 @@
  */
 import * as zod from "zod";
 
+export const ValidateReferralParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const ValidateReferralResponse = zod.object({
+  valid: zod.boolean(),
+  code: zod.string(),
+});
+
+export const ListCollaboratorsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  name: zod.string(),
+  country: zod.string(),
+  code: zod.string(),
+  commissionPercent: zod.string(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+});
+export const ListCollaboratorsResponse = zod.array(
+  ListCollaboratorsResponseItem,
+);
+
+export const createCollaboratorBodyPasswordMin = 8;
+
+export const CreateCollaboratorBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string().min(createCollaboratorBodyPasswordMin),
+  country: zod.string(),
+  code: zod.string(),
+  commissionPercent: zod.string(),
+});
+
+export const UpdateCollaboratorParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCollaboratorBody = zod.object({
+  name: zod.string().optional(),
+  country: zod.string().optional(),
+  code: zod.string().optional(),
+  commissionPercent: zod.string().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateCollaboratorResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  name: zod.string(),
+  country: zod.string(),
+  code: zod.string(),
+  commissionPercent: zod.string(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+});
+
+export const GetAdminCollaboratorDashboardParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAdminCollaboratorDashboardResponse = zod.object({
+  name: zod.string(),
+  code: zod.string(),
+  link: zod.string(),
+  commissionPercent: zod.string(),
+  referrals: zod.number(),
+  activeSubscriptions: zod.number(),
+  newSubscriptionsThisMonth: zod.number(),
+  cancellationsThisMonth: zod.number(),
+  generatedThisMonth: zod.record(zod.string(), zod.string()),
+  pending: zod.record(zod.string(), zod.string()),
+  paid: zod.record(zod.string(), zod.string()),
+  history: zod.array(
+    zod.object({
+      month: zod.string(),
+      referrals: zod.number(),
+      newSubscriptions: zod.number(),
+      cancellations: zod.number(),
+      generated: zod.record(zod.string(), zod.string()),
+      pending: zod.record(zod.string(), zod.string()),
+      paid: zod.record(zod.string(), zod.string()),
+    }),
+  ),
+});
+
+export const GetCollaboratorDashboardResponse = zod.object({
+  name: zod.string(),
+  code: zod.string(),
+  link: zod.string(),
+  commissionPercent: zod.string(),
+  referrals: zod.number(),
+  activeSubscriptions: zod.number(),
+  newSubscriptionsThisMonth: zod.number(),
+  cancellationsThisMonth: zod.number(),
+  generatedThisMonth: zod.record(zod.string(), zod.string()),
+  pending: zod.record(zod.string(), zod.string()),
+  paid: zod.record(zod.string(), zod.string()),
+  history: zod.array(
+    zod.object({
+      month: zod.string(),
+      referrals: zod.number(),
+      newSubscriptions: zod.number(),
+      cancellations: zod.number(),
+      generated: zod.record(zod.string(), zod.string()),
+      pending: zod.record(zod.string(), zod.string()),
+      paid: zod.record(zod.string(), zod.string()),
+    }),
+  ),
+});
+
+export const ListSaasReceiptsResponseItem = zod.object({
+  id: zod.number(),
+  professionalUserId: zod.number(),
+  amount: zod.string(),
+  currency: zod.string(),
+  periodFrom: zod.date(),
+  periodTo: zod.date(),
+  receivedAt: zod.date(),
+  reference: zod.string().nullable(),
+  idempotencyKey: zod.string(),
+  createdByUserId: zod.number(),
+  collaboratorId: zod.number().nullable(),
+  commissionPercentSnapshot: zod.string().nullable(),
+  commissionAmount: zod.string().nullable(),
+  paidAt: zod.date().nullable(),
+  paidByUserId: zod.number().nullable(),
+  paymentReference: zod.string().nullable(),
+  createdAt: zod.date(),
+});
+export const ListSaasReceiptsResponse = zod.array(ListSaasReceiptsResponseItem);
+
+export const CreateSaasReceiptBody = zod.object({
+  professionalUserId: zod.number(),
+  amount: zod.string(),
+  currency: zod.string(),
+  periodFrom: zod.date(),
+  periodTo: zod.date(),
+  receivedAt: zod.date(),
+  reference: zod.string().optional(),
+  idempotencyKey: zod.string(),
+});
+
+export const CreateSaasReceiptResponse = zod.object({
+  id: zod.number(),
+  professionalUserId: zod.number(),
+  amount: zod.string(),
+  currency: zod.string(),
+  periodFrom: zod.date(),
+  periodTo: zod.date(),
+  receivedAt: zod.date(),
+  reference: zod.string().nullable(),
+  idempotencyKey: zod.string(),
+  createdByUserId: zod.number(),
+  collaboratorId: zod.number().nullable(),
+  commissionPercentSnapshot: zod.string().nullable(),
+  commissionAmount: zod.string().nullable(),
+  paidAt: zod.date().nullable(),
+  paidByUserId: zod.number().nullable(),
+  paymentReference: zod.string().nullable(),
+  createdAt: zod.date(),
+});
+
+export const PaySaasCommissionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PaySaasCommissionBody = zod.object({
+  paymentReference: zod.string().optional(),
+});
+
+export const PaySaasCommissionResponse = zod.object({
+  id: zod.number(),
+  professionalUserId: zod.number(),
+  amount: zod.string(),
+  currency: zod.string(),
+  periodFrom: zod.date(),
+  periodTo: zod.date(),
+  receivedAt: zod.date(),
+  reference: zod.string().nullable(),
+  idempotencyKey: zod.string(),
+  createdByUserId: zod.number(),
+  collaboratorId: zod.number().nullable(),
+  commissionPercentSnapshot: zod.string().nullable(),
+  commissionAmount: zod.string().nullable(),
+  paidAt: zod.date().nullable(),
+  paidByUserId: zod.number().nullable(),
+  paymentReference: zod.string().nullable(),
+  createdAt: zod.date(),
+});
+
+export const ChangeSaasStatusBody = zod.object({
+  professionalUserId: zod.number(),
+  status: zod.enum(["trial", "paying", "overdue", "courtesy", "churned"]),
+  effectiveDate: zod.date().optional(),
+});
+
+export const ChangeSaasStatusResponse = zod.object({
+  professionalUserId: zod.number(),
+  status: zod.string(),
+  event: zod
+    .union([
+      zod.literal("first_paid"),
+      zod.literal("cancellation"),
+      zod.literal("reactivation"),
+      zod.literal(null),
+    ])
+    .nullable(),
+});
+
 /**
  * @summary Health check
  */

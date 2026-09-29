@@ -9,6 +9,7 @@ export * from "./registros-clinicos";
 export * from "./patient-professionals";
 export * from "./actividades";
 export * from "./users";
+export * from "./collaborators";
 export * from "./citas";
 export * from "./express-sessions";
 export * from "./pagos";

@@ -13,7 +13,7 @@ export type AuthUser = {
   id: number;
   email: string;
   name: string;
-  role: "admin" | "professional";
+  role: "admin" | "professional" | "collaborator";
   professionalId: number | null;
   specialty: string | null;
   active: boolean;

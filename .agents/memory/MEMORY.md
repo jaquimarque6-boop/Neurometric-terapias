@@ -7,3 +7,4 @@
 - [Password seed safety](password-seed-safety.md) — startup account initialization may create missing users, but must never replace credentials for existing users.
 - [PWA update consent](pwa-update-consent.md) — updates need per-tab consent; the generic PWA registration helper can reload other tabs with unsaved forms.
 - [Timestamp concurrency](timestamp-concurrency.md) — optimistic-lock timestamps must round-trip through JavaScript without losing database precision.
+- [Collaborator boundaries](collaborator-boundaries.md) — default-deny portal access; preserve attribution and frozen recurring commissions independently of clinical billing.

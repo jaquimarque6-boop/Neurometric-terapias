@@ -1,6 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { captureReferralCandidate } from "./lib/referral";
+
+// Capture ?ref= synchronously, before React or any auth redirect can drop the
+// query string. The value stays an untrusted candidate until the server validates it.
+captureReferralCandidate(window.location.search);
 
 // ─── Global fetch interceptor ─────────────────────────────────────────────────
 // Runs before any React code. Patches window.fetch so that EVERY request to the
