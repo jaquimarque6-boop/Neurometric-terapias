@@ -219,10 +219,14 @@ app.use(async (req, res, next) => {
 
 app.use("/api", router);
 
-seedAdminIfNeeded().catch(console.error);
-ensureJaquiAdmin().catch(console.error);
-ensureTempAdmin().catch(console.error);
-seedGoalLibraryIfNeeded().catch(console.error);
-seedFromSupabaseIfNeeded().catch(console.error);
+// Integration tests provide their own fixtures in an isolated database. Avoid
+// creating accounts or importing external data while the test app is loaded.
+if (process.env.NODE_ENV !== "test") {
+  seedAdminIfNeeded().catch(console.error);
+  ensureJaquiAdmin().catch(console.error);
+  ensureTempAdmin().catch(console.error);
+  seedGoalLibraryIfNeeded().catch(console.error);
+  seedFromSupabaseIfNeeded().catch(console.error);
+}
 
 export default app;
