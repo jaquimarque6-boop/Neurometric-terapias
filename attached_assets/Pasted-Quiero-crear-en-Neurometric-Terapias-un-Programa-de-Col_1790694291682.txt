@@ -1,0 +1,124 @@
+Quiero crear en Neurometric Terapias un Programa de Colaboradoras con links/códigos de referido y un panel propio.
+Tenemos un primer caso real:
+- Angie Pico, Colombia.
+- Código previsto: ANGIE
+- Link previsto: https://neurometricterapias.com/?ref=angie
+- Comisión: 40% recurrente sobre las suscripciones efectivamente cobradas y atribuidas a ella.
+- Precio internacional actual: USD 8 mensuales.
+IMPORTANTE: NO implementes nada todavía.
+Primero revisá el código actual, porque anteriormente se agregó soporte parcial para parámetros ?ref= en login/WhatsApp. Quiero reutilizar lo existente y no crear mecanismos duplicados.
+Objetivo
+Necesito dos espacios claramente separados:
+1. ADMIN — Gestión de colaboradoras
+El administrador debe poder:
+- crear una colaboradora;
+- nombre;
+- código único;
+- país;
+- porcentaje de comisión configurable;
+- moneda de referencia;
+- estado activa/inactiva;
+- generar/copiar su link;
+- ver cantidad de referidos;
+- suscripciones activas;
+- nuevas altas;
+- bajas;
+- pagos efectivamente cobrados atribuibles;
+- comisión generada;
+- comisión pendiente;
+- comisión pagada;
+- historial mensual;
+- registrar manualmente el pago de una comisión.
+No reutilizar pagos, patient_payments ni ninguna estructura clínica de cobros de pacientes.
+2. PANEL DE COLABORADORA
+Angie debe poder ingresar y ver una interfaz simple con:
+Hola Angie 👋
+- Mi link de recomendación + botón Copiar.
+- Mi código: ANGIE.
+- Suscripciones activas generadas.
+- Nuevas suscripciones del mes.
+- Bajas del mes.
+- Comisión generada este mes.
+- Comisión pendiente.
+- Comisión ya pagada.
+- Historial mensual.
+Puede mostrar algo como:
+Tu comisión: 40% recurrente
+y una explicación breve:
+“Recibís el 40% de las suscripciones efectivamente cobradas que se hayan registrado mediante tu link/código mientras permanezcan activas.”
+PRIVACIDAD
+La colaboradora NO puede ver:
+- nombres;
+- emails;
+- teléfonos;
+- datos de contacto;
+- identidad de las profesionales referidas;
+- pacientes;
+- historias clínicas;
+- información clínica;
+- información administrativa interna de Neurometric.
+Su panel debe mostrar solamente estadísticas agregadas y sus propias comisiones.
+El ADMIN sí puede tener el detalle necesario para gestionar atribución, cobros y comisiones.
+ATRIBUCIÓN
+Revisá y proponé cómo debe funcionar:
+?ref=angie → visita → solicitud/registro → creación de usuario → prueba → suscripción paga → comisión.
+Necesito que el referido persista si la profesional:
+- navega por otras páginas;
+- vuelve días después;
+- inicia los 15 días de prueba;
+- posteriormente se convierte en paga.
+Una atribución ya consolidada no debe poder cambiar simplemente modificando ?ref= en la URL.
+Definí también qué sucede con:
+- cancelación;
+- reactivación;
+- pago no realizado;
+- devolución;
+- cambio de precio;
+- cambio futuro del porcentaje de la colaboradora.
+Las comisiones históricas ya generadas no deben recalcularse si después cambia el porcentaje.
+PAGOS
+Actualmente los cobros SaaS no están totalmente automatizados.
+La primera versión debe poder funcionar con confirmación manual del cobro por parte del administrador.
+Al confirmar que una suscripción fue efectivamente cobrada, el sistema debe generar la comisión correspondiente usando el porcentaje aplicable en ese momento.
+Ejemplo:
+Suscripción USD 8
+Comisión Angie 40%
+Comisión generada USD 3,20
+Pero NO hardcodear USD 8 ni 40%; deben ser configurables.
+ACCESO
+Analizá cuál es la forma más segura y simple de darle acceso al Panel de Colaboradora.
+No quiero darle rol admin ni acceso a pacientes.
+Revisá si conviene:
+- un rol específico collaborator;
+- una relación con el usuario existente;
+- u otra solución compatible con la arquitectura actual.
+No rediseñar la autenticación general.
+AUDITORÍA PREVIA
+Antes de proponer la implementación, informame:
+1. qué soporte ?ref= existe actualmente;
+2. dónde se guarda actualmente;
+3. si hoy se pierde al navegar/cerrar/volver;
+4. qué tablas relacionadas con suscripciones/comercial existen actualmente;
+5. qué tablas nuevas proponés;
+6. cómo quedaría la atribución;
+7. cómo quedaría el cálculo y congelamiento histórico de comisiones;
+8. permisos necesarios;
+9. pantallas/rutas necesarias;
+10. migración necesaria;
+11. archivos que habría que modificar;
+12. pruebas necesarias.
+Proponé una implementación simple, escalable y por etapas, priorizando una V1 que podamos usar inmediatamente con Angie.
+NO modificar:
+- autenticación existente salvo el mínimo necesario para el acceso de colaboradora;
+- Fase 0;
+- PWA;
+- Anamnesis/Informes;
+- pacientes;
+- agenda;
+- sesiones;
+- pagos clínicos;
+- IA.
+NO IMPLEMENTES NADA.
+NO hagas migraciones.
+NO hagas commit/push/deploy.
+Esperá mi aprobación.
