@@ -1,0 +1,87 @@
+Apruebo el concepto general, pero quiero simplificar la V1 para no sobredimensionar el sistema.
+El primer caso real será Angie Pico, Colombia, código ANGIE, comisión recurrente 40%.
+Quiero que la V1 resuelva solamente:
+1. Colaboradoras
+- Crear/editar colaboradora.
+- Nombre.
+- País.
+- Código único.
+- Porcentaje configurable.
+- Estado activa/inactiva.
+- Usuario asociado para acceder al panel.
+2. Referido
+- /?ref=angie debe capturarse antes de cualquier redirección.
+- Persistencia propuesta de 30 días.
+- First valid referral wins durante esa ventana.
+- Cuando admin crea la cuenta profesional, debe poder ver/utilizar el código pendiente o ingresar ANGIE manualmente.
+- Una vez atribuida la profesional, la atribución queda consolidada y no puede cambiarse modificando la URL.
+Corregir el sistema actual para que deje de depender de la lista fija kilead/anggy.
+NO asumir que anggy corresponde a Angie. No migrar ese código automáticamente.
+3. Suscripción/cobro V1
+Todavía NO integrar Mercado Pago, PayPal ni otra pasarela.
+Desde Admin quiero poder registrar/confirmar manualmente un cobro SaaS indicando:
+- profesional;
+- importe;
+- moneda;
+- fecha/período;
+- referencia opcional.
+Si esa profesional tiene colaboradora atribuida, al confirmar el cobro se genera automáticamente una comisión utilizando el porcentaje vigente.
+La comisión debe guardar de forma histórica:
+- importe base;
+- moneda;
+- porcentaje aplicado;
+- importe de comisión;
+- fecha;
+- colaboradora;
+- cobro de origen.
+Evitar duplicación por doble clic/reintento.
+4. Panel Admin
+Para cada colaboradora mostrar:
+- código/link;
+- porcentaje;
+- referidos consolidados;
+- suscripciones activas;
+- nuevas suscripciones del mes;
+- comisión generada;
+- comisión pendiente;
+- comisión pagada.
+Permitir registrar manualmente que una comisión fue pagada.
+Para esta V1 NO necesito pagos parciales complejos ni conciliación avanzada.
+5. Panel de colaboradora
+Ruta independiente /colaboradora.
+Mostrar únicamente:
+- saludo;
+- código;
+- link con botón copiar;
+- porcentaje;
+- referidos;
+- suscripciones activas;
+- nuevas suscripciones;
+- bajas;
+- comisión del mes;
+- pendiente;
+- pagada;
+- historial mensual.
+NUNCA mostrar nombres, emails, teléfonos, IDs de profesionales, pacientes ni ningún dato clínico o identificatorio.
+6. Seguridad
+Apruebo el rol específico collaborator SOLO si implementás simultáneamente la barrera de servidor propuesta:
+- collaborator solo puede acceder a sesión y endpoints específicos de su panel;
+- cualquier ruta clínica o administrativa debe ser denegada por defecto;
+- la identidad de la colaboradora se resuelve desde la sesión;
+- no confiar en collaborator_id enviado desde frontend;
+- mantener intactos los permisos actuales de admin y professional.
+No habilitar ninguna cuenta collaborator hasta que estas pruebas estén aprobadas.
+7. Alcance
+Quiero la mínima cantidad de tablas necesaria para esta V1.
+Antes de programar, revisá si realmente necesitamos las 7 tablas propuestas originalmente o si podemos simplificar la V1 manteniendo:
+- trazabilidad de cobros;
+- comisiones históricas congeladas;
+- atribución permanente;
+- historial mensual;
+- seguridad.
+Dejemos cancelaciones/reactivaciones básicas contempladas, pero devoluciones, pagos parciales de comisiones, automatización de pasarelas y conciliación avanzada pueden quedar para una fase posterior.
+NO reutilizar pagos clínicos.
+No modificar PWA, pacientes, sesiones, agenda, IA ni Fase 1.
+Todavía NO implementes.
+Respondeme únicamente con la arquitectura V1 simplificada, tablas definitivas y qué funcionalidades dejamos explícitamente para una V2.
+Esperá mi aprobación.
