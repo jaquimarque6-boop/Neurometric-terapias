@@ -1,0 +1,36 @@
+Encontré un bug real en producción con el acceso de una profesional existente vinculada como colaboradora.
+Mi cuenta admin vinculada como colaboradora funcionó, pero al vincular a Angie, que tiene rol professional, al intentar acceder al panel de colaboradora aparece el mensaje “Solo administradores”.
+NO cambies el rol de Angie.
+NO la conviertas en admin.
+NO crees otro usuario.
+Necesito corregir exclusivamente este bug.
+Revisá el flujo completo de acceso a /colaboradora y sus endpoints para un usuario que simultáneamente:
+- tiene users.role = professional;
+- tiene una fila asociada en collaborators.
+La regla correcta debe ser:
+- admin → mantiene sus permisos administrativos.
+- professional sin relación en collaborators → no accede al panel de colaboradora.
+- professional con relación en collaborators → conserva TODOS sus permisos profesionales y además puede acceder a /colaboradora y exclusivamente a los endpoints de SU panel.
+- collaborator puro → accede únicamente a sesión + su panel y continúa bloqueado de las rutas clínicas/administrativas.
+Investigá específicamente de dónde proviene el mensaje “Solo administradores”. Puede haber una ruta del panel o endpoint protegido todavía con requireAdmin o equivalente.
+No amplíes permisos administrativos para solucionarlo.
+La autorización del panel debe basarse en que el usuario autenticado tenga una relación en collaborators, independientemente de que su rol sea professional o collaborator.
+La identidad de la colaboradora siempre debe obtenerse desde el usuario autenticado, nunca desde un collaborator_id del frontend.
+Reproducí exactamente este caso con datos sintéticos:
+1. crear professional;
+2. comprobar acceso profesional;
+3. vincularla a collaborators;
+4. iniciar sesión como esa professional;
+5. abrir /colaboradora;
+6. comprobar que carga su panel;
+7. comprobar que sigue entrando a pacientes/sesiones permitidos como profesional;
+8. comprobar que NO puede entrar a /colaboradoras ni endpoints administrativos;
+9. comprobar que no puede consultar datos de otra colaboradora.
+También probá:
+- admin;
+- professional sin collaborator;
+- collaborator puro.
+No hagas cambios en la base de producción ni en Angie para probar.
+Usá datos sintéticos en desarrollo y limpialos al finalizar.
+No hagas push ni deploy.
+Al terminar decime exactamente cuál era la causa de “Solo administradores”, qué archivo corregiste y resultados de las pruebas.
