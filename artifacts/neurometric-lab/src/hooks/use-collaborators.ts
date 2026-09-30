@@ -185,6 +185,20 @@ export function useUpdateCollaborator() {
   });
 }
 
+export function useDeleteCollaborator() {
+  const qc = useQueryClient();
+  const { uid } = useScope();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiJson<{ deleted: true }>(`/api/collaborators/${id}`, { method: "DELETE", body: JSON.stringify({ confirm: "ELIMINAR" }) }),
+    onSuccess: (_result, id) => {
+      qc.setQueryData<Collaborator[]>(keys.list(uid), previous => previous?.filter(c => c.id !== id));
+      qc.removeQueries({ queryKey: keys.dashboard(uid, id) });
+      qc.invalidateQueries({ queryKey: ["collab"] });
+    },
+  });
+}
+
 export function useCreateReceipt() {
   const qc = useQueryClient();
   const { uid } = useScope();

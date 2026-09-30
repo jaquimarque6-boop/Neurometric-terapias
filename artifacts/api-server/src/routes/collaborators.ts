@@ -115,6 +115,33 @@ router.patch("/collaborators/:id", async (req, res) => {
   }
 });
 
+const associatedCollaboratorError = "Esta colaboradora ya tiene información asociada. Para conservar el historial, podés desactivarla pero no eliminarla.";
+router.delete("/collaborators/:id", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = idOf(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID inválido" });
+  if (!req.body || Object.keys(req.body).length !== 1 || req.body.confirm !== "ELIMINAR") {
+    return res.status(400).json({ error: "Confirmación inválida" });
+  }
+  try {
+    const result = await db.transaction(async tx => {
+      const locked = await tx.execute(sql`SELECT id FROM collaborators WHERE id = ${id} FOR UPDATE`);
+      if (!locked.rows.length) return "missing";
+      const [attribution] = await tx.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.collaboratorId, id)).limit(1);
+      const [receipt] = await tx.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.collaboratorId, id)).limit(1);
+      if (attribution || receipt) return "associated";
+      await tx.delete(collaboratorsTable).where(eq(collaboratorsTable.id, id));
+      return "deleted";
+    });
+    if (result === "missing") return res.status(404).json({ error: "Colaboradora no encontrada" });
+    if (result === "associated") return res.status(409).json({ error: associatedCollaboratorError });
+    return res.json({ deleted: true });
+  } catch (error: any) {
+    if (error?.code === "23503" || error?.cause?.code === "23503") return res.status(409).json({ error: associatedCollaboratorError });
+    throw error;
+  }
+});
+
 router.get("/saas/receipts", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   return res.json((await db.select().from(saasReceiptsTable).orderBy(saasReceiptsTable.createdAt)).map(receiptJson));

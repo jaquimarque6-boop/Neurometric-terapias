@@ -1,0 +1,23 @@
+Quiero implementar en Neurometric Terapias una capa formal de aceptación de Términos y Condiciones, Política de Privacidad y avisos sobre tratamiento de datos/uso de IA.
+Por ahora NO modifiques código, base de datos, producción ni hagas migraciones. Tampoco hagas commit, push ni deploy.
+Hacé únicamente una revisión puntual del código actual y respondeme:
+1. Cómo se crean actualmente las cuentas profesionales: registro público, creación por administrador y cualquier otro flujo existente.
+2. Cómo funciona el primer login y dónde sería más seguro incorporar una aceptación obligatoria sin alterar el flujo de autenticación actual.
+3. Qué campos existen hoy en users relacionados con términos, privacidad, consentimiento o fechas/versiones de aceptación.
+4. Si actualmente existe alguna pantalla, checkbox, texto o enlace de Términos y Condiciones / Política de Privacidad.
+5. En qué funciones de IA se envían datos clínicos o información del paciente a servicios externos y qué avisos existen actualmente antes de hacerlo.
+6. Proponé el cambio mínimo y aditivo para registrar como mínimo:
+   - versión de Términos aceptada;
+   - versión de Política de Privacidad aceptada;
+   - fecha/hora de aceptación;
+   - usuario que aceptó;
+   - aceptación del aviso de uso de IA cuando corresponda.
+7. Explicá cómo harías para que:
+   - usuarios nuevos deban aceptar antes de comenzar a utilizar la plataforma;
+   - usuarios existentes reciban la solicitud una sola vez;
+   - si en el futuro cambia una versión importante, pueda solicitarse nuevamente;
+   - un profesional no pueda aceptar en nombre de otro;
+   - el administrador no pierda acceso por error.
+IMPORTANTE: Neurometric Terapias tiene autenticación propia, no Supabase Auth. Ya tuvimos una regresión importante al modificar auth, por lo que no quiero refactorizar autenticación ni tocar el mecanismo de sesiones. Buscá una solución aislada y de bajo riesgo.
+No redactes textos legales definitivos todavía. Primero quiero el diagnóstico y la propuesta técnica.
+Al final indicame exactamente qué archivos y tablas habría que modificar si después autorizo la implementación.
