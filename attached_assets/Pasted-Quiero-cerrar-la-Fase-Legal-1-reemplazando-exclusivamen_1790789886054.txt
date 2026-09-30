@@ -1,0 +1,89 @@
+Quiero cerrar la Fase Legal 1 reemplazando exclusivamente los textos provisionales que ya implementaste.
+No hagas nuevas auditorías, no refactorices autenticación, sesiones, permisos ni APIs. No cambies la estructura de user_consent_acceptances. No ejecutes migraciones en producción, no push y no deploy.
+Mantené las versiones actuales:
+- terms: 1.0
+- privacy: 1.0
+- ai: 1.0
+Datos del responsable que deben aparecer:
+- Jacqueline Stefani Márquez
+- Colonia Tirolesa, Córdoba, Argentina
+- neurometricapp@gmail.com
+POLÍTICA DE PRIVACIDAD 1.0
+Reemplazá el texto provisional por una Política de Privacidad clara y legible que incluya exactamente estos contenidos:
+1. Neurometric Terapias es una plataforma destinada principalmente a profesionales para organizar pacientes, agenda, objetivos, sesiones, registros clínicos, informes y archivos.
+2. Puede tratar datos de usuarios y datos de pacientes, incluyendo información identificatoria, antecedentes, anamnesis, diagnósticos, evaluaciones, objetivos, evolución, sesiones, informes, citas, pagos, documentos e imágenes.
+3. La información relativa a la salud constituye información sensible y debe recibir especial protección.
+4. Finalidades: funcionamiento de la cuenta y plataforma, organización clínica, documentación, agenda, almacenamiento, seguridad, gestión de suscripción y funciones opcionales de IA.
+5. Neurometric no utiliza información clínica de pacientes para publicidad dirigida.
+6. El profesional decide qué información de sus pacientes incorpora y es responsable de contar con las autorizaciones o fundamentos correspondientes. La aceptación de la Política por el profesional NO constituye consentimiento del paciente.
+7. Explicar que Neurometric utiliza proveedores tecnológicos externos para infraestructura y funcionamiento, incluyendo actualmente Netlify, Render y Supabase/PostgreSQL.
+8. Explicar que los datos principales se almacenan en PostgreSQL y determinados documentos/imágenes en almacenamiento de archivos de Supabase.
+9. Explicar que las funciones opcionales de IA pueden enviar al proveedor tecnológico información necesaria para realizar la tarea solicitada. Según la función puede incluir datos clínicos, datos identificables y, en transcripción manuscrita, imágenes.
+10. Indicar que las funciones de IA requieren el Aviso de Uso de IA correspondiente.
+11. Recomendar minimizar datos personales e identificadores innecesarios.
+12. Informar que algunos proveedores pueden procesar información mediante infraestructura ubicada fuera de Argentina y que se procurarán utilizar los mecanismos aplicables para transferencias internacionales.
+13. Explicar las medidas generales de seguridad sin prometer seguridad absoluta.
+14. Explicar conservación de información y aclarar que la baja de una cuenta no implica necesariamente eliminación inmediata cuando exista obligación o fundamento legítimo para conservarla.
+15. Informar los derechos que correspondan sobre los datos personales, incluyendo acceso, actualización, rectificación y supresión.
+16. Incluir tratamiento de información de niños y adolescentes cuando sea incorporada por profesionales, aclarando que la plataforma no está destinada a que menores creen cuentas profesionales.
+17. Explicar que puede haber enlaces a servicios externos.
+18. Explicar que las versiones pueden actualizarse y que cambios relevantes pueden requerir nueva aceptación.
+19. Indicar que la aceptación queda asociada a la propia cuenta y no representa consentimiento en nombre de pacientes.
+TÉRMINOS Y CONDICIONES 1.0
+Reemplazá el texto provisional por Términos claros que incluyan:
+1. Objeto y alcance de Neurometric Terapias.
+2. Identificación y contacto del responsable.
+3. Cuentas personales y responsabilidad sobre credenciales.
+4. Responsabilidad del profesional sobre la información de pacientes que incorpora.
+5. Obligaciones de confidencialidad.
+6. IA como herramienta exclusivamente asistencial: no reemplaza evaluación, diagnóstico, tratamiento ni criterio profesional y sus resultados deben revisarse.
+7. Posibilidad de tratamiento de información mediante proveedores externos de IA, remitiendo al Aviso de IA y Política de Privacidad.
+8. Posibilidad de períodos de prueba, promociones y suscripciones.
+9. Precio, moneda y periodicidad deben informarse antes de contratar un servicio pago.
+10. Pagos mediante los medios informados por Neurometric.
+11. Posibilidad de solicitar baja de la suscripción y aclaración de que baja comercial y eliminación de datos no son lo mismo.
+12. Posibilidad de suspensión por incumplimiento, uso no autorizado, riesgos de seguridad o falta de pago cuando corresponda.
+13. No garantizar disponibilidad absolutamente ininterrumpida.
+14. Recomendación de conservar por otros medios la documentación que profesional o legalmente corresponda.
+15. Propiedad intelectual de la plataforma y aclaración de que cargar información clínica no la convierte en propiedad de Neurometric.
+16. Usos prohibidos.
+17. Neurometric no presta por sí misma atención terapéutica ni sustituye al profesional.
+18. Dependencia posible de servicios tecnológicos externos.
+19. Actualización y versionado de términos.
+20. Legislación argentina aplicable, sin excluir derechos imperativos que pudieran corresponder según lugar de residencia o contratación.
+21. Registro de usuario, versión y fecha/hora de aceptación.
+No incluyas notas internas, textos del tipo “esto queda pendiente”, ni afirmaciones de cumplimiento legal absoluto.
+AVISO DE USO DE IA 1.0
+Debe ser más corto y visible.
+Explicar que:
+- Neurometric utiliza IA como herramienta de asistencia profesional.
+- Puede colaborar en informes, perfiles clínicos, objetivos, orientación y transcripción/organización de información manuscrita.
+- Según la función puede procesarse edad, diagnóstico, antecedentes, anamnesis, evaluaciones, objetivos, observaciones, sesiones, texto clínico e imágenes manuscritas.
+- Algunas funciones pueden procesar información clínica y datos identificables.
+- Los resultados pueden contener errores u omisiones.
+- La IA no sustituye evaluación ni criterio profesional, no constituye por sí misma diagnóstico o indicación terapéutica y el profesional debe revisar los resultados.
+- El profesional debe utilizar únicamente información que esté autorizado a tratar y minimizar identificadores innecesarios.
+- La aceptación del profesional NO constituye consentimiento del paciente.
+- Pueden intervenir proveedores tecnológicos externos y existir procesamiento fuera de Argentina.
+- Para más información debe poder consultarse la Política de Privacidad.
+- Botón final: “Acepto y continuar”.
+UX
+Los textos completos deben poder consultarse antes de aceptar.
+Términos y Privacidad deben requerir aceptación expresa y separada. El checkbox no debe venir seleccionado.
+El Aviso de IA debe aparecer según el mecanismo ya implementado antes del primer uso de IA correspondiente a la versión vigente.
+Mantené el diseño visual actual de Neurometric y hacé que los documentos sean cómodos de leer tanto en celular como en computadora.
+PRUEBA FINAL
+Probá únicamente:
+- usuario que todavía no aceptó;
+- aceptación de Términos y Privacidad;
+- volver a ingresar después de haber aceptado;
+- primer uso de IA sin aceptación;
+- aceptar IA y reintentar correctamente;
+- que los tres consentimientos queden registrados con versión 1.0.
+No hagas una auditoría general ni ejecutes suites no relacionadas.
+Al terminar decime solamente:
+- archivos modificados;
+- resultado de estas pruebas;
+- si hubo algún problema;
+- commit local.
+No push, no deploy y no tocar producción.
