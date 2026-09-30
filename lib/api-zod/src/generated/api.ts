@@ -7,6 +7,28 @@
  */
 import * as zod from "zod";
 
+export const GetConsentStatusResponse = zod.object({
+  versions: zod.object({
+    terms: zod.string(),
+    privacy: zod.string(),
+    ai: zod.string(),
+  }),
+  accepted: zod.object({
+    terms: zod.boolean(),
+    privacy: zod.boolean(),
+    ai: zod.boolean(),
+  }),
+});
+
+export const acceptConsentsBodyTypesMax = 2;
+
+export const AcceptConsentsBody = zod.object({
+  types: zod
+    .array(zod.enum(["terms", "privacy", "ai"]))
+    .min(1)
+    .max(acceptConsentsBodyTypesMax),
+});
+
 export const ValidateReferralParams = zod.object({
   code: zod.coerce.string(),
 });

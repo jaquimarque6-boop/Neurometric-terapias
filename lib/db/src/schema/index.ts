@@ -17,3 +17,4 @@ export * from "./patient-files";
 export * from "./gastos";
 export * from "./deletion-log";
 export * from "./professional-files";
+export * from "./user-consent-acceptances";

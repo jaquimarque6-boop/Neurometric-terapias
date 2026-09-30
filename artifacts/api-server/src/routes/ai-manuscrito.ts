@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import OpenAI from "openai";
+import { requireAiConsent } from "../lib/consents";
 import { db } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { patientsTable } from "@workspace/db/schema";
@@ -42,6 +43,7 @@ function normalizeWarnings(value: unknown): string[] {
 router.post("/ai/manuscrito-transcribe", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!await requireAiConsent(req, res)) return;
 
   const patientId = Number(req.body?.patientId);
   if (!Number.isInteger(patientId) || patientId <= 0) {

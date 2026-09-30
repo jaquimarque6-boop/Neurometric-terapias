@@ -30,6 +30,17 @@ const _nativeFetch = window.fetch.bind(window);
 
 let _lastCheckAt = 0;
 let _verifying: Promise<boolean> | null = null;
+let _pendingAiConsent: Promise<boolean> | null = null;
+
+function _awaitAiConsent(version: string): Promise<boolean> {
+  if (_pendingAiConsent) return _pendingAiConsent;
+  _pendingAiConsent = new Promise<boolean>((resolve) => {
+    window.dispatchEvent(new CustomEvent("nm:ai-consent-required", {
+      detail: { version, resolve },
+    }));
+  }).finally(() => { _pendingAiConsent = null; });
+  return _pendingAiConsent;
+}
 
 function _safeGetToken(): string | null {
   try { return localStorage.getItem("nm_auth_token"); } catch { return null; }
@@ -130,11 +141,22 @@ window.fetch = async function patchedFetch(input, init?) {
     if (token) headers.set("authorization", `Bearer ${token}`);
   }
 
-  const response = await _nativeFetch(input as RequestInfo, {
+  const retryInput = input instanceof Request ? input.clone() : input;
+  const requestInit = {
     ...(init as RequestInit),
     credentials: "include",
     headers,
-  });
+  } as RequestInit;
+  const response = await _nativeFetch(input as RequestInfo, requestInit);
+  if (response.status === 428) {
+    const body = await response.clone().json().catch(() => null);
+    if (body?.code === "AI_CONSENT_REQUIRED") {
+      const accepted = await _awaitAiConsent(String(body.version ?? "1.0"));
+      if (accepted) {
+        return _nativeFetch(retryInput as RequestInfo, requestInit);
+      }
+    }
+  }
 
   // Only consider verifying when the backend explicitly says 401.
   // Skip login (expected 401 on wrong password) and /me itself (would loop).

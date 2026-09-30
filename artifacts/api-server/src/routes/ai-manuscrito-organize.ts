@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import OpenAI from "openai";
+import { requireAiConsent } from "../lib/consents";
 
 const router: IRouter = Router();
 const MAX_TEXT_LENGTH = 40_000;
@@ -33,6 +34,7 @@ function normalizeResponse(value: unknown): OrganizedFields {
 router.post("/ai/manuscrito-organize", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!await requireAiConsent(req, res)) return;
 
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   if (!text) return res.status(400).json({ error: "El texto revisado es obligatorio." });

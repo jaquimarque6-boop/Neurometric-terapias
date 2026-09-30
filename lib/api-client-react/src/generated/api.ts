@@ -23,6 +23,8 @@ import type {
   CollaboratorDashboard,
   CollaboratorInput,
   CollaboratorUpdate,
+  ConsentAcceptInput,
+  ConsentStatus,
   CreateGoal,
   CreatePatient,
   CreatePatientProfessional,
@@ -70,6 +72,154 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+export const getGetConsentStatusUrl = () => {
+  return `/api/consents/status`;
+};
+
+export const getConsentStatus = async (
+  options?: RequestInit,
+): Promise<ConsentStatus> => {
+  return customFetch<ConsentStatus>(getGetConsentStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetConsentStatusQueryKey = () => {
+  return [`/api/consents/status`] as const;
+};
+
+export const getGetConsentStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConsentStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConsentStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetConsentStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getConsentStatus>>
+  > = ({ signal }) => getConsentStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConsentStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConsentStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConsentStatus>>
+>;
+export type GetConsentStatusQueryError = ErrorType<unknown>;
+
+export function useGetConsentStatus<
+  TData = Awaited<ReturnType<typeof getConsentStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConsentStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConsentStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getAcceptConsentsUrl = () => {
+  return `/api/consents/accept`;
+};
+
+export const acceptConsents = async (
+  consentAcceptInput: ConsentAcceptInput,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getAcceptConsentsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(consentAcceptInput),
+  });
+};
+
+export const getAcceptConsentsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptConsents>>,
+    TError,
+    { data: BodyType<ConsentAcceptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptConsents>>,
+  TError,
+  { data: BodyType<ConsentAcceptInput> },
+  TContext
+> => {
+  const mutationKey = ["acceptConsents"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptConsents>>,
+    { data: BodyType<ConsentAcceptInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return acceptConsents(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptConsentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptConsents>>
+>;
+export type AcceptConsentsMutationBody = BodyType<ConsentAcceptInput>;
+export type AcceptConsentsMutationError = ErrorType<void>;
+
+export const useAcceptConsents = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptConsents>>,
+    TError,
+    { data: BodyType<ConsentAcceptInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptConsents>>,
+  TError,
+  { data: BodyType<ConsentAcceptInput> },
+  TContext
+> => {
+  return useMutation(getAcceptConsentsMutationOptions(options));
+};
 
 export const getValidateReferralUrl = (code: string) => {
   return `/api/referrals/${code}`;

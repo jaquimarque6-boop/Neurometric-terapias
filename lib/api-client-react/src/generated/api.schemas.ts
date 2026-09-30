@@ -5,6 +5,40 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+export type ConsentAcceptInputTypesItem =
+  (typeof ConsentAcceptInputTypesItem)[keyof typeof ConsentAcceptInputTypesItem];
+
+export const ConsentAcceptInputTypesItem = {
+  terms: "terms",
+  privacy: "privacy",
+  ai: "ai",
+} as const;
+
+export interface ConsentAcceptInput {
+  /**
+   * @minItems 1
+   * @maxItems 2
+   */
+  types: ConsentAcceptInputTypesItem[];
+}
+
+export interface ConsentVersions {
+  terms: string;
+  privacy: string;
+  ai: string;
+}
+
+export interface ConsentFlags {
+  terms: boolean;
+  privacy: boolean;
+  ai: boolean;
+}
+
+export interface ConsentStatus {
+  versions: ConsentVersions;
+  accepted: ConsentFlags;
+}
+
 export interface ReferralValidity {
   valid: boolean;
   code: string;

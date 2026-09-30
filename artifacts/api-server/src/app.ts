@@ -211,6 +211,8 @@ app.use(async (req, res, next) => {
     req.session.userSpecialty = currentUser.specialty ?? null;
     if (currentUser.role === "collaborator" && !(
       (req.method === "GET" && (req.path === "/api/auth/me" || req.path === "/api/collaborator/dashboard")) ||
+      (req.method === "GET" && req.path === "/api/consents/status") ||
+      (req.method === "POST" && req.path === "/api/consents/accept") ||
       (req.method === "POST" && req.path === "/api/auth/logout")
     )) return res.status(403).json({ error: "Acceso denegado" });
     return next();

@@ -2,6 +2,8 @@
 
 All paths are under `/api`; authenticated routes use the existing session/Bearer login. Amounts and percentage are decimal **strings**, never floating-point JSON numbers. All calendar months use `America/Argentina/Buenos_Aires`. Errors return `{ "error": "message" }`.
 
+Consent endpoints and policy: see `docs/legal-consent-v1.md`. `GET /consents/status` reports the authenticated user's own current-version status. `POST /consents/accept` accepts `{types:["terms","privacy"]}` or `{types:["ai"]}`; the server derives both user IDs and timestamp, and never accepts an identity from the request. IA endpoints return `428 {code:"AI_CONSENT_REQUIRED", consentType:"ai", version}` before processing when the current notice has not been accepted.
+
 * `GET /referrals/:code` public: `{ "valid": boolean, "code": "NORMALIZEDCODE" }`. Invalid/inactive codes return `valid:false`; no account data is exposed. Codes are uppercase ASCII letters/digits (2–32). Browser must save first *valid* code in first-party storage for 30 days and pass it in registration; server revalidates.
 * `POST /auth/register` existing professional body plus optional `"referralCode":"CODE"`; creates permanent attribution atomically with account, storing `codeUsed`, source `public_register`, and no actor. Invalid/inactive code returns 400; existing user still returns 409. Admin `POST /users` with professional role also accepts `referralCode` (source `admin_user_create`, actor authenticated admin). Neither account endpoint returns referral identity.
 * `GET /collaborators` admin: array of `{id,userId,name,country,code,commissionPercent,active,createdAt}`.

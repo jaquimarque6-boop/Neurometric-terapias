@@ -26,11 +26,13 @@ import aiManuscritoOrganizeRouter from "./ai-manuscrito-organize";
 import exportRouter from "./export";
 import professionalFilesRouter from "./professional-files";
 import collaboratorsRouter from "./collaborators";
+import consentsRouter from "./consents";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
 router.use(collaboratorsRouter);
+router.use(consentsRouter);
 router.use(usersRouter);
 router.use(pagosRouter);
 router.use(gastosRouter);

@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
 import OpenAI from "openai";
+import { requireAiConsent } from "../lib/consents";
 
 const router: IRouter = Router();
 
 router.post("/goal-guidance", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!await requireAiConsent(req, res)) return;
   const {
     title,
     area,

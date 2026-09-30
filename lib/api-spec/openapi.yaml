@@ -28,6 +28,29 @@ tags:
   - name: patient-professionals
     description: Patient-professional assignments
 paths:
+  /consents/status:
+    get:
+      operationId: getConsentStatus
+      tags: [consents]
+      responses:
+        "200":
+          description: Current consent versions and this user's own acceptance state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentStatus" }
+  /consents/accept:
+    post:
+      operationId: acceptConsents
+      tags: [consents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentAcceptInput" }
+      responses:
+        "200": { description: Acceptance stored for the authenticated user }
+        "400": { description: Invalid consent types }
+        "401": { description: Not authenticated }
   /referrals/{code}:
     get:
       operationId: validateReferral
@@ -767,6 +790,35 @@ paths:
 
 components:
   schemas:
+    ConsentAcceptInput:
+      type: object
+      required: [types]
+      properties:
+        types:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items: { type: string, enum: [terms, privacy, ai] }
+    ConsentVersions:
+      type: object
+      required: [terms, privacy, ai]
+      properties:
+        terms: { type: string }
+        privacy: { type: string }
+        ai: { type: string }
+    ConsentFlags:
+      type: object
+      required: [terms, privacy, ai]
+      properties:
+        terms: { type: boolean }
+        privacy: { type: boolean }
+        ai: { type: boolean }
+    ConsentStatus:
+      type: object
+      required: [versions, accepted]
+      properties:
+        versions: { $ref: "#/components/schemas/ConsentVersions" }
+        accepted: { $ref: "#/components/schemas/ConsentFlags" }
     ReferralValidity:
       type: object
       required: [valid, code]

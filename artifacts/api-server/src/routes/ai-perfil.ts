@@ -13,6 +13,7 @@ import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import { canAccessPatient } from "./access-policy";
+import { requireAiConsent } from "../lib/consents";
 
 const router: IRouter = Router();
 
@@ -176,6 +177,7 @@ router.put("/ai/perfil/:patientId", async (req, res) => {
 // ─── Main route ───────────────────────────────────────────────────────────────
 
 router.post("/ai/perfil-generate", async (req, res) => {
+  if (!await requireAiConsent(req, res)) return;
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 

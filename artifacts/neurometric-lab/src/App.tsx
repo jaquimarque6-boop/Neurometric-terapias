@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { PwaExperience } from "@/pwa/experience";
 import { ReferralProvider } from "@/providers/referral-provider";
+import { LegalConsentLayer } from "@/components/legal-consent-layer";
 
 // Eager: login is the entry screen and NotFound is the cheap fallback. Keeping
 // them in the initial chunk avoids a loading flash on first paint.
@@ -259,7 +260,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <SessionGuard />
               <Suspense fallback={<PageFallback />}>
-                <Router />
+                <LegalConsentLayer><Router /></LegalConsentLayer>
               </Suspense>
             </WouterRouter>
             <Toaster />
