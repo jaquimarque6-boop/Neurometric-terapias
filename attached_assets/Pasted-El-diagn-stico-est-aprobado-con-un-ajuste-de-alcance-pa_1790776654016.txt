@@ -1,0 +1,67 @@
+El diagnóstico está aprobado con un ajuste de alcance para minimizar riesgos.
+Quiero implementar una Fase Legal 1 mínima y aditiva, sin refactorizar autenticación, sesiones, tokens ni permisos existentes.
+IMPORTANTE: no implementar por ahora un gate/middleware global en app.ts que bloquee todas las operaciones de la plataforma por falta de consentimiento. No quiero introducir un nuevo punto global de fallo en el acceso.
+Implementar:
+1. Tabla histórica de aceptaciones
+Crear user_consent_acceptances con:
+- id
+- user_id
+- consent_type (terms, privacy, ai)
+- version
+- accepted_at generado por servidor
+- accepted_by_user_id derivado exclusivamente de la sesión autenticada
+Restricción única (user_id, consent_type, version).
+No modificar las columnas actuales de users.
+2. Versiones vigentes
+Definir de manera centralizada las versiones actuales, inicialmente:
+- terms: 1.0
+- privacy: 1.0
+- ai: 1.0
+Debe ser sencillo cambiar una versión en el futuro para provocar una nueva solicitud de aceptación.
+3. Términos y Privacidad
+Una vez autenticado el usuario y resuelto correctamente /api/auth/me, si faltan las versiones vigentes de términos o privacidad, mostrar una pantalla obligatoria de aceptación.
+Esa pantalla debe:
+- identificar al usuario autenticado;
+- permitir consultar los documentos;
+- tener aceptación expresa, no preseleccionada;
+- registrar cada aceptación en servidor;
+- permitir cerrar sesión si no desea aceptar.
+No modificar el mecanismo actual de login.
+El administrador NO puede aceptar en nombre de un profesional.
+No registrar aceptación automática durante creación administrativa.
+En un futuro registro público, tampoco deberá registrarse aceptación salvo que el propio usuario haya realizado una acción expresa.
+4. Aviso de IA separado
+No mezclar la aceptación de IA con términos/privacidad.
+La primera vez que un usuario intente utilizar una función de IA, si no aceptó ai 1.0, mostrar el aviso correspondiente.
+Al aceptar, registrar la aceptación y continuar.
+Además, verificar obligatoriamente la versión vigente de aceptación de IA en servidor antes de ejecutar:
+- ai-informe
+- ai-perfil
+- ai-objetivos
+- goal-guidance
+- ai-manuscrito
+- ai-manuscrito-organize
+Si falta aceptación, responder con un error específico que el frontend pueda reconocer y transformar en la pantalla/modal de aceptación.
+5. No romper usuarios actuales
+Probar específicamente:
+- administrador existente;
+- profesional existente;
+- profesional + colaboradora;
+- colaboradora exclusiva;
+- usuario que acepta;
+- usuario que no acepta y cierra sesión;
+- usuario que ya aceptó y vuelve a ingresar;
+- cambio simulado de versión 1.0 → 1.1;
+- intento directo de usar endpoint IA sin aceptación;
+- aislamiento: un usuario no puede registrar aceptación para otro.
+6. No redactar textos legales definitivos.
+Crear la estructura visual necesaria utilizando textos provisionales claramente identificados como tales. No inventar declaraciones legales ni afirmar cumplimiento normativo.
+7. Producción
+Primero implementar y probar únicamente en desarrollo.
+Al finalizar:
+- indicame archivos modificados;
+- SQL exacto de la migración;
+- resultados de pruebas;
+- cualquier riesgo encontrado;
+- commit local.
+NO ejecutar migración en producción, NO push, NO deploy y NO modificar datos reales hasta que yo lo autorice.
