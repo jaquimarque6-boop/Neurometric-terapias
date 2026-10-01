@@ -1,0 +1,39 @@
+Quiero implementar una mejora puntual en Anamnesis, reutilizando al máximo lo que ya existe.
+Actualmente ya existen las funciones ai-manuscrito y ai-manuscrito-organize. Antes de crear código nuevo, revisá cómo funcionan y reutilizalas.
+Objetivo:
+Dentro de la pantalla de Anamnesis agregar una opción:
+📷 Importar anamnesis desde foto
+Flujo:
+1. El profesional puede subir una o varias fotos de una anamnesis manuscrita.
+2. Utilizar la funcionalidad de IA existente para transcribir el contenido.
+3. Organizar la información obtenida según las secciones/campos que YA existen actualmente en la anamnesis de Neurometric.
+No inventes una estructura nueva de anamnesis ni reemplaces el formulario actual.
+4. MUY IMPORTANTE: la información obtenida de la foto NO debe guardarse automáticamente en la historia clínica.
+Primero mostrar una pantalla de “Revisar importación” donde el profesional pueda leer y editar lo interpretado por la IA.
+Mostrar un aviso:
+“Revisá la información antes de guardarla. La transcripción mediante IA puede contener errores u omisiones.”
+5. Solamente después de que el profesional presione:
+“Guardar en anamnesis”
+se incorporan los datos al formulario.
+Si ya existe información en algún campo, no sobrescribirla silenciosamente. Mostrar claramente qué información se agregará o permitirá al profesional decidir/corregir antes de guardar.
+6. Debe respetar el sistema de consentimiento de IA 1.0 que acabamos de implementar. No crear un segundo consentimiento.
+Alcance
+Hacé únicamente esta mejora.
+- No modificar autenticación.
+- No modificar permisos ni roles.
+- No modificar la estructura general de Anamnesis.
+- No modificar informes.
+- No modificar el sistema legal.
+- No hacer auditoría general.
+- No crear nuevas integraciones de IA si las existentes sirven.
+- No hacer migraciones de base de datos salvo que sea absolutamente imprescindible; si creés que hace falta una, detenete y explicame primero por qué antes de realizarla.
+Primero revisá las funciones existentes necesarias para esta implementación y luego hacé el cambio más pequeño posible.
+Probá solamente este flujo.
+Al finalizar decime:
+1. archivos modificados;
+2. qué funcionalidad existente reutilizaste;
+3. cómo funciona el flujo final;
+4. resultado de la prueba;
+5. si requiere alguna migración;
+6. commit local.
+No hagas push ni deploy.
