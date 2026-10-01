@@ -148,7 +148,8 @@ if (!devOptIn && (!url || !/consent.*test|test.*consent/i.test(new URL(url).path
       "/goal-guidance", "/ai/manuscrito-transcribe", "/ai/manuscrito-organize",
     ];
     for (const path of aiPaths) {
-      const denied = await request("POST", path, professional, {});
+      const denied = await request("POST", path, professional,
+        path === "/ai/manuscrito-organize" ? { target: "anamnesis" } : {});
       assert.equal(denied.status, 428, `${path} must require AI consent`);
       assert.equal(denied.body.code, "AI_CONSENT_REQUIRED");
     }
@@ -158,6 +159,10 @@ if (!devOptIn && (!url || !/consent.*test|test.*consent/i.test(new URL(url).path
     assert.equal((await request("POST", "/consents/accept", professional, { types: ["ai"] })).status, 200);
     assert.deepEqual((await request("GET", "/consents/status", professional)).body.accepted,
       { terms: true, privacy: true, ai: true });
+    assert.equal((await request("POST", "/ai/manuscrito-organize", professional, {
+      target: "anamnesis",
+      text: "",
+    })).status, 400, "anamnesis organization reuses the existing AI consent and reaches text validation after acceptance");
     assert.equal((await request("POST", "/goal-guidance", professional, {})).status, 400,
       "after consent, request reaches normal route validation without calling external AI");
     assert.equal((await request("POST", "/auth/logout", professional)).status, 200);

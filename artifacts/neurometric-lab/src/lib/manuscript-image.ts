@@ -1,8 +1,7 @@
 import { API_BASE } from "./api";
+import { manuscriptImageValidationError } from "./manuscript-image-validation";
 
-const INPUT_MAX_BYTES = 12 * 1024 * 1024;
 const OUTPUT_MAX_BYTES = 8 * 1024 * 1024;
-const MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export type ManuscriptImageQuality = "good" | "fair" | "poor";
 
@@ -22,13 +21,8 @@ async function compressImage(file: File): Promise<{
   mimeType: "image/jpeg";
   sizeBytes: number;
 }> {
-  if (!MIME_TYPES.has(file.type)) {
-    throw new Error("Elegí una imagen JPG, PNG o WebP.");
-  }
-  if (!file.size) throw new Error("El archivo está vacío.");
-  if (file.size > INPUT_MAX_BYTES) {
-    throw new Error("La imagen supera el máximo de 12 MB.");
-  }
+  const validationError = manuscriptImageValidationError(file);
+  if (validationError) throw new Error(validationError);
 
   const sourceUrl = URL.createObjectURL(file);
   try {

@@ -11,13 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE } from "@/lib/api";
+import {
+  transcribeManuscriptImage,
+  type ManuscriptImageQuality,
+} from "@/lib/manuscript-image";
+import { manuscriptImageValidationError } from "@/lib/manuscript-image-validation";
 
-const INPUT_MAX_BYTES = 12 * 1024 * 1024;
-const OUTPUT_MAX_BYTES = 8 * 1024 * 1024;
-const MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-type Quality = "good" | "fair" | "poor";
+type Quality = ManuscriptImageQuality;
 
 interface ManuscriptCaptureDialogProps {
   patientId: number | null;
@@ -25,60 +25,6 @@ interface ManuscriptCaptureDialogProps {
   onOrganizeTranscription?: (text: string) => Promise<void>;
   useLabel?: string;
   triggerClassName?: string;
-}
-
-function bytesFromBase64(base64: string): number {
-  const padding = base64.match(/=*$/)?.[0].length ?? 0;
-  return Math.floor((base64.length * 3) / 4) - padding;
-}
-
-async function compressImage(file: File): Promise<{
-  dataUrl: string;
-  mimeType: "image/jpeg";
-  sizeBytes: number;
-}> {
-  if (!MIME_TYPES.has(file.type)) {
-    throw new Error("Elegí una imagen JPG, PNG o WebP.");
-  }
-  if (!file.size) throw new Error("El archivo está vacío.");
-  if (file.size > INPUT_MAX_BYTES) {
-    throw new Error("La imagen supera el máximo de 12 MB.");
-  }
-
-  const sourceUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const element = new Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("No se pudo leer la imagen."));
-      element.src = sourceUrl;
-    });
-
-    if (!image.naturalWidth || !image.naturalHeight) {
-      throw new Error("La imagen no tiene dimensiones válidas.");
-    }
-
-    const maxDimension = 2400;
-    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("No se pudo preparar la imagen.");
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    for (const quality of [0.9, 0.82, 0.74, 0.66]) {
-      const dataUrl = canvas.toDataURL("image/jpeg", quality);
-      const base64 = dataUrl.split(",")[1] ?? "";
-      const sizeBytes = bytesFromBase64(base64);
-      if (sizeBytes > 0 && sizeBytes <= OUTPUT_MAX_BYTES) {
-        return { dataUrl, mimeType: "image/jpeg", sizeBytes };
-      }
-    }
-    throw new Error("La imagen sigue siendo demasiado grande después de comprimirla.");
-  } finally {
-    URL.revokeObjectURL(sourceUrl);
-  }
 }
 
 export function ManuscriptCaptureDialog({
@@ -137,19 +83,10 @@ export function ManuscriptCaptureDialog({
     setWarnings([]);
     setQuality(null);
 
-    if (!MIME_TYPES.has(selected.type)) {
+    const validationError = manuscriptImageValidationError(selected);
+    if (validationError) {
       setFile(null);
-      setError("Elegí una imagen JPG, PNG o WebP.");
-      return;
-    }
-    if (!selected.size) {
-      setFile(null);
-      setError("El archivo está vacío.");
-      return;
-    }
-    if (selected.size > INPUT_MAX_BYTES) {
-      setFile(null);
-      setError("La imagen supera el máximo de 12 MB.");
+      setError(validationError);
       return;
     }
     setFile(selected);
@@ -160,28 +97,10 @@ export function ManuscriptCaptureDialog({
     setIsTranscribing(true);
     setError("");
     try {
-      const compressed = await compressImage(file);
-      const response = await fetch(`${API_BASE}/api/ai/manuscrito-transcribe`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId,
-          imageData: compressed.dataUrl,
-          mimeType: compressed.mimeType,
-          sizeBytes: compressed.sizeBytes,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error ?? "No se pudo transcribir la imagen.");
-
-      setTranscription(typeof data.transcription === "string" ? data.transcription : "");
-      setWarnings(Array.isArray(data.warnings)
-        ? data.warnings.filter((value: unknown): value is string => typeof value === "string")
-        : []);
-      setQuality(data.quality === "good" || data.quality === "fair" || data.quality === "poor"
-        ? data.quality
-        : "fair");
+      const result = await transcribeManuscriptImage(patientId, file);
+      setTranscription(result.transcription);
+      setWarnings(result.warnings);
+      setQuality(result.quality);
       setResultReady(true);
     } catch (cause: any) {
       setError(cause?.message ?? "No se pudo transcribir la imagen.");

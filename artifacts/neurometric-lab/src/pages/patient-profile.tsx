@@ -21,6 +21,7 @@ import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { EvalSugerida } from "@/components/eval-sugerida";
+import { AnamnesisPhotoImportDialog } from "@/components/anamnesis-photo-import-dialog";
 import {
   useGetPatient,
   useListRegistrosClinicos,
@@ -65,6 +66,7 @@ import {
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { API_BASE } from "@/lib/api";
+import type { AnamnesisImportValues } from "@/lib/anamnesis-import";
 import { historicalReportPatient, snapshotReportPatient } from "@/lib/report-snapshot";
 import { clinicalSnapshotForSave, prepareReportSave, type ReportPeriodMeta } from "@/lib/report-save";
 import { PatientReportsList } from "@/components/patient-reports-list";
@@ -1543,6 +1545,25 @@ export default function PatientProfile() {
   const [isSavingAn, setIsSavingAn]           = useState(false);
   const [anDirty, setAnDirty]                 = useState(false);
 
+  const currentAnamnesis = useMemo<AnamnesisImportValues>(() => ({
+    motivoConsulta: anMotivo,
+    antecedentes: anAntecedentes,
+    historiaFamiliar: anFamilia,
+    escolaridad: anEscolaridad,
+    observaciones: anObs,
+    lenguajeComunicacion: anLenguaje,
+    atencionConducta: anAtencion,
+    vozHabla: anVoz,
+    deglucion: anDeglucion,
+    impresionClinica: anImpresion,
+    rutinasHabitos: anRutinas,
+    entornoParticipacion: anEntorno,
+  }), [
+    anMotivo, anAntecedentes, anFamilia, anEscolaridad, anObs,
+    anLenguaje, anAtencion, anVoz, anDeglucion, anImpresion,
+    anRutinas, anEntorno,
+  ]);
+
   // ── Perfil clínico con IA ───────────────────────────────────────────────
   type PerfilIA = {
     motivoConsulta: string; antecedentes: string; fortalezas: string;
@@ -1715,35 +1736,56 @@ export default function PatientProfile() {
     }
   }, [patient?.id]);
 
-  const handleSaveAnamnesis = async () => {
+  const saveAnamnesis = async (values: AnamnesisImportValues) => {
     setIsSavingAn(true);
     try {
       const res = await fetch(`${API_BASE}/api/patients/${patientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          motivoConsulta: anMotivo || null,
-          antecedentes: anAntecedentes || null,
-          historiaFamiliar: anFamilia || null,
-          escolaridad: anEscolaridad || null,
-          observaciones: anObs || null,
-          lenguajeComunicacion: anLenguaje || null,
-          atencionConducta: anAtencion || null,
-          vozHabla: anVoz || null,
-          deglucion: anDeglucion || null,
-          impresionClinica: anImpresion || null,
-          rutinasHabitos: anRutinas || null,
-          entornoParticipacion: anEntorno || null,
+          motivoConsulta: values.motivoConsulta || null,
+          antecedentes: values.antecedentes || null,
+          historiaFamiliar: values.historiaFamiliar || null,
+          escolaridad: values.escolaridad || null,
+          observaciones: values.observaciones || null,
+          lenguajeComunicacion: values.lenguajeComunicacion || null,
+          atencionConducta: values.atencionConducta || null,
+          vozHabla: values.vozHabla || null,
+          deglucion: values.deglucion || null,
+          impresionClinica: values.impresionClinica || null,
+          rutinasHabitos: values.rutinasHabitos || null,
+          entornoParticipacion: values.entornoParticipacion || null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
+      setAnMotivo(values.motivoConsulta);
+      setAnAntecedentes(values.antecedentes);
+      setAnFamilia(values.historiaFamiliar);
+      setAnEscolaridad(values.escolaridad);
+      setAnObs(values.observaciones);
+      setAnLenguaje(values.lenguajeComunicacion);
+      setAnAtencion(values.atencionConducta);
+      setAnVoz(values.vozHabla);
+      setAnDeglucion(values.deglucion);
+      setAnImpresion(values.impresionClinica);
+      setAnRutinas(values.rutinasHabitos);
+      setAnEntorno(values.entornoParticipacion);
       toast({ title: "Anamnesis guardada" });
       setAnDirty(false);
     } catch (err: any) {
       toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
+      throw err;
     } finally {
       setIsSavingAn(false);
+    }
+  };
+
+  const handleSaveAnamnesis = async () => {
+    try {
+      await saveAnamnesis(currentAnamnesis);
+    } catch {
+      // saveAnamnesis already reports the failure to the user.
     }
   };
 
@@ -2270,6 +2312,11 @@ export default function PatientProfile() {
                               <span className="ml-1 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block" title="Hay un perfil guardado" />
                             )}
                           </Button>
+                          <AnamnesisPhotoImportDialog
+                            patientId={patientId}
+                            existing={currentAnamnesis}
+                            onSave={saveAnamnesis}
+                          />
                           <Button
                             onClick={handleSaveAnamnesis}
                             disabled={isSavingAn}
