@@ -1,0 +1,72 @@
+Quiero seguir mejorando Neurometric Terapias, ahora específicamente Psicopedagogía.
+En el diagnóstico anterior encontraste que Psicopedagogía ya tiene una adaptación importante y que existe en código un banco/estructura de actividades psicopedagógicas de cinco elementos, pero no encontraste uso desde la interfaz.
+Quiero aprovechar primero lo que YA existe antes de crear contenido nuevo.
+Objetivo de esta fase
+Hacer que una psicopedagoga encuentre dentro de su flujo clínico herramientas realmente útiles para trabajar y planificar sesiones, reutilizando el contenido existente.
+1. Revisá el contenido psicopedagógico existente
+Localizá exactamente:
+- el banco/estructura de actividades que encontraste anteriormente;
+- cuántas actividades contiene;
+- cómo están organizadas;
+- para qué edades/niveles;
+- qué áreas cubren;
+- si son actividades concretas o solamente sugerencias/textos;
+- por qué actualmente no aparecen o no se utilizan desde la interfaz.
+Revisá también la relación con las áreas ya existentes:
+- Lectura
+- Escritura
+- Lectoescritura
+- Cálculo/matemática
+- Atención
+- Memoria
+- Funciones ejecutivas
+- Comprensión
+- Estrategias de aprendizaje
+2. Si el contenido existente es clínicamente aprovechable
+Conectalo de la manera más simple posible al flujo actual de Psicopedagogía.
+No quiero crear un módulo enorme nuevo.
+Preferentemente debería poder aparecer como “Sugerencias de actividades” o equivalente cuando la profesional esté trabajando con un objetivo psicopedagógico, de modo que pueda ver propuestas concretas relacionadas con ese objetivo.
+Si actualmente ya existe un lugar apropiado para mostrar esas actividades, reutilizalo en vez de crear otra pantalla.
+3. Banco de objetivos
+Revisá los 35 objetivos identificados como psicopedagógicos y los objetivos transversales existentes.
+NO agregues objetivos todavía salvo que encuentres un vacío muy evidente.
+Primero quiero saber si las áreas actuales están correctamente relacionadas con:
+- lectura;
+- escritura;
+- comprensión lectora;
+- conciencia fonológica cuando corresponda;
+- cálculo y razonamiento matemático;
+- atención;
+- memoria;
+- funciones ejecutivas;
+- planificación/organización;
+- estrategias de aprendizaje.
+Evitá duplicar objetivos que ya existen en categorías transversales.
+4. IA
+La rama de Psicopedagogía ya existe.
+Revisá solamente que perfil clínico, sugerencias de objetivos e informes reconozcan correctamente estas áreas.
+No rehagas los prompts si ya funcionan.
+NO tocar en esta fase
+- Anamnesis.
+- Terapia Ocupacional.
+- Fonoaudiología.
+- Psicología.
+- Autenticación.
+- Consentimientos.
+- Base de datos salvo que sea imprescindible.
+- Registro de sesión salvo el punto mínimo necesario para mostrar/reutilizar las sugerencias existentes.
+No hagas refactorización general.
+Antes de implementar
+Primero decime exactamente qué es ese banco de actividades existente y dónde proponés mostrarlo.
+Si conectarlo requiere un cambio pequeño y seguro, podés implementarlo después de explicarlo dentro de esta misma tarea.
+Si requiere una modificación importante de arquitectura o base de datos, detenete y no la hagas.
+Al terminar informame:
+1. qué contenido psicopedagógico ya existía;
+2. qué estaba sin utilizar;
+3. dónde quedó visible;
+4. si agregaste contenido nuevo o solamente reutilizaste;
+5. qué cambió en IA, si fue necesario;
+6. pruebas realizadas;
+7. si requiere migración;
+8. commit local.
+No push ni deploy.
