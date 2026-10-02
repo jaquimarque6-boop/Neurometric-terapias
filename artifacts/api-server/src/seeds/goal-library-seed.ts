@@ -1,8 +1,7 @@
 import { db } from "@workspace/db";
   import { goalLibraryTable } from "@workspace/db/schema";
 
-  // Full objective bank — 379 clinical therapy objectives
-  // Automatically seeded on server start (idempotent: skips already-present objectives)
+  // Full objective bank — automatically seeded on server start (idempotent by objective ID)
   const SEED_GOALS = [
     {
     idObjetivo: `CG-2-4-AT-B-01`,
@@ -6589,6 +6588,700 @@ import { db } from "@workspace/db";
   },
   ];
 
+  type OccupationalSeedGoal = {
+    idObjetivo: string;
+    areaClinica: string;
+    subarea: string;
+    franjaEtaria: string;
+    franjaEtariaMin: number;
+    franjaEtariaMax: number;
+    nivelDificultad: "básico" | "intermedio" | "avanzado";
+    nombreObjetivo: string;
+    definicionOperativa: string;
+    actividadesClinicas: string[];
+    actividadesFamilia: string[];
+    habilidadesRelacionadas: string[];
+    marcoConceptual: string;
+  };
+
+  function createOccupationalSeedGoal(goal: OccupationalSeedGoal) {
+    return {
+      idObjetivo: goal.idObjetivo,
+      nombreObjetivo: goal.nombreObjetivo,
+      modulo: "Terapia Ocupacional",
+      area: goal.areaClinica,
+      areaClinica: goal.areaClinica,
+      subarea: goal.subarea,
+      franjaEtaria: goal.franjaEtaria,
+      franjaEtariaMin: goal.franjaEtariaMin,
+      franjaEtariaMax: goal.franjaEtariaMax,
+      nivelDificultad: goal.nivelDificultad,
+      estadoBanco: "activo",
+      definicionOperativa: goal.definicionOperativa,
+      actividadesClinicas: goal.actividadesClinicas.join("\n"),
+      actividadesFamilia: goal.actividadesFamilia.join("\n"),
+      habilidadesRelacionadas: goal.habilidadesRelacionadas.join(", "),
+      indicadorTipo: "desempeño funcional observable y nivel de apoyo",
+      intentosSugeridos: "Registrar 5 oportunidades en la rutina elegida",
+      marcoConceptual: goal.marcoConceptual,
+      recomendacionClinica:
+        "Acordar el objetivo con la persona y su familia; ajustar apoyos, materiales y ritmo al contexto, las preferencias y la seguridad.",
+    };
+  }
+
+  const TO_SEED_GOALS = [
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-AVD-3-5-VEST-B-01",
+      areaClinica: "actividades de la vida diaria y autonomía",
+      subarea: "Vestido",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Participar en los pasos elegidos de la rutina de vestido",
+      definicionOperativa: "En una rutina conocida de vestido, completará al menos 2 pasos acordados con apoyo visual o gestual y hasta 2 indicaciones, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar una secuencia breve de vestido con prendas elegidas y apoyos graduados.",
+        "Ofrecer tiempo para iniciar y completar cada paso antes de brindar ayuda.",
+      ],
+      actividadesFamilia: [
+        "Incorporar los pasos acordados a la rutina diaria, respetando el tiempo y la elección de prendas.",
+      ],
+      habilidadesRelacionadas: ["participación en vestido", "secuenciación", "autonomía con apoyos"],
+      marcoConceptual: "La meta es participar en una rutina significativa, no alcanzar una forma única de vestirse.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-AVD-6-8-HIG-I-01",
+      areaClinica: "actividades de la vida diaria y autonomía",
+      subarea: "Higiene personal",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Completar una rutina acordada de higiene de manos",
+      definicionOperativa: "Realizará los pasos acordados de lavado y secado de manos con una secuencia visual y no más de una indicación verbal, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Organizar materiales a su alcance y ensayar la secuencia completa en el contexto de uso.",
+        "Ajustar la secuencia visual para que represente los pasos que efectivamente realiza.",
+      ],
+      actividadesFamilia: [
+        "Dejar los elementos necesarios accesibles y usar la misma secuencia visual en la rutina cotidiana.",
+      ],
+      habilidadesRelacionadas: ["higiene personal", "uso de secuencias", "manejo de apoyos visuales"],
+      marcoConceptual: "El apoyo visual busca facilitar una rutina cotidiana y puede modificarse según la respuesta de la persona.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-AVD-17-20-PER-A-01",
+      areaClinica: "actividades de la vida diaria y autonomía",
+      subarea: "Organización de pertenencias",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Preparar pertenencias para una actividad elegida",
+      definicionOperativa: "Usará una lista propia para reunir los elementos necesarios para una rutina de estudio, trabajo o comunidad, sin omitir elementos acordados en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Construir y probar una lista breve para una actividad elegida por la persona.",
+        "Practicar la preparación y el chequeo de pertenencias con los apoyos que elija.",
+      ],
+      actividadesFamilia: [
+        "Permitir que la persona prepare sus pertenencias y ofrecer solo el apoyo que haya solicitado o acordado.",
+      ],
+      habilidadesRelacionadas: ["autonomía", "organización de pertenencias", "uso de listas"],
+      marcoConceptual: "La organización se trabaja en una actividad real elegida y con los apoyos que favorecen su autonomía.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-RH-0-2-SEC-B-01",
+      areaClinica: "rutinas y hábitos",
+      subarea: "Secuencias cotidianas",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Participar en una transición cotidiana con una señal familiar",
+      definicionOperativa: "Durante una transición acordada entre dos actividades cotidianas, responderá a una señal familiar y participará en un paso siguiente con el apoyo del adulto, en 4 de 5 oportunidades observadas.",
+      actividadesClinicas: [
+        "Usar una señal consistente y una pausa suficiente antes de acompañar el cambio de actividad.",
+        "Observar las formas propias de anticipar, aceptar o rechazar la transición.",
+      ],
+      actividadesFamilia: [
+        "Anticipar el cambio con una señal conocida y sostener una transición previsible sin apurar la respuesta.",
+      ],
+      habilidadesRelacionadas: ["anticipación", "transiciones", "participación en rutinas"],
+      marcoConceptual: "La rutina se adapta a las señales de la persona y al ritmo familiar; no se busca obediencia automática.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-RH-9-12-TRANS-I-01",
+      areaClinica: "rutinas y hábitos",
+      subarea: "Transiciones",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Completar una rutina cotidiana con una secuencia visual",
+      definicionOperativa: "Completará una rutina elegida de 4 pasos usando una secuencia visual y como máximo una indicación adicional, en 4 de 5 días observados.",
+      actividadesClinicas: [
+        "Elegir una rutina relevante y co-crear una lista o secuencia de cuatro pasos.",
+        "Ensayar el uso de la secuencia y ajustar el orden o el formato cuando sea necesario.",
+      ],
+      actividadesFamilia: [
+        "Ubicar la secuencia en el lugar de uso y acordar qué tipo de recordatorio resulta útil.",
+      ],
+      habilidadesRelacionadas: ["organización de rutinas", "secuenciación", "autonomía"],
+      marcoConceptual: "La secuencia es una herramienta flexible para facilitar una rutina elegida, no una exigencia de desempeño uniforme.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-RH-13-16-AUT-A-01",
+      areaClinica: "rutinas y hábitos",
+      subarea: "Autonomía en rutinas",
+      franjaEtaria: "13-16", franjaEtariaMin: 13, franjaEtariaMax: 16,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Planificar y revisar una rutina personal elegida",
+      definicionOperativa: "Planificará una rutina personal con una herramienta de su elección, la llevará a cabo y revisará si necesita un ajuste, en 4 de 5 oportunidades acordadas.",
+      actividadesClinicas: [
+        "Comparar opciones de agenda, lista o recordatorio digital y elegir una herramienta funcional.",
+        "Practicar la planificación y revisión de una rutina real, registrando solo los pasos acordados.",
+      ],
+      actividadesFamilia: [
+        "Respetar la herramienta elegida y conversar sobre los ajustes solicitados sin reemplazar la planificación de la persona.",
+      ],
+      habilidadesRelacionadas: ["planificación", "autogestión de rutinas", "uso de apoyos"],
+      marcoConceptual: "La persona define qué rutina es relevante y qué apoyos quiere usar para sostenerla.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-SR-0-2-REG-B-01",
+      areaClinica: "procesamiento y regulación sensorial",
+      subarea: "Autorregulación sensorial",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Comunicar una preferencia durante una rutina sensorialmente demandante",
+      definicionOperativa: "Durante una rutina de cuidado elegida, comunicará aceptación, rechazo o preferencia entre dos apoyos acordados mediante su forma habitual de comunicación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Presentar dos opciones de apoyo ambiental o pausa y esperar la respuesta de la persona.",
+        "Ajustar la rutina de acuerdo con las señales observadas, sin insistir en la exposición.",
+      ],
+      actividadesFamilia: [
+        "Ofrecer opciones sencillas durante la rutina y respetar las señales de aceptación o rechazo.",
+      ],
+      habilidadesRelacionadas: ["comunicación de preferencias", "regulación", "participación en rutinas"],
+      marcoConceptual: "La regulación se apoya en la elección, las señales de la persona y ajustes del contexto.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-SR-9-12-PSEN-I-01",
+      areaClinica: "procesamiento y regulación sensorial",
+      subarea: "Participación sensorial",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Elegir un apoyo para participar en una actividad cotidiana",
+      definicionOperativa: "En una actividad elegida, comunicará que necesita un ajuste, seleccionará un apoyo acordado y continuará o retomará la actividad de una manera aceptable para sí, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Identificar junto con la persona opciones de ajuste como cambiar el lugar, reducir una demanda ambiental o tomar una pausa.",
+        "Ensayar cómo solicitar y usar el apoyo durante una actividad funcional elegida.",
+      ],
+      actividadesFamilia: [
+        "Acordar una señal breve para solicitar el apoyo y facilitar que esté disponible en el contexto de uso.",
+      ],
+      habilidadesRelacionadas: ["elección de apoyos", "comunicación de necesidades", "participación funcional"],
+      marcoConceptual: "Se prioriza el acceso a la actividad mediante apoyos elegidos, no la tolerancia forzada a estímulos.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-SR-17-20-ASEN-A-01",
+      areaClinica: "procesamiento y regulación sensorial",
+      subarea: "Adaptaciones sensoriales",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Usar una adaptación elegida para sostener una actividad significativa",
+      definicionOperativa: "Planificará y usará una adaptación ambiental o pausa acordada en una actividad de estudio, trabajo o comunidad y retomará la actividad o comunicará otra necesidad, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Mapear con la persona las opciones de adaptación que desea probar en una actividad real.",
+        "Ensayar la solicitud, el uso y el retiro del apoyo según la preferencia de la persona.",
+      ],
+      actividadesFamilia: [
+        "Facilitar las adaptaciones acordadas y evitar retirarlas como prueba de independencia.",
+      ],
+      habilidadesRelacionadas: ["autogestión", "adaptación ambiental", "participación en ocupaciones"],
+      marcoConceptual: "Los apoyos ambientales son parte del acceso a la ocupación y se mantienen según la necesidad y preferencia.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MF-3-5-DM-B-01",
+      areaClinica: "motricidad fina y destreza manual",
+      subarea: "Destreza manual",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Abrir y cerrar un recipiente de uso cotidiano",
+      definicionOperativa: "Abrirá y cerrará un recipiente elegido usando ambas manos o el apoyo que prefiera para completar una rutina de juego o colación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Probar recipientes cotidianos de distinta resistencia y permitir que la persona elija.",
+        "Practicar estabilizar, abrir y cerrar el recipiente dentro de una actividad con propósito.",
+      ],
+      actividadesFamilia: [
+        "Usar un recipiente familiar en una rutina real, ofreciendo ayuda solo en el paso que la persona solicite.",
+      ],
+      habilidadesRelacionadas: ["manipulación", "coordinación bimanual", "participación en actividades cotidianas"],
+      marcoConceptual: "La destreza manual se trabaja al servicio de una tarea elegida, con herramientas y apoyos funcionales.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MF-6-8-BIM-I-01",
+      areaClinica: "motricidad fina y destreza manual",
+      subarea: "Coordinación bimanual",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Usar ambas manos para completar una tarea escolar o de autocuidado",
+      definicionOperativa: "Coordinará el uso de ambas manos para completar una tarea elegida de 3 pasos, con los materiales adaptados que necesite y no más de una indicación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Elegir tareas funcionales como abrir una cartuchera, sostener un papel mientras recorta o ajustar un cierre.",
+        "Variar posición y tamaño de los materiales para identificar una configuración eficaz.",
+      ],
+      actividadesFamilia: [
+        "Incluir la tarea en una rutina conocida y conservar los ajustes que faciliten su participación.",
+      ],
+      habilidadesRelacionadas: ["coordinación bimanual", "manipulación de materiales", "autonomía"],
+      marcoConceptual: "La ejecución eficaz puede incluir adaptaciones y distintas formas de usar las manos.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MF-13-16-HER-A-01",
+      areaClinica: "motricidad fina y destreza manual",
+      subarea: "Uso funcional de herramientas",
+      franjaEtaria: "13-16", franjaEtariaMin: 13, franjaEtariaMax: 16,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Completar una actividad elegida usando herramientas de forma funcional",
+      definicionOperativa: "Seleccionará y usará las herramientas acordadas para completar 3 pasos de una actividad de estudio, autocuidado o interés personal, con los apoyos necesarios, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar una actividad de interés con herramientas reales o adaptadas y revisar su ubicación y acceso.",
+        "Acordar qué pasos puede realizar la persona y cuáles requieren asistencia.",
+      ],
+      actividadesFamilia: [
+        "Facilitar el acceso a las herramientas y permitir el tiempo necesario para completar la actividad.",
+      ],
+      habilidadesRelacionadas: ["destreza manual", "selección de herramientas", "participación autónoma"],
+      marcoConceptual: "La herramienta y la forma de uso se ajustan a la tarea y a las preferencias de la persona.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MG-0-2-MOV-B-01",
+      areaClinica: "motricidad gruesa",
+      subarea: "Movilidad funcional",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Desplazarse para acceder a un objeto elegido durante el juego",
+      definicionOperativa: "En un espacio seguro y preparado, cambiará de posición o se desplazará hacia un objeto elegido usando los apoyos habituales, en 4 de 5 oportunidades de juego.",
+      actividadesClinicas: [
+        "Ubicar objetos de interés a distancias y alturas accesibles, siguiendo las iniciativas de la persona.",
+        "Permitir explorar distintos modos de desplazamiento y ofrecer apoyo cuando lo requiera.",
+      ],
+      actividadesFamilia: [
+        "Preparar un espacio de juego seguro con objetos accesibles y responder a las iniciativas de movimiento.",
+      ],
+      habilidadesRelacionadas: ["movilidad funcional", "iniciativa motriz", "acceso al juego"],
+      marcoConceptual: "El movimiento se considera en relación con el acceso y la participación, no con un patrón único.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MG-9-12-EQ-I-01",
+      areaClinica: "motricidad gruesa",
+      subarea: "Equilibrio y coordinación",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Completar un recorrido conocido con los apoyos elegidos",
+      definicionOperativa: "Realizará un recorrido familiar de juego o escuela ajustando el ritmo y usando los apoyos acordados, en 4 de 5 oportunidades, con un máximo de una indicación.",
+      actividadesClinicas: [
+        "Practicar el recorrido en un entorno seguro y acordar dónde conviene hacer pausas o ajustes.",
+        "Elegir junto con la persona una señal para pedir asistencia o modificar el trayecto.",
+      ],
+      actividadesFamilia: [
+        "Usar el recorrido cotidiano elegido y respetar la forma de desplazamiento que resulte segura y funcional.",
+      ],
+      habilidadesRelacionadas: ["desplazamiento", "equilibrio funcional", "ajuste del ritmo"],
+      marcoConceptual: "Se trabaja el acceso seguro a lugares y actividades relevantes para la persona.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-MG-17-20-PMOT-A-01",
+      areaClinica: "motricidad gruesa",
+      subarea: "Participación motriz",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Participar en una actividad comunitaria con apoyos de movilidad acordados",
+      definicionOperativa: "Participará en una actividad elegida que requiera desplazarse entre distintos espacios, utilizando los apoyos y pausas acordados, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Planificar una actividad real con la persona, anticipando trayecto, pausas y apoyos solicitados.",
+        "Ensayar estrategias para ajustar ritmo o pedir asistencia sin perder la elección de la actividad.",
+      ],
+      actividadesFamilia: [
+        "Acompañar la actividad según el plan acordado y permitir que la persona decida cuándo necesita una pausa o ayuda.",
+      ],
+      habilidadesRelacionadas: ["movilidad en comunidad", "autogestión de apoyos", "participación"],
+      marcoConceptual: "El objetivo es acceder a la actividad elegida, con apoyos y pausas que resulten funcionales.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-CV-3-5-OM-B-01",
+      areaClinica: "coordinación visomotora",
+      subarea: "Coordinación ojo-mano",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Ubicar objetos en el lugar indicado durante una actividad de juego",
+      definicionOperativa: "Ubicará 4 de 5 objetos familiares en los espacios correspondientes siguiendo un modelo visual, con no más de una indicación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Usar encastres, recipientes o materiales de juego elegidos y ofrecer un modelo claro.",
+        "Ajustar tamaño y ubicación de los objetos para favorecer la participación.",
+      ],
+      actividadesFamilia: [
+        "Jugar a guardar o encastrar objetos conocidos, respetando el ritmo y las elecciones de la persona.",
+      ],
+      habilidadesRelacionadas: ["coordinación ojo-mano", "uso de referencias visuales", "organización de objetos"],
+      marcoConceptual: "La coordinación visomotora se practica dentro de una actividad con propósito y materiales accesibles.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-CV-6-8-VESP-I-01",
+      areaClinica: "coordinación visomotora",
+      subarea: "Organización visuoespacial",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Organizar materiales siguiendo un modelo visual",
+      definicionOperativa: "Usará una referencia visual para organizar los materiales de una tarea de 4 pasos y completar la actividad con no más de una indicación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar con una construcción, tarea artística o preparación de útiles elegida por la persona.",
+        "Reducir o ampliar el modelo visual según permita realizar la actividad con autonomía.",
+      ],
+      actividadesFamilia: [
+        "Dejar disponible el modelo visual en una actividad real y evitar corregir la ubicación si no afecta el propósito.",
+      ],
+      habilidadesRelacionadas: ["organización visuoespacial", "referencias visuales", "uso de materiales"],
+      marcoConceptual: "La referencia visual es un apoyo para completar una ocupación, no un criterio de exactitud aislado.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-CV-13-16-MAV-A-01",
+      areaClinica: "coordinación visomotora",
+      subarea: "Manipulación con apoyo visual",
+      franjaEtaria: "13-16", franjaEtariaMin: 13, franjaEtariaMax: 16,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Completar una tarea de interés usando una guía visual propia",
+      definicionOperativa: "Organizará materiales y completará 3 etapas de una tarea elegida con una guía visual de su preferencia, en 4 de 5 oportunidades acordadas.",
+      actividadesClinicas: [
+        "Co-crear una guía visual con fotografías, esquema, lista u otro formato elegido.",
+        "Probar la guía durante una actividad real y acordar qué información conviene modificar.",
+      ],
+      actividadesFamilia: [
+        "Facilitar los materiales en el orden acordado y mantener disponible la guía solicitada.",
+      ],
+      habilidadesRelacionadas: ["integración visual y acción", "organización de tareas", "uso de apoyos"],
+      marcoConceptual: "La guía visual se diseña para que la persona pueda realizar una tarea significativa a su manera.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-GF-3-5-PU-B-01",
+      areaClinica: "grafomotricidad",
+      subarea: "Prensión y uso de útiles",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Usar un útil gráfico para dejar una marca con intención",
+      definicionOperativa: "Elegirá un útil gráfico y realizará tres marcas o trazos intencionales durante una actividad de juego, con el apoyo que prefiera, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Ofrecer superficies y útiles variados para dibujar, señalar o dejar una marca con propósito.",
+        "Permitir distintas posiciones y formas de agarre funcionales para completar la actividad.",
+      ],
+      actividadesFamilia: [
+        "Incorporar dibujo libre o marcas en una actividad elegida y valorar el propósito, no la forma del trazo.",
+      ],
+      habilidadesRelacionadas: ["uso de útiles gráficos", "participación en dibujo", "elección de herramientas"],
+      marcoConceptual: "La meta es usar la herramienta para comunicar o crear, no imponer una prensión específica.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-GF-9-12-TF-I-01",
+      areaClinica: "grafomotricidad",
+      subarea: "Trazos y formas",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Escribir una respuesta breve con una guía de organización elegida",
+      definicionOperativa: "Escribirá una respuesta breve para una tarea escolar usando una guía de renglón, espaciado o formato elegida, de modo que sea legible para el destinatario, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Probar apoyos de papel, útiles o formato junto con una consigna real de interés escolar.",
+        "Acordar con la persona qué significa que la respuesta sea legible para su destinatario.",
+      ],
+      actividadesFamilia: [
+        "Facilitar los apoyos elegidos en tareas cotidianas y priorizar que el mensaje pueda comprenderse.",
+      ],
+      habilidadesRelacionadas: ["escritura funcional", "organización espacial", "elección de adaptaciones"],
+      marcoConceptual: "La legibilidad se define por el propósito comunicativo y puede favorecerse con adaptaciones.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-GF-17-20-ESC-A-01",
+      areaClinica: "grafomotricidad",
+      subarea: "Escritura funcional",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Completar una nota manuscrita para una actividad cotidiana",
+      definicionOperativa: "Redactará a mano una nota breve vinculada con estudio, trabajo o una rutina propia, usando las adaptaciones acordadas para que el destinatario comprenda el mensaje, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar con mensajes reales elegidos por la persona y comparar apoyos de papel, útil o pausa.",
+        "Revisar con la persona si el destinatario pudo interpretar la nota sin exigir un formato único.",
+      ],
+      actividadesFamilia: [
+        "Usar escritura manual cuando tenga un propósito para la persona y ofrecer alternativas digitales si las prefiere.",
+      ],
+      habilidadesRelacionadas: ["escritura para la vida diaria", "adaptaciones", "comunicación funcional"],
+      marcoConceptual: "La escritura se aborda como una ocupación funcional y se contemplan alternativas de acceso.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-JU-0-2-JF-B-01",
+      areaClinica: "juego",
+      subarea: "Juego funcional",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Participar en una secuencia breve de juego elegido",
+      definicionOperativa: "Participará en tres intercambios de una actividad de juego elegida, iniciando, continuando o finalizando según sus señales, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Seguir el interés de la persona y proponer una acción relacionada sin dirigir toda la secuencia.",
+        "Alternar turnos breves y respetar señales de pausa o finalización.",
+      ],
+      actividadesFamilia: [
+        "Compartir una actividad de juego elegida y dejar espacio para que la persona tome la iniciativa.",
+      ],
+      habilidadesRelacionadas: ["iniciativa", "intercambio en juego", "elección"],
+      marcoConceptual: "El juego se organiza desde los intereses y señales de la persona, sin exigir una forma normativa.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-JU-6-8-JS-I-01",
+      areaClinica: "juego",
+      subarea: "Juego simbólico",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Desarrollar una secuencia de juego simbólico compartida",
+      definicionOperativa: "Elegirá un tema o rol y sostendrá una secuencia de al menos tres acciones en un juego simbólico compartido, usando los apoyos que necesite, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Partir de un tema de interés y ofrecer materiales o apoyos para representar acciones elegidas.",
+        "Acompañar la expansión del juego sin reemplazar las ideas de la persona.",
+      ],
+      actividadesFamilia: [
+        "Sumarse al juego siguiendo el tema elegido y alternar propuestas con las ideas de la persona.",
+      ],
+      habilidadesRelacionadas: ["secuenciación en juego", "elección de roles", "participación compartida"],
+      marcoConceptual: "La participación y el disfrute del juego son prioritarios frente a la imitación de guiones predeterminados.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-JU-13-16-JC-A-01",
+      areaClinica: "juego",
+      subarea: "Juego compartido",
+      franjaEtaria: "13-16", franjaEtariaMin: 13, franjaEtariaMax: 16,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Participar en un juego o pasatiempo compartido elegido",
+      definicionOperativa: "Elegirá una actividad compartida, acordará un rol o ajuste necesario y participará hasta el cierre o la pausa que decida, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Explorar juegos o pasatiempos que la persona quiera compartir y definir ajustes de reglas o materiales.",
+        "Practicar cómo proponer una pausa, cambio de rol o adaptación durante la actividad.",
+      ],
+      actividadesFamilia: [
+        "Ofrecer opciones de actividades compartidas sin exigir que la persona sostenga una actividad que ya no desea.",
+      ],
+      habilidadesRelacionadas: ["juego compartido", "elección", "comunicación de preferencias"],
+      marcoConceptual: "La participación se negocia desde los intereses y límites de quienes juegan.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PS-3-5-IAG-B-01",
+      areaClinica: "participación social",
+      subarea: "Iniciativa en actividades grupales",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Incorporarse a una actividad compartida mediante su forma de comunicación",
+      definicionOperativa: "En una actividad grupal elegida, comunicará que desea incorporarse o participar mediante habla, gesto, dispositivo u otra forma propia y realizará dos intercambios con apoyo disponible, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Preparar una actividad breve de interés compartido y modelar más de una forma de pedir participar.",
+        "Organizar el entorno para que pueda acceder a materiales y turnos.",
+      ],
+      actividadesFamilia: [
+        "Crear oportunidades de juego compartido con personas conocidas y aceptar distintas formas de iniciar el intercambio.",
+      ],
+      habilidadesRelacionadas: ["iniciativa social", "comunicación funcional", "participación compartida"],
+      marcoConceptual: "Se reconocen todas las formas de comunicación y no se exige contacto visual ni habla oral.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PS-9-12-TR-I-01",
+      areaClinica: "participación social",
+      subarea: "Turnos y roles",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Elegir un rol y sostener intercambios en una actividad grupal",
+      definicionOperativa: "Elegirá o comunicará un rol en una actividad grupal y realizará dos intercambios relacionados con la tarea, con los apoyos acordados, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar con una actividad de interés que permita elegir roles y ajustar la cantidad de participantes.",
+        "Usar apoyos visuales o comunicativos solo si la persona los considera útiles.",
+      ],
+      actividadesFamilia: [
+        "Facilitar actividades compartidas donde se puedan elegir roles y hacer pausas cuando sean necesarias.",
+      ],
+      habilidadesRelacionadas: ["elección de roles", "intercambios", "participación en grupo"],
+      marcoConceptual: "Se evalúa el acceso a la actividad y el intercambio funcional, no la conformidad con reglas arbitrarias.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PS-17-20-IC-A-01",
+      areaClinica: "participación social",
+      subarea: "Interacción en contexto",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Comunicar preferencias y apoyos en una ocupación compartida",
+      definicionOperativa: "En una actividad social o comunitaria elegida, comunicará una preferencia, límite o apoyo necesario y decidirá continuar, modificar o finalizar la participación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Ensayar formas de expresar preferencias o solicitar ajustes usando el medio de comunicación elegido.",
+        "Planificar una actividad compartida con opciones reales de modificación o salida.",
+      ],
+      actividadesFamilia: [
+        "Respetar la decisión de continuar, adaptar o finalizar la actividad y apoyar solo lo que la persona solicite.",
+      ],
+      habilidadesRelacionadas: ["autodeterminación", "comunicación de preferencias", "participación social"],
+      marcoConceptual: "La interacción social se centra en autodeterminación, acceso y participación mutuamente acordada.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PE-3-5-RES-B-01",
+      areaClinica: "participación escolar",
+      subarea: "Rutinas escolares",
+      franjaEtaria: "3-5", franjaEtariaMin: 3, franjaEtariaMax: 5,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Participar en una rutina escolar breve con apoyos visuales",
+      definicionOperativa: "En una rutina escolar elegida, localizará los materiales acordados, iniciará una actividad y colaborará en guardarlos con apoyo visual, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Representar una rutina real del aula con los mismos materiales y señales del contexto escolar.",
+        "Coordinar con la familia o escuela qué apoyo visual resulta sencillo de mantener.",
+      ],
+      actividadesFamilia: [
+        "Ensayar en casa solo los pasos que la persona quiera practicar, usando materiales conocidos.",
+      ],
+      habilidadesRelacionadas: ["rutinas escolares", "acceso a materiales", "participación"],
+      marcoConceptual: "Los apoyos se coordinan con el contexto escolar y no trasladan a la familia la responsabilidad de la escuela.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PE-6-8-OMAT-I-01",
+      areaClinica: "participación escolar",
+      subarea: "Organización de materiales",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Preparar materiales para iniciar una tarea escolar elegida",
+      definicionOperativa: "Usará una lista o ubicación visual para reunir los materiales acordados y comenzar una tarea escolar, con no más de una indicación, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Practicar con materiales reales y una consigna escolar breve que la persona conozca.",
+        "Acordar un lugar accesible para cada elemento y revisar si esa organización funciona.",
+      ],
+      actividadesFamilia: [
+        "Mantener la ubicación pactada de los materiales y permitir que la persona complete la preparación.",
+      ],
+      habilidadesRelacionadas: ["organización de materiales", "inicio de tareas", "autonomía escolar"],
+      marcoConceptual: "La organización ambiental se ajusta para permitir el inicio y la participación en la tarea.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PE-13-16-ATE-A-01",
+      areaClinica: "participación escolar",
+      subarea: "Acceso a tareas escolares",
+      franjaEtaria: "13-16", franjaEtariaMin: 13, franjaEtariaMax: 16,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Usar un ajuste acordado para participar en una tarea escolar",
+      definicionOperativa: "En una tarea escolar elegida, utilizará un ajuste de materiales, entorno o formato acordado y completará las etapas definidas con la persona, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Identificar con la persona qué parte de una actividad dificulta el acceso y elegir un ajuste para probar.",
+        "Preparar materiales o un formato alternativo y revisar si permiten participar en la tarea.",
+      ],
+      actividadesFamilia: [
+        "Compartir con el equipo escolar el ajuste solicitado por la persona y acordar quién lo implementa.",
+      ],
+      habilidadesRelacionadas: ["acceso a tareas", "adaptaciones", "autodeterminación escolar"],
+      marcoConceptual: "La intervención busca remover barreras de participación en coordinación con el contexto escolar.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PM-0-2-SM-B-01",
+      areaClinica: "planificación y organización motora",
+      subarea: "Secuenciación motora",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Realizar dos acciones encadenadas para acceder a un objeto de juego",
+      definicionOperativa: "En una actividad de juego elegida, realizará dos acciones relacionadas —por ejemplo, alcanzar y tomar— con el apoyo que requiera, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Ubicar el objeto de interés de forma segura para que la persona pueda iniciar la secuencia.",
+        "Acompañar el movimiento solo en la medida necesaria y esperar su iniciativa.",
+      ],
+      actividadesFamilia: [
+        "Ofrecer oportunidades de juego donde el objeto elegido esté visible y accesible con el apoyo habitual.",
+      ],
+      habilidadesRelacionadas: ["secuenciación de acciones", "iniciativa motriz", "acceso al juego"],
+      marcoConceptual: "La planificación motora se observa dentro de una acción elegida y con apoyos acordes.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PM-9-12-PT-I-01",
+      areaClinica: "planificación y organización motora",
+      subarea: "Planificación de tareas",
+      franjaEtaria: "9-12", franjaEtariaMin: 9, franjaEtariaMax: 12,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Planificar y completar una actividad nueva de varios pasos",
+      definicionOperativa: "Elegirá una actividad nueva de 3 pasos, organizará los materiales con una guía acordada y revisará un paso si lo necesita, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Co-crear una lista breve de materiales y pasos antes de comenzar una actividad elegida.",
+        "Permitir que la persona ajuste el orden o la estrategia durante la tarea.",
+      ],
+      actividadesFamilia: [
+        "Probar la misma herramienta de planificación en una actividad cotidiana que la persona haya elegido.",
+      ],
+      habilidadesRelacionadas: ["planificación de pasos", "organización de materiales", "ajuste de estrategias"],
+      marcoConceptual: "La planificación apoya la participación en tareas significativas y admite más de una estrategia eficaz.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-PM-17-20-AE-A-01",
+      areaClinica: "planificación y organización motora",
+      subarea: "Adaptación de estrategias",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Ajustar una estrategia durante una actividad funcional",
+      definicionOperativa: "Planificará los pasos de una actividad funcional elegida y cambiará o solicitará apoyo para una estrategia cuando sea necesario, completando el propósito acordado en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Ensayar una tarea real elegida y hacer visibles las opciones para reorganizar pasos o materiales.",
+        "Acordar una forma breve de pedir apoyo o una pausa durante la ejecución.",
+      ],
+      actividadesFamilia: [
+        "Dar tiempo para que la persona pruebe la estrategia elegida antes de ofrecer una alternativa.",
+      ],
+      habilidadesRelacionadas: ["adaptación de estrategias", "resolución funcional", "autogestión"],
+      marcoConceptual: "La flexibilidad se observa como posibilidad de continuar la ocupación con una estrategia propia o apoyo elegido.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-EP-0-2-AEN-B-01",
+      areaClinica: "entorno y participación",
+      subarea: "Adaptación del entorno",
+      franjaEtaria: "0-2", franjaEtariaMin: 0, franjaEtariaMax: 2,
+      nivelDificultad: "básico",
+      nombreObjetivo: "Facilitar el acceso a un espacio de juego con una adaptación",
+      definicionOperativa: "Con una adaptación acordada de posición o ubicación de materiales, tendrá acceso a una actividad de juego elegida y expresará interés, elección o finalización mediante sus señales habituales, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Ajustar la posición y el alcance de materiales según las señales y posibilidades de movimiento de la persona.",
+        "Observar si el ajuste habilita el acceso sin limitar otras elecciones.",
+      ],
+      actividadesFamilia: [
+        "Mantener accesibles los objetos de juego elegidos y modificar la ubicación si la persona lo indica.",
+      ],
+      habilidadesRelacionadas: ["acceso al juego", "adaptación ambiental", "expresión de preferencias"],
+      marcoConceptual: "Se modifica el entorno para ampliar oportunidades de participación, siguiendo las preferencias de la persona.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-EP-6-8-PH-I-01",
+      areaClinica: "entorno y participación",
+      subarea: "Participación en el hogar",
+      franjaEtaria: "6-8", franjaEtariaMin: 6, franjaEtariaMax: 8,
+      nivelDificultad: "intermedio",
+      nombreObjetivo: "Solicitar y usar un ajuste para participar en una rutina del hogar",
+      definicionOperativa: "Comunicará un ajuste útil de materiales, espacio o secuencia para participar en una rutina elegida y lo usará con el apoyo acordado, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Representar la rutina elegida e identificar con la persona una barrera concreta de acceso.",
+        "Probar un ajuste de bajo esfuerzo y registrar si permite completar el propósito acordado.",
+      ],
+      actividadesFamilia: [
+        "Implementar el ajuste elegido y preguntar si sigue siendo útil, sin agregar pasos innecesarios.",
+      ],
+      habilidadesRelacionadas: ["comunicación de necesidades", "adaptación del entorno", "participación en el hogar"],
+      marcoConceptual: "La meta considera cómo el entorno facilita o limita una actividad cotidiana elegida.",
+    }),
+    createOccupationalSeedGoal({
+      idObjetivo: "TO-EP-17-20-PC-A-01",
+      areaClinica: "entorno y participación",
+      subarea: "Participación en comunidad",
+      franjaEtaria: "17-20", franjaEtariaMin: 17, franjaEtariaMax: 20,
+      nivelDificultad: "avanzado",
+      nombreObjetivo: "Proponer y probar una adaptación para una actividad comunitaria",
+      definicionOperativa: "Identificará una barrera concreta en una actividad comunitaria elegida, propondrá o seleccionará un ajuste y participará en la actividad con ese apoyo, en 4 de 5 oportunidades.",
+      actividadesClinicas: [
+        "Planificar una salida o actividad real con la persona y conversar sobre las adaptaciones que quiere solicitar.",
+        "Ensayar cómo pedir el ajuste y quién puede ayudar a implementarlo.",
+      ],
+      actividadesFamilia: [
+        "Acompañar la implementación del ajuste acordado y respetar la decisión de continuar, cambiar o finalizar.",
+      ],
+      habilidadesRelacionadas: ["accesibilidad", "autodeterminación", "participación comunitaria"],
+      marcoConceptual: "La participación comunitaria depende también de barreras del entorno y de los apoyos disponibles.",
+    }),
+  ];
+
+  const ALL_SEED_GOALS = [...SEED_GOALS, ...TO_SEED_GOALS];
+
   export async function seedGoalLibraryIfNeeded(): Promise<void> {
     // Fetch all existing IDs from the table (no inArray limit issues)
     const existing = await db
@@ -6596,10 +7289,10 @@ import { db } from "@workspace/db";
       .from(goalLibraryTable);
 
     const existingIds = new Set(existing.map(r => r.idObjetivo));
-    const toInsert = SEED_GOALS.filter(g => !existingIds.has(g.idObjetivo));
+    const toInsert = ALL_SEED_GOALS.filter(g => !existingIds.has(g.idObjetivo));
 
     if (toInsert.length === 0) {
-      console.log(`[seed] Goal library: all ${SEED_GOALS.length} seed goals already present.`);
+      console.log(`[seed] Goal library: all ${ALL_SEED_GOALS.length} seed goals already present.`);
       return;
     }
 
@@ -6610,6 +7303,6 @@ import { db } from "@workspace/db";
       await db.insert(goalLibraryTable).values(toInsert.slice(i, i + BATCH));
       inserted += Math.min(BATCH, toInsert.length - i);
     }
-    console.log(`[seed] Goal library: inserted ${inserted} of ${SEED_GOALS.length} goals.`);
+    console.log(`[seed] Goal library: inserted ${inserted} of ${ALL_SEED_GOALS.length} goals.`);
   }
   

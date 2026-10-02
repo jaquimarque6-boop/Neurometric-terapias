@@ -12,6 +12,7 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
+import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 
@@ -19,30 +20,14 @@ const router: IRouter = Router();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Discipline = "fonoaudiología" | "psicopedagogía" | "terapia_ocupacional" | "general";
-
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
   return { id: req.session.userId, role: req.session.userRole ?? "professional" };
 }
 
-// ─── Discipline detection (mirror ai-informe.ts) ──────────────────────────────
+// ─── Discipline-specific prompt ───────────────────────────────────────────────
 
-function detectDiscipline(specialty: string, goalAreas: string[]): Discipline {
-  const sp = specialty.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/fono|fonoaudio|speech|lenguaje|habla|voz|degluc/.test(sp)) return "fonoaudiología";
-  if (/psicoped|aprendiz|cognitiv|educati|neuropsico/.test(sp)) return "psicopedagogía";
-  if (/ocup|terapia.?ocup|^to$|avd|sensori|ergot/.test(sp)) return "terapia_ocupacional";
-
-  const areasStr = goalAreas.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/lenguaje|habla|fonolog|articulac|pragmat|comunicac|voz|degluc/.test(areasStr)) return "fonoaudiología";
-  if (/atenci|memoria|ejecutiv|lectoescrit|comprens|aprendiz|cognic/.test(areasStr)) return "psicopedagogía";
-  if (/autonomi|avd|sensori|motricidad|ocup|participac/.test(areasStr)) return "terapia_ocupacional";
-
-  return "general";
-}
-
-function buildSystemPrompt(discipline: Discipline): string {
+function buildSystemPrompt(discipline: ClinicalDiscipline): string {
   const base = `Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.
 Tu tarea es redactar un PERFIL CLÍNICO de síntesis del paciente, basándote EXCLUSIVAMENTE en los datos reales que se te proporcionan (anamnesis, objetivos, sesiones y desempeño).
 Reglas estrictas:
@@ -53,13 +38,13 @@ Reglas estrictas:
 - El perfil es una herramienta de trabajo editable para el profesional, no un informe formal para terceros.
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
-  const disciplines: Record<Discipline, string> = {
+  const disciplines: Record<ClinicalDiscipline, string> = {
     "fonoaudiología": `
 Especialidad: FONOAUDIOLOGÍA. Enfocate en lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).`,
     "psicopedagogía": `
 Especialidad: PSICOPEDAGOGÍA. Enfocate en procesos de aprendizaje, atención, memoria operativa, funciones ejecutivas, lectoescritura y comprensión.`,
     "terapia_ocupacional": `
-Especialidad: TERAPIA OCUPACIONAL. Enfocate en autonomía personal, AVD, motricidad fina y gruesa, integración sensorial y participación.`,
+Especialidad: TERAPIA OCUPACIONAL. Enfocate en desempeño funcional, autonomía, rutinas, regulación sensorial, juego, participación social/escolar y ajustes del entorno. Prioriza los apoyos y ocupaciones relevantes para la persona; no infieras cambios que no estén registrados.`,
     "general": `
 Redacta con terminología clínica general apropiada para terapias del neurodesarrollo, según las áreas de los objetivos registrados.`,
   };
@@ -218,7 +203,7 @@ router.post("/ai/perfil-generate", async (req, res) => {
   // ── Detect discipline ──────────────────────────────────────────────────────
   const specialties = professionals.map(p => p.specialty).join(" ");
   const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
 
   // ── Group goal progress by goalId ─────────────────────────────────────────
   const progressByGoal = new Map<number, typeof allGoalProgress>();

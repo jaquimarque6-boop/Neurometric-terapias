@@ -12,32 +12,19 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
+import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 
 const router: IRouter = Router();
-
-type Discipline = "fonoaudiología" | "psicopedagogía" | "terapia_ocupacional" | "general";
 
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
   return { id: req.session.userId, role: req.session.userRole ?? "professional" };
 }
 
-function detectDiscipline(specialty: string, goalAreas: string[]): Discipline {
-  const sp = specialty.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/fono|fonoaudio|speech|lenguaje|habla|voz|degluc/.test(sp)) return "fonoaudiología";
-  if (/psicoped|aprendiz|cognitiv|educati|neuropsico/.test(sp)) return "psicopedagogía";
-  if (/ocup|terapia.?ocup|^to$|avd|sensori|ergot/.test(sp)) return "terapia_ocupacional";
-  const areasStr = goalAreas.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/lenguaje|habla|fonolog|articulac|pragmat|comunicac|voz|degluc/.test(areasStr)) return "fonoaudiología";
-  if (/atenci|memoria|ejecutiv|lectoescrit|comprens|aprendiz|cognic/.test(areasStr)) return "psicopedagogía";
-  if (/autonomi|avd|sensori|motricidad|ocup|participac/.test(areasStr)) return "terapia_ocupacional";
-  return "general";
-}
-
-function buildDisciplineGuidance(discipline: Discipline): string {
-  const map: Record<Discipline, string> = {
+function buildDisciplineGuidance(discipline: ClinicalDiscipline): string {
+  const map: Record<ClinicalDiscipline, string> = {
     "fonoaudiología": `Disciplina: FONOAUDIOLOGÍA.
 Áreas a considerar: fonología, lenguaje expresivo, lenguaje comprensivo, articulación, pragmática, comunicación funcional, voz, deglución.
 Redacta los objetivos usando términos como: "producción fonológica", "inteligibilidad del habla", "estructuras sintácticas", "vocabulario funcional", "comprensión auditiva", "habilidades pragmáticas", "comunicación intencional", "discriminación auditiva", "narración oral".
@@ -49,9 +36,10 @@ Redacta los objetivos usando términos como: "estrategias cognitivas", "nivel de
 Indicadores de logro: expresados en porcentaje de aciertos, ítems completados o tiempo de atención sostenida.`,
 
     "terapia_ocupacional": `Disciplina: TERAPIA OCUPACIONAL.
-Áreas a considerar: actividades de la vida diaria (AVD), motricidad fina, coordinación visomotora, integración sensorial, modulación sensorial, prensión, coordinación bimanual, autonomía personal, habilidades de desempeño.
-Redacta los objetivos usando términos como: "desempeño ocupacional", "participación", "adaptaciones ambientales", "tolerancia sensorial", "coordinación bimanual", "prensión funcional", "secuencia de actividad", "independencia en AVD".
-Indicadores de logro: expresados en ejecución independiente de pasos, tiempo de tolerancia o calidad de la prensión.`,
+Áreas a considerar: AVD y autonomía, rutinas y hábitos, procesamiento y regulación sensorial, destreza manual, motricidad, coordinación visomotora, grafomotricidad, juego, participación social y escolar, planificación motora y entorno.
+Priorizá desempeño funcional, elección y participación en ocupaciones significativas, considerando apoyos y adaptaciones del contexto.
+Redacta objetivos con una acción observable, el contexto funcional y el nivel de ayuda o criterio de logro; evitá centrarte solo en déficits corporales.
+Indicadores: pasos realizados con el apoyo acordado, participación en oportunidades funcionales o uso de una estrategia en la rutina.`,
 
     "general": `Disciplina: GENERAL / sin determinar.
 Redacta objetivos clínicamente válidos adaptados a las áreas de trabajo detectadas en los objetivos actuales del paciente.
@@ -107,7 +95,7 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
   // ── Detect discipline ──────────────────────────────────────────────────
   const specialties = professionals.map(p => p.specialty).join(" ");
   const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
 
   // ── Build context ──────────────────────────────────────────────────────
   const patientCtx = [

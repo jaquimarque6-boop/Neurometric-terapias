@@ -12,6 +12,7 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
+import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 import { selectClinicalPeriod, validClinicalDay } from "./report-period";
@@ -20,8 +21,6 @@ const router: IRouter = Router();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Discipline = "fonoaudiología" | "psicopedagogía" | "terapia_ocupacional" | "general";
-
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
   return { id: req.session.userId, role: req.session.userRole ?? "professional" };
@@ -29,23 +28,9 @@ function getSessionUser(req: any) {
 
 // ─── Discipline detection ─────────────────────────────────────────────────────
 
-function detectDiscipline(specialty: string, goalAreas: string[]): Discipline {
-  const sp = specialty.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/fono|fonoaudio|speech|lenguaje|habla|voz|degluc/.test(sp)) return "fonoaudiología";
-  if (/psicoped|aprendiz|cognitiv|educati|neuropsico/.test(sp)) return "psicopedagogía";
-  if (/ocup|terapia.?ocup|^to$|avd|sensori|ergot/.test(sp)) return "terapia_ocupacional";
-
-  const areasStr = goalAreas.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/lenguaje|habla|fonolog|articulac|pragmat|comunicac|voz|degluc/.test(areasStr)) return "fonoaudiología";
-  if (/atenci|memoria|ejecutiv|lectoescrit|comprens|aprendiz|cognic/.test(areasStr)) return "psicopedagogía";
-  if (/autonomi|avd|sensori|motricidad|ocup|participac/.test(areasStr)) return "terapia_ocupacional";
-
-  return "general";
-}
-
 // ─── Discipline-specific system prompts ──────────────────────────────────────
 
-function buildSystemPrompt(discipline: Discipline): string {
+function buildSystemPrompt(discipline: ClinicalDiscipline): string {
   const base = `Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.
 Tu tarea es redactar secciones de un informe clínico de evolución basándote EXCLUSIVAMENTE en los datos reales del paciente que se te proporcionan.
 Reglas estrictas:
@@ -59,7 +44,7 @@ Reglas estrictas:
 - Evita repetir el nombre del paciente. Describe solo registros presentes en el período; un registro en el período no implica que sea la única sesión de toda la historia clínica. Si no hay registros clínicos en el período no afirmes que hubo sesiones ni uses "Durante las sesiones".
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
-  const disciplines: Record<Discipline, string> = {
+  const disciplines: Record<ClinicalDiscipline, string> = {
     "fonoaudiología": `
 Especialidad: FONOAUDIOLOGÍA.
 Enfocate en: lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).
@@ -74,9 +59,9 @@ Al describir evolución: mencionar cambios en el rendimiento, estrategias adquir
 
     "terapia_ocupacional": `
 Especialidad: TERAPIA OCUPACIONAL.
-Enfocate en: autonomía personal, actividades de la vida diaria (AVD), motricidad fina y gruesa, integración sensorial, participación en contextos cotidianos.
-Terminología a usar: "desempeño ocupacional", "participación", "adaptaciones", "integración sensorial", "umbral sensorial", "coordinación bimanual", "prensión", "modulación sensorial", "rol ocupacional", "AVD básicas e instrumentales", "habilidades de desempeño".
-Al describir evolución: mencionar cambios en la independencia funcional, tolerancia sensorial, ejecución de rutinas, coordinación motriz o adaptaciones únicamente si están registrados explícitamente.`,
+Enfocate en: AVD y autonomía, rutinas y hábitos, procesamiento y regulación sensorial, destreza manual, motricidad, coordinación visomotora, grafomotricidad, juego y participación social/escolar, considerando los apoyos y las adaptaciones del entorno.
+Terminología a usar: "desempeño ocupacional", "participación en ocupaciones significativas", "apoyo requerido", "adaptaciones del entorno", "rutina", "destreza manual", "coordinación bimanual", "autonomía en AVD".
+Al describir evolución: mencionar cambios en la participación funcional, autonomía, uso de apoyos, ejecución de rutinas o acceso a actividades únicamente si están registrados explícitamente; no reducir la evolución a déficits corporales.`,
 
     "general": `
 Redacta el informe con terminología clínica general apropiada para terapias del neurodesarrollo.
@@ -137,7 +122,7 @@ router.post("/ai/informe-generate", async (req, res) => {
   // ── Detect discipline ──────────────────────────────────────────────────────
   const specialties = professionals.map(p => p.specialty).join(" ");
   const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
 
   // ── Filter sessions by selected range ─────────────────────────────────────
   const period = selectClinicalPeriod(allRegistrosClinicos, rango);

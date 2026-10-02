@@ -85,14 +85,28 @@ export const BANCO_AREAS_PSICOPED = [
 ];
 
 export const BANCO_AREAS_TO = [
-  "integración sensorial",
-  "motricidad fina",
+  // Áreas ocupacionales priorizadas en el banco.
+  "actividades de la vida diaria y autonomía",
+  "rutinas y hábitos",
+  "procesamiento y regulación sensorial",
+  "motricidad fina y destreza manual",
   "motricidad gruesa",
   "coordinación visomotora",
-  "actividades de la vida diaria",
   "grafomotricidad",
+  "juego",
+  "participación social",
+  "participación escolar",
+  "planificación y organización motora",
+  "entorno y participación",
+  // Se conservan las etiquetas anteriores para objetivos ya cargados.
+  "integración sensorial",
+  "motricidad fina",
+  "actividades de la vida diaria",
   "autorregulación",
   "praxias",
+  // Áreas transversales siguen disponibles para objetivos pertinentes.
+  "cognición",
+  "estimulación temprana",
 ];
 
 export function getBancoAreas(profesion: Profesion): string[] {
