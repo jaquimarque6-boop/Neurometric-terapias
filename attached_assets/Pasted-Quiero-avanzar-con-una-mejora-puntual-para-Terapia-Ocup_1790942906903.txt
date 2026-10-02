@@ -1,0 +1,64 @@
+Quiero avanzar con una mejora puntual para Terapia Ocupacional en Neurometric Terapias, basándote en el diagnóstico que acabás de realizar.
+No quiero crear un módulo separado ni modificar toda la plataforma.
+Objetivo
+Completar la adaptación que YA existe para Terapia Ocupacional, principalmente incorporando un banco de objetivos específico de TO y conectándolo correctamente con los flujos actuales.
+1. Revisar y reutilizar lo existente
+Ya encontraste contenido de TO relacionado con:
+- integración/procesamiento sensorial;
+- motricidad fina;
+- motricidad gruesa;
+- coordinación visomotora;
+- AVD;
+- grafomotricidad;
+- guías de sesión organizadas por edad.
+Reutilizá esa estructura y terminología cuando corresponda. No dupliques contenido innecesariamente.
+2. Banco de objetivos de Terapia Ocupacional
+Incorporá objetivos clínicos organizados, como mínimo, en:
+- Actividades de la vida diaria y autonomía
+- Rutinas y hábitos
+- Procesamiento y regulación sensorial
+- Motricidad fina y destreza manual
+- Motricidad gruesa
+- Coordinación visomotora
+- Grafomotricidad
+- Juego
+- Participación social
+- Participación escolar
+- Planificación y organización motora
+- Entorno y participación
+Los objetivos deben ser funcionales, observables y utilizables en seguimiento terapéutico.
+Evitá objetivos excesivamente genéricos como “mejorar motricidad” cuando puedan formularse de manera más funcional.
+No agregues escalas, diagnósticos ni evaluaciones estandarizadas.
+3. Especialidad
+Cuando la profesional sea de Terapia Ocupacional, el Banco de Objetivos debe priorizar/mostrar correctamente los objetivos correspondientes a TO.
+Las áreas transversales existentes pueden seguir utilizándose cuando sean pertinentes.
+No alterar el banco actual de Fonoaudiología ni Psicopedagogía.
+4. IA
+Revisá las ramas de TO que YA existen para:
+- perfil clínico;
+- generación/sugerencia de objetivos;
+- informes.
+Hacé solamente los ajustes mínimos necesarios para que reconozcan las nuevas áreas de objetivos de TO.
+Priorizá desempeño funcional, autonomía y participación, no solamente déficits corporales.
+No rehagas los prompts completos si la adaptación actual ya funciona.
+5. Por ahora NO modificar
+- Anamnesis.
+- Registro de sesión.
+- Psicología.
+- Psicopedagogía.
+- Fonoaudiología.
+- Autenticación.
+- Consentimientos.
+- Informes fuera de la adaptación mínima necesaria.
+No hagas una auditoría general.
+Si necesitás una migración o modificar estructura de base de datos, detenete antes y explicame por qué.
+Al terminar decime:
+1. qué encontraste ya existente y reutilizaste;
+2. qué categorías de TO quedaron disponibles;
+3. cuántos objetivos específicos de TO agregaste;
+4. cómo los verá una terapeuta ocupacional;
+5. qué cambios mínimos hiciste en IA;
+6. pruebas realizadas;
+7. si requiere migración;
+8. commit local.
+No push ni deploy.
