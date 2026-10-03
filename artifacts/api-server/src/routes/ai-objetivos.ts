@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
   patientsTable,
@@ -139,7 +140,7 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
     : "Sin sesiones registradas.";
 
   // Goal progress for level assessment
-  const progressByGoal = new Map<number, typeof allGoalProgress>();
+  const progressByGoal = new Map<number, (typeof allGoalProgress)[number][]>();
   for (const p of allGoalProgress) {
     if (!progressByGoal.has(p.goalId)) progressByGoal.set(p.goalId, []);
     progressByGoal.get(p.goalId)!.push(p);
@@ -315,6 +316,7 @@ areaClinica y category: en minúsculas, acordes a la disciplina.`;
     const parsed = JSON.parse(text);
     const objetivos = Array.isArray(parsed.objetivos) ? parsed.objetivos : [];
 
+    recordUserActivityEvent(sess.id, "ai_used");
     return res.json({ objetivos, discipline });
   } catch (error: any) {
     console.error("[ai-objetivos] Error:", error?.message);

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import OpenAI from "openai";
 import { requireAiConsent } from "../lib/consents";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 
 const router: IRouter = Router();
 
@@ -81,10 +82,12 @@ Responde con este JSON exacto (sin código markdown):
       parsed = JSON.parse(jsonMatch[0]);
     }
 
-    return res.json({
+    const result = {
       marcoConceptual: parsed.marcoConceptual?.trim() ?? "",
       sugerenciaFamilia: parsed.sugerenciaFamilia?.trim() ?? "",
-    });
+    };
+    recordUserActivityEvent(req.session.userId, "ai_used");
+    return res.json(result);
   } catch (err: any) {
     console.error("goal-guidance error:", err?.message ?? err);
     return res.status(500).json({ error: "Error generating guidance" });

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import OpenAI from "openai";
 import { requireAiConsent } from "../lib/consents";
 
@@ -144,10 +145,11 @@ router.post("/ai/manuscrito-organize", async (req, res) => {
     const raw = response.choices[0]?.message?.content;
     if (!raw) throw new Error("La IA no devolvió una propuesta.");
     const parsed = JSON.parse(raw);
-    if (target === "anamnesis") {
-      return res.json(normalizeAnamnesisResponse(parsed));
-    }
-    return res.json(normalizeResponse(parsed));
+    const result = target === "anamnesis"
+      ? normalizeAnamnesisResponse(parsed)
+      : normalizeResponse(parsed);
+    recordUserActivityEvent(sess.id, "ai_used");
+    return res.json(result);
   } catch (error: any) {
     console.error("[ai-manuscrito-organize] Error:", error?.message);
     return res.status(502).json({

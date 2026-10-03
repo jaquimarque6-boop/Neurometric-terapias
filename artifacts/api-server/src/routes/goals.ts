@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import { goalsTable, patientsTable, goalProgressTable, actividadesTable, goalLibraryTable } from "@workspace/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -52,7 +53,7 @@ router.get("/goals", async (req, res) => {
   }
 
   const enriched = await Promise.all(goals.map(enrich));
-  res.json(enriched);
+  return res.json(enriched);
 });
 
 router.post("/goals", async (req, res) => {
@@ -84,7 +85,9 @@ router.post("/goals", async (req, res) => {
     targetDate: targetDate ?? null,
     notas: notas ?? null,
   }).returning();
-  return res.status(201).json(await enrich(goal));
+  const response = await enrich(goal);
+  recordUserActivityEvent(sess.id, "goal_saved");
+  return res.status(201).json(response);
 });
 
 router.patch("/goals/:id", async (req, res) => {
@@ -128,7 +131,9 @@ router.patch("/goals/:id", async (req, res) => {
     });
   }
 
-  return res.json(await enrich(goal));
+  const response = await enrich(goal);
+  recordUserActivityEvent(sess.id, "goal_saved");
+  return res.json(response);
 });
 
 router.delete("/goals/:id", async (req, res) => {
@@ -147,7 +152,7 @@ router.delete("/goals/:id", async (req, res) => {
 
   await db.delete(goalProgressTable).where(eq(goalProgressTable.goalId, id));
   await db.delete(goalsTable).where(eq(goalsTable.id, id));
-  res.status(204).send();
+  return res.status(204).send();
 });
 
 // ─── Progress history ──────────────────────────────────────────────────────────
@@ -168,7 +173,7 @@ router.get("/goals/:id/progress", async (req, res) => {
   const entries = await db.select().from(goalProgressTable)
     .where(eq(goalProgressTable.goalId, goalId))
     .orderBy(desc(goalProgressTable.createdAt));
-  res.json(entries.map(e => ({ ...e, createdAt: e.createdAt.toISOString() })));
+  return res.json(entries.map(e => ({ ...e, createdAt: e.createdAt.toISOString() })));
 });
 
 router.post("/goals/:id/progress", async (req, res) => {
@@ -208,10 +213,12 @@ router.post("/goals/:id/progress", async (req, res) => {
     registroClinicoId: registroClinicoId ? parseInt(registroClinicoId) : null,
   }).returning();
 
-  return res.status(201).json({
+  const response = {
     entry: { ...entry, createdAt: entry.createdAt.toISOString() },
     goal: await enrich(updated),
-  });
+  };
+  recordUserActivityEvent(sess.id, "goal_saved");
+  return res.status(201).json(response);
 });
 
 // ─── Activities for a goal ─────────────────────────────────────────────────────

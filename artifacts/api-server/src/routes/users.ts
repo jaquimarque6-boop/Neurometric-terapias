@@ -5,12 +5,14 @@ import {
   registrosTable, goalsTable, goalProgressTable, sessionsTable,
   patientProfessionalsTable, citasTable, pagosTable, gastosTable,
   patientFilesTable, deletionLogTable,
+  userActivityEventsTable,
 } from "@workspace/db/schema";
-import { eq, ne, inArray, or } from "drizzle-orm";
+import { eq, ne, inArray, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { storageConfigured, deleteStorageObject } from "../lib/supabaseStorage";
 import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
 import { referralAttributionsTable, collaboratorsTable, saasReceiptsTable, saasStatusEventsTable } from "@workspace/db/schema";
+import { getUsageAuditStatus, readUsageAuditRows } from "../lib/usage-audit";
 
 const router: IRouter = Router();
 
@@ -55,10 +57,7 @@ function userToJson(u: typeof usersTable.$inferSelect) {
 }
 
 // GET /api/users — list all users (admin only).
-// Each user is enriched with real usage stats computed from existing tables
-// (no schema changes): assigned patients (patients.assigned_professional_id) and
-// clinical-record activity (registros_clinicos). Records with a null user_id are
-// recovered via a professionalId / professionalName fallback so legacy rows still count.
+// Each user is enriched with patient/clinical counts plus minimal usage events.
 router.get("/users", async (req, res) => {
   const sessionUserId = req.session?.userId;
   const sessionRole   = req.session?.userRole;
@@ -68,7 +67,8 @@ router.get("/users", async (req, res) => {
 
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
 
-  const [patients, registros] = await Promise.all([
+  const activityCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [patients, registros, usageRead] = await Promise.all([
     db
       .select({
         assignedProfessionalId: patientsTable.assignedProfessionalId,
@@ -85,7 +85,26 @@ router.get("/users", async (req, res) => {
         createdAt: registrosClinicosTable.createdAt,
       })
       .from(registrosClinicosTable),
+    readUsageAuditRows(
+      () => db
+        .select({
+          userId: userActivityEventsTable.userId,
+          lastLoginAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
+          loginCount30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'login' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          patientSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'patient_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          clinicalRecordSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'clinical_record_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          goalSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'goal_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          reportSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'report_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          aiUsed30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'ai_used' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          hasClinicalActivity: sql<boolean>`coalesce(bool_or(${userActivityEventsTable.eventType} = 'clinical_record_saved'), false)`.mapWith(Boolean),
+        })
+        .from(userActivityEventsTable)
+        .groupBy(userActivityEventsTable.userId),
+      () => process.emitWarning("Could not read user usage events", { code: "USAGE_EVENT_READ_FAILED" }),
+    ),
   ]);
+  const usageRows = usageRead.rows;
+  const usageByUser = new Map(usageRows.map(row => [row.userId, row]));
 
   // Lookup maps to recover records whose user_id is null.
   const userByProfId = new Map<number, number>();
@@ -154,6 +173,9 @@ router.get("/users", async (req, res) => {
   return res.json(
     users.map((u) => {
       const s = stats.get(u.id)!;
+      const usage = usageByUser.get(u.id);
+      const hasClinicalActivity = s.sesionesRegistradas > 0 || (usage?.hasClinicalActivity ?? false);
+      const lastLoginAt = usage?.lastLoginAt?.toISOString() ?? null;
       return {
         ...userToJson(u),
         stats: {
@@ -162,6 +184,25 @@ router.get("/users", async (req, res) => {
           pacientesConSesion: s.pacientesConSesion.size,
           sesionesEsteMes: s.sesionesEsteMes,
           ultimaActividad: s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
+          activity: {
+            available: usageRead.available,
+            status: getUsageAuditStatus({
+              accountActive: u.active,
+              hasClinicalActivity,
+              lastLoginAt,
+              trackingAvailable: usageRead.available,
+            }),
+            lastLoginAt,
+            loginCount30Days: usage?.loginCount30Days ?? 0,
+            hasClinicalActivity,
+            eventCounts30Days: {
+              patientSaved: usage?.patientSaved30Days ?? 0,
+              clinicalRecordSaved: usage?.clinicalRecordSaved30Days ?? 0,
+              goalSaved: usage?.goalSaved30Days ?? 0,
+              reportSaved: usage?.reportSaved30Days ?? 0,
+              aiUsed: usage?.aiUsed30Days ?? 0,
+            },
+          },
         },
       };
     })

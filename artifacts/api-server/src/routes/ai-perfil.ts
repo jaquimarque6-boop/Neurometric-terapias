@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
   patientsTable,
@@ -152,11 +153,13 @@ router.put("/ai/perfil/:patientId", async (req, res) => {
     .where(eq(patientsTable.id, patientId))
     .returning();
 
-  return res.json({
+  const response = {
     ok: true,
     createdAt: updated.perfilIaCreatedAt ? updated.perfilIaCreatedAt.toISOString() : null,
     updatedAt: updated.perfilIaUpdatedAt ? updated.perfilIaUpdatedAt.toISOString() : null,
-  });
+  };
+  recordUserActivityEvent(sess.id, "patient_saved");
+  return res.json(response);
 });
 
 // ─── Main route ───────────────────────────────────────────────────────────────
@@ -343,7 +346,7 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
     const text = response.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text);
 
-    return res.json({
+    const result = {
       motivoConsulta: parsed.motivoConsulta ?? "",
       antecedentes: parsed.antecedentes ?? "",
       fortalezas: parsed.fortalezas ?? "",
@@ -352,7 +355,9 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
       objetivosPrioritarios: parsed.objetivosPrioritarios ?? "",
       resumenProfesional: parsed.resumenProfesional ?? "",
       _meta: { discipline, sessions: sortedRC.length, goals: allGoals.length },
-    });
+    };
+    recordUserActivityEvent(sess.id, "ai_used");
+    return res.json(result);
   } catch (error: any) {
     console.error("[ai-perfil] Error:", error?.message);
     return res.status(500).json({ error: "Error al generar el perfil con IA. Intenta de nuevo." });

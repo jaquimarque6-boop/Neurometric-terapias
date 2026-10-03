@@ -4,7 +4,7 @@ import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
   History, UserCircle, ClipboardList, Trash2, RotateCcw,
-  CalendarDays, Activity, Search, CreditCard, DollarSign, FileText,
+  CalendarDays, Activity, Search, CreditCard, DollarSign, FileText, LogIn,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,22 @@ type UserStats = {
   pacientesConSesion: number;
   sesionesEsteMes: number;
   ultimaActividad: string | null;
+  activity?: UserActivityStats;
+};
+
+type UserActivityStats = {
+  available: boolean;
+  status: AuditStatus;
+  lastLoginAt: string | null;
+  loginCount30Days: number;
+  hasClinicalActivity: boolean;
+  eventCounts30Days: {
+    patientSaved: number;
+    clinicalRecordSaved: number;
+    goalSaved: number;
+    reportSaved: number;
+    aiUsed: number;
+  };
 };
 
 type CommercialStatus = "trial" | "paying" | "overdue" | "courtesy" | "churned";
@@ -110,6 +126,47 @@ const EMPTY_STATS: UserStats = {
   pacientesConSesion: 0,
   sesionesEsteMes: 0,
   ultimaActividad: null,
+  activity: {
+    available: false,
+    status: "unavailable",
+    lastLoginAt: null,
+    loginCount30Days: 0,
+    hasClinicalActivity: false,
+    eventCounts30Days: {
+      patientSaved: 0,
+      clinicalRecordSaved: 0,
+      goalSaved: 0,
+      reportSaved: 0,
+      aiUsed: 0,
+    },
+  },
+};
+
+const EMPTY_ACTIVITY = EMPTY_STATS.activity!;
+
+type AuditStatus = "active" | "login_only" | "no_login" | "inactive" | "unavailable";
+
+const AUDIT_STATUS_META: Record<AuditStatus, { label: string; className: string }> = {
+  active: {
+    label: "Activa",
+    className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  login_only: {
+    label: "Solo ingresó",
+    className: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  },
+  no_login: {
+    label: "Sin ingresos registrados",
+    className: "border-border bg-muted/50 text-muted-foreground",
+  },
+  inactive: {
+    label: "Inactiva",
+    className: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  },
+  unavailable: {
+    label: "Auditoría no disponible",
+    className: "border-border bg-muted/50 text-muted-foreground",
+  },
 };
 
 type ActivityFilter =
@@ -481,6 +538,19 @@ export default function Usuarios() {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 
+  const formatDateTime = (iso: string | null) => {
+    if (!iso) return "Sin registro";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // Fechas «solo día» (columnas date, formato YYYY-MM-DD) sin corrimiento de zona.
   const formatDateOnly = (d: string | null) =>
     d ? new Date(`${d}T00:00:00`).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -560,7 +630,7 @@ export default function Usuarios() {
                   </div>
                   <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin actividad
+                      <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin pacientes ni registros
                     </div>
                     <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.sinActividad}</p>
                   </div>
@@ -1066,34 +1136,52 @@ export default function Usuarios() {
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map(u => {
                       const stats = u.stats ?? EMPTY_STATS;
+                      const activity = stats.activity ?? EMPTY_ACTIVITY;
+                      const hasClinicalActivity = activity.hasClinicalActivity || stats.sesionesRegistradas > 0;
+                      const auditStatus: AuditStatus = !u.active
+                        ? "inactive"
+                        : hasClinicalActivity
+                          ? "active"
+                          : activity.status;
+                      const statusMeta = AUDIT_STATUS_META[auditStatus];
                       return (
-                        <div key={u.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
+                        <div key={u.id} className="flex flex-col gap-2 px-5 py-3 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center">
                           <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
                             {u.name.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0 sm:w-48 sm:shrink-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
                               {u.role === "admin"
                                 ? <Badge variant="outline" className="text-[10px] gap-0.5 border-primary/40 text-primary py-0"><ShieldCheck className="h-2.5 w-2.5" />Admin</Badge>
                                 : <Badge variant="outline" className="text-[10px] gap-0.5 border-accent/40 text-accent py-0"><Stethoscope className="h-2.5 w-2.5" />Prof.</Badge>}
-                              {!u.active && <Badge variant="outline" className="text-[10px] text-muted-foreground py-0">Inactivo</Badge>}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">{u.email}{u.specialty ? ` · ${u.specialty}` : ""}</p>
                           </div>
-                          <div className="flex items-center gap-4 shrink-0 text-right">
-                            <span className="text-xs text-muted-foreground hidden sm:block">
-                              <span className="font-semibold text-foreground">{stats.pacientesAsignados}</span> pac · <span className="font-semibold text-foreground">{stats.sesionesRegistradas}</span> ses
-                            </span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1 hidden md:flex" title="Última actividad registrada">
-                              <Activity className="h-3 w-3" />
-                              {stats.ultimaActividad
-                                ? <span>{formatDate(stats.ultimaActividad)}</span>
-                                : <span className="italic">Sin actividad</span>}
-                            </span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <CalendarDays className="h-3 w-3" /> {formatDate(u.createdAt)}
-                            </span>
+                          <div className="min-w-0 flex-1 space-y-1 sm:text-right">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
+                              <Badge variant="outline" className={`text-[10px] py-0 ${statusMeta.className}`}>
+                                {statusMeta.label}
+                              </Badge>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <LogIn className="h-3 w-3 shrink-0" />
+                                Último ingreso: {activity.available ? formatDateTime(activity.lastLoginAt) : "No disponible"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {activity.available ? `${activity.loginCount30Days} ingresos / 30 días` : "Ingresos no disponibles"}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:justify-end">
+                              <span className="flex items-center gap-1">
+                                <Activity className="h-3 w-3 shrink-0" />
+                                {stats.pacientesAsignados} pacientes · {stats.sesionesRegistradas} registros clínicos
+                              </span>
+                              <span title="Conteos de eventos en los últimos 30 días">
+                                {activity.available
+                                  ? `Informes ${activity.eventCounts30Days.reportSaved} · Objetivos ${activity.eventCounts30Days.goalSaved} · IA ${activity.eventCounts30Days.aiUsed} (30 días)`
+                                  : "Conteos no disponibles"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1105,7 +1193,7 @@ export default function Usuarios() {
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border/40 px-4 py-3">
               <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                El historial clínico detallado (sesiones, objetivos, cambios) está disponible en cada perfil de paciente. El registro de accesos y cambios de configuración estará disponible en una próxima versión.
+                Esta vista registra solo ingresos exitosos, guardados de pacientes, registros clínicos, objetivos e informes, y uso exitoso de IA. No almacena identificadores de pacientes, contenido clínico, textos, prompts ni respuestas. Los ingresos anteriores al inicio del seguimiento no se pueden reconstruir.
               </p>
             </div>
           </TabsContent>

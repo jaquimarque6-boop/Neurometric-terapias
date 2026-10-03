@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
   patientsTable,
@@ -334,7 +335,7 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
     const text = response.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text);
 
-    return res.json({
+    const result = {
       resumen: parsed.resumen ?? "",
       conducta: parsed.conducta ?? "",
       areas: parsed.areas ?? {},
@@ -353,7 +354,9 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
         recomendacionesHogar: r.recomendacionesHogar, createdAt: r.createdAt,
       })),
       _meta: { discipline, sessions: sortedRC.length, goals: allGoals.length },
-    });
+    };
+    recordUserActivityEvent(sess.id, "ai_used");
+    return res.json(result);
   } catch (error: any) {
     console.error("[ai-informe] Error:", error?.message);
     return res.status(500).json({ error: "Error al generar el informe con IA. Intenta de nuevo." });

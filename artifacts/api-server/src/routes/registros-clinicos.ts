@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import { registrosClinicosTable, patientsTable, professionalsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -95,6 +96,7 @@ router.post("/registros-clinicos", async (req, res) => {
     recomendacionesHogar: recomendacionesHogar ?? null,
   }).returning();
 
+  recordUserActivityEvent(sess.id, "clinical_record_saved");
   return res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
@@ -145,7 +147,9 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
 
   const [record] = await db.update(registrosClinicosTable).set(updates).where(eq(registrosClinicosTable.id, id)).returning();
   if (!record) return res.status(404).json({ error: "Not found" });
-  return res.json(await enrich(record));
+  const response = await enrich(record);
+  recordUserActivityEvent(sess.id, "clinical_record_saved");
+  return res.json(response);
 });
 
 router.delete("/registros-clinicos/:id", async (req, res) => {

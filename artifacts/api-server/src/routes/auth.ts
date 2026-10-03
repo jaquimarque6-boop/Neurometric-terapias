@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -74,6 +75,7 @@ router.post("/auth/login", async (req, res) => {
       return res.status(500).json({ error: "Error al guardar sesión" });
     }
     console.log(`[auth/login] login exitoso email=${normalizedEmail} userId=${user.id} role=${user.role}`);
+    recordUserActivityEvent(user.id, "login");
     // Return token alongside user data so the frontend can send it via
     // Authorization header as a fallback for browsers that block cross-site cookies.
     return res.json({ ...userToJson(user), token });

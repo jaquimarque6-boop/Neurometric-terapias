@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import { patientsTable, patientReportsTable, usersTable } from "@workspace/db/schema";
 import { and, desc, eq } from "drizzle-orm";
@@ -87,7 +88,9 @@ router.post("/patients/:patientId/reports", async (req, res) => {
     authorUserId: userId, updatedByUserId: userId, ...meta,
   }).returning();
   const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
-  return res.status(201).json(serialize(report, user?.name ?? null));
+  const response = serialize(report, user?.name ?? null);
+  recordUserActivityEvent(userId, "report_saved");
+  return res.status(201).json(response);
 });
 
 router.get("/patients/:patientId/reports/:reportId", async (req, res) => {
@@ -123,7 +126,9 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
     eq(patientReportsTable.updatedAt, new Date(body.updatedAt)))).returning();
   if (!report) return res.status(409).json({ error: "Este informe fue modificado en otra pestaña. Volvé a abrirlo antes de guardar." });
   const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, report.authorUserId));
-  return res.json(serialize(report, user?.name ?? null));
+  const response = serialize(report, user?.name ?? null);
+  recordUserActivityEvent(req.session.userId as number, "report_saved");
+  return res.json(response);
 });
 
 export default router;

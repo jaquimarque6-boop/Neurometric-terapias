@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
   patientsTable, registrosTable,
@@ -224,6 +225,7 @@ router.post("/patients", async (req, res) => {
       fechaInicio: body.fechaInicio ?? null,
     }).returning();
 
+    recordUserActivityEvent(sess.id, "patient_saved");
     console.log(`[POST /api/patients] ✓ creado id=${patient.id} name="${patient.name}" profesional=${profesionalNombre ?? "ninguno"} assignedId=${assignedProfessionalId}`);
     return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
 
@@ -334,6 +336,7 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   const anamnesisUpdatedByName = await anamnesisName(updated.anamnesisUpdatedByUserId);
+  recordUserActivityEvent(sess.id, "patient_saved");
   return res.json({ ...updated, anamnesisUpdatedByName, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
 }
 

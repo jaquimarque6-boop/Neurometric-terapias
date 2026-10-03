@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import OpenAI from "openai";
 import { requireAiConsent } from "../lib/consents";
 import { db } from "@workspace/db";
@@ -140,11 +141,13 @@ Reglas obligatorias:
       });
     }
 
-    return res.json({
+    const result = {
       transcription,
       warnings: normalizeWarnings(parsed.warnings),
       quality,
-    });
+    };
+    recordUserActivityEvent(sess.id, "ai_used");
+    return res.json(result);
   } catch (error: any) {
     console.error("[ai-manuscrito] Error:", error?.message);
     return res.status(502).json({
