@@ -1,0 +1,58 @@
+Sí. Quiero implementar una Auditoría de uso mínima y segura en Neurometric Terapias.
+El objetivo es poder distinguir si una profesional realmente ingresó y si está utilizando la plataforma, sin almacenar contenido clínico.
+1. Historial mínimo de eventos
+Proponé e implementá una tabla específica de eventos de uso, con solamente los datos técnicos imprescindibles:
+- usuario;
+- tipo de evento;
+- fecha/hora.
+No guardar nombres de pacientes, diagnósticos, notas clínicas, prompts, respuestas de IA ni ningún contenido clínico.
+Eventos iniciales:
+- login
+- clinical_record_saved
+- patient_saved
+- goal_saved
+- report_saved
+- ai_used
+No quiero registrar navegación, clicks, páginas visitadas ni cada acción menor.
+2. Login
+Registrar un evento login únicamente después de un inicio de sesión exitoso.
+No registrar intentos fallidos ni contraseñas ni datos adicionales.
+Con esto quiero obtener:
+- último ingreso registrado;
+- cantidad de ingresos durante los últimos 30 días.
+3. Actividad clínica
+Registrar los demás eventos solamente cuando la operación correspondiente termine correctamente.
+Para ai_used, registrar únicamente que se utilizó una función de IA, sin guardar prompt, respuesta ni contenido.
+4. Auditoría de usuarios
+Modificar la pestaña actual de Auditoría para dejar de utilizar “Sin actividad” como equivalente a ausencia de registros clínicos.
+Quiero poder distinguir visualmente:
+- 🟢 Activa: tiene actividad clínica registrada.
+- 🟡 Solo ingresó: tiene login registrado pero todavía no actividad clínica registrada.
+- ⚪ Sin ingresos registrados: no tenemos eventos de login desde que comenzó este seguimiento.
+- 🔴 Inactiva: cuenta deshabilitada.
+Para cada profesional mostrar de forma compacta:
+- último ingreso registrado;
+- cantidad de ingresos en últimos 30 días;
+- pacientes;
+- registros/sesiones clínicas;
+- estado de uso.
+Si resulta visualmente limpio, permitir ver también de forma secundaria los conteos de informes, objetivos o IA, pero no sobrecargar la tabla principal.
+5. Usuarios históricos
+No inferir que una cuenta “nunca ingresó” si no existe un evento.
+Para cuentas anteriores a esta implementación mostrar “Sin ingresos registrados”.
+La actividad clínica histórica existente puede seguir utilizándose para indicar que hubo actividad, pero no utilizarla para inventar una fecha de login.
+6. Privacidad
+Esta auditoría es exclusivamente de métricas de utilización.
+No almacenar ni mostrar contenido clínico.
+No registrar qué paciente fue atendido.
+No registrar textos introducidos por profesionales.
+No registrar prompts/respuestas de IA.
+IMPORTANTE
+Como esto requiere una tabla nueva, antes de aplicar cualquier migración a producción, mostrame:
+1. esquema exacto propuesto para la tabla;
+2. índices;
+3. política de retención propuesta;
+4. endpoints/acciones donde registrarías cada evento;
+5. cómo evitarás que un fallo al registrar una métrica bloquee un login o un guardado clínico;
+6. archivos que modificarías.
+Podés preparar código y pruebas localmente, pero NO aplicar migración a producción, NO push y NO deploy hasta mi confirmación.
