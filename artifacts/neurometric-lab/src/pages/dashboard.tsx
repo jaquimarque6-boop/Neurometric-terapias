@@ -161,7 +161,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-2xl xl:max-w-6xl mx-auto w-full">
+      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
 
         {/* ── Greeting ──────────────────────────────────────────────────── */}
         <div className="pt-1">
@@ -201,7 +201,7 @@ export default function Dashboard() {
         </button>
 
         {/* ── SECONDARY + TERTIARY actions ──────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-[minmax(0,65fr)_minmax(0,35fr)]">
+        <div className="grid grid-cols-2 gap-2.5">
 
           <button
             onClick={() => navigate("/nueva-sesion")}
@@ -241,16 +241,14 @@ export default function Dashboard() {
         {/* ── Acceso rápido ─────────────────────────────────────────────── */}
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">Acceso rápido</h2>
-          <div className={`grid grid-cols-2 gap-3 xl:gap-4 ${quickLinks.length === 5 ? "xl:grid-cols-6" : "xl:grid-cols-4"}`}>
-            {quickLinks.map((link, index) => (
+          <div className="grid grid-cols-2 gap-3">
+            {quickLinks.map(link => (
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
                 className={`flex flex-col items-start gap-3 p-4 rounded-2xl border
                             transition-all duration-200 active:scale-[0.97] text-left
-                            shadow-sm hover:shadow-md ${link.color}
-                            ${quickLinks.length === 5 ? "xl:col-span-2" : ""}
-                            ${quickLinks.length === 5 && index === 3 ? "xl:col-start-2" : ""}`}
+                            shadow-sm hover:shadow-md ${link.color}`}
               >
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl border ${link.iconBg}`}>
                   <link.icon className={`h-5 w-5 ${link.iconColor}`} />
