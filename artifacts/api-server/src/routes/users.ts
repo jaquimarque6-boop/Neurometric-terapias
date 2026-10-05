@@ -33,6 +33,127 @@ function normalizeName(s: string | null | undefined): string {
     .trim();
 }
 
+type UserUsageAuditMetrics = {
+  lastLoginAt: string | null;
+  loginCount30Days: number;
+  patientSaved30Days: number;
+  clinicalRecordSaved30Days: number;
+  goalSaved30Days: number;
+  reportSaved30Days: number;
+  aiUsed30Days: number;
+  hasClinicalActivity: boolean;
+};
+
+type UserUsageAuditRead = {
+  available: boolean;
+  byUser: Map<number, UserUsageAuditMetrics>;
+};
+
+type UserActivityProjection = {
+  available: boolean;
+  status: ReturnType<typeof getUsageAuditStatus>;
+  lastLoginAt: string | null;
+  loginCount30Days: number;
+  hasClinicalActivity: boolean;
+  eventCounts30Days: {
+    patientSaved: number;
+    clinicalRecordSaved: number;
+    goalSaved: number;
+    reportSaved: number;
+    aiUsed: number;
+  };
+};
+
+function warnUsageAuditFailure(): void {
+  try {
+    process.emitWarning("Could not read or process user usage events", {
+      code: "USAGE_EVENT_READ_FAILED",
+    });
+  } catch {
+    // Warning failures must not affect the users endpoint.
+  }
+}
+
+function normalizeAuditTimestamp(value: unknown): string | null {
+  if (value == null) return null;
+
+  const date = value instanceof Date
+    ? value
+    : typeof value === "string" || typeof value === "number"
+      ? new Date(value)
+      : null;
+
+  if (!date || !Number.isFinite(date.getTime())) {
+    throw new TypeError("Invalid user activity timestamp");
+  }
+  return date.toISOString();
+}
+
+async function readUserUsageAudit(activityCutoff: Date): Promise<UserUsageAuditRead> {
+  const unavailable = (): UserUsageAuditRead => ({
+    available: false,
+    byUser: new Map(),
+  });
+
+  try {
+    const result = await readUsageAuditRows(
+      () => db
+        .select({
+          userId: userActivityEventsTable.userId,
+          lastLoginAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
+          loginCount30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'login' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          patientSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'patient_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          clinicalRecordSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'clinical_record_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          goalSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'goal_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          reportSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'report_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          aiUsed30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'ai_used' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
+          hasClinicalActivity: sql<boolean>`coalesce(bool_or(${userActivityEventsTable.eventType} = 'clinical_record_saved'), false)`.mapWith(Boolean),
+        })
+        .from(userActivityEventsTable)
+        .groupBy(userActivityEventsTable.userId),
+      warnUsageAuditFailure,
+    );
+
+    if (!result.available) return unavailable();
+
+    const byUser = new Map<number, UserUsageAuditMetrics>();
+    for (const row of result.rows) {
+      byUser.set(row.userId, {
+        lastLoginAt: normalizeAuditTimestamp(row.lastLoginAt),
+        loginCount30Days: row.loginCount30Days,
+        patientSaved30Days: row.patientSaved30Days,
+        clinicalRecordSaved30Days: row.clinicalRecordSaved30Days,
+        goalSaved30Days: row.goalSaved30Days,
+        reportSaved30Days: row.reportSaved30Days,
+        aiUsed30Days: row.aiUsed30Days,
+        hasClinicalActivity: row.hasClinicalActivity,
+      });
+    }
+
+    return { available: true, byUser };
+  } catch {
+    warnUsageAuditFailure();
+    return unavailable();
+  }
+}
+
+function unavailableUserActivity(): UserActivityProjection {
+  return {
+    available: false,
+    status: "unavailable",
+    lastLoginAt: null,
+    loginCount30Days: 0,
+    hasClinicalActivity: false,
+    eventCounts30Days: {
+      patientSaved: 0,
+      clinicalRecordSaved: 0,
+      goalSaved: 0,
+      reportSaved: 0,
+      aiUsed: 0,
+    },
+  };
+}
+
 const COMMERCIAL_STATUSES = ["trial", "paying", "overdue", "courtesy", "churned"] as const;
 
 function userToJson(u: typeof usersTable.$inferSelect) {
@@ -85,26 +206,8 @@ router.get("/users", async (req, res) => {
         createdAt: registrosClinicosTable.createdAt,
       })
       .from(registrosClinicosTable),
-    readUsageAuditRows(
-      () => db
-        .select({
-          userId: userActivityEventsTable.userId,
-          lastLoginAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
-          loginCount30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'login' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          patientSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'patient_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          clinicalRecordSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'clinical_record_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          goalSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'goal_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          reportSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'report_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          aiUsed30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'ai_used' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          hasClinicalActivity: sql<boolean>`coalesce(bool_or(${userActivityEventsTable.eventType} = 'clinical_record_saved'), false)`.mapWith(Boolean),
-        })
-        .from(userActivityEventsTable)
-        .groupBy(userActivityEventsTable.userId),
-      () => process.emitWarning("Could not read user usage events", { code: "USAGE_EVENT_READ_FAILED" }),
-    ),
+    readUserUsageAudit(activityCutoff),
   ]);
-  const usageRows = usageRead.rows;
-  const usageByUser = new Map(usageRows.map(row => [row.userId, row]));
 
   // Lookup maps to recover records whose user_id is null.
   const userByProfId = new Map<number, number>();
@@ -169,13 +272,46 @@ router.get("/users", async (req, res) => {
     }
   }
 
+  const activityByUser = new Map<number, UserActivityProjection>();
+  let activityAvailable = usageRead.available;
+  if (activityAvailable) {
+    try {
+      for (const u of users) {
+        const s = stats.get(u.id)!;
+        const usage = usageRead.byUser.get(u.id);
+        const hasClinicalActivity = s.sesionesRegistradas > 0 || (usage?.hasClinicalActivity ?? false);
+        const lastLoginAt = usage?.lastLoginAt ?? null;
+        activityByUser.set(u.id, {
+          available: true,
+          status: getUsageAuditStatus({
+            accountActive: u.active,
+            hasClinicalActivity,
+            lastLoginAt,
+            trackingAvailable: true,
+          }),
+          lastLoginAt,
+          loginCount30Days: usage?.loginCount30Days ?? 0,
+          hasClinicalActivity,
+          eventCounts30Days: {
+            patientSaved: usage?.patientSaved30Days ?? 0,
+            clinicalRecordSaved: usage?.clinicalRecordSaved30Days ?? 0,
+            goalSaved: usage?.goalSaved30Days ?? 0,
+            reportSaved: usage?.reportSaved30Days ?? 0,
+            aiUsed: usage?.aiUsed30Days ?? 0,
+          },
+        });
+      }
+    } catch {
+      activityAvailable = false;
+      activityByUser.clear();
+      warnUsageAuditFailure();
+    }
+  }
+
   console.log(`[GET /api/users] returning ${users.length} users`);
   return res.json(
     users.map((u) => {
       const s = stats.get(u.id)!;
-      const usage = usageByUser.get(u.id);
-      const hasClinicalActivity = s.sesionesRegistradas > 0 || (usage?.hasClinicalActivity ?? false);
-      const lastLoginAt = usage?.lastLoginAt?.toISOString() ?? null;
       return {
         ...userToJson(u),
         stats: {
@@ -184,25 +320,9 @@ router.get("/users", async (req, res) => {
           pacientesConSesion: s.pacientesConSesion.size,
           sesionesEsteMes: s.sesionesEsteMes,
           ultimaActividad: s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
-          activity: {
-            available: usageRead.available,
-            status: getUsageAuditStatus({
-              accountActive: u.active,
-              hasClinicalActivity,
-              lastLoginAt,
-              trackingAvailable: usageRead.available,
-            }),
-            lastLoginAt,
-            loginCount30Days: usage?.loginCount30Days ?? 0,
-            hasClinicalActivity,
-            eventCounts30Days: {
-              patientSaved: usage?.patientSaved30Days ?? 0,
-              clinicalRecordSaved: usage?.clinicalRecordSaved30Days ?? 0,
-              goalSaved: usage?.goalSaved30Days ?? 0,
-              reportSaved: usage?.reportSaved30Days ?? 0,
-              aiUsed: usage?.aiUsed30Days ?? 0,
-            },
-          },
+          activity: activityAvailable
+            ? activityByUser.get(u.id) ?? unavailableUserActivity()
+            : unavailableUserActivity(),
         },
       };
     })
