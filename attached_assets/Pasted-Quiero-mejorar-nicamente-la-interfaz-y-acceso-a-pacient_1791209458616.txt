@@ -1,0 +1,40 @@
+Quiero mejorar únicamente la interfaz y acceso a pacientes archivados aprovechando toda la lógica que ya existe.
+Objetivo
+En la página Pacientes, reemplazar la actual sección plegable de archivados por una navegación clara:
+Activos | Archivados
+No crear nuevas tablas ni cambiar la estructura de pacientes.
+Activos
+Debe conservar exactamente el funcionamiento actual de la lista normal de pacientes.
+Archivados
+Mostrar tarjetas/listado de pacientes con archived = true.
+Administrador: mantener el alcance que actualmente tiene permitido por backend.
+Profesional: mostrar únicamente sus propios pacientes archivados/asignados.
+Esto es importante porque actualmente una profesional puede archivar su paciente pero después la interfaz no le permite encontrarlo ni restaurarlo, aunque la API sí lo autoriza.
+Cada paciente archivado debe permitir:
+- Ver historial
+- Reactivar
+Ver historial debe abrir la ficha existente en modo archivado, conservando acceso a su información histórica.
+Reactivar debe reutilizar PATCH /api/patients/:id/restore.
+Al archivar
+Además de las invalidaciones actuales, invalidar/refrescar también la consulta de pacientes archivados para que el paciente aparezca inmediatamente en Archivados y no dependa del caché de 5 minutos.
+Al restaurar, actualizar inmediatamente ambas listas:
+- Activos
+- Archivados
+Importante
+No modificar ni eliminar información clínica.
+No modificar la lógica de archivado/restauración del backend salvo que sea estrictamente necesario para permitir a la profesional consultar sus propios archivados.
+No modificar Agenda, sesiones, objetivos, informes ni archivos.
+No tocar todavía el sistema de eliminación definitiva.
+No hacer migraciones.
+Revisar además el texto del aviso al archivar: actualmente dice que dejará de aparecer en Agenda, pero las citas ya existentes siguen mostrándose. Cambiar únicamente ese texto para que describa correctamente el comportamiento real.
+Probá:
+1. profesional archiva su paciente;
+2. desaparece de Activos;
+3. aparece inmediatamente en Archivados;
+4. puede abrir su historial;
+5. puede reactivarlo;
+6. vuelve inmediatamente a Activos;
+7. una profesional no puede ver archivados pertenecientes a otra profesional;
+8. administrador conserva su acceso.
+Informame archivos modificados y pruebas realizadas.
+No push ni deploy.
