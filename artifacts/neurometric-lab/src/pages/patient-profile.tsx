@@ -1417,8 +1417,11 @@ export default function PatientProfile() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
-      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
-      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) }),
+        queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: ["archivedPatients"] }),
+      ]);
       toast({ title: "Paciente archivado", description: "El historial clínico se conserva intacto. Puedes restaurarlo desde el listado de archivados." });
       setShowArchiveDialog(false);
       navigate("/patients");
@@ -1469,8 +1472,11 @@ export default function PatientProfile() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
-      queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
-      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) }),
+        queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: ["archivedPatients"] }),
+      ]);
       toast({ title: "Paciente restaurado", description: "El paciente vuelve a aparecer en los listados activos." });
       setShowArchiveDialog(false);
     } catch (err: any) {
@@ -3270,7 +3276,7 @@ export default function PatientProfile() {
                 <AlertDialogDescription asChild>
                   <div className="space-y-2">
                     <p>
-                      <strong>{patient?.name}</strong> dejará de aparecer en los listados principales y en la agenda activa.
+                      <strong>{patient?.name}</strong> dejará de aparecer en los listados y selectores de pacientes activos. Las citas ya existentes seguirán mostrándose en Agenda.
                     </p>
                     <p className="text-sm font-medium text-foreground/80 bg-muted/60 rounded-lg px-3 py-2 border border-border">
                       El historial clínico, sesiones y objetivos no se perderán y podrás restaurar el paciente en cualquier momento.

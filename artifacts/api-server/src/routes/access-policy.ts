@@ -6,6 +6,15 @@ export function canAccessPatient(
   return user.role === "admin" || patient.assignedProfessionalId === user.id;
 }
 
+export function getPatientListScope(
+  user: { id: number; role: string },
+  archived: boolean,
+): { archived: boolean; assignedProfessionalId?: number } {
+  return user.role === "admin"
+    ? { archived }
+    : { archived, assignedProfessionalId: user.id };
+}
+
 export function canAccessLibraryGoal(
   goal: { isCustom: boolean; createdBy: number | null },
   user: { id: number; role: string },

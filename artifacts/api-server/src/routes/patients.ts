@@ -8,7 +8,7 @@ import {
   citasTable, pagosTable,
 } from "@workspace/db/schema";
 import { eq, count, inArray, and, sql } from "drizzle-orm";
-import { canAccessPatient } from "./access-policy";
+import { canAccessPatient, getPatientListScope } from "./access-policy";
 import { anamnesisMetadata } from "./anamnesis-metadata";
 
 async function anamnesisName(userId: number | null) {
@@ -110,24 +110,25 @@ router.get("/patients", async (req, res) => {
     return res.status(401).json({ error: "No autenticado" });
   }
 
-  // Admin can request archived list with ?includeArchived=true
-  const includeArchived = req.query.includeArchived === "true" && sess.role === "admin";
+  // Admin sees all patients in the requested state; professionals see only
+  // patients assigned to them, whether active or archived.
+  const includeArchived = req.query.includeArchived === "true";
+  const listScope = getPatientListScope(sess, includeArchived);
 
   let patients: typeof patientsTable.$inferSelect[];
-  if (sess.role === "admin") {
+  if (listScope.assignedProfessionalId === undefined) {
     patients = await db
       .select()
       .from(patientsTable)
-      .where(eq(patientsTable.archived, includeArchived))
+      .where(eq(patientsTable.archived, listScope.archived))
       .orderBy(patientsTable.name);
   } else {
-    // Professional: only see their own active (non-archived) patients
     patients = await db
       .select()
       .from(patientsTable)
       .where(and(
-        eq(patientsTable.assignedProfessionalId, sess.id),
-        eq(patientsTable.archived, false),
+        eq(patientsTable.assignedProfessionalId, listScope.assignedProfessionalId),
+        eq(patientsTable.archived, listScope.archived),
       ))
       .orderBy(patientsTable.name);
   }
