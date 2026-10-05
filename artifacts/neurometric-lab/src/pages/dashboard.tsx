@@ -161,7 +161,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-2xl mx-auto w-full">
+      <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-2xl mx-auto w-full xl:mr-0 xl:ml-[min(38px,calc(846px_-_50vw))]">
 
         {/* ── Greeting ──────────────────────────────────────────────────── */}
         <div className="pt-1">
