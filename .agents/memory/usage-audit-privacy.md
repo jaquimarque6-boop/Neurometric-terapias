@@ -10,3 +10,11 @@ The usage audit may store only the professional account, event type, and timesta
 **Why:** The user explicitly limited the audit to minimal usage metrics and prohibited collecting patient or clinical content.
 
 **How to apply:** Keep new event categories content-free, emit them only after the corresponding operation succeeds, and degrade audit summaries to an explicit unavailable state if metrics cannot be read.
+
+## Approved retention policy
+
+The user approved keeping detailed events for 90 days, then retaining only the latest event per account and event type. This approval is for the retention policy only; it does not authorize production migration, push, or deploy.
+
+**Why:** This preserves exact rolling 30-day counts while keeping the latest login and historical activity state.
+
+**How to apply:** Implement and test retention only in development until separately authorized; do not run cleanup against production without explicit approval.
