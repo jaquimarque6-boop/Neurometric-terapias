@@ -45,12 +45,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const GOAL_STATUSES = ["activo", "logrado", "suspendido"] as const;
+type GoalStatus = (typeof GOAL_STATUSES)[number];
+
 const createGoalSchema = z.object({
   patientId: z.coerce.number().min(1, "Patient is required"),
   title: z.string().min(3, "Title is required"),
   description: z.string().optional(),
   category: z.enum(["cognitive", "behavioral", "emotional", "social", "physical"]),
-  status: z.enum(["pending", "in-progress", "achieved", "discontinued"]),
+  status: z.enum(GOAL_STATUSES),
   targetDate: z.string().optional(),
 });
 
@@ -67,7 +70,7 @@ export default function Goals() {
     return acc;
   }, {} as Record<string, typeof goals>);
 
-  const handleStatusUpdate = (id: number, newStatus: any) => {
+  const handleStatusUpdate = (id: number, newStatus: GoalStatus) => {
     updateGoal.mutate({ id, data: { status: newStatus } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
@@ -77,9 +80,8 @@ export default function Goals() {
 
   const StatusIcon = ({ status }: { status: string }) => {
     switch (status) {
-      case 'achieved': return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
-      case 'in-progress': return <ArrowRightCircle className="h-5 w-5 text-accent" />;
-      case 'discontinued': return <AlertCircle className="h-5 w-5 text-red-500" />;
+      case 'logrado': return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+      case 'suspendido': return <AlertCircle className="h-5 w-5 text-red-500" />;
       default: return <Circle className="h-5 w-5 text-muted-foreground/40" />;
     }
   };
@@ -128,7 +130,7 @@ export default function Goals() {
                             <StatusIcon status={goal.status} />
                           </div>
                           <div>
-                            <h4 className={`font-semibold ${goal.status === 'achieved' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                            <h4 className={`font-semibold ${goal.status === 'logrado' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                               {goal.title}
                             </h4>
                             {goal.description && (
@@ -150,17 +152,19 @@ export default function Goals() {
                         <div className="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity ml-9 md:ml-0">
                           <Select 
                             value={goal.status} 
-                            onValueChange={(val) => handleStatusUpdate(goal.id, val)}
+                            onValueChange={(val) => handleStatusUpdate(goal.id, val as GoalStatus)}
                             disabled={updateGoal.isPending}
                           >
                             <SelectTrigger className="h-8 w-[140px] bg-white text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="in-progress">In Progress</SelectItem>
-                              <SelectItem value="achieved">Achieved</SelectItem>
-                              <SelectItem value="discontinued">Discontinued</SelectItem>
+                              {!GOAL_STATUSES.includes(goal.status as GoalStatus) && (
+                                <SelectItem value={goal.status} disabled>{goal.status} (existing)</SelectItem>
+                              )}
+                              <SelectItem value="activo">Active</SelectItem>
+                              <SelectItem value="logrado">Achieved</SelectItem>
+                              <SelectItem value="suspendido">Suspended</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -191,7 +195,7 @@ function CreateGoalSheet() {
       title: "",
       description: "",
       category: "behavioral",
-      status: "pending",
+      status: "activo",
       targetDate: "",
     },
   });

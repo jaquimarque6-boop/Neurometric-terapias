@@ -12,6 +12,7 @@ import * as schema from "@workspace/db/schema";
 // database pool or external AI client is loaded by this harness.
 const requireModule = createRequire(import.meta.url);
 const now = new Date();
+const testAiConsentVersion = "1.0";
 const globalGoal = { id: 10, idObjetivo: "G10", nombreObjetivo: "Global", area: "lenguaje", areaClinica: "lenguaje", nivelDificultad: "básico", estadoBanco: "activo", franjaEtariaMin: 3, franjaEtariaMax: 8, isCustom: false, createdBy: null, createdAt: now };
 const ownerGoal = { ...globalGoal, id: 11, idObjetivo: "G11", nombreObjetivo: "Propio", isCustom: true, createdBy: 2 };
 const foreignGoal = { ...ownerGoal, id: 12, idObjetivo: "G12", nombreObjetivo: "Ajeno", createdBy: 3 };
@@ -45,10 +46,24 @@ function reset() {
   tables.set(schema.goalsTable, []);
   tables.set(schema.registrosClinicosTable, []);
   tables.set(schema.registrosTable, []);
+  tables.set(schema.userConsentAcceptancesTable, []);
   tables.set(schema.patientProfessionalsTable, []);
   tables.set(schema.professionalsTable, []);
   tables.set(schema.goalProgressTable, []);
   for (const key of Object.keys(stats) as (keyof typeof stats)[]) stats[key] = 0;
+}
+
+function grantAiConsent(userId: number) {
+  const rows = tables.get(schema.userConsentAcceptancesTable) ?? [];
+  rows.push({
+    id: rows.length + 1,
+    userId,
+    consentType: "ai",
+    version: testAiConsentVersion,
+    acceptedAt: now,
+    acceptedByUserId: userId,
+  });
+  tables.set(schema.userConsentAcceptancesTable, rows);
 }
 
 function filterRows(rows: any[], condition: any): any[] {
@@ -64,17 +79,46 @@ function filterRows(rows: any[], condition: any): any[] {
     ? list.some((item: any) => item.value === row[name])
     : row[name] === param.value);
 }
+
+function filterConsentRows(rows: any[], condition: any): any[] {
+  const comparisons: { name: string; value: unknown }[] = [];
+  const visit = (chunk: any) => {
+    const children = chunk?.queryChunks;
+    if (!Array.isArray(children)) return;
+    const column = children.find((child: any) => child?.name && child?.table);
+    const param = children.find((child: any) => child?.constructor?.name === "Param");
+    if (column && param) {
+      const name = Object.entries(schema.userConsentAcceptancesTable)
+        .find(([, value]) => value === column)?.[0];
+      if (name) comparisons.push({ name, value: param.value });
+      return;
+    }
+    children.forEach(visit);
+  };
+  visit(condition);
+  if (comparisons.length === 0) throw new Error("Mock cannot interpret consent query");
+  return rows.filter(row => comparisons.every(({ name, value }) => row[name] === value));
+}
+
 const db = {
   select(_columns?: unknown) {
     return {
       from(table: object) {
         stats.selects++;
         let condition: unknown;
+        let rowLimit: number | undefined;
         const query = {
           where(c: unknown) { condition = c; return query; },
           orderBy(..._args: unknown[]) { return query; },
+          limit(count: number) { rowLimit = count; return query; },
           then(resolve: (value: any[]) => void, reject?: (error: Error) => void) {
-            try { resolve(filterRows(tables.get(table) ?? [], condition)); } catch (error) { reject?.(error as Error); }
+            try {
+              const sourceRows = tables.get(table) ?? [];
+              const rows = table === schema.userConsentAcceptancesTable
+                ? filterConsentRows(sourceRows, condition)
+                : filterRows(sourceRows, condition);
+              resolve(rowLimit === undefined ? rows : rows.slice(0, rowLimit));
+            } catch (error) { reject?.(error as Error); }
           },
         };
         return query;
@@ -162,7 +206,7 @@ async function loadRouter(file: string) {
       };
       return requireModule(name);
     },
-    process: { env: { OPENAI_API_KEY: "mock-key", SESSION_SECRET: "test-secret" } },
+    process: { env: { OPENAI_API_KEY: "mock-key", SESSION_SECRET: "test-secret", CONSENT_AI_VERSION: testAiConsentVersion } },
     Buffer, Date, console, setTimeout, clearTimeout,
   }, { filename: file });
   if (typeof (module.exports as any).default !== "function") throw new Error(`Router not loaded: ${file}`);
@@ -233,6 +277,7 @@ test("all protected route methods reject anonymous requests before DB or AI", as
 
 test("patient routes deny foreign patients before inserts, context queries and AI", async () => {
   reset();
+  grantAiConsent(2);
   const endpoints: [string, string, any?][] = [
     ["GET", "/patients/2/suggested-goals"],
     ["POST", "/goal-library/10/assign", { patientId: 2 }],
@@ -247,7 +292,12 @@ test("patient routes deny foreign patients before inserts, context queries and A
     assert.equal(stats.inserts, before.inserts);
     assert.equal(stats.updates, before.updates);
     assert.equal(stats.ai, before.ai);
-    assert.equal(stats.selects - before.selects, 1, "only patient authorization query allowed");
+    const consentChecked = path === "/ai/perfil-generate" || path === "/ai/objetivos-suggest";
+    assert.equal(
+      stats.selects - before.selects,
+      consentChecked ? 2 : 1,
+      consentChecked ? "only AI consent and patient authorization queries allowed" : "only patient authorization query allowed",
+    );
   }
   assert.equal(await status("POST", "/registros-clinicos", "owner", { patientId: 999, fecha: "2026-01-01" }), 404);
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 999 }), 404);
@@ -255,6 +305,7 @@ test("patient routes deny foreign patients before inserts, context queries and A
 
 test("admin and assigned professional pass clinical guards; authorized AI uses mocked provider", async () => {
   reset();
+  grantAiConsent(2);
   assert.equal(await status("GET", "/patients/1/suggested-goals", "owner"), 200);
   assert.equal(await status("GET", "/patients/2/suggested-goals", "admin"), 200);
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 1 }), 201);
@@ -466,6 +517,7 @@ test("activities inherit linked goal visibility and writes, including reassociat
 
 test("migration is admin-only and guidance requires authentication", async () => {
   reset();
+  grantAiConsent(2);
   assert.equal(await status("POST", "/goal-codes/migrate", "owner", {}), 403);
   assert.equal(stats.selects, 0);
   assert.equal(await status("POST", "/goal-codes/migrate", "admin", {}), 200);
