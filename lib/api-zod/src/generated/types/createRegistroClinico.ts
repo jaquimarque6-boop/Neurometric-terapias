@@ -5,6 +5,7 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+import type { RegistroClinicoMaterialInput } from "./registroClinicoMaterialInput";
 
 export interface CreateRegistroClinico {
   patientId: number;
@@ -13,4 +14,6 @@ export interface CreateRegistroClinico {
   resumenSesion?: string;
   observaciones?: string;
   recomendacionesHogar?: string;
+  /** @nullable */
+  materialesActividades?: RegistroClinicoMaterialInput[] | null;
 }

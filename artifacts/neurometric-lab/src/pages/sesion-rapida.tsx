@@ -17,6 +17,8 @@ import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import { ManuscriptCaptureDialog } from "@/components/manuscript-capture-dialog";
+import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
+import { saveClinicalRecordWithMaterials } from "@/lib/session-materials";
 import {
   OrganizedRecordDialog,
   type OrganizedRecordFields,
@@ -99,6 +101,7 @@ export default function SesionRapida() {
   const [chips, setChips]                   = useState<ChipState>(emptyChips());
   const [resumen, setResumen]               = useState("");
   const [observacion, setObservacion]       = useState("");
+  const [materialesActividades, setMaterialesActividades] = useState<SessionMaterialDraft[]>([]);
   const [showChips, setShowChips]           = useState(true);
 
   const [sessionDiagnoses, setSessionDiagnoses] = useState<string[]>([]);
@@ -268,24 +271,14 @@ export default function SesionRapida() {
     try {
       const observaciones = serializeChipsToObservaciones(chips, observacion);
 
-      const res = await fetch(`${API_BASE}/api/registros-clinicos`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId: selectedId,
-          fecha,
-          diagnostico: diagnosticoSesion || null,
-          resumenSesion: resumen.trim() || null,
-          observaciones: observaciones || null,
-          recomendacionesHogar: null,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Error al guardar");
-      }
+      const { failedPhotos } = await saveClinicalRecordWithMaterials({
+        patientId: selectedId,
+        fecha,
+        diagnostico: diagnosticoSesion || null,
+        resumenSesion: resumen.trim() || null,
+        observaciones: observaciones || null,
+        recomendacionesHogar: null,
+      }, materialesActividades, API_BASE);
 
       if (updateFicha && diagnosisChanged) {
         const pRes = await fetch(`${API_BASE}/api/patients/${selectedId}`, {
@@ -303,7 +296,12 @@ export default function SesionRapida() {
       }
 
       setSaved(true);
-      toast({ title: "Sesión registrada correctamente" });
+      toast({
+        title: failedPhotos.length ? "Sesión guardada" : "Sesión registrada correctamente",
+        description: failedPhotos.length
+          ? `No se pudieron adjuntar ${failedPhotos.length} foto${failedPhotos.length === 1 ? "" : "s"}: ${failedPhotos.slice(0, 3).join(", ")}${failedPhotos.length > 3 ? "…" : ""}`
+          : undefined,
+      });
 
       setTimeout(() => {
         if (selectedId) navigate(`/patients/${selectedId}`);
@@ -504,6 +502,11 @@ export default function SesionRapida() {
             rows={3}
           />
         </div>
+
+        <SessionMaterialsField
+          value={materialesActividades}
+          onChange={setMaterialesActividades}
+        />
 
         {selectedPatient && (
           <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4 space-y-2">

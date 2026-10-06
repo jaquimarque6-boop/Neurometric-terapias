@@ -324,6 +324,19 @@ export interface Registro {
   createdAt: string;
 }
 
+export interface RegistroClinicoMaterialPhoto {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface RegistroClinicoMaterial {
+  id: string;
+  nombre: string;
+  fotos: RegistroClinicoMaterialPhoto[];
+}
+
 export interface RegistroClinico {
   id: number;
   patientId: number;
@@ -334,7 +347,43 @@ export interface RegistroClinico {
   resumenSesion?: string;
   observaciones?: string;
   recomendacionesHogar?: string;
+  /** @nullable */
+  materialesActividades?: RegistroClinicoMaterial[] | null;
   createdAt: string;
+}
+
+export interface RegistroClinicoMaterialPhotoDetail {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+}
+
+export interface RegistroClinicoMaterialDetail {
+  id: string;
+  nombre: string;
+  fotos: RegistroClinicoMaterialPhotoDetail[];
+}
+
+export interface RegistroClinicoMaterialInput {
+  id: string;
+  nombre: string;
+}
+
+export interface RegistroClinicoMaterialPhotoUploadInput {
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface RegistroClinicoMaterialPhotoUploadUrl {
+  uploadUrl: string;
+  photoId: string;
+}
+
+export interface Success {
+  success: boolean;
 }
 
 export interface CreateRegistroClinico {
@@ -344,6 +393,8 @@ export interface CreateRegistroClinico {
   resumenSesion?: string;
   observaciones?: string;
   recomendacionesHogar?: string;
+  /** @nullable */
+  materialesActividades?: RegistroClinicoMaterialInput[] | null;
 }
 
 export interface UpdateRegistroClinico {

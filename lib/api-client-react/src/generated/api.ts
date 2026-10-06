@@ -54,11 +54,15 @@ import type {
   ReferralValidity,
   Registro,
   RegistroClinico,
+  RegistroClinicoMaterialDetail,
+  RegistroClinicoMaterialPhotoUploadInput,
+  RegistroClinicoMaterialPhotoUploadUrl,
   SaasPaymentInput,
   SaasReceipt,
   SaasReceiptInput,
   SaasStatusInput,
   SaasStatusResult,
+  Success,
   UpdateGoal,
   UpdatePatient,
   UpdateRegistroClinico,
@@ -2169,6 +2173,424 @@ export const useDeleteRegistroClinico = <
   TContext
 > => {
   return useMutation(getDeleteRegistroClinicoMutationOptions(options));
+};
+
+/**
+ * @summary Get materials and signed photos for a clinical record
+ */
+export const getGetRegistroClinicoMaterialesUrl = (id: number) => {
+  return `/api/registros-clinicos/${id}/materiales`;
+};
+
+export const getRegistroClinicoMateriales = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RegistroClinicoMaterialDetail[]> => {
+  return customFetch<RegistroClinicoMaterialDetail[]>(
+    getGetRegistroClinicoMaterialesUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetRegistroClinicoMaterialesQueryKey = (id: number) => {
+  return [`/api/registros-clinicos/${id}/materiales`] as const;
+};
+
+export const getGetRegistroClinicoMaterialesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRegistroClinicoMateriales>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistroClinicoMateriales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRegistroClinicoMaterialesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRegistroClinicoMateriales>>
+  > = ({ signal }) =>
+    getRegistroClinicoMateriales(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRegistroClinicoMateriales>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRegistroClinicoMaterialesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRegistroClinicoMateriales>>
+>;
+export type GetRegistroClinicoMaterialesQueryError = ErrorType<void>;
+
+/**
+ * @summary Get materials and signed photos for a clinical record
+ */
+
+export function useGetRegistroClinicoMateriales<
+  TData = Awaited<ReturnType<typeof getRegistroClinicoMateriales>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistroClinicoMateriales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRegistroClinicoMaterialesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a signed URL to upload a photo to a saved clinical record
+ */
+export const getCreateRegistroClinicoMaterialPhotoUploadUrlUrl = (
+  id: number,
+  materialId: string,
+) => {
+  return `/api/registros-clinicos/${id}/materiales/${materialId}/fotos/upload-url`;
+};
+
+export const createRegistroClinicoMaterialPhotoUploadUrl = async (
+  id: number,
+  materialId: string,
+  registroClinicoMaterialPhotoUploadInput: RegistroClinicoMaterialPhotoUploadInput,
+  options?: RequestInit,
+): Promise<RegistroClinicoMaterialPhotoUploadUrl> => {
+  return customFetch<RegistroClinicoMaterialPhotoUploadUrl>(
+    getCreateRegistroClinicoMaterialPhotoUploadUrlUrl(id, materialId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(registroClinicoMaterialPhotoUploadInput),
+    },
+  );
+};
+
+export const getCreateRegistroClinicoMaterialPhotoUploadUrlMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>,
+    TError,
+    {
+      id: number;
+      materialId: string;
+      data: BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>,
+  TError,
+  {
+    id: number;
+    materialId: string;
+    data: BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+  },
+  TContext
+> => {
+  const mutationKey = ["createRegistroClinicoMaterialPhotoUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>,
+    {
+      id: number;
+      materialId: string;
+      data: BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+    }
+  > = (props) => {
+    const { id, materialId, data } = props ?? {};
+
+    return createRegistroClinicoMaterialPhotoUploadUrl(
+      id,
+      materialId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRegistroClinicoMaterialPhotoUploadUrlMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>
+  >;
+export type CreateRegistroClinicoMaterialPhotoUploadUrlMutationBody =
+  BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+export type CreateRegistroClinicoMaterialPhotoUploadUrlMutationError =
+  ErrorType<void>;
+
+/**
+ * @summary Create a signed URL to upload a photo to a saved clinical record
+ */
+export const useCreateRegistroClinicoMaterialPhotoUploadUrl = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>,
+    TError,
+    {
+      id: number;
+      materialId: string;
+      data: BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRegistroClinicoMaterialPhotoUploadUrl>>,
+  TError,
+  {
+    id: number;
+    materialId: string;
+    data: BodyType<RegistroClinicoMaterialPhotoUploadInput>;
+  },
+  TContext
+> => {
+  return useMutation(
+    getCreateRegistroClinicoMaterialPhotoUploadUrlMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Confirm that an uploaded photo is attached to the clinical record
+ */
+export const getCompleteRegistroClinicoMaterialPhotoUploadUrl = (
+  id: number,
+  materialId: string,
+  photoId: string,
+) => {
+  return `/api/registros-clinicos/${id}/materiales/${materialId}/fotos/${photoId}/complete`;
+};
+
+export const completeRegistroClinicoMaterialPhotoUpload = async (
+  id: number,
+  materialId: string,
+  photoId: string,
+  options?: RequestInit,
+): Promise<Success> => {
+  return customFetch<Success>(
+    getCompleteRegistroClinicoMaterialPhotoUploadUrl(id, materialId, photoId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCompleteRegistroClinicoMaterialPhotoUploadMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>,
+    TError,
+    { id: number; materialId: string; photoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>,
+  TError,
+  { id: number; materialId: string; photoId: string },
+  TContext
+> => {
+  const mutationKey = ["completeRegistroClinicoMaterialPhotoUpload"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>,
+    { id: number; materialId: string; photoId: string }
+  > = (props) => {
+    const { id, materialId, photoId } = props ?? {};
+
+    return completeRegistroClinicoMaterialPhotoUpload(
+      id,
+      materialId,
+      photoId,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteRegistroClinicoMaterialPhotoUploadMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>
+  >;
+
+export type CompleteRegistroClinicoMaterialPhotoUploadMutationError =
+  ErrorType<void>;
+
+/**
+ * @summary Confirm that an uploaded photo is attached to the clinical record
+ */
+export const useCompleteRegistroClinicoMaterialPhotoUpload = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>,
+    TError,
+    { id: number; materialId: string; photoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeRegistroClinicoMaterialPhotoUpload>>,
+  TError,
+  { id: number; materialId: string; photoId: string },
+  TContext
+> => {
+  return useMutation(
+    getCompleteRegistroClinicoMaterialPhotoUploadMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Remove a photo or clean up a failed photo upload
+ */
+export const getDeleteRegistroClinicoMaterialPhotoUrl = (
+  id: number,
+  materialId: string,
+  photoId: string,
+) => {
+  return `/api/registros-clinicos/${id}/materiales/${materialId}/fotos/${photoId}`;
+};
+
+export const deleteRegistroClinicoMaterialPhoto = async (
+  id: number,
+  materialId: string,
+  photoId: string,
+  options?: RequestInit,
+): Promise<Success> => {
+  return customFetch<Success>(
+    getDeleteRegistroClinicoMaterialPhotoUrl(id, materialId, photoId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteRegistroClinicoMaterialPhotoMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>,
+    TError,
+    { id: number; materialId: string; photoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>,
+  TError,
+  { id: number; materialId: string; photoId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteRegistroClinicoMaterialPhoto"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>,
+    { id: number; materialId: string; photoId: string }
+  > = (props) => {
+    const { id, materialId, photoId } = props ?? {};
+
+    return deleteRegistroClinicoMaterialPhoto(
+      id,
+      materialId,
+      photoId,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRegistroClinicoMaterialPhotoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>
+>;
+
+export type DeleteRegistroClinicoMaterialPhotoMutationError = ErrorType<void>;
+
+/**
+ * @summary Remove a photo or clean up a failed photo upload
+ */
+export const useDeleteRegistroClinicoMaterialPhoto = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>,
+    TError,
+    { id: number; materialId: string; photoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRegistroClinicoMaterialPhoto>>,
+  TError,
+  { id: number; materialId: string; photoId: string },
+  TContext
+> => {
+  return useMutation(
+    getDeleteRegistroClinicoMaterialPhotoMutationOptions(options),
+  );
 };
 
 /**

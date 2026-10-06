@@ -21,9 +21,21 @@ const activity = (id: number, goalLibraryId: number | null) =>
 const tables = new Map<object, any[]>();
 const stats = { selects: 0, inserts: 0, updates: 0, deletes: 0, ai: 0 };
 const savedSessions: { userId: number; userRole: string }[] = [];
+const storage = {
+  configured: false,
+  uploadPaths: [] as string[],
+  downloadPaths: [] as string[],
+  deletedPaths: [] as string[],
+  objects: new Set<string>(),
+};
 function reset() {
   tables.clear();
   savedSessions.length = 0;
+  storage.configured = false;
+  storage.uploadPaths.length = 0;
+  storage.downloadPaths.length = 0;
+  storage.deletedPaths.length = 0;
+  storage.objects.clear();
   tables.set(schema.patientsTable, [
     { id: 1, name: "Propio", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 2 },
     { id: 2, name: "Ajeno", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 3 },
@@ -121,7 +133,7 @@ async function loadRouter(file: string) {
     entryPoints: [`src/routes/${file}.ts`],
     absWorkingDir: new URL("../", import.meta.url).pathname,
     bundle: true, platform: "node", format: "cjs", write: false,
-    external: ["express", "@workspace/db", "@workspace/db/schema", "drizzle-orm", "openai", "bcryptjs"],
+    external: ["express", "@workspace/db", "@workspace/db/schema", "drizzle-orm", "openai", "bcryptjs", "../lib/supabaseStorage"],
     logLevel: "silent",
   });
   const exports: any = {};
@@ -132,6 +144,22 @@ async function loadRouter(file: string) {
       if (name === "@workspace/db") return { db };
       if (name === "@workspace/db/schema") return schema;
       if (name === "openai") return MockOpenAI;
+      if (name === "../lib/supabaseStorage") return {
+        storageConfigured: () => storage.configured,
+        createSignedUploadUrl: async (path: string) => {
+          storage.uploadPaths.push(path);
+          return { uploadUrl: `https://storage.test/upload/${encodeURIComponent(path)}` };
+        },
+        createSignedDownloadUrl: async (path: string) => {
+          storage.downloadPaths.push(path);
+          return `https://storage.test/download/${encodeURIComponent(path)}`;
+        },
+        objectExists: async (path: string) => storage.objects.has(path),
+        deleteStorageObject: async (path: string) => {
+          storage.deletedPaths.push(path);
+          storage.objects.delete(path);
+        },
+      };
       return requireModule(name);
     },
     process: { env: { OPENAI_API_KEY: "mock-key", SESSION_SECRET: "test-secret" } },
@@ -240,6 +268,65 @@ test("admin and assigned professional pass clinical guards; authorized AI uses m
   assert.equal(suggested.body.objetivos[0].title, "Autorizado");
   assert.equal((await request("POST", "/ai/perfil-generate", "owner", { patientId: 1 })).status, 200);
   assert.equal(stats.ai, 2);
+});
+
+test("session materials photos are record-scoped, signed only after access checks, and deleted with the record", async () => {
+  reset();
+  storage.configured = true;
+  const materialId = "material-01";
+  const created = await request("POST", "/registros-clinicos", "owner", {
+    patientId: 1,
+    fecha: "2026-10-06",
+    resumenSesion: "Sesión rápida",
+    materialesActividades: [{ id: materialId, nombre: "Bloques" }],
+  });
+  assert.equal(created.status, 201);
+  const recordId = created.body.id;
+
+  const deniedRead = await request("GET", `/registros-clinicos/${recordId}/materiales`, "foreign");
+  assert.equal(deniedRead.status, 403);
+  const deniedUpload = await request(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/${materialId}/fotos/upload-url`,
+    "foreign",
+    { name: "bloques.png", mimeType: "image/png", size: 100 },
+  );
+  assert.equal(deniedUpload.status, 403);
+  assert.deepEqual(storage.downloadPaths, []);
+  assert.deepEqual(storage.uploadPaths, []);
+
+  const upload = await request(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/${materialId}/fotos/upload-url`,
+    "owner",
+    { name: "bloques.png", mimeType: "image/png", size: 100 },
+  );
+  assert.equal(upload.status, 200);
+  const photoId = upload.body.photoId;
+  const expectedPath = `clinical-records/${recordId}/${materialId}/${photoId}`;
+  assert.equal(storage.uploadPaths[0], expectedPath);
+  storage.objects.add(expectedPath);
+
+  assert.equal(await status(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/${materialId}/fotos/${photoId}/complete`,
+    "owner",
+  ), 200);
+  const materials = await request("GET", `/registros-clinicos/${recordId}/materiales`, "owner");
+  assert.equal(materials.status, 200);
+  assert.equal(materials.body[0].nombre, "Bloques");
+  assert.equal(materials.body[0].fotos[0].originalName, "bloques.png");
+  assert.equal(materials.body[0].fotos[0].url, `https://storage.test/download/${encodeURIComponent(expectedPath)}`);
+  assert.deepEqual(storage.downloadPaths, [expectedPath]);
+
+  const listed = await request("GET", "/registros-clinicos?patientId=1", "owner");
+  assert.equal(listed.body[0].materialesActividades[0].fotos[0].storagePath, undefined);
+  assert.deepEqual(tables.get(schema.patientFilesTable) ?? [], []);
+
+  assert.equal(await status("DELETE", `/registros-clinicos/${recordId}`, "owner"), 204);
+  assert.deepEqual(storage.deletedPaths, [expectedPath]);
+  assert.equal(storage.objects.has(expectedPath), false);
+  assert.equal((tables.get(schema.registrosClinicosTable) ?? []).length, 0);
 });
 
 test("global library is readable to professionals but admin-written; custom goals are owner-only", async () => {

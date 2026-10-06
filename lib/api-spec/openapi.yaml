@@ -375,6 +375,149 @@ paths:
         "204":
           description: Deleted
 
+  /registros-clinicos/{id}/materiales:
+    get:
+      operationId: getRegistroClinicoMateriales
+      tags: [registros-clinicos]
+      summary: Get materials and signed photos for a clinical record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Materials with short-lived signed photo URLs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegistroClinicoMaterialDetail"
+        "401":
+          description: Not authenticated
+        "403":
+          description: No access to this record
+        "404":
+          description: Record not found
+        "503":
+          description: Private file storage is unavailable
+
+  /registros-clinicos/{id}/materiales/{materialId}/fotos/upload-url:
+    post:
+      operationId: createRegistroClinicoMaterialPhotoUploadUrl
+      tags: [registros-clinicos]
+      summary: Create a signed URL to upload a photo to a saved clinical record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: materialId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistroClinicoMaterialPhotoUploadInput"
+      responses:
+        "200":
+          description: Signed upload URL and reserved photo identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroClinicoMaterialPhotoUploadUrl"
+        "400":
+          description: Invalid photo metadata
+        "401":
+          description: Not authenticated
+        "403":
+          description: No access to this record
+        "404":
+          description: Record or material not found
+        "503":
+          description: Private file storage is unavailable
+
+  /registros-clinicos/{id}/materiales/{materialId}/fotos/{photoId}/complete:
+    post:
+      operationId: completeRegistroClinicoMaterialPhotoUpload
+      tags: [registros-clinicos]
+      summary: Confirm that an uploaded photo is attached to the clinical record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: materialId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Photo attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          description: Uploaded object is missing or invalid
+        "401":
+          description: Not authenticated
+        "403":
+          description: No access to this record
+        "404":
+          description: Record, material or photo not found
+
+  /registros-clinicos/{id}/materiales/{materialId}/fotos/{photoId}:
+    delete:
+      operationId: deleteRegistroClinicoMaterialPhoto
+      tags: [registros-clinicos]
+      summary: Remove a photo or clean up a failed photo upload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: materialId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Photo removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "401":
+          description: Not authenticated
+        "403":
+          description: No access to this record
+        "404":
+          description: Record or material not found
+        "503":
+          description: Private file storage is unavailable
+
   /goals:
     get:
       operationId: listGoals
@@ -1121,9 +1264,105 @@ components:
           type: string
         recomendacionesHogar:
           type: string
+        materialesActividades:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/RegistroClinicoMaterial"
         createdAt:
           type: string
       required: [id, patientId, fecha, createdAt]
+
+    RegistroClinicoMaterialPhoto:
+      type: object
+      properties:
+        id:
+          type: string
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+      required: [id, originalName, mimeType, sizeBytes]
+
+    RegistroClinicoMaterial:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        fotos:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroClinicoMaterialPhoto"
+      required: [id, nombre, fotos]
+
+    RegistroClinicoMaterialPhotoDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        url:
+          type: string
+          format: uri
+      required: [id, originalName, mimeType, sizeBytes, url]
+
+    RegistroClinicoMaterialDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        fotos:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroClinicoMaterialPhotoDetail"
+      required: [id, nombre, fotos]
+
+    RegistroClinicoMaterialInput:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+      required: [id, nombre]
+
+    RegistroClinicoMaterialPhotoUploadInput:
+      type: object
+      properties:
+        name:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required: [name, mimeType, size]
+
+    RegistroClinicoMaterialPhotoUploadUrl:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+        photoId:
+          type: string
+      required: [uploadUrl, photoId]
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
 
     CreateRegistroClinico:
       type: object
@@ -1140,6 +1379,10 @@ components:
           type: string
         recomendacionesHogar:
           type: string
+        materialesActividades:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/RegistroClinicoMaterialInput"
       required: [patientId, fecha]
 
     UpdateRegistroClinico:

@@ -23,8 +23,10 @@ import { LastSessionSummary } from "@/components/last-session-summary";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { saveClinicalRecordWithMaterials } from "@/lib/session-materials";
 import { ManuscriptCaptureDialog } from "@/components/manuscript-capture-dialog";
 import {
   OrganizedRecordDialog,
@@ -957,6 +959,7 @@ export default function NuevaSesion() {
 
   const [resumen, setResumen]                 = useState("");
   const [observaciones, setObservaciones]     = useState("");
+  const [materialesActividades, setMaterialesActividades] = useState<SessionMaterialDraft[]>([]);
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
   const [isSaving, setIsSaving]               = useState(false);
   const [selectedBloque, setSelectedBloque]   = useState<string | null>(null);
@@ -1564,19 +1567,13 @@ export default function NuevaSesion() {
     setShowDiagScopeModal(false);
     setIsSaving(true);
     try {
-      const rcRes = await fetch(`${API_BASE}/api/registros-clinicos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId: patient.id,
-          fecha,
-          diagnostico: diagnosticoSesion || undefined,
-          resumenSesion: resumen || undefined,
-          observaciones: observaciones || undefined,
-        }),
-      });
-      if (!rcRes.ok) throw new Error("Error al crear el registro");
-      const rc = await rcRes.json();
+      const { record: rc, failedPhotos } = await saveClinicalRecordWithMaterials({
+        patientId: patient.id,
+        fecha,
+        diagnostico: diagnosticoSesion || undefined,
+        resumenSesion: resumen || undefined,
+        observaciones: observaciones || undefined,
+      }, materialesActividades, API_BASE);
 
       if (updateFicha && diagnosisChanged) {
         const pRes = await fetch(`${API_BASE}/api/patients/${patient.id}`, {
@@ -1663,7 +1660,12 @@ export default function NuevaSesion() {
         queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
       }
       const n = totalSelected;
-      toast({ title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada" });
+      toast({
+        title: n > 0 ? `Sesión guardada · ${n} objetivo${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}` : "Sesión guardada",
+        description: failedPhotos.length
+          ? `La sesión sí se guardó, pero no se pudieron adjuntar ${failedPhotos.length} foto${failedPhotos.length === 1 ? "" : "s"}: ${failedPhotos.slice(0, 3).join(", ")}${failedPhotos.length > 3 ? "…" : ""}`
+          : undefined,
+      });
       navigate(`/patients/${patient.id}`);
     } catch (err: any) {
       toast({ title: "Error al guardar la sesión", description: err.message, variant: "destructive" });
@@ -2976,6 +2978,7 @@ export default function NuevaSesion() {
 
         {/* ── Card: notas generales ─────────────────────────────────────── */}
         {patient && (
+          <>
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Notas de sesión <span className="text-muted-foreground font-normal">(opcional)</span></h2>
             <div className="space-y-1.5">
@@ -3054,6 +3057,11 @@ export default function NuevaSesion() {
               </p>
             </div>
           </div>
+          <SessionMaterialsField
+            value={materialesActividades}
+            onChange={setMaterialesActividades}
+          />
+          </>
         )}
 
         {/* ── Save bar ──────────────────────────────────────────────────── */}

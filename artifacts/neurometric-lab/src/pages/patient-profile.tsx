@@ -33,6 +33,10 @@ import {
   useUpdatePatient,
   useUpdateRegistroClinico,
   useAssignGoalToPatient,
+  useGetRegistroClinicoMateriales,
+  getGetRegistroClinicoMaterialesQueryKey,
+  type RegistroClinicoMaterial,
+  type RegistroClinicoMaterialDetail,
   getListGoalsQueryKey,
   getListRegistrosClinicosQueryKey,
   getGetPatientQueryKey,
@@ -132,6 +136,7 @@ type RC = {
   professionalId?: number | null; professionalName?: string | null;
   fecha: string; resumenSesion?: string | null;
   observaciones?: string | null; recomendacionesHogar?: string | null;
+  materialesActividades?: RegistroClinicoMaterial[] | null;
   createdAt: string;
 };
 type ProgressEntry = {
@@ -1343,6 +1348,14 @@ export default function PatientProfile() {
   const assignGoalFromLibrary = useAssignGoalToPatient();
 
   const [expanded, setExpanded] = useState<number | null>(null);
+  const expandedMaterialsQuery = useGetRegistroClinicoMateriales<RegistroClinicoMaterialDetail[]>(expanded ?? 0, {
+    query: {
+      enabled: expanded !== null && !!user?.id,
+      queryKey: [...getGetRegistroClinicoMaterialesQueryKey(expanded ?? 0), user?.id],
+      staleTime: 0,
+      gcTime: 0,
+    },
+  });
   const [showRegForm, setShowRegForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [progressGoal, setProgressGoal] = useState<Goal | null>(null);
@@ -2522,6 +2535,53 @@ export default function PatientProfile() {
                                 </div>
                               )}
                             </div>
+                            {!!r.materialesActividades?.length && (
+                              <section className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-3">
+                                <h3 className="text-xs font-semibold text-foreground">
+                                  Materiales / actividades utilizadas
+                                </h3>
+                                <div className="space-y-3">
+                                  {r.materialesActividades.map(material => {
+                                    const signedMaterial = expandedMaterialsQuery.data?.find(item => item.id === material.id);
+                                    return (
+                                      <div key={material.id} className="space-y-2">
+                                        <p className="text-sm font-medium text-foreground">{material.nombre}</p>
+                                        {material.fotos.length > 0 && expandedMaterialsQuery.isLoading && (
+                                          <p className="text-xs text-muted-foreground">Cargando fotos…</p>
+                                        )}
+                                        {material.fotos.length > 0 && expandedMaterialsQuery.isError && (
+                                          <p className="text-xs text-amber-700">No se pudieron cargar las fotos de esta sesión.</p>
+                                        )}
+                                        {!!signedMaterial?.fotos.length && (
+                                          <div className="flex flex-wrap gap-2">
+                                            {signedMaterial.fotos.map(photo => (
+                                              <a
+                                                key={photo.id}
+                                                href={photo.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block max-w-[180px] overflow-hidden rounded-lg border border-border/60 bg-background"
+                                                title={`Abrir ${photo.originalName}`}
+                                              >
+                                                <img
+                                                  src={photo.url}
+                                                  alt={`${material.nombre}: ${photo.originalName}`}
+                                                  loading="lazy"
+                                                  className="h-28 w-44 object-cover"
+                                                />
+                                                <span className="block truncate px-2 py-1 text-[10px] text-muted-foreground">
+                                                  {photo.originalName}
+                                                </span>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </section>
+                            )}
                           </div>
                         )}
                       </div>

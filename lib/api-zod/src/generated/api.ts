@@ -460,6 +460,22 @@ export const ListRegistrosClinicosResponseItem = zod.object({
   resumenSesion: zod.string().optional(),
   observaciones: zod.string().optional(),
   recomendacionesHogar: zod.string().optional(),
+  materialesActividades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        nombre: zod.string(),
+        fotos: zod.array(
+          zod.object({
+            id: zod.string(),
+            originalName: zod.string(),
+            mimeType: zod.string(),
+            sizeBytes: zod.number(),
+          }),
+        ),
+      }),
+    )
+    .nullish(),
   createdAt: zod.string(),
 });
 export const ListRegistrosClinicosResponse = zod.array(
@@ -476,6 +492,14 @@ export const CreateRegistroClinicoBody = zod.object({
   resumenSesion: zod.string().optional(),
   observaciones: zod.string().optional(),
   recomendacionesHogar: zod.string().optional(),
+  materialesActividades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        nombre: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 /**
@@ -495,6 +519,22 @@ export const GetRegistroClinicoResponse = zod.object({
   resumenSesion: zod.string().optional(),
   observaciones: zod.string().optional(),
   recomendacionesHogar: zod.string().optional(),
+  materialesActividades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        nombre: zod.string(),
+        fotos: zod.array(
+          zod.object({
+            id: zod.string(),
+            originalName: zod.string(),
+            mimeType: zod.string(),
+            sizeBytes: zod.number(),
+          }),
+        ),
+      }),
+    )
+    .nullish(),
   createdAt: zod.string(),
 });
 
@@ -523,6 +563,22 @@ export const UpdateRegistroClinicoResponse = zod.object({
   resumenSesion: zod.string().optional(),
   observaciones: zod.string().optional(),
   recomendacionesHogar: zod.string().optional(),
+  materialesActividades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        nombre: zod.string(),
+        fotos: zod.array(
+          zod.object({
+            id: zod.string(),
+            originalName: zod.string(),
+            mimeType: zod.string(),
+            sizeBytes: zod.number(),
+          }),
+        ),
+      }),
+    )
+    .nullish(),
   createdAt: zod.string(),
 });
 
@@ -531,6 +587,75 @@ export const UpdateRegistroClinicoResponse = zod.object({
  */
 export const DeleteRegistroClinicoParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get materials and signed photos for a clinical record
+ */
+export const GetRegistroClinicoMaterialesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetRegistroClinicoMaterialesResponseItem = zod.object({
+  id: zod.string(),
+  nombre: zod.string(),
+  fotos: zod.array(
+    zod.object({
+      id: zod.string(),
+      originalName: zod.string(),
+      mimeType: zod.string(),
+      sizeBytes: zod.number(),
+      url: zod.string().url(),
+    }),
+  ),
+});
+export const GetRegistroClinicoMaterialesResponse = zod.array(
+  GetRegistroClinicoMaterialesResponseItem,
+);
+
+/**
+ * @summary Create a signed URL to upload a photo to a saved clinical record
+ */
+export const CreateRegistroClinicoMaterialPhotoUploadUrlParams = zod.object({
+  id: zod.coerce.number(),
+  materialId: zod.coerce.string(),
+});
+
+export const CreateRegistroClinicoMaterialPhotoUploadUrlBody = zod.object({
+  name: zod.string(),
+  mimeType: zod.string(),
+  size: zod.number(),
+});
+
+export const CreateRegistroClinicoMaterialPhotoUploadUrlResponse = zod.object({
+  uploadUrl: zod.string().url(),
+  photoId: zod.string(),
+});
+
+/**
+ * @summary Confirm that an uploaded photo is attached to the clinical record
+ */
+export const CompleteRegistroClinicoMaterialPhotoUploadParams = zod.object({
+  id: zod.coerce.number(),
+  materialId: zod.coerce.string(),
+  photoId: zod.coerce.string(),
+});
+
+export const CompleteRegistroClinicoMaterialPhotoUploadResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Remove a photo or clean up a failed photo upload
+ */
+export const DeleteRegistroClinicoMaterialPhotoParams = zod.object({
+  id: zod.coerce.number(),
+  materialId: zod.coerce.string(),
+  photoId: zod.coerce.string(),
+});
+
+export const DeleteRegistroClinicoMaterialPhotoResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**
