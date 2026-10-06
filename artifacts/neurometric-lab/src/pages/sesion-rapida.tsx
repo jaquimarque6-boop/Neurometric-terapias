@@ -19,6 +19,7 @@ import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import { ManuscriptCaptureDialog } from "@/components/manuscript-capture-dialog";
 import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
 import { saveClinicalRecordWithMaterials } from "@/lib/session-materials";
+import { findAccessiblePatient, parsePatientId } from "@/lib/session-navigation";
 import {
   OrganizedRecordDialog,
   type OrganizedRecordFields,
@@ -89,14 +90,12 @@ export default function SesionRapida() {
   const { toast }    = useToast();
   const { user }     = useAuth();
 
-  const preselectedId = new URLSearchParams(search).get("patientId")
-    ? parseInt(new URLSearchParams(search).get("patientId")!)
-    : null;
+  const preselectedId = parsePatientId(search);
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [patients, setPatients]             = useState<any[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
-  const [selectedId, setSelectedId]         = useState<number | null>(preselectedId);
+  const [selectedId, setSelectedId]         = useState<number | null>(null);
   const [fecha, setFecha]                   = useState(todayISO());
   const [chips, setChips]                   = useState<ChipState>(emptyChips());
   const [resumen, setResumen]               = useState("");
@@ -123,7 +122,8 @@ export default function SesionRapida() {
       .then((data: any[]) => {
         const sorted = [...data].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "es"));
         setPatients(sorted);
-        if (preselectedId && !selectedId) setSelectedId(preselectedId);
+        const preselectedPatient = findAccessiblePatient(sorted, preselectedId);
+        if (preselectedPatient) setSelectedId(preselectedPatient.id);
       })
       .catch(() => setPatients([]))
       .finally(() => setLoadingPatients(false));
@@ -252,7 +252,7 @@ export default function SesionRapida() {
   const diagnosisChanged  = !!selectedPatient && diagnosticoSesion !== serializeDiagnoses(parseDiagnoses(selectedPatient.diagnosis));
 
   const handleSave = () => {
-    if (!selectedId) {
+    if (!selectedPatient) {
       toast({ title: "Selecciona un paciente para continuar", variant: "destructive" });
       return;
     }

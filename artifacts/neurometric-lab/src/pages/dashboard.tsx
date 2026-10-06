@@ -12,6 +12,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { API_BASE } from "@/lib/api";
+import { buildSessionPath } from "@/lib/session-navigation";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/50",   bg: "bg-primary/8",    text: "text-primary"             },
@@ -358,7 +359,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <button
-                        onClick={() => navigate("/sesion-rapida")}
+                        onClick={() => navigate(buildSessionPath("quick", cita.patientId))}
                         className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5
                                    rounded-lg border border-border/50 text-muted-foreground
                                    hover:border-border hover:text-foreground transition-all active:scale-95"

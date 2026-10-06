@@ -31,6 +31,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOwnCollaboratorDashboard } from "@/hooks/use-collaborators";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 
 type NavItem = {
   title: string;
@@ -38,6 +39,7 @@ type NavItem = {
   icon: React.FC<{ className?: string }>;
   adminOnly?: boolean;
   adminHidden?: boolean;
+  external?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -48,7 +50,7 @@ const navItems: NavItem[] = [
   { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList,   adminHidden: true },
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
-  { title: "Actividades",        url: "/actividades",   icon: Sparkles,        adminHidden: true },
+  { title: "Actividades",        url: ACTIVIDADES_URL,  icon: Sparkles,        adminHidden: true, external: true },
   { title: "Mis materiales",     url: "/mis-materiales", icon: FolderLock,      adminHidden: true },
   { title: "Respaldo de datos",  url: "/respaldo",      icon: Download,        adminHidden: true },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
@@ -104,9 +106,21 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="px-3 gap-0.5">
               {visibleItems.map((item) => {
-                const isActive =
+                const isActive = !item.external && (
                   location === item.url ||
-                  (item.url !== "/" && location.startsWith(item.url));
+                  (item.url !== "/" && location.startsWith(item.url))
+                );
+                const linkContent = (
+                  <>
+                    <item.icon
+                      className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground/70"}`}
+                    />
+                    <span className="text-sm">{item.title}</span>
+                    {isActive && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                    )}
+                  </>
+                );
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton
@@ -119,15 +133,20 @@ export function AppSidebar() {
                           : "text-sidebar-foreground/60 hover:bg-muted hover:text-sidebar-foreground"}
                       `}
                     >
-                      <Link href={item.url} className="flex items-center gap-3 px-3">
-                        <item.icon
-                          className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground/70"}`}
-                        />
-                        <span className="text-sm">{item.title}</span>
-                        {isActive && (
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                        )}
-                      </Link>
+                      {item.external ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 px-3"
+                        >
+                          {linkContent}
+                        </a>
+                      ) : (
+                        <Link href={item.url} className="flex items-center gap-3 px-3">
+                          {linkContent}
+                        </Link>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

@@ -37,6 +37,7 @@ import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { API_BASE } from "@/lib/api";
 import { ACTIVIDADES_URL } from "@/lib/actividades";
+import { findAccessiblePatient, parsePatientId } from "@/lib/session-navigation";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -912,8 +913,7 @@ export default function NuevaSesion() {
 
   // Pre-selected patient from URL query: /nueva-sesion?patientId=5
   const preselectedId = useMemo(() => {
-    const v = new URLSearchParams(search).get("patientId");
-    return v ? parseInt(v, 10) : null;
+    return parsePatientId(search);
   }, [search]);
 
   const today = new Date().toISOString().split("T")[0];
@@ -1176,7 +1176,7 @@ export default function NuevaSesion() {
   // Auto-select patient from URL param once patients list is available
   useEffect(() => {
     if (!preselectedId || patient || (patients as any[]).length === 0) return;
-    const found = (patients as any[]).find((p: any) => p.id === preselectedId);
+    const found = findAccessiblePatient(patients as any[], preselectedId);
     if (found) selectPatient(found);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preselectedId, patients]);
@@ -1978,7 +1978,7 @@ export default function NuevaSesion() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.history.length > 1 ? window.history.back() : navigate(preselectedId ? `/patients/${preselectedId}` : "/")}
+            onClick={() => window.history.length > 1 ? window.history.back() : navigate(patient ? `/patients/${patient.id}` : "/")}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -3080,7 +3080,7 @@ export default function NuevaSesion() {
         )}
         {patient && (
           <div className="flex gap-3 pb-8">
-            <Button variant="outline" className="w-28" onClick={() => window.history.length > 1 ? window.history.back() : navigate(preselectedId ? `/patients/${preselectedId}` : "/")}>
+            <Button variant="outline" className="w-28" onClick={() => window.history.length > 1 ? window.history.back() : navigate(patient ? `/patients/${patient.id}` : "/")}>
               Cancelar
             </Button>
             <Button

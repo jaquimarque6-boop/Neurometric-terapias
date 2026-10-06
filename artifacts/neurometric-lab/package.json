@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:pwa": "node --test tests/pwa.test.mjs",
     "test:referral": "node --test src/lib/referral.test.ts",
-    "test:session-materials": "node --test src/lib/session-materials.test.ts"
+    "test:session-materials": "node --test src/lib/session-materials.test.ts",
+    "test:session-navigation": "node --test src/lib/session-navigation.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

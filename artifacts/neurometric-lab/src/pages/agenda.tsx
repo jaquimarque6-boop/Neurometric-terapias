@@ -22,6 +22,7 @@ import { useListPatients } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 import { formatEdad, formatEdadCorta } from "@/utils/edad";
+import { buildSessionPath } from "@/lib/session-navigation";
 
 const HOUR_PX = 32;
 const START_HOUR = 7;
@@ -763,7 +764,7 @@ export default function AgendaPage() {
                       variant="outline"
                       disabled={!selectedCita.patientId}
                       className="h-auto py-2 flex-col gap-1 text-[11px]"
-                      onClick={() => navigate(`/sesion-rapida?patientId=${selectedCita.patientId}`)}
+                      onClick={() => navigate(buildSessionPath("quick", selectedCita.patientId))}
                     >
                       <Zap className="h-4 w-4" /> Sesión rápida
                     </Button>
@@ -772,7 +773,7 @@ export default function AgendaPage() {
                       variant="outline"
                       disabled={!selectedCita.patientId}
                       className="h-auto py-2 flex-col gap-1 text-[11px]"
-                      onClick={() => navigate(`/nueva-sesion?patientId=${selectedCita.patientId}`)}
+                      onClick={() => navigate(buildSessionPath("complete", selectedCita.patientId))}
                     >
                       <FileText className="h-4 w-4" /> Sesión completa
                     </Button>
