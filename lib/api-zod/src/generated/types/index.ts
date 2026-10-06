@@ -66,6 +66,7 @@ export * from "./registroClinicoMaterialPhoto";
 export * from "./registroClinicoMaterialPhotoDetail";
 export * from "./registroClinicoMaterialPhotoUploadInput";
 export * from "./registroClinicoMaterialPhotoUploadUrl";
+export * from "./registroClinicoMaterialUpdateInput";
 export * from "./saasPaymentInput";
 export * from "./saasReceipt";
 export * from "./saasReceiptInput";

@@ -9,6 +9,7 @@ import {
   clinicalRecordPhotoPath,
   normalizeNewMaterials,
   publicMaterials,
+  reconcileMaterialsUpdate,
   readStoredMaterials,
   storagePathsForRecord,
 } from "../lib/clinical-record-materials";
@@ -346,6 +347,26 @@ router.patch("/registros-clinicos/:id", async (req, res) => {
   if (resumenSesion !== undefined) updates.resumenSesion = resumenSesion;
   if (observaciones !== undefined) updates.observaciones = observaciones;
   if (recomendacionesHogar !== undefined) updates.recomendacionesHogar = recomendacionesHogar;
+  if (req.body?.materialesActividades !== undefined) {
+    const reconciliation = reconcileMaterialsUpdate(
+      existing.materialesActividades,
+      req.body.materialesActividades,
+      id,
+    );
+    if (!reconciliation) {
+      return res.status(400).json({ error: "Materiales o fotos inválidos" });
+    }
+    if (reconciliation.storagePathsToDelete.length) {
+      if (!storageConfigured()) return res.status(503).json({ error: "Almacenamiento no configurado" });
+      try {
+        await Promise.all(reconciliation.storagePathsToDelete.map(deleteStorageObject));
+      } catch (err) {
+        console.error("[PATCH /registros-clinicos/:id] No se pudieron eliminar fotos", err);
+        return res.status(500).json({ error: "No se pudieron eliminar las fotos del registro" });
+      }
+    }
+    updates.materialesActividades = reconciliation.materials;
+  }
   if (professionalId !== undefined) {
     updates.professionalId = professionalId;
     if (professionalId) {

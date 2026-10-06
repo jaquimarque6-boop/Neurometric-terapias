@@ -1336,6 +1336,21 @@ components:
           type: string
       required: [id, nombre]
 
+    RegistroClinicoMaterialUpdateInput:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 250
+        fotosIds:
+          type: array
+          items:
+            type: string
+      required: [id, nombre, fotosIds]
+
     RegistroClinicoMaterialPhotoUploadInput:
       type: object
       properties:
@@ -1396,6 +1411,10 @@ components:
           type: string
         observaciones:
           type: string
+        materialesActividades:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/RegistroClinicoMaterialUpdateInput"
         recomendacionesHogar:
           type: string
 

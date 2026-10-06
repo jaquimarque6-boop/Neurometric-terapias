@@ -545,11 +545,25 @@ export const UpdateRegistroClinicoParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const updateRegistroClinicoBodyMaterialesActividadesItemNombreMax = 250;
+
 export const UpdateRegistroClinicoBody = zod.object({
   professionalId: zod.number().optional(),
   fecha: zod.string().optional(),
   resumenSesion: zod.string().optional(),
   observaciones: zod.string().optional(),
+  materialesActividades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        nombre: zod
+          .string()
+          .min(1)
+          .max(updateRegistroClinicoBodyMaterialesActividadesItemNombreMax),
+        fotosIds: zod.array(zod.string()),
+      }),
+    )
+    .nullish(),
   recomendacionesHogar: zod.string().optional(),
 });
 

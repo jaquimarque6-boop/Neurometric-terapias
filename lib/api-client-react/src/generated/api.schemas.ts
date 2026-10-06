@@ -371,6 +371,16 @@ export interface RegistroClinicoMaterialInput {
   nombre: string;
 }
 
+export interface RegistroClinicoMaterialUpdateInput {
+  id: string;
+  /**
+   * @minLength 1
+   * @maxLength 250
+   */
+  nombre: string;
+  fotosIds: string[];
+}
+
 export interface RegistroClinicoMaterialPhotoUploadInput {
   name: string;
   mimeType: string;
@@ -402,6 +412,8 @@ export interface UpdateRegistroClinico {
   fecha?: string;
   resumenSesion?: string;
   observaciones?: string;
+  /** @nullable */
+  materialesActividades?: RegistroClinicoMaterialUpdateInput[] | null;
   recomendacionesHogar?: string;
 }
 

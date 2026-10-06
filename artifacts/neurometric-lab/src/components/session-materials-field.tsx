@@ -3,10 +3,17 @@ import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+export type ExistingSessionPhoto = {
+  id: string;
+  name: string;
+  url: string;
+};
+
 export type SessionMaterialDraft = {
   id: string;
   nombre: string;
   fotos: File[];
+  fotosGuardadas?: ExistingSessionPhoto[];
 };
 
 type Props = {
@@ -71,9 +78,10 @@ type MaterialPhotosProps = {
   material: SessionMaterialDraft;
   onAdd: (files: File[]) => void;
   onRemove: (photoIndex: number) => void;
+  onRemoveSaved: (photoId: string) => void;
 };
 
-function MaterialPhotos({ material, onAdd, onRemove }: MaterialPhotosProps) {
+function MaterialPhotos({ material, onAdd, onRemove, onRemoveSaved }: MaterialPhotosProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputId = `session-material-camera-${material.id}`;
@@ -157,8 +165,35 @@ function MaterialPhotos({ material, onAdd, onRemove }: MaterialPhotosProps) {
         )}
       </div>
 
-      {material.fotos.length > 0 && (
+      {!!(material.fotosGuardadas?.length || material.fotos.length) && (
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+          {material.fotosGuardadas?.map((photo, photoIndex) => (
+            <li
+              key={photo.id}
+              className="relative min-w-0 overflow-hidden rounded-lg border border-border/60 bg-background"
+              data-testid={`row-session-material-saved-photo-${material.id}-${photoIndex}`}
+            >
+              <img
+                src={photo.url}
+                alt={`Vista previa de ${photo.name || `foto guardada ${photoIndex + 1}`}`}
+                className="aspect-square w-full object-cover"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1 h-7 w-7 rounded-full bg-background/90 shadow-sm hover:bg-background"
+                aria-label={`Quitar foto ${photo.name || photoIndex + 1}`}
+                data-testid={`button-remove-session-material-saved-photo-${material.id}-${photoIndex}`}
+                onClick={() => onRemoveSaved(photo.id)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+              <span className="block truncate px-2 py-1.5 text-[11px] text-muted-foreground" title={photo.name}>
+                {photo.name || `Foto ${photoIndex + 1}`}
+              </span>
+            </li>
+          ))}
           {material.fotos.map((photo, photoIndex) => (
             <PhotoPreview
               key={`${photo.name}-${photo.lastModified}-${photo.size}-${photoIndex}`}
@@ -242,6 +277,10 @@ export function SessionMaterialsField({ value, onChange }: Props) {
             onRemove={photoIndex => updateMaterial(material.id, item => ({
               ...item,
               fotos: item.fotos.filter((_, i) => i !== photoIndex),
+            }))}
+            onRemoveSaved={photoId => updateMaterial(material.id, item => ({
+              ...item,
+              fotosGuardadas: item.fotosGuardadas?.filter(photo => photo.id !== photoId),
             }))}
           />
         </div>

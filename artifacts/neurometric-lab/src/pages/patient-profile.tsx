@@ -45,6 +45,7 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { AIObjetivosDialog } from "@/components/ai-objetivos-dialog";
+import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ import {
 import { DIAGNOSES, getDiagnosisLabel } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { API_BASE } from "@/lib/api";
+import { uploadSessionMaterialPhotos } from "@/lib/session-materials";
 import type { AnamnesisImportValues } from "@/lib/anamnesis-import";
 import { historicalReportPatient, snapshotReportPatient } from "@/lib/report-snapshot";
 import { clinicalSnapshotForSave, prepareReportSave, type ReportPeriodMeta } from "@/lib/report-save";
@@ -1384,7 +1386,23 @@ export default function PatientProfile() {
   const [erResumen, setErResumen]                 = useState("");
   const [erObs, setErObs]                         = useState("");
   const [erHogar, setErHogar]                     = useState("");
+  const [erMateriales, setErMateriales]           = useState<SessionMaterialDraft[]>([]);
+  const [editingMaterialsLoadedFor, setEditingMaterialsLoadedFor] = useState<string | null>(null);
   const [isSavingRegistro, setIsSavingRegistro]   = useState(false);
+  const editMaterialsIdentity = editingRegistro && user?.id
+    ? `${editingRegistro.id}:${user.id}`
+    : null;
+  const editingMaterialsQuery = useGetRegistroClinicoMateriales<RegistroClinicoMaterialDetail[]>(
+    editingRegistro?.id ?? 0,
+    {
+      query: {
+        enabled: Boolean(editingRegistro && user?.id),
+        queryKey: [...getGetRegistroClinicoMaterialesQueryKey(editingRegistro?.id ?? 0), user?.id],
+        staleTime: 0,
+        gcTime: 0,
+      },
+    },
+  );
 
   // Voice recording for edit registro dialog
   const [isRecordingEr, setIsRecordingEr]   = useState(false);
@@ -1520,6 +1538,26 @@ export default function PatientProfile() {
       setErHogar(editingRegistro.recomendacionesHogar ?? "");
     }
   }, [editingRegistro]);
+
+  useEffect(() => {
+    if (
+      !editMaterialsIdentity ||
+      !editingMaterialsQuery.data ||
+      editingMaterialsLoadedFor === editMaterialsIdentity
+    ) return;
+
+    setErMateriales(editingMaterialsQuery.data.map(material => ({
+      id: material.id,
+      nombre: material.nombre,
+      fotos: [],
+      fotosGuardadas: material.fotos.map(photo => ({
+        id: photo.id,
+        name: photo.originalName,
+        url: photo.url,
+      })),
+    })));
+    setEditingMaterialsLoadedFor(editMaterialsIdentity);
+  }, [editMaterialsIdentity, editingMaterialsQuery.data, editingMaterialsLoadedFor]);
 
   const handleSavePatient = async () => {
     if (!epName.trim()) return;
@@ -1860,25 +1898,71 @@ export default function PatientProfile() {
     }
   };
 
+  const openEditRegistro = (registro: RC) => {
+    setErMateriales([]);
+    setEditingMaterialsLoadedFor(null);
+    setEditingRegistro(registro);
+  };
+
+  const closeEditRegistro = () => {
+    stopRecordingEr();
+    setEditingRegistro(null);
+    setErMateriales([]);
+    setEditingMaterialsLoadedFor(null);
+  };
+
   const handleSaveEditRegistro = async () => {
     if (!editingRegistro) return;
+    const shouldSaveMaterials = editMaterialsIdentity !== null
+      && editingMaterialsLoadedFor === editMaterialsIdentity;
+    if (shouldSaveMaterials && erMateriales.some(material => !material.nombre.trim())) {
+      toast({
+        title: "Revisa los materiales",
+        description: "Completa el nombre o elimina cada material sin nombre.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSavingRegistro(true);
     stopRecordingEr();
     try {
+      const patch: Record<string, unknown> = {
+        fecha: erFecha,
+        resumenSesion: erResumen || null,
+        observaciones: erObs || null,
+        recomendacionesHogar: erHogar || null,
+      };
+      if (shouldSaveMaterials) {
+        patch.materialesActividades = erMateriales.map(material => ({
+          id: material.id,
+          nombre: material.nombre.trim(),
+          fotosIds: (material.fotosGuardadas ?? []).map(photo => photo.id),
+        }));
+      }
+
       const res = await fetch(`${API_BASE}/api/registros-clinicos/${editingRegistro.id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fecha: erFecha,
-          resumenSesion: erResumen || null,
-          observaciones: erObs || null,
-          recomendacionesHogar: erHogar || null,
-        }),
+        body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      let failedPhotos: string[] = [];
+      if (shouldSaveMaterials) {
+        failedPhotos = await uploadSessionMaterialPhotos(editingRegistro.id, erMateriales, API_BASE);
+        queryClient.invalidateQueries({
+          queryKey: getGetRegistroClinicoMaterialesQueryKey(editingRegistro.id),
+        });
+      }
       queryClient.invalidateQueries({ queryKey: getListRegistrosClinicosQueryKey() });
-      toast({ title: "Registro actualizado" });
-      setEditingRegistro(null);
+      toast({
+        title: "Registro actualizado",
+        ...(failedPhotos.length
+          ? { description: `No se pudieron adjuntar estas fotos: ${failedPhotos.join(", ")}.` }
+          : {}),
+      });
+      closeEditRegistro();
     } catch (err: any) {
       toast({ title: "Error al guardar el registro", description: err.message, variant: "destructive" });
     } finally {
@@ -2497,7 +2581,7 @@ export default function PatientProfile() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() => setEditingRegistro(r)}
+                              onClick={() => openEditRegistro(r)}
                               className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary border border-border hover:border-primary/40 rounded-lg transition-all hover:bg-primary/5"
                             >
                               <Pencil className="h-3 w-3" /> Editar
@@ -3005,8 +3089,8 @@ export default function PatientProfile() {
 
       {/* ── Edit Registro Dialog ──────────────────────────────────────────── */}
       {editingRegistro && (
-        <Dialog open onOpenChange={(o) => { if (!o && !isSavingRegistro) { stopRecordingEr(); setEditingRegistro(null); } }}>
-          <DialogContent className="sm:max-w-lg">
+        <Dialog open onOpenChange={(o) => { if (!o && !isSavingRegistro) closeEditRegistro(); }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="font-display text-xl flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-primary" /> Editar registro clínico
@@ -3059,9 +3143,36 @@ export default function PatientProfile() {
                 <label className="text-xs font-semibold text-foreground/70">Recomendaciones para el hogar</label>
                 <Textarea value={erHogar} onChange={e => setErHogar(e.target.value)} placeholder="Actividades sugeridas para casa…" rows={2} className="bg-muted/50 resize-none text-sm" />
               </div>
+              <div className="border-t border-border/60 pt-4">
+                {editMaterialsIdentity && editingMaterialsLoadedFor === editMaterialsIdentity ? (
+                  <SessionMaterialsField value={erMateriales} onChange={setErMateriales} />
+                ) : editingMaterialsQuery.isError ? (
+                  <div className="rounded-xl border border-amber-300/70 bg-amber-50/60 p-3 text-sm text-amber-900" role="alert">
+                    <p>No se pudieron cargar los materiales y las fotos. Puedes guardar los demás campos; los materiales no se modificarán.</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => { void editingMaterialsQuery.refetch(); }}
+                      disabled={editingMaterialsQuery.isFetching}
+                    >
+                      {editingMaterialsQuery.isFetching ? "Reintentando…" : "Reintentar"}
+                    </Button>
+                  </div>
+                ) : !user?.id ? (
+                  <p className="text-xs text-muted-foreground" role="status">
+                    No se pudieron verificar los materiales. Se conservarán sin cambios.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
+                    Cargando materiales y fotos guardadas…
+                  </p>
+                )}
+              </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => { stopRecordingEr(); setEditingRegistro(null); }} disabled={isSavingRegistro}>
+              <Button variant="outline" className="flex-1" onClick={closeEditRegistro} disabled={isSavingRegistro}>
                 Cancelar
               </Button>
               <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>

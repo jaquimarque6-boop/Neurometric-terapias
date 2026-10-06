@@ -5,11 +5,14 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+import type { RegistroClinicoMaterialUpdateInput } from "./registroClinicoMaterialUpdateInput";
 
 export interface UpdateRegistroClinico {
   professionalId?: number;
   fecha?: string;
   resumenSesion?: string;
   observaciones?: string;
+  /** @nullable */
+  materialesActividades?: RegistroClinicoMaterialUpdateInput[] | null;
   recomendacionesHogar?: string;
 }

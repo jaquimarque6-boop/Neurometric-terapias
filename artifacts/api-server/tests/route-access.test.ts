@@ -329,6 +329,104 @@ test("session materials photos are record-scoped, signed only after access check
   assert.equal((tables.get(schema.registrosClinicosTable) ?? []).length, 0);
 });
 
+test("editing clinical record materials preserves, removes, and cleans up photos under record access checks", async () => {
+  reset();
+  storage.configured = true;
+  const record = await request("POST", "/registros-clinicos", "owner", {
+    patientId: 1,
+    fecha: "2026-10-06",
+    materialesActividades: [{ id: "material-01", nombre: "Bloques" }],
+  });
+  assert.equal(record.status, 201);
+  const recordId = record.body.id;
+
+  const uploadFirst = await request(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/material-01/fotos/upload-url`,
+    "owner",
+    { name: "bloques.png", mimeType: "image/png", size: 100 },
+  );
+  const firstPhotoId = uploadFirst.body.photoId;
+  const firstPath = `clinical-records/${recordId}/material-01/${firstPhotoId}`;
+  storage.objects.add(firstPath);
+  assert.equal(await status(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/material-01/fotos/${firstPhotoId}/complete`,
+    "owner",
+  ), 200);
+
+  const deniedEdit = await request("PATCH", `/registros-clinicos/${recordId}`, "foreign", {
+    materialesActividades: [],
+  });
+  assert.equal(deniedEdit.status, 403);
+  assert.deepEqual(storage.deletedPaths, []);
+  assert.equal(storage.objects.has(firstPath), true);
+
+  const invalidPhoto = await request("PATCH", `/registros-clinicos/${recordId}`, "owner", {
+    materialesActividades: [{
+      id: "material-01",
+      nombre: "Bloques",
+      fotosIds: ["not-a-record-photo"],
+    }],
+  });
+  assert.equal(invalidPhoto.status, 400);
+  assert.deepEqual(storage.deletedPaths, []);
+  assert.equal(storage.objects.has(firstPath), true);
+
+  const renamed = await request("PATCH", `/registros-clinicos/${recordId}`, "owner", {
+    materialesActividades: [{
+      id: "material-01",
+      nombre: "Bloques apilables",
+      fotosIds: [firstPhotoId],
+    }],
+  });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.materialesActividades[0].nombre, "Bloques apilables");
+  assert.deepEqual(storage.deletedPaths, []);
+  assert.equal(storage.objects.has(firstPath), true);
+
+  const removedPhoto = await request("PATCH", `/registros-clinicos/${recordId}`, "owner", {
+    materialesActividades: [{
+      id: "material-01",
+      nombre: "Bloques apilables",
+      fotosIds: [],
+    }],
+  });
+  assert.equal(removedPhoto.status, 200);
+  assert.deepEqual(storage.deletedPaths, [firstPath]);
+  assert.equal(storage.objects.has(firstPath), false);
+
+  assert.equal((await request("PATCH", `/registros-clinicos/${recordId}`, "owner", {
+    materialesActividades: [{
+      id: "material-02",
+      nombre: "Tarjetas",
+      fotosIds: [],
+    }],
+  })).status, 200);
+  const uploadSecond = await request(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/material-02/fotos/upload-url`,
+    "owner",
+    { name: "tarjetas.png", mimeType: "image/png", size: 100 },
+  );
+  const secondPhotoId = uploadSecond.body.photoId;
+  const secondPath = `clinical-records/${recordId}/material-02/${secondPhotoId}`;
+  storage.objects.add(secondPath);
+  assert.equal(await status(
+    "POST",
+    `/registros-clinicos/${recordId}/materiales/material-02/fotos/${secondPhotoId}/complete`,
+    "owner",
+  ), 200);
+
+  const removedMaterial = await request("PATCH", `/registros-clinicos/${recordId}`, "owner", {
+    materialesActividades: [],
+  });
+  assert.equal(removedMaterial.status, 200);
+  assert.equal(removedMaterial.body.materialesActividades, null);
+  assert.deepEqual(storage.deletedPaths, [firstPath, secondPath]);
+  assert.equal(storage.objects.has(secondPath), false);
+});
+
 test("global library is readable to professionals but admin-written; custom goals are owner-only", async () => {
   reset();
   assert.deepEqual((await request("GET", "/goal-library", "owner")).body.map((g: any) => g.id), [10, 11]);

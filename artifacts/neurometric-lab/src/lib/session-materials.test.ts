@@ -3,6 +3,7 @@ import { after, test } from "node:test";
 import {
   saveClinicalRecordWithMaterials,
   toSessionMaterialPayload,
+  uploadSessionMaterialPhotos,
 } from "./session-materials.ts";
 
 const originalFetch = globalThis.fetch;
@@ -86,4 +87,53 @@ test("quick session stays optional and a complete-session photo failure does not
   assert.deepEqual(createBody.materialesActividades, [{ id: "material-1", nombre: "Bloques" }]);
   assert.ok(calls.some(call => call.url === "https://storage.test/upload" && call.method === "PUT"));
   assert.ok(calls.some(call => call.url.endsWith("/fotos/photo-1") && call.method === "DELETE"));
+});
+
+test("edit uploads only newly selected photos to the existing record and material", async () => {
+  const calls: Array<{ url: string; method: string }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    calls.push({ url, method });
+
+    if (url.endsWith("/fotos/upload-url") && method === "POST") {
+      return new Response(JSON.stringify({
+        photoId: "photo-new",
+        uploadUrl: "https://storage.test/new-photo",
+      }), { headers: { "Content-Type": "application/json" } });
+    }
+    if (url === "https://storage.test/new-photo" && method === "PUT") {
+      return new Response(null, { status: 200 });
+    }
+    if (url.endsWith("/fotos/photo-new/complete") && method === "POST") {
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw new Error(`Unexpected request: ${method} ${url}`);
+  }) as typeof fetch;
+
+  const failedPhotos = await uploadSessionMaterialPhotos(73, [{
+    id: "material-1",
+    nombre: "Bloques",
+    fotos: [file],
+    fotosGuardadas: [{
+      id: "photo-saved",
+      name: "anterior.png",
+      url: "https://storage.test/private-signed-url",
+    }],
+  }], "/neurometric-lab");
+
+  assert.deepEqual(failedPhotos, []);
+  assert.deepEqual(calls, [
+    {
+      url: "/neurometric-lab/api/registros-clinicos/73/materiales/material-1/fotos/upload-url",
+      method: "POST",
+    },
+    { url: "https://storage.test/new-photo", method: "PUT" },
+    {
+      url: "/neurometric-lab/api/registros-clinicos/73/materiales/material-1/fotos/photo-new/complete",
+      method: "POST",
+    },
+  ]);
 });

@@ -16,22 +16,11 @@ async function readError(response: Response, fallback: string): Promise<Error> {
   return new Error(body?.error ?? fallback);
 }
 
-export async function saveClinicalRecordWithMaterials(
-  record: Record<string, unknown>,
+export async function uploadSessionMaterialPhotos(
+  recordId: number,
   materials: SessionMaterialDraft[],
   apiBase: string,
-): Promise<{ record: any; failedPhotos: string[] }> {
-  const response = await fetch(`${apiBase}/api/registros-clinicos`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...record,
-      materialesActividades: toSessionMaterialPayload(materials),
-    }),
-  });
-  if (!response.ok) throw await readError(response, "Error al guardar la sesión");
-  const savedRecord = await response.json();
+): Promise<string[]> {
   const failedPhotos: string[] = [];
 
   for (const material of materials) {
@@ -43,7 +32,7 @@ export async function saveClinicalRecordWithMaterials(
       let photoId: string | null = null;
       try {
         const uploadUrlResponse = await fetch(
-          `${apiBase}/api/registros-clinicos/${savedRecord.id}/materiales/${encodeURIComponent(material.id)}/fotos/upload-url`,
+          `${apiBase}/api/registros-clinicos/${recordId}/materiales/${encodeURIComponent(material.id)}/fotos/upload-url`,
           {
             method: "POST",
             credentials: "include",
@@ -68,14 +57,14 @@ export async function saveClinicalRecordWithMaterials(
         if (!putResponse.ok) throw new Error("Falló la carga de la foto");
 
         const completeResponse = await fetch(
-          `${apiBase}/api/registros-clinicos/${savedRecord.id}/materiales/${encodeURIComponent(material.id)}/fotos/${encodeURIComponent(photoId)}/complete`,
+          `${apiBase}/api/registros-clinicos/${recordId}/materiales/${encodeURIComponent(material.id)}/fotos/${encodeURIComponent(photoId)}/complete`,
           { method: "POST", credentials: "include" },
         );
         if (!completeResponse.ok) throw await readError(completeResponse, "No se pudo asociar la foto");
       } catch {
         if (photoId) {
           await fetch(
-            `${apiBase}/api/registros-clinicos/${savedRecord.id}/materiales/${encodeURIComponent(material.id)}/fotos/${encodeURIComponent(photoId)}`,
+            `${apiBase}/api/registros-clinicos/${recordId}/materiales/${encodeURIComponent(material.id)}/fotos/${encodeURIComponent(photoId)}`,
             { method: "DELETE", credentials: "include" },
           ).catch(() => undefined);
         }
@@ -84,5 +73,25 @@ export async function saveClinicalRecordWithMaterials(
     }
   }
 
+  return failedPhotos;
+}
+
+export async function saveClinicalRecordWithMaterials(
+  record: Record<string, unknown>,
+  materials: SessionMaterialDraft[],
+  apiBase: string,
+): Promise<{ record: any; failedPhotos: string[] }> {
+  const response = await fetch(`${apiBase}/api/registros-clinicos`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...record,
+      materialesActividades: toSessionMaterialPayload(materials),
+    }),
+  });
+  if (!response.ok) throw await readError(response, "Error al guardar la sesión");
+  const savedRecord = await response.json();
+  const failedPhotos = await uploadSessionMaterialPhotos(savedRecord.id, materials, apiBase);
   return { record: savedRecord, failedPhotos };
 }
