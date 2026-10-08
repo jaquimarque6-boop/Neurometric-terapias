@@ -11,11 +11,29 @@ export function storageConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 }
 
+function isLegacyServiceRoleJwt(key: string): boolean {
+  if (key.startsWith("sb_secret_")) return false;
+
+  const segments = key.split(".");
+  if (segments.length !== 3 || segments.some((segment) => !segment)) return false;
+
+  try {
+    const header = JSON.parse(Buffer.from(segments[0], "base64url").toString("utf8"));
+    const claims = JSON.parse(Buffer.from(segments[1], "base64url").toString("utf8"));
+    return header.alg === "HS256" && claims.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 function authHeaders(): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     apikey: SUPABASE_SERVICE_KEY,
-    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
   };
+  if (isLegacyServiceRoleJwt(SUPABASE_SERVICE_KEY)) {
+    headers.Authorization = `Bearer ${SUPABASE_SERVICE_KEY}`;
+  }
+  return headers;
 }
 
 // Encode each path segment but keep the slashes that separate folders.
