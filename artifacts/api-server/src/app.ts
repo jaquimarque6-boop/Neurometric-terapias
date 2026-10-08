@@ -9,7 +9,6 @@ import { eq } from "drizzle-orm";
 import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
-import { seedFromSupabaseIfNeeded } from "./seeds/supabase-migration-seed";
 import { verifyAuthToken } from "./auth-token";
 
 const PgSession = connectPgSimple(session);
@@ -231,7 +230,6 @@ if (process.env.NODE_ENV !== "test") {
   ensureJaquiAdmin().catch(console.error);
   ensureTempAdmin().catch(console.error);
   seedGoalLibraryIfNeeded().catch(console.error);
-  seedFromSupabaseIfNeeded().catch(console.error);
 }
 
 export default app;

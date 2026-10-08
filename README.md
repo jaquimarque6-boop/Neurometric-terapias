@@ -100,7 +100,7 @@ Esto levanta ambas apps en paralelo:
 - **Frontend:** http://localhost:3000 (Vite, con `strictPort` — falla si el puerto está ocupado)
 - **API:** http://localhost:3001 (el frontend la proxea en `/api`)
 
-En el primer arranque la API hace el seed de la base de datos: la biblioteca de objetivos (444 objetivos), los usuarios admin y una importación única de datos desde Supabase (`seedFromSupabaseIfNeeded`). En arranques posteriores detecta los datos existentes y lo omite.
+En el primer arranque la API hace el seed de la biblioteca de objetivos (444 objetivos) y de los usuarios admin. La importación histórica desde Supabase no se ejecuta durante el arranque de la API.
 
 ### Credenciales de acceso (seed)
 
