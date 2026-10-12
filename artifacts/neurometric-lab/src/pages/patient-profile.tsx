@@ -138,7 +138,9 @@ type RC = {
   professionalId?: number | null; professionalName?: string | null;
   fecha: string; resumenSesion?: string | null;
   observaciones?: string | null; recomendacionesHogar?: string | null;
-  materialesActividades?: RegistroClinicoMaterial[] | null;
+  materialesActividades?: Array<
+    Pick<RegistroClinicoMaterial, "id" | "nombre"> & Partial<Pick<RegistroClinicoMaterial, "fotos">>
+  > | null;
   createdAt: string;
 };
 type ProgressEntry = {
@@ -603,17 +605,18 @@ type SavedReport = ReportMeta & {
   content: {
     v: number; resumen?: string; conducta?: string; areas?: Record<string, string>;
     sugerencias?: string; textoFamilia?: string; patientSnapshot?: Record<string, any>;
-    goalSnapshot?: Goal[]; clinicalSnapshot?: RC[];
+     goalSnapshot?: Goal[]; clinicalSnapshot?: RC[]; removedAreas?: string[];
   };
   authorName: string | null; createdAt: string; updatedAt: string;
 };
 
-type RangoSesiones = "4" | "mes" | "3meses" | "6meses";
+type RangoSesiones = "4" | "mes" | "3meses" | "6meses" | "historia";
 const RANGO_LABELS: Record<RangoSesiones, string> = {
   "4":      "Últimas 4 sesiones",
   "mes":    "Último mes",
   "3meses": "Últimos 3 meses",
   "6meses": "Últimos 6 meses",
+  "historia": "Historia completa",
 };
 
 function filtrarPorRango(registros: RC[], rango: RangoSesiones): RC[] {
@@ -621,6 +624,7 @@ function filtrarPorRango(registros: RC[], rango: RangoSesiones): RC[] {
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   );
   if (rango === "4") return sorted.slice(0, 4);
+  if (rango === "historia") return sorted;
   const dias = rango === "mes" ? 30 : rango === "3meses" ? 90 : 180;
   const corte = new Date();
   corte.setDate(corte.getDate() - dias);
@@ -652,12 +656,48 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   const [resumen,    setResumen]    = useState(initial.resumen);
   const [conducta,   setConducta]   = useState(initial.conducta);
   const [areaTexts,  setAreaTexts]  = useState<Record<string, string>>(initial.areas);
+  const [removedAreaNames, setRemovedAreaNames] = useState<string[]>([]);
+  const [renamingArea, setRenamingArea] = useState<string | null>(null);
+  const [renameAreaValue, setRenameAreaValue] = useState("");
   const [sugerencias, setSugerencias] = useState(initial.sugerencias);
   const [textoFamilia, setTextoFamilia] = useState(currentPatient.informeFamilia ?? "");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [pendingAIResult, setPendingAIResult] = useState<null | ({ resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string; clinicalSnapshot: RC[] } & Partial<ReportMeta>)>(null);
+  const [pendingAIResult, setPendingAIResult] = useState<null | ({
+    resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string;
+    clinicalSnapshot: RC[]; clinicalRecordsExcludedCount?: number; clinicalRecordsUndatedCount?: number;
+  } & Partial<ReportMeta>)>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const { toast } = useToast();
+  const addArea = () => {
+    let name = "Nueva área";
+    let suffix = 2;
+    while (Object.prototype.hasOwnProperty.call(areaTexts, name)) name = `Nueva área ${suffix++}`;
+    setAreaTexts(previous => ({ ...previous, [name]: "" }));
+    setRemovedAreaNames(previous => previous.filter(area => area !== name));
+    setRenamingArea(name);
+    setRenameAreaValue(name);
+  };
+  const saveAreaRename = (previousName: string) => {
+    const nextName = renameAreaValue.trim();
+    if (!nextName) {
+      toast({ title: "El nombre del área no puede quedar vacío", variant: "destructive" });
+      return;
+    }
+    if (nextName !== previousName && Object.prototype.hasOwnProperty.call(areaTexts, nextName)) {
+      toast({ title: "Ya existe un área con ese nombre", variant: "destructive" });
+      return;
+    }
+    if (nextName !== previousName) {
+      setAreaTexts(previous => {
+        const next = { ...previous };
+        next[nextName] = next[previousName] ?? "";
+        delete next[previousName];
+        return next;
+      });
+      setRemovedAreaNames(previous => previous.filter(area => area !== previousName));
+    }
+    setRenamingArea(null);
+  };
   const loadReports = async () => {
     setLoadingReports(true);
     try {
@@ -687,6 +727,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       const report = await response.json() as SavedReport;
       setOpenedReport(report);
       setGeneratedSnapshot(null);
+      setRenamingArea(null);
+      setRemovedAreaNames(report.content.removedAreas ?? []);
       setReportTitle(report.title);
       setReportMeta(report);
       setView(report.reportType === "family" ? "familia" : "clinico");
@@ -703,6 +745,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     setOpenedReport(null);
     setReportMeta(null);
     setGeneratedSnapshot(null);
+    setRenamingArea(null);
+    setRemovedAreaNames([]);
     setReportTitle("");
     const old = parseInformeData(currentPatient.informeEvolucion);
     setResumen(old.resumen); setConducta(old.conducta);
@@ -730,7 +774,9 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     acc[a].push(g);
     return acc;
   }, {});
-  const areas = [...new Set([...Object.keys(areaGroups), ...Object.keys(areaTexts)])].sort();
+  const removedAreaSet = new Set(removedAreaNames);
+  const areas = [...new Set([...Object.keys(areaGroups), ...Object.keys(areaTexts)])]
+    .filter(area => !removedAreaSet.has(area)).sort();
   const hasClinicalSourceData = Boolean(
     goals.length > 0 ||
     filteredRegistros.length > 0 ||
@@ -758,6 +804,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       const reportType = view === "familia" ? "family" : "evolution";
       const title = reportTitle.trim() || (view === "familia" ? "Informe para familia" : "Informe de evolución");
       const content = { v: 4, resumen, conducta, areas: areaTexts, sugerencias, textoFamilia,
+        removedAreas: removedAreaNames,
         goalSnapshot: goals, clinicalSnapshot: clinicalSnapshotForSave(openedReport, generatedSnapshot, reportMeta?.clinicalRecordsUsedCount ?? null),
         patientSnapshot: snapshotReportPatient(patient) };
       const request = prepareReportSave(reportType, title, content, reportMeta, openedReport);
@@ -784,6 +831,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
 
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
     setOpenedReport(null);
+    setView("clinico");
     setReportTitle("");
     setGeneratedSnapshot(result.clinicalSnapshot);
     setReportMeta({
@@ -791,13 +839,24 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       periodTo: result.periodTo ?? null, clinicalRecordsUsedCount: result.clinicalRecordsUsedCount ?? null,
       clinicalRecordsTotalCount: result.clinicalRecordsTotalCount ?? null,
     });
-    if (result.resumen) setResumen(result.resumen);
-    if (result.conducta) setConducta(result.conducta);
-    if (result.areas && Object.keys(result.areas).length > 0) setAreaTexts(result.areas);
-    if (result.sugerencias) setSugerencias(result.sugerencias);
+    setResumen(result.resumen ?? "");
+    setConducta(result.conducta ?? "");
+    setAreaTexts(result.areas ?? {});
+    setRemovedAreaNames([]);
+    setSugerencias(result.sugerencias ?? "");
+    setRenamingArea(null);
     setPendingAIResult(null);
     setShowAIConfirm(false);
-    toast({ title: "Informe generado", description: "El contenido fue aplicado. Puedes editarlo libremente antes de guardar." });
+    const exclusions = result.clinicalRecordsExcludedCount ?? 0;
+    const undated = result.clinicalRecordsUndatedCount ?? 0;
+    toast({
+      title: "Informe generado",
+      description: [
+        "El contenido fue aplicado. Puedes editarlo libremente antes de guardar.",
+        exclusions > 0 ? `${exclusions} registro(s) con fecha inválida o futura no se incluyeron.` : "",
+        undated > 0 ? `${undated} registro(s) se incluyeron sin ubicación cronológica por tener fecha inválida.` : "",
+      ].filter(Boolean).join(" "),
+    });
   };
 
   const handleGenerateAI = async () => {
@@ -1031,21 +1090,69 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
               {/* ── Desarrollo por área ──────────────────────────────── */}
               <div className="doc-section">
                 <DocSection title="Desarrollo por área">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <p className="text-xs text-muted-foreground">
+                      Áreas documentadas por la IA o agregadas manualmente. Podés editar, renombrar o quitar cada una.
+                    </p>
+                    <Button type="button" size="sm" variant="outline" onClick={addArea} className="shrink-0 gap-1.5">
+                      <Plus className="h-3.5 w-3.5" /> Agregar área
+                    </Button>
+                  </div>
                   {areas.length > 0 ? (
                     <div className="space-y-6">
                       {areas.map(area => (
                         <div key={area} className="doc-area">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="doc-area-title text-[11px] font-bold uppercase tracking-[0.07em] text-foreground/75">
-                              {area.charAt(0).toUpperCase() + area.slice(1)}
-                            </h4>
-                            <button
-                              type="button"
-                              onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area] ?? [], filteredRegistros) }))}
-                              className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
-                            >
-                              <Sparkles className="h-2.5 w-2.5" /> Sugerir
-                            </button>
+                            {renamingArea === area ? (
+                              <div className="flex flex-1 items-center gap-2">
+                                <Input
+                                  value={renameAreaValue}
+                                  onChange={event => setRenameAreaValue(event.target.value)}
+                                  aria-label={`Nuevo nombre para ${area}`}
+                                  className="h-8 max-w-sm"
+                                  autoFocus
+                                />
+                                <Button type="button" size="sm" onClick={() => saveAreaRename(area)}>Guardar nombre</Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => setRenamingArea(null)}>Cancelar</Button>
+                              </div>
+                            ) : (
+                              <>
+                                <h4 className="doc-area-title text-[11px] font-bold uppercase tracking-[0.07em] text-foreground/75">
+                                  {area.charAt(0).toUpperCase() + area.slice(1)}
+                                </h4>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setRenamingArea(area); setRenameAreaValue(area); }}
+                                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
+                                  >
+                                    <Pencil className="h-2.5 w-2.5" /> Renombrar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAreaTexts(previous => {
+                                        const next = { ...previous };
+                                        delete next[area];
+                                        return next;
+                                      });
+                                      setRemovedAreaNames(previous => [...new Set([...previous, area])]);
+                                    }}
+                                    aria-label={`Eliminar área ${area}`}
+                                    className="flex items-center gap-1 text-[10px] font-medium text-destructive hover:bg-destructive/5 px-2 py-0.5 rounded"
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5" /> Quitar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAreaTexts(prev => ({ ...prev, [area]: generarNarrativaArea(area, areaGroups[area] ?? [], filteredRegistros) }))}
+                                    className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-2 py-0.5 rounded hover:bg-primary/5"
+                                  >
+                                    <Sparkles className="h-2.5 w-2.5" /> Sugerir
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="doc-text-area-print doc-text hidden">{areaTexts[area] || "Sin contenido."}</div>
                           <DocTextarea
@@ -1059,7 +1166,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground italic py-3">
-                      No hay áreas registradas aún. Agrega objetivos terapéuticos para habilitar esta sección.
+                      No se generaron áreas clínicas con la información disponible. Podés agregarlas manualmente.
                     </p>
                   )}
                 </DocSection>
@@ -2630,10 +2737,10 @@ export default function PatientProfile() {
                                     return (
                                       <div key={material.id} className="space-y-2">
                                         <p className="text-sm font-medium text-foreground">{material.nombre}</p>
-                                        {material.fotos.length > 0 && expandedMaterialsQuery.isLoading && (
+                                        {Array.isArray(material.fotos) && material.fotos.length > 0 && expandedMaterialsQuery.isLoading && (
                                           <p className="text-xs text-muted-foreground">Cargando fotos…</p>
                                         )}
-                                        {material.fotos.length > 0 && expandedMaterialsQuery.isError && (
+                                        {Array.isArray(material.fotos) && material.fotos.length > 0 && expandedMaterialsQuery.isError && (
                                           <p className="text-xs text-amber-700">No se pudieron cargar las fotos de esta sesión.</p>
                                         )}
                                         {!!signedMaterial?.fotos.length && (

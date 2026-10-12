@@ -9,6 +9,7 @@ test("no records: zero used and total, unknown start for last-four mode", () => 
   assert.deepEqual(selectClinicalPeriod([], "4", now), {
     selected: [], periodKind: "4", periodFrom: null, periodTo: "2026-09-29",
     clinicalRecordsUsedCount: 0, clinicalRecordsTotalCount: 0,
+    clinicalRecordsExcludedCount: 0, clinicalRecordsUndatedCount: 0,
   });
 });
 
@@ -42,4 +43,30 @@ test("invalid, non-ISO and future session dates do not invent dates from row cre
   }
   assert.equal(selectClinicalPeriod(records.slice(1), "4", now).periodFrom, null);
   assert.throws(() => selectClinicalPeriod(records, "12months", now), /Período inválido/);
+});
+
+test("full history includes every past record, retains undated evidence, and reports excluded future records", () => {
+  const records = [
+    record("2024-01-02"),
+    record("2026-09-28"),
+    { fecha: "bad-date", createdAt: now },
+    record("2026-10-01"),
+  ];
+  const history = selectClinicalPeriod(records, "historia", now);
+  assert.deepEqual(history.selected.map(row => row.fecha), ["2026-09-28", "2024-01-02", "bad-date"]);
+  assert.equal(history.periodFrom, "2024-01-02");
+  assert.equal(history.clinicalRecordsUsedCount, 3);
+  assert.equal(history.clinicalRecordsTotalCount, 4);
+  assert.equal(history.clinicalRecordsExcludedCount, 1);
+  assert.equal(history.clinicalRecordsUndatedCount, 1);
+});
+
+test("bounded ranges report malformed and future records excluded from the generation", () => {
+  const period = selectClinicalPeriod([
+    record("2026-09-10"),
+    { fecha: "not-a-date", createdAt: now },
+    record("2026-10-01"),
+  ], "mes", now);
+  assert.equal(period.clinicalRecordsUsedCount, 1);
+  assert.equal(period.clinicalRecordsExcludedCount, 2);
 });

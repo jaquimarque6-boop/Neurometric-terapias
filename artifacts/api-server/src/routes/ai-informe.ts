@@ -17,6 +17,13 @@ import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinic
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 import { selectClinicalPeriod, validClinicalDay } from "./report-period";
+import {
+  buildSessionContext,
+  documentedAreaSources,
+  MAX_REPORT_CONTEXT_CHARS,
+  normalizeReportAreas,
+  reportContextLength,
+} from "./report-context";
 
 const router: IRouter = Router();
 
@@ -65,8 +72,8 @@ Terminología a usar: "desempeño ocupacional", "participación en ocupaciones s
 Al describir evolución: mencionar cambios en la participación funcional, autonomía, uso de apoyos, ejecución de rutinas o acceso a actividades únicamente si están registrados explícitamente; no reducir la evolución a déficits corporales.`,
 
     "general": `
-Redacta el informe con terminología clínica general apropiada para terapias del neurodesarrollo.
-Menciona las áreas de trabajo según los objetivos registrados. Si no hay objetivos, utiliza las áreas que estén explícitamente presentes en las sesiones o en la información clínica; si tampoco aparecen, devuelve un objeto vacío.`,
+ Redacta el informe con terminología clínica general apropiada para terapias del neurodesarrollo.
+ Identifica áreas a partir de anamnesis, evaluaciones, actividades y observaciones de sesión y objetivos si existen. No infieras resultados ni áreas sin respaldo documental.`,
   };
 
   return base + disciplines[discipline];
@@ -86,7 +93,7 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   const { patientId, rango = "mes" } = req.body as { patientId: number; rango?: string };
   if (!patientId) return res.status(400).json({ error: "patientId requerido" });
-  if (!["4", "mes", "3meses", "6meses"].includes(rango)) return res.status(400).json({ error: "Período inválido" });
+  if (!["4", "mes", "3meses", "6meses", "historia"].includes(rango)) return res.status(400).json({ error: "Período inválido" });
 
   // Resolve and authorize the patient before loading any clinical data.
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
@@ -163,19 +170,19 @@ router.post("/ai/informe-generate", async (req, res) => {
     splitDiagnosis(patient.diagnosis).principal ? `Diagnóstico principal: ${splitDiagnosis(patient.diagnosis).principal}` : null,
     splitDiagnosis(patient.diagnosis).asociados.length ? `Diagnósticos asociados: ${splitDiagnosis(patient.diagnosis).asociados.join(", ")}` : null,
     patient.fechaInicio ? `Inicio del tratamiento: ${patient.fechaInicio}` : null,
-    patient.escolaridad ? `Escolaridad: ${trunc(patient.escolaridad, 200)}` : null,
-    patient.motivoConsulta ? `Motivo de consulta: ${trunc(patient.motivoConsulta, 400)}` : null,
-    patient.antecedentes ? `Antecedentes: ${trunc(patient.antecedentes, 400)}` : null,
-    patient.historiaFamiliar ? `Historia familiar: ${trunc(patient.historiaFamiliar, 300)}` : null,
-    patient.impresionClinica ? `Impresión clínica inicial: ${trunc(patient.impresionClinica, 400)}` : null,
-    patient.observaciones ? `Observaciones generales: ${trunc(patient.observaciones, 300)}` : null,
+    patient.escolaridad ? `Escolaridad: ${patient.escolaridad}` : null,
+    patient.motivoConsulta ? `Motivo de consulta: ${patient.motivoConsulta}` : null,
+    patient.antecedentes ? `Antecedentes: ${patient.antecedentes}` : null,
+    patient.historiaFamiliar ? `Historia familiar: ${patient.historiaFamiliar}` : null,
+    patient.impresionClinica ? `Impresión clínica inicial: ${patient.impresionClinica}` : null,
+    patient.observaciones ? `Observaciones generales: ${patient.observaciones}` : null,
     // Discipline-relevant clinical fields
-    patient.lenguajeComunicacion ? `Lenguaje y comunicación (evaluación inicial): ${trunc(patient.lenguajeComunicacion, 300)}` : null,
-    patient.atencionConducta ? `Atención y conducta (evaluación inicial): ${trunc(patient.atencionConducta, 300)}` : null,
-    patient.vozHabla ? `Voz y habla (evaluación inicial): ${trunc(patient.vozHabla, 300)}` : null,
-    patient.deglucion ? `Deglución (evaluación inicial): ${trunc(patient.deglucion, 200)}` : null,
-    patient.rutinasHabitos ? `Rutinas y hábitos: ${trunc(patient.rutinasHabitos, 300)}` : null,
-    patient.entornoParticipacion ? `Entorno y participación: ${trunc(patient.entornoParticipacion, 300)}` : null,
+    patient.lenguajeComunicacion ? `Lenguaje y comunicación (evaluación inicial): ${patient.lenguajeComunicacion}` : null,
+    patient.atencionConducta ? `Atención y conducta (evaluación inicial): ${patient.atencionConducta}` : null,
+    patient.vozHabla ? `Voz y habla (evaluación inicial): ${patient.vozHabla}` : null,
+    patient.deglucion ? `Deglución (evaluación inicial): ${patient.deglucion}` : null,
+    patient.rutinasHabitos ? `Rutinas y hábitos: ${patient.rutinasHabitos}` : null,
+    patient.entornoParticipacion ? `Entorno y participación: ${patient.entornoParticipacion}` : null,
   ].filter(Boolean).join("\n");
 
   // ── 2. Profesionales asignados ────────────────────────────────────────────
@@ -214,19 +221,13 @@ router.post("/ai/informe-generate", async (req, res) => {
       }).join("\n\n");
 
   // ── 4. Sesiones clínicas del período (registros_clinicos) ─────────────────
-  const sortedRC = [...filteredRC].sort(
-    (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
-  );
-  const sessionContext = sortedRC.length === 0
-    ? "Sin sesiones en el período seleccionado."
-    : sortedRC.map((r, i) => {
-        const parts = [`[Sesión ${i + 1} — ${r.fecha}]`];
-        if (r.professionalName) parts.push(`Profesional: ${r.professionalName}`);
-        if (r.resumenSesion) parts.push(`Resumen: ${trunc(r.resumenSesion, 500)}`);
-        if (r.observaciones) parts.push(`Observaciones: ${trunc(r.observaciones, 500)}`);
-        if (r.recomendacionesHogar) parts.push(`Recomendaciones hogar: ${trunc(r.recomendacionesHogar, 300)}`);
-        return parts.join("\n");
-      }).join("\n\n");
+  const sortedRC = [...filteredRC].sort((a, b) => {
+    const aValid = validClinicalDay(a.fecha);
+    const bValid = validClinicalDay(b.fecha);
+    if (aValid && bValid) return a.fecha.localeCompare(b.fecha);
+    return aValid ? -1 : bValid ? 1 : a.id - b.id;
+  });
+  const sessionContext = buildSessionContext(sortedRC);
 
   // ── 5. Registros de desempeño por objetivo (tabla registros) ──────────────
   const perfContext = registrosByObj.size === 0
@@ -258,18 +259,12 @@ router.post("/ai/informe-generate", async (req, res) => {
     if (!areaGroups[a]) areaGroups[a] = [];
     areaGroups[a].push(g);
   }
-  const areaKeys = Object.keys(areaGroups);
-
   // ── Build the user prompt ─────────────────────────────────────────────────
-  const areasJsonShape = areaKeys.length > 0
-    ? `{\n${areaKeys.map(a =>
-        `  "${a}": "Análisis clínico detallado del desempeño y evolución en el área de ${a}, basado en los objetivos y sesiones registrados. 80-150 palabras."`
-      ).join(",\n")}\n}`
-    : "{}";
+  const availableAreaSources = documentedAreaSources(patient, Object.keys(areaGroups));
 
   const userPrompt = `Genera el informe clínico de evolución para el siguiente paciente.
 Disciplina detectada: ${discipline.toUpperCase()}.
-Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Registros clínicos incluidos: ${filteredRC.length}. Total de registros clínicos del paciente: ${allRegistrosClinicos.length}. Los objetivos se muestran como contexto actual; los historiales de progreso y desempeño se limitan al período. No atribuyas al período actividades que no estén registradas allí.
+Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Registros clínicos incluidos: ${filteredRC.length}. Total de registros clínicos del paciente: ${allRegistrosClinicos.length}. Registros excluidos por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Registros de historia completa sin fecha válida, incluidos sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Los historiales de progreso y desempeño se limitan al período. No atribuyas al período actividades que no estén registradas allí.
 
 ═══════════════════════════════════════
 DATOS CLÍNICOS DEL PACIENTE
@@ -284,7 +279,7 @@ OBJETIVOS TERAPÉUTICOS — ${allGoals.length} registrados
 ${goalsContext}
 
 ═══════════════════════════════════════
-SESIONES CLÍNICAS DEL PERÍODO (${sortedRC.length} sesiones)
+SESIONES CLÍNICAS DEL PERÍODO (${sortedRC.length} sesiones; cronológicas, completas y con materiales registrados)
 ═══════════════════════════════════════
 ${sessionContext}
 
@@ -293,18 +288,27 @@ DESEMPEÑO POR OBJETIVO (registros históricos)
 ═══════════════════════════════════════
 ${perfContext}` : ""}
 
-ÁREAS ACTIVAS: ${areaKeys.join(", ") || "No identificadas"}
+ÁREAS / FUENTES CLÍNICAS DOCUMENTADAS: ${availableAreaSources.join(", ") || "Identifica áreas solo si la anamnesis o las sesiones aportan evidencia explícita."}
 
 ═══════════════════════════════════════
 INSTRUCCIÓN
 ═══════════════════════════════════════
-Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Los objetivos son opcionales:
+Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Los objetivos son opcionales. En "areas", reemplaza el objeto vacío por claves dinámicas para las áreas que tengan evidencia en anamnesis, evaluaciones o sesiones, aunque no haya objetivos; déjalo vacío solo si esas fuentes no documentan áreas. Incluye solo áreas respaldadas; la anamnesis es contexto inicial, no prueba de evolución. Integra cronológicamente las intervenciones, respuestas observadas, avances explícitos y dificultades persistentes. Distingue siempre actividad realizada de resultado.
 {
   "resumen": "Motivo de intervención y síntesis del proceso basada en la información clínica disponible. Menciona la cantidad de sesiones y las áreas u objetivos solo cuando estén registrados. Diferencia actividades realizadas de resultados explícitamente documentados. Si no hay datos para afirmar evolución, indícalo sin completar con frases genéricas.",
   "conducta": "Síntesis de la conducta en sesión únicamente cuando existan observaciones registradas: atención, disposición, respuesta a consignas, necesidad de apoyo y autonomía. Si no hay observaciones, indica No registrado.",
-  "areas": ${areasJsonShape},
+  "areas": {},
   "sugerencias": "Recomendaciones para la familia únicamente a partir de recomendaciones registradas o de actividades explícitamente documentadas. No agregues recomendaciones clínicas nuevas. Si no hay recomendaciones registradas, indica No registrado."
 }`;
+
+  const promptChars = reportContextLength(buildSystemPrompt(discipline), userPrompt);
+  if (promptChars > MAX_REPORT_CONTEXT_CHARS) {
+    return res.status(413).json({
+      error: `La historia clínica seleccionada excede el límite seguro de contexto (${promptChars.toLocaleString("es")} caracteres). No se omitieron sesiones ni se realizó una llamada a IA. Elegí un período más breve.`,
+      clinicalRecordsUsedCount: filteredRC.length,
+      maxContextChars: MAX_REPORT_CONTEXT_CHARS,
+    });
+  }
 
   // ── Call OpenAI ───────────────────────────────────────────────────────────
   try {
@@ -319,8 +323,6 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
     }
 
     const openai = new OpenAI({ apiKey, baseURL });
-
-    console.log(`[ai-informe] paciente=${patientId} disciplina=${discipline} sesiones=${sortedRC.length} objetivos=${allGoals.length} modelo=${model}`);
 
     const response = await openai.chat.completions.create({
       model,
@@ -338,20 +340,24 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
     const result = {
       resumen: parsed.resumen ?? "",
       conducta: parsed.conducta ?? "",
-      areas: parsed.areas ?? {},
+      areas: normalizeReportAreas(parsed.areas),
       sugerencias: parsed.sugerencias ?? "",
       periodKind: period.periodKind,
       periodFrom: period.periodFrom,
       periodTo: period.periodTo,
       clinicalRecordsUsedCount: period.clinicalRecordsUsedCount,
       clinicalRecordsTotalCount: period.clinicalRecordsTotalCount,
+      clinicalRecordsExcludedCount: period.clinicalRecordsExcludedCount,
+      clinicalRecordsUndatedCount: period.clinicalRecordsUndatedCount,
       // Keep exactly the records that informed this generation with its draft.
       // A later range change or clinical edit must not silently change the saved evidence.
       clinicalSnapshot: filteredRC.map(r => ({
         id: r.id, patientId: r.patientId, patientName: r.patientName,
         professionalId: r.professionalId, professionalName: r.professionalName,
         fecha: r.fecha, resumenSesion: r.resumenSesion, observaciones: r.observaciones,
-        recomendacionesHogar: r.recomendacionesHogar, createdAt: r.createdAt,
+        recomendacionesHogar: r.recomendacionesHogar,
+        materialesActividades: (r.materialesActividades ?? []).map(m => ({ id: m.id, nombre: m.nombre })),
+        createdAt: r.createdAt,
       })),
       _meta: { discipline, sessions: sortedRC.length, goals: allGoals.length },
     };
