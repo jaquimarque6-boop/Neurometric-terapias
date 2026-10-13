@@ -75,6 +75,12 @@ import { uploadSessionMaterialPhotos } from "@/lib/session-materials";
 import type { AnamnesisImportValues } from "@/lib/anamnesis-import";
 import { historicalReportPatient, snapshotReportPatient } from "@/lib/report-snapshot";
 import { clinicalSnapshotForSave, prepareReportSave, type ReportPeriodMeta } from "@/lib/report-save";
+import {
+  addReportArea,
+  removeReportArea,
+  renameReportArea,
+  visibleReportAreas,
+} from "@/lib/report-areas";
 import { PatientReportsList } from "@/components/patient-reports-list";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -644,6 +650,13 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     : currentPatient;
   const goals = openedReport ? (openedReport.content.goalSnapshot ?? []) : currentGoals;
   const registros = openedReport ? (openedReport.content.clinicalSnapshot ?? []) : currentRegistros;
+  const reportGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
+  const areaGroups = reportGoals.reduce<Record<string, Goal[]>>((acc, g) => {
+    const area = g.areaClinica ?? g.category ?? "general";
+    if (!acc[area]) acc[area] = [];
+    acc[area].push(g);
+    return acc;
+  }, {});
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
   const documentDate = openedReport
     ? format(new Date(openedReport.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })
@@ -669,33 +682,24 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   const [showAIConfirm, setShowAIConfirm] = useState(false);
   const { toast } = useToast();
   const addArea = () => {
-    let name = "Nueva área";
-    let suffix = 2;
-    while (Object.prototype.hasOwnProperty.call(areaTexts, name)) name = `Nueva área ${suffix++}`;
-    setAreaTexts(previous => ({ ...previous, [name]: "" }));
-    setRemovedAreaNames(previous => previous.filter(area => area !== name));
-    setRenamingArea(name);
-    setRenameAreaValue(name);
+    const result = addReportArea(areaTexts, removedAreaNames, Object.keys(areaGroups));
+    setAreaTexts(result.areaTexts);
+    setRemovedAreaNames(result.removedAreaNames);
+    setRenamingArea(result.name);
+    setRenameAreaValue(result.name);
   };
   const saveAreaRename = (previousName: string) => {
-    const nextName = renameAreaValue.trim();
-    if (!nextName) {
+    const result = renameReportArea(areaTexts, removedAreaNames, previousName, renameAreaValue);
+    if (!result.ok && result.reason === "empty") {
       toast({ title: "El nombre del área no puede quedar vacío", variant: "destructive" });
       return;
     }
-    if (nextName !== previousName && Object.prototype.hasOwnProperty.call(areaTexts, nextName)) {
+    if (!result.ok) {
       toast({ title: "Ya existe un área con ese nombre", variant: "destructive" });
       return;
     }
-    if (nextName !== previousName) {
-      setAreaTexts(previous => {
-        const next = { ...previous };
-        next[nextName] = next[previousName] ?? "";
-        delete next[previousName];
-        return next;
-      });
-      setRemovedAreaNames(previous => previous.filter(area => area !== previousName));
-    }
+    setAreaTexts(result.areaTexts);
+    setRemovedAreaNames(result.removedAreaNames);
     setRenamingArea(null);
   };
   const loadReports = async () => {
@@ -767,16 +771,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   const achievedGoals  = goals.filter(g => g.status === "logrado");
   const workingGoals   = goals.filter(g => ["activo", "en progreso"].includes(g.status));
 
-  const reportGoals = goals.filter(g => !["archivado", "suspendido"].includes(g.status));
-  const areaGroups  = reportGoals.reduce<Record<string, Goal[]>>((acc, g) => {
-    const a = g.areaClinica ?? g.category ?? "general";
-    if (!acc[a]) acc[a] = [];
-    acc[a].push(g);
-    return acc;
-  }, {});
-  const removedAreaSet = new Set(removedAreaNames);
-  const areas = [...new Set([...Object.keys(areaGroups), ...Object.keys(areaTexts)])]
-    .filter(area => !removedAreaSet.has(area)).sort();
+  const areas = visibleReportAreas(Object.keys(areaGroups), areaTexts, removedAreaNames);
   const hasClinicalSourceData = Boolean(
     goals.length > 0 ||
     filteredRegistros.length > 0 ||
@@ -1131,12 +1126,9 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      setAreaTexts(previous => {
-                                        const next = { ...previous };
-                                        delete next[area];
-                                        return next;
-                                      });
-                                      setRemovedAreaNames(previous => [...new Set([...previous, area])]);
+                                      const result = removeReportArea(areaTexts, removedAreaNames, area);
+                                      setAreaTexts(result.areaTexts);
+                                      setRemovedAreaNames(result.removedAreaNames);
                                     }}
                                     aria-label={`Eliminar área ${area}`}
                                     className="flex items-center gap-1 text-[10px] font-medium text-destructive hover:bg-destructive/5 px-2 py-0.5 rounded"
