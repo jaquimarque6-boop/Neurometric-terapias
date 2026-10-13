@@ -81,6 +81,12 @@ import {
   renameReportArea,
   visibleReportAreas,
 } from "@/lib/report-areas";
+import {
+  acceptPendingReportGeneration,
+  cancelPendingReportGeneration,
+  requestReportGeneration,
+  restoreSavedReportDraft,
+} from "@/lib/report-editor-workflow";
 import { PatientReportsList } from "@/components/patient-reports-list";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -680,6 +686,13 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     clinicalSnapshot: RC[]; clinicalRecordsExcludedCount?: number; clinicalRecordsUndatedCount?: number;
   } & Partial<ReportMeta>)>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
+  const currentReportDraft = () => ({
+    resumen,
+    conducta,
+    areas: areaTexts,
+    removedAreas: removedAreaNames,
+    sugerencias,
+  });
   const { toast } = useToast();
   const addArea = () => {
     const result = addReportArea(areaTexts, removedAreaNames, Object.keys(areaGroups));
@@ -736,10 +749,12 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       setReportTitle(report.title);
       setReportMeta(report);
       setView(report.reportType === "family" ? "familia" : "clinico");
-      setResumen(report.content.resumen ?? "");
-      setConducta(report.content.conducta ?? "");
-      setAreaTexts(report.content.areas ?? {});
-      setSugerencias(report.content.sugerencias ?? "");
+      const draft = restoreSavedReportDraft(report.content);
+      setResumen(draft.resumen);
+      setConducta(draft.conducta);
+      setAreaTexts(draft.areas);
+      setRemovedAreaNames(draft.removedAreas);
+      setSugerencias(draft.sugerencias);
       setTextoFamilia(report.content.textoFamilia ?? "");
     } catch (error: any) {
       toast({ title: "No se pudo abrir el informe", description: error.message, variant: "destructive" });
@@ -825,6 +840,11 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   };
 
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
+    const accepted = acceptPendingReportGeneration({
+      draft: currentReportDraft(),
+      pending: result,
+      confirmationOpen: true,
+    });
     setOpenedReport(null);
     setView("clinico");
     setReportTitle("");
@@ -834,11 +854,11 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       periodTo: result.periodTo ?? null, clinicalRecordsUsedCount: result.clinicalRecordsUsedCount ?? null,
       clinicalRecordsTotalCount: result.clinicalRecordsTotalCount ?? null,
     });
-    setResumen(result.resumen ?? "");
-    setConducta(result.conducta ?? "");
-    setAreaTexts(result.areas ?? {});
-    setRemovedAreaNames([]);
-    setSugerencias(result.sugerencias ?? "");
+    setResumen(accepted.draft.resumen);
+    setConducta(accepted.draft.conducta);
+    setAreaTexts(accepted.draft.areas);
+    setRemovedAreaNames(accepted.draft.removedAreas);
+    setSugerencias(accepted.draft.sugerencias);
     setRenamingArea(null);
     setPendingAIResult(null);
     setShowAIConfirm(false);
@@ -875,8 +895,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
           || !result.clinicalSnapshot.every((record: RC) => Number.isSafeInteger(record.id) && record.patientId === currentPatient.id)) {
         throw new Error("El servidor no devolvió los registros clínicos del período generado. No se aplicó el borrador.");
       }
-      const hasContent = resumen.trim() || conducta.trim() || sugerencias.trim() || Object.values(areaTexts).some(v => v.trim());
-      if (hasContent) {
+      const request = requestReportGeneration(currentReportDraft(), result);
+      if (request.confirmationOpen) {
         setPendingAIResult(result);
         setShowAIConfirm(true);
       } else {
@@ -1298,7 +1318,15 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-2">
-            <Button size="sm" variant="outline" onClick={() => { setPendingAIResult(null); setShowAIConfirm(false); }}>
+            <Button size="sm" variant="outline" onClick={() => {
+              const cancelled = cancelPendingReportGeneration({
+                draft: currentReportDraft(),
+                pending: pendingAIResult,
+                confirmationOpen: showAIConfirm,
+              });
+              setPendingAIResult(cancelled.pending);
+              setShowAIConfirm(cancelled.confirmationOpen);
+            }}>
               Cancelar
             </Button>
             <Button size="sm" onClick={() => pendingAIResult && applyAIResult(pendingAIResult)} className="gap-1.5">
