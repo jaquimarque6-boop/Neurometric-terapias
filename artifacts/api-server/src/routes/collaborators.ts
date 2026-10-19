@@ -3,6 +3,8 @@ import { db, collaboratorsTable, referralAttributionsTable, saasReceiptsTable, s
 import { and, eq, inArray, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { activeReferral, businessDate, businessMonth, centsString, changeCommercialStatus, decimalCents, normalizeCode, validCode } from "../lib/collaborators";
+import { canRenewCommercially, commercialToday, renewalPeriod, validCommercialDate } from "../lib/commercial-policy";
+import { commercialSnapshot, logCommercialChange } from "../lib/commercial-service";
 
 const router: IRouter = Router();
 const statuses = ["trial", "paying", "overdue", "courtesy", "churned"];
@@ -147,14 +149,33 @@ router.get("/saas/receipts", async (req, res) => {
   return res.json((await db.select().from(saasReceiptsTable).orderBy(saasReceiptsTable.createdAt)).map(receiptJson));
 });
 
+router.get("/saas/renewal-preview", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = idOf(req.query.professionalUserId);
+  const date = req.query.receivedAt;
+  if (!id || !validCommercialDate(date) || date > commercialToday()) return res.status(400).json({ error: "Fecha o profesional inválidos" });
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user || user.role !== "professional") return res.status(404).json({ error: "Profesional no encontrado" });
+  if (!canRenewCommercially(user)) return res.json({
+    willRenew: false, periodFrom: null, periodTo: null,
+    reason: "Cortesía o baja: el cobro se registra sin cambiar fechas, estado ni acceso. Indicá el período real del comprobante.",
+  });
+  try {
+    return res.json({ willRenew: true, ...renewalPeriod(user, date), reason: null });
+  } catch (error) {
+    return res.status(409).json({ error: (error as Error).message });
+  }
+});
+
 router.post("/saas/receipts", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const { professionalUserId, amount, currency, periodFrom, periodTo, receivedAt, reference, idempotencyKey } = req.body ?? {};
   const cents = decimalCents(amount);
   if (!Number.isSafeInteger(professionalUserId) || professionalUserId < 1 || cents === null || cents <= 0n ||
       cents > 9999999999999999n || typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency) ||
-      !dateOk(periodFrom) || !dateOk(periodTo) || periodFrom > periodTo ||
-      !dateOk(receivedAt) || !referenceOk(reference) ||
+      (periodFrom !== undefined && !validCommercialDate(periodFrom)) ||
+      (periodTo !== undefined && !validCommercialDate(periodTo)) ||
+      !validCommercialDate(receivedAt) || receivedAt > commercialToday() || !referenceOk(reference) ||
       typeof idempotencyKey !== "string" || !/^[A-Za-z0-9:_-]{8,128}$/.test(idempotencyKey) ||
       Object.keys(req.body ?? {}).some(k => !["professionalUserId", "amount", "currency", "periodFrom", "periodTo", "receivedAt", "reference", "idempotencyKey"].includes(k))) {
     return res.status(400).json({ error: "Cobro inválido" });
@@ -163,7 +184,8 @@ router.post("/saas/receipts", async (req, res) => {
   const referenceValue = reference?.trim() ?? null;
   const matches = (r: typeof saasReceiptsTable.$inferSelect) => r.professionalUserId === professionalUserId &&
     r.amount === normalized && r.currency === currency && r.receivedAt === receivedAt &&
-    r.periodFrom === periodFrom && r.periodTo === periodTo && r.reference === referenceValue;
+    (periodFrom === undefined || r.periodFrom === periodFrom) &&
+    (periodTo === undefined || r.periodTo === periodTo) && r.reference === referenceValue;
   // Unique key and transaction-scoped advisory lock serialize identical retries.
   const result = await db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`);
@@ -172,6 +194,28 @@ router.post("/saas/receipts", async (req, res) => {
     await tx.execute(sql`SELECT id FROM users WHERE id = ${professionalUserId} FOR UPDATE`);
     const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, professionalUserId));
     if (!user || user.role !== "professional") return { receipt: null, status: 404 };
+    const willRenew = canRenewCommercially(user);
+    let period = { periodFrom, periodTo };
+    if (willRenew) {
+      if (!referenceValue) return { receipt: null, status: 400, error: "Ingresá la referencia del pago confirmado." };
+      try { period = renewalPeriod(user, receivedAt); }
+      catch (error) { return { receipt: null, status: 409, error: (error as Error).message }; }
+      if ((periodFrom !== undefined && periodFrom !== period.periodFrom) ||
+          (periodTo !== undefined && periodTo !== period.periodTo)) {
+        return { receipt: null, status: 409, error: "El período debe coincidir con la renovación mensual calculada. Revisá nuevamente el cobro." };
+      }
+    } else if (!validCommercialDate(periodFrom) || !validCommercialDate(periodTo) || periodFrom > periodTo) {
+      return { receipt: null, status: 400, error: "Indicá el período real del cobro. Esta cuenta no se renueva automáticamente." };
+    }
+    if (referenceValue) {
+      // The user row lock also protects against duplicate transfers submitted
+      // with different idempotency keys (e.g. another browser/tab).
+      const [duplicate] = await tx.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(and(
+        eq(saasReceiptsTable.professionalUserId, professionalUserId),
+        eq(saasReceiptsTable.currency, currency), eq(saasReceiptsTable.reference, referenceValue),
+      )).limit(1);
+      if (duplicate) return { receipt: null, status: 409, error: "Ya existe un cobro con esa referencia para esta profesional y moneda." };
+    }
     const [attribution] = await tx.select().from(referralAttributionsTable).where(eq(referralAttributionsTable.professionalUserId, professionalUserId));
     // A row-share lock serializes the rate snapshot with admin PATCH updates.
     // Never read the rate before acquiring this lock, even for inactive partners.
@@ -181,13 +225,22 @@ router.post("/saas/receipts", async (req, res) => {
     const basisPoints = pct ? decimalCents(pct)! : null;
     const commission = basisPoints === null ? null : centsString((cents * basisPoints + 5000n) / 10000n);
     const [receipt] = await tx.insert(saasReceiptsTable).values({
-      professionalUserId, amount: normalized, currency, periodFrom, periodTo, receivedAt,
+      professionalUserId, amount: normalized, currency, ...period, receivedAt,
       reference: referenceValue, idempotencyKey, createdByUserId: req.session.userId!,
       collaboratorId: collaborator?.id ?? null,
       commissionPercentSnapshot: pct ?? null, commissionAmount: commission,
     }).returning();
+    if (willRenew) {
+      await changeCommercialStatus(tx, user.id, "paying", req.session.userId!, receivedAt, false);
+      const [updated] = await tx.update(usersTable).set({
+        lastPaymentDate: receivedAt, nextDueDate: period.periodTo, trialStartPending: false,
+      }).where(eq(usersTable.id, user.id)).returning();
+      await logCommercialChange(tx, user.id, req.session.userId!, "payment_renewal",
+        commercialSnapshot(user), commercialSnapshot(updated), { receiptId: receipt.id });
+    }
     return { receipt, status: 201 };
   });
+  if ("error" in result) return res.status(result.status).json({ error: result.error });
   if (result.status === 409) return res.status(409).json({ error: "Clave de idempotencia reutilizada con datos diferentes" });
   if (!result.receipt) return res.status(404).json({ error: "Profesional no encontrado" });
   return res.status(result.status).json(receiptJson(result.receipt));

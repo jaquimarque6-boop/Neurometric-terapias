@@ -8,6 +8,7 @@ import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { usePwa } from "@/pwa/experience";
+import { CommercialNotice } from "@/components/commercial/commercial-notice";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,6 +164,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               prevents the sidebar from leaking into this area. */}
           <main className="nm-app-main flex-1 overflow-x-auto p-5 sm:p-7 lg:p-8">
             <div className="mx-auto w-full max-w-7xl">
+              {user?.role === "professional" && <CommercialNotice />}
               {children}
             </div>
           </main>

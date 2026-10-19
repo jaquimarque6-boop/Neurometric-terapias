@@ -19,7 +19,11 @@ import { useReferral, validateReferralCode } from "@/providers/referral-provider
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShieldAlert, Receipt } from "lucide-react";
+import { Link } from "wouter";
+import { useInvalidateCommercial, type CommercialReview } from "@/hooks/use-commercial";
+import { VerificationPanel } from "@/components/commercial/verification-panel";
+import { CommercialHistoryDialog } from "@/components/commercial/commercial-history-dialog";
 
 type DeletionPreview = {
   userId: number;
@@ -84,6 +88,9 @@ type AppUser = {
   monthlyAmount: string | null;
   paymentMethod: string | null;
   internalNotes: string | null;
+  trialStartPending?: boolean;
+  commercialReview?: CommercialReview;
+  commercialRevision?: string;
   stats?: UserStats;
 };
 
@@ -231,6 +238,10 @@ export default function Usuarios() {
   const [savingReset, setSavingReset]   = useState(false);
 
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("usuarios");
+  const [historyUser, setHistoryUser] = useState<{ id: number; name: string } | null>(null);
+  const [changeReason, setChangeReason] = useState("");
+  const invalidateCommercial = useInvalidateCommercial();
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("todos");
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -257,6 +268,7 @@ export default function Usuarios() {
 
   const loadAll = async () => {
     setLoading(true);
+    invalidateCommercial();
     try {
       const uRes = await fetch(`${API_BASE}/api/users`, { credentials: "include" });
       if (uRes.ok) setUsers(await uRes.json());
@@ -414,6 +426,7 @@ export default function Usuarios() {
     setEditForm({
       name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "",
       commercialStatus: u.commercialStatus,
+      commercialRevision: u.commercialRevision,
       trialStartDate: u.trialStartDate ?? "",
       trialEndDate: u.trialEndDate ?? "",
       lastPaymentDate: u.lastPaymentDate ?? "",
@@ -423,8 +436,9 @@ export default function Usuarios() {
       internalNotes: u.internalNotes ?? "",
     });
     setShowEditPwd(false);
+    setChangeReason("");
   };
-  const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); };
+  const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); setChangeReason(""); };
 
   const saveEdit = async (id: number) => {
     if (editForm.password && editForm.password.trim().length < 6) {
@@ -435,6 +449,7 @@ export default function Usuarios() {
       const payload: any = {
         name: editForm.name, email: editForm.email, role: editForm.role, specialty: editForm.specialty || null,
         commercialStatus: editForm.commercialStatus,
+        expectedCommercialRevision: editForm.commercialRevision,
         trialStartDate: editForm.trialStartDate || null,
         trialEndDate: editForm.trialEndDate || null,
         lastPaymentDate: editForm.lastPaymentDate || null,
@@ -444,13 +459,18 @@ export default function Usuarios() {
         internalNotes: editForm.internalNotes || null,
       };
       if (editForm.password?.trim()) payload.password = editForm.password.trim();
+      if (changeReason.trim()) payload.commercialChangeReason = changeReason.trim().slice(0, 500);
       const r = await fetch(`${API_BASE}/api/users/${id}`, {
         method: "PATCH", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (r.ok) { toast({ title: "Usuario actualizado" }); cancelEdit(); await loadAll(); }
-      else { const e = await r.json().catch(() => ({})); toast({ title: e.error ?? "Error al actualizar", variant: "destructive" }); }
+      else {
+        const e = await r.json().catch(() => ({}));
+        toast({ title: e.error ?? "Error al actualizar", variant: "destructive" });
+        if (r.status === 409) await loadAll();
+      }
     } finally { setSaving(false); }
   };
 
@@ -585,12 +605,18 @@ export default function Usuarios() {
           </div>
         </div>
 
-        <Tabs defaultValue="usuarios">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-card border border-border/50 p-1 rounded-xl shadow-sm h-auto gap-1">
             <TabsTrigger value="usuarios" className="rounded-lg text-sm flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" /> Usuarios
               {users.length > 0 && (
                 <span className="ml-0.5 bg-primary/10 text-primary text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">{users.length}</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="verificacion" className="rounded-lg text-sm flex items-center gap-1.5" data-testid="tab-verificacion">
+              <ShieldAlert className="h-3.5 w-3.5" /> Verificación
+              {users.some(u => u.commercialReview?.needsReview) && (
+                <span className="ml-0.5 bg-amber-500/15 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">{users.filter(u => u.commercialReview?.needsReview).length}</span>
               )}
             </TabsTrigger>
             <TabsTrigger value="auditoria" className="rounded-lg text-sm flex items-center gap-1.5">
@@ -1067,6 +1093,17 @@ export default function Usuarios() {
                                 <Input placeholder="Transferencia, tarjeta, efectivo…" value={editForm.paymentMethod ?? ""} onChange={e => setEditForm(f => ({ ...f, paymentMethod: e.target.value }))} className="bg-background h-8 text-sm" />
                               </div>
                               <div className="space-y-1 sm:col-span-2">
+                                <label className="text-xs font-medium text-muted-foreground">Motivo del cambio comercial (opcional, queda en el historial)</label>
+                                <Input maxLength={500} placeholder="Ej. corrección según comprobante de transferencia" value={changeReason} onChange={e => setChangeReason(e.target.value)} className="bg-background h-8 text-sm" data-testid="input-commercial-change-reason" />
+                              </div>
+                              <div className="sm:col-span-2 flex flex-wrap gap-2 text-xs">
+                                <button type="button" onClick={() => setHistoryUser({ id: u.id, name: u.name })} className="inline-flex items-center gap-1 text-primary hover:underline" data-testid={`button-commercial-history-${u.id}`}><History className="h-3 w-3" /> Ver historial comercial</button>
+                                {u.role === "professional" && (
+                                  <Link href={`/colaboradoras?tab=cobros&pro=${u.id}`} className="inline-flex items-center gap-1 text-primary hover:underline" data-testid={`link-register-receipt-${u.id}`}><Receipt className="h-3 w-3" /> Registrar cobro recibido</Link>
+                                )}
+                                <span className="text-muted-foreground">Editar aquí no registra dinero recibido.</span>
+                              </div>
+                              <div className="space-y-1 sm:col-span-2">
                                 <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Observaciones internas</label>
                                 <textarea value={editForm.internalNotes ?? ""} onChange={e => setEditForm(f => ({ ...f, internalNotes: e.target.value }))} rows={2} placeholder="Notas internas (no visibles para el profesional)" className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-y" />
                               </div>
@@ -1115,6 +1152,18 @@ export default function Usuarios() {
                   );
                 })}
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="verificacion" className="mt-5">
+            {loading ? (
+              <div className="space-y-2 animate-pulse">{[0, 1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-muted/60" />)}</div>
+            ) : (
+              <VerificationPanel
+                users={users}
+                onEdit={id => { const u = users.find(x => x.id === id); if (u) { setTab("usuarios"); setActivityFilter(u.active ? "todos" : "dados-de-baja"); setSearch(""); startEdit(u); } }}
+                onHistory={u => setHistoryUser({ id: u.id, name: u.name })}
+              />
             )}
           </TabsContent>
 
@@ -1253,6 +1302,7 @@ export default function Usuarios() {
             </div>
           </TabsContent>
         </Tabs>
+        <CommercialHistoryDialog user={historyUser} onClose={() => setHistoryUser(null)} />
       </div>
 
       {/* ── Modal de eliminación definitiva ─────────────────────────────── */}

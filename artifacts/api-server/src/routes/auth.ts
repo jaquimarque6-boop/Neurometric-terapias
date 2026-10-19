@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { startNewAccountTrial } from "../lib/commercial-service";
 import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
@@ -57,6 +58,7 @@ router.post("/auth/login", async (req, res) => {
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
+  if (user.trialStartPending) await startNewAccountTrial(user.id);
   req.session.userId = user.id;
   req.session.userRole = user.role;
   req.session.professionalId = user.professionalId ?? null;
@@ -156,6 +158,7 @@ router.post("/auth/register", async (req, res) => {
     role: "professional",
     specialty: specialty ?? null,
     active: true,
+    trialStartPending: true,
     professionalId: null,
     }).returning();
     await attributeReferral(tx, created.id, referralCode, "public_register", null);

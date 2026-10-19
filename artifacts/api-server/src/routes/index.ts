@@ -27,10 +27,12 @@ import exportRouter from "./export";
 import professionalFilesRouter from "./professional-files";
 import collaboratorsRouter from "./collaborators";
 import consentsRouter from "./consents";
+import commercialRouter from "./commercial";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(commercialRouter);
 router.use(collaboratorsRouter);
 router.use(consentsRouter);
 router.use(usersRouter);

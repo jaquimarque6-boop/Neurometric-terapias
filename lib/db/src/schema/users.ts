@@ -14,6 +14,8 @@ export const usersTable = pgTable("users", {
   commercialStatus: text("commercial_status").notNull().default("trial"),
   trialStartDate: date("trial_start_date"),
   trialEndDate: date("trial_end_date"),
+  // False for pre-existing accounts. Only new professional creation opts in.
+  trialStartPending: boolean("trial_start_pending").notNull().default(false),
   lastPaymentDate: date("last_payment_date"),
   nextDueDate: date("next_due_date"),
   monthlyAmount: numeric("monthly_amount"),

@@ -1,5 +1,6 @@
 import { db, collaboratorsTable, referralAttributionsTable, usersTable, saasStatusEventsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { logCommercialChange } from "./commercial-service";
 
 export const normalizeCode = (value: unknown) => typeof value === "string" ? value.trim().toUpperCase() : "";
 export const validCode = (value: string) => /^[A-Z0-9]{2,32}$/.test(value);
@@ -29,12 +30,13 @@ export async function attributeReferral(tx: any, userId: number, code: unknown, 
 }
 
 // Lock a user row to serialize concurrent status changes across both admin entry points.
-export async function changeCommercialStatus(tx: any, userId: number, status: string, actorUserId: number, effectiveDate = businessDate(new Date())) {
+export async function changeCommercialStatus(tx: any, userId: number, status: string, actorUserId: number, effectiveDate = businessDate(new Date()), audit = true) {
   await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
   const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user || user.role !== "professional") throw new Error("Profesional no encontrado");
   const [prior] = await tx.select({ id: saasStatusEventsTable.id }).from(saasStatusEventsTable)
-    .where(eq(saasStatusEventsTable.professionalUserId, userId)).limit(1);
+    .where(and(eq(saasStatusEventsTable.professionalUserId, userId),
+      inArray(saasStatusEventsTable.event, ["baseline", "first_paid", "cancellation", "reactivation"]))).limit(1);
   // Existing paying/overdue/churned records predate event tracking: do not
   // infer a brand-new signup when they return to paying.
   const hadPaidHistory = !!prior || ["paying", "overdue", "churned"].includes(user.commercialStatus);
@@ -48,7 +50,12 @@ export async function changeCommercialStatus(tx: any, userId: number, status: st
     } else if (status === "churned" && (user.commercialStatus === "paying" || user.commercialStatus === "overdue")) {
       event = "cancellation";
     }
-    await tx.update(usersTable).set({ commercialStatus: status }).where(eq(usersTable.id, userId));
+    await tx.update(usersTable).set({
+      commercialStatus: status,
+      ...(status !== "trial" ? { trialStartPending: false } : {}),
+    }).where(eq(usersTable.id, userId));
+    if (audit) await logCommercialChange(tx, userId, actorUserId, "commercial_status_changed",
+      { commercialStatus: user.commercialStatus }, { commercialStatus: status });
     if (event) await tx.insert(saasStatusEventsTable).values({ professionalUserId: userId, event, actorUserId, effectiveDate });
   }
   return event;

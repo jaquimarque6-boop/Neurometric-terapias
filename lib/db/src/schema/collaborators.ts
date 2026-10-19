@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, boolean, numeric, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, numeric, timestamp, date, jsonb } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const collaboratorsTable = pgTable("collaborators", {
@@ -49,4 +49,5 @@ export const saasStatusEventsTable = pgTable("saas_status_events", {
   actorUserId: integer("actor_user_id").notNull().references(() => usersTable.id),
   effectiveDate: date("effective_date", { mode: "string" }).notNull(),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  details: jsonb("details").$type<Record<string, unknown>>(),
 });

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useMemo, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft, HeartHandshake, Plus, Pencil, Power, Receipt, RefreshCcw, BadgeCheck, ChevronRight, Eye, EyeOff,
 } from "lucide-react";
@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
-  formatMoney, newIdempotencyKey,
+  ApiError, formatMoney, newIdempotencyKey, type CreateReceiptInput,
   useCollaboratorDashboard, useCollaborators, useCreateCollaborator, useCreateReceipt,
   useMarkReceiptPaid, useProfessionalUsers, useSaasReceipts, useSetSaasStatus, useUpdateCollaborator,
   type Collaborator, type SaasStatus, type SaasStatusResult,
 } from "@/hooks/use-collaborators";
 import { normalizeReferralCode } from "@/lib/referral";
+import { useInvalidateCommercial, useRenewalPreview } from "@/hooks/use-commercial";
 import { DashboardSkeleton, DashboardView, ErrorPanel } from "@/components/collaborators/dashboard-view";
 
 const selectCls = "w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
@@ -283,60 +284,100 @@ function CollaboratorsTab() {
 
 // ─── Receipts tab ──────────────────────────────────────────────────────────
 function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find(p => p.type === type)!.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 function fmtDay(d: string) {
   return new Date(`${d.slice(0, 10)}T00:00:00`).toLocaleDateString("es-AR");
 }
 
-function ReceiptsTab() {
+type Attempt = { payload: CreateReceiptInput; status: "pending" | "uncertain" };
+const RENEWABLE: SaasStatus[] = ["trial", "paying", "overdue"];
+
+function ReceiptsTab({ initialPro }: { initialPro: string }) {
   const { toast } = useToast();
   const receipts = useSaasReceipts();
   const pros = useProfessionalUsers();
   const collabs = useCollaborators();
   const create = useCreateReceipt();
   const markPaid = useMarkReceiptPaid();
-  const [f, setF] = useState({ professionalUserId: "", amount: "", currency: "ARS", receivedAt: todayISO(), periodFrom: "", periodTo: "", reference: "" });
+  const invalidateCommercial = useInvalidateCommercial();
+  const [f, setF] = useState({ professionalUserId: initialPro, amount: "", currency: "ARS", receivedAt: todayISO(), periodFrom: "", periodTo: "", reference: "" });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<number | null>(null);
   const [payRef, setPayRef] = useState("");
-  // Idempotency key: created once per submit attempt and REUSED on retries of the
-  // same payload (double click, network retry). Changing any field starts a new operation.
-  const keyRef = useRef<string | null>(null);
-  const set = (k: keyof typeof f, v: string) => { keyRef.current = null; setF(p => ({ ...p, [k]: v })); };
+  // Intento congelado: payload + idempotencyKey quedan fijos mientras el envío está
+  // pendiente o su resultado es incierto (red/5xx). Solo un error de validación
+  // definitivo (4xx) o un descarte explícito libera el formulario y genera una clave nueva.
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const locked = attempt != null;
+  const set = (k: keyof typeof f, v: string) => { if (locked) return; setF(p => ({ ...p, [k]: v })); };
 
   const proName = useMemo(() => new Map((pros.data ?? []).map(u => [u.id, u.name])), [pros.data]);
   const collabName = useMemo(() => new Map((collabs.data ?? []).map(c => [c.id, c.name])), [collabs.data]);
+  const selectedPro = pros.data?.find(u => String(u.id) === f.professionalUserId) ?? null;
+  const eligible = !!selectedPro && selectedPro.active && !!selectedPro.commercialStatus && RENEWABLE.includes(selectedPro.commercialStatus);
+
+  const today = todayISO();
+  const futureDate = !!f.receivedAt && f.receivedAt > today;
+  const preview = useRenewalPreview(selectedPro?.id ?? null, f.receivedAt, eligible && !futureDate);
 
   const amountOk = /^\d+(\.\d{1,2})?$/.test(f.amount.trim()) && Number(f.amount) > 0;
   const currencyOk = /^[A-Z]{3}$/.test(f.currency);
   const periodOk = !!f.periodFrom && !!f.periodTo && f.periodFrom <= f.periodTo;
   const referenceOk = f.reference.trim().length > 0 && f.reference.trim().length <= 256;
-  const canSubmit = !!f.professionalUserId && amountOk && currencyOk && !!f.receivedAt && periodOk && referenceOk;
+  const previewOk = eligible ? (preview.isSuccess && !preview.isFetching) : true;
+  const canSubmit = !!selectedPro && amountOk && currencyOk && !!f.receivedAt && !futureDate && referenceOk
+    && (eligible ? previewOk : periodOk);
+
+  const send = (payload: CreateReceiptInput) => {
+    setAttempt({ payload, status: "pending" });
+    create.mutate(payload, {
+      onSuccess: r => {
+        toast({ title: "Cobro confirmado", description: r.commissionAmount ? `Comisión generada: ${formatMoney(r.commissionAmount, r.currency)}` : "Sin atribución: no genera comisión." });
+        setAttempt(null);
+        setConfirmOpen(false);
+        invalidateCommercial();
+        setF(p => ({ ...p, amount: "", professionalUserId: "", reference: "", periodFrom: "", periodTo: "" }));
+      },
+      onError: e => {
+        const status = (e as ApiError).status ?? 0;
+        const definite = status >= 400 && status < 500;
+        if (definite) {
+          setAttempt(null);
+          if (eligible) preview.refetch();
+          toast({ title: e.message, description: "No se agregó otro cobro. Revisá los datos y los cobros existentes antes de reintentar.", variant: "destructive" });
+        } else {
+          setAttempt({ payload, status: "uncertain" });
+          toast({ title: e.message, description: "Resultado incierto. Reintentá con los mismos datos: no se duplicará el cobro.", variant: "destructive" });
+        }
+      },
+    });
+  };
 
   const submit = () => {
     if (create.isPending) return;
-    if (!keyRef.current) keyRef.current = newIdempotencyKey();
-    create.mutate({
+    if (attempt) return send(attempt.payload);
+    const base = {
       professionalUserId: Number(f.professionalUserId),
       amount: Number(f.amount).toFixed(2),
       currency: f.currency,
       receivedAt: f.receivedAt,
-      periodFrom: f.periodFrom,
-      periodTo: f.periodTo,
       reference: f.reference.trim(),
-      idempotencyKey: keyRef.current,
-    }, {
-      onSuccess: r => {
-        toast({ title: "Cobro confirmado", description: r.commissionAmount ? `Comisión generada: ${formatMoney(r.commissionAmount, r.currency)}` : "Sin atribución: no genera comisión." });
-        keyRef.current = null;
-        setConfirmOpen(false);
-        setF(p => ({ ...p, amount: "", professionalUserId: "", reference: "", periodFrom: "", periodTo: "" }));
-      },
-      onError: e => toast({ title: e.message, description: "Podés reintentar: no se duplicará el cobro.", variant: "destructive" }),
-    });
+      idempotencyKey: newIdempotencyKey(),
+    };
+    send(eligible ? base : { ...base, periodFrom: f.periodFrom, periodTo: f.periodTo });
+  };
+
+  const discardAttempt = () => {
+    if (create.isPending) return;
+    setAttempt(null);
+    invalidateCommercial();
+    toast({ title: "Intento descartado", description: "Verificá en la lista de cobros si quedó registrado antes de cargarlo de nuevo." });
   };
 
   const pay = (id: number) => markPaid.mutate({ id, paymentReference: payRef }, {
@@ -356,25 +397,51 @@ function ReceiptsTab() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="sm:col-span-2">
             <Field label="Profesional">
-              <select value={f.professionalUserId} onChange={e => set("professionalUserId", e.target.value)} className={selectCls} disabled={pros.isLoading}>
+              <select value={f.professionalUserId} onChange={e => set("professionalUserId", e.target.value)} className={selectCls} disabled={pros.isLoading || locked} data-testid="select-receipt-professional">
                 <option value="">{pros.isLoading ? "Cargando…" : pros.isError ? "Error al cargar" : "Elegir profesional"}</option>
                 {(pros.data ?? []).map(u => <option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Importe"><Input inputMode="decimal" value={f.amount} onChange={e => set("amount", e.target.value.replace(",", "."))} placeholder="0.00" className="bg-muted/30 tabular-nums" /></Field>
-          <Field label="Moneda"><Input value={f.currency} maxLength={3} onChange={e => set("currency", e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} className="bg-muted/30 font-mono" /></Field>
-          <Field label="Fecha de cobro"><Input type="date" value={f.receivedAt} onChange={e => set("receivedAt", e.target.value)} className="bg-muted/30" /></Field>
-          <Field label="Período desde"><Input type="date" value={f.periodFrom} onChange={e => set("periodFrom", e.target.value)} className="bg-muted/30" /></Field>
-          <Field label="Período hasta" hint={f.periodFrom && f.periodTo && f.periodFrom > f.periodTo ? "Debe ser posterior a «desde»" : undefined}>
-            <Input type="date" value={f.periodTo} min={f.periodFrom || undefined} onChange={e => set("periodTo", e.target.value)} className="bg-muted/30" />
-          </Field>
+          <Field label="Importe"><Input inputMode="decimal" value={f.amount} onChange={e => set("amount", e.target.value.replace(",", "."))} disabled={locked} data-testid="input-receipt-amount" placeholder="0.00" className="bg-muted/30 tabular-nums" /></Field>
+          <Field label="Moneda"><Input value={f.currency} maxLength={3} onChange={e => set("currency", e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} disabled={locked} className="bg-muted/30 font-mono" /></Field>
+          <Field label="Fecha de cobro" hint={futureDate ? "No puede ser una fecha futura" : undefined}><Input type="date" max={today} value={f.receivedAt} onChange={e => set("receivedAt", e.target.value)} disabled={locked} className="bg-muted/30" data-testid="input-receipt-received-at" /></Field>
+          {eligible ? (
+            <div className="sm:col-span-2 rounded-xl border border-primary/25 bg-primary/[0.04] px-3 py-2 text-xs" data-testid="status-renewal-preview">
+              <p className="font-semibold text-foreground">Período calculado por el servidor</p>
+              {futureDate ? <p className="text-destructive">Elegí una fecha de cobro no futura.</p>
+                : preview.isLoading || preview.isFetching ? <p className="text-muted-foreground">Calculando período…</p>
+                : preview.isError ? <p className="text-destructive">{(preview.error as Error).message} <button type="button" className="underline" onClick={() => preview.refetch()}>Reintentar</button></p>
+                : preview.data?.willRenew && preview.data.periodFrom && preview.data.periodTo
+                  ? <p className="text-foreground">{fmtDay(preview.data.periodFrom)} a {fmtDay(preview.data.periodTo)} · renueva la cuenta</p>
+                  : <p className="text-muted-foreground">No renueva fechas{preview.data?.reason ? `: ${preview.data.reason}` : "."}</p>}
+            </div>
+          ) : (
+            <>
+              <Field label="Período desde"><Input type="date" value={f.periodFrom} onChange={e => set("periodFrom", e.target.value)} disabled={locked} className="bg-muted/30" /></Field>
+              <Field label="Período hasta" hint={f.periodFrom && f.periodTo && f.periodFrom > f.periodTo ? "Debe ser posterior a «desde»" : undefined}>
+                <Input type="date" value={f.periodTo} min={f.periodFrom || undefined} onChange={e => set("periodTo", e.target.value)} disabled={locked} className="bg-muted/30" />
+              </Field>
+            </>
+          )}
           <Field label="Referencia del cobro" hint="Ej. número de transferencia o comprobante">
-            <Input value={f.reference} maxLength={256} onChange={e => set("reference", e.target.value)} className="bg-muted/30" />
+            <Input value={f.reference} maxLength={256} onChange={e => set("reference", e.target.value)} disabled={locked} className="bg-muted/30" data-testid="input-receipt-reference" />
           </Field>
         </div>
+        {selectedPro && !eligible && (
+          <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground" data-testid="status-receipt-not-eligible">
+            Cuenta {selectedPro.active ? (selectedPro.commercialStatus === "courtesy" ? "en cortesía" : selectedPro.commercialStatus === "churned" ? "dada de baja" : "no renovable") : "inactiva"}: el cobro se registra con período manual y no cambia fechas, estado ni acceso.
+          </p>
+        )}
+        {attempt?.status === "uncertain" && !create.isPending && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-50/70 px-3 py-2 text-xs text-amber-900" data-testid="status-receipt-uncertain">
+            <span className="flex-1">El último envío no tuvo respuesta clara. Los datos quedan fijos para reintentar sin duplicar.</span>
+            <Button size="sm" variant="outline" onClick={submit} data-testid="button-receipt-retry">Reintentar mismo cobro</Button>
+            <Button size="sm" variant="ghost" onClick={discardAttempt} data-testid="button-receipt-discard">Descartar intento</Button>
+          </div>
+        )}
         <div className="flex justify-end">
-          <Button disabled={!canSubmit || create.isPending} onClick={() => setConfirmOpen(true)} className="gap-2"><Receipt className="h-4 w-4" /> Confirmar cobro</Button>
+          <Button disabled={!canSubmit || create.isPending || attempt?.status === "uncertain"} onClick={() => setConfirmOpen(true)} className="gap-2" data-testid="button-receipt-confirm-open"><Receipt className="h-4 w-4" /> Confirmar cobro</Button>
         </div>
       </div>
 
@@ -437,13 +504,15 @@ function ReceiptsTab() {
           <DialogHeader>
             <DialogTitle>Confirmar cobro</DialogTitle>
             <DialogDescription>
-              {proName.get(Number(f.professionalUserId)) ?? "Profesional"} · {amountOk ? formatMoney(Number(f.amount).toFixed(2), f.currency) : ""} · cobrado {f.receivedAt} · período {f.periodFrom} a {f.periodTo} · ref. {f.reference.trim()}.
-              {" "}Una vez confirmado no se puede editar ni eliminar.
+              {proName.get(Number(f.professionalUserId)) ?? "Profesional"} · {amountOk ? formatMoney(Number(f.amount).toFixed(2), f.currency) : ""} · cobrado {f.receivedAt ? fmtDay(f.receivedAt) : ""} · período {eligible
+                ? (preview.data?.willRenew && preview.data.periodFrom && preview.data.periodTo ? `${fmtDay(preview.data.periodFrom)} a ${fmtDay(preview.data.periodTo)} (calculado; el servidor lo revalida)` : "sin renovación de fechas")
+                : `${f.periodFrom} a ${f.periodTo} (sin cambios de fechas, estado ni acceso)`} · ref. {f.reference.trim()}.
+              {" "}Confirmá solo si el dinero fue efectivamente recibido. Una vez confirmado no se puede editar ni eliminar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={create.isPending}>Volver</Button>
-            <Button onClick={submit} disabled={create.isPending}>{create.isPending ? "Confirmando…" : "Confirmar cobro"}</Button>
+            <Button onClick={submit} disabled={create.isPending} data-testid="button-receipt-submit">{create.isPending ? "Confirmando…" : "Confirmar cobro"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -479,6 +548,7 @@ function StatusTab() {
   const { toast } = useToast();
   const pros = useProfessionalUsers();
   const setStatus = useSetSaasStatus();
+  const invalidateCommercialStatus = useInvalidateCommercial();
   const [userId, setUserId] = useState("");
   const [status, setStatusV] = useState<SaasStatus>("paying");
   const [effectiveDate, setEffectiveDate] = useState("");
@@ -489,6 +559,7 @@ function StatusTab() {
     if (!userId || setStatus.isPending) return;
     setStatus.mutate({ professionalUserId: Number(userId), status, ...(effectiveDate ? { effectiveDate } : {}) }, {
       onSuccess: r => {
+        invalidateCommercialStatus();
         setLog(l => [{ ...r, at: new Date().toLocaleTimeString("es-AR"), name: current?.name ?? `#${r.professionalUserId}` }, ...l]);
         toast({ title: "Estado actualizado", description: r.event ? `Evento registrado: ${EVENT_LABEL[r.event]}` : "Sin evento de suscripción." });
       },
@@ -553,6 +624,9 @@ function StatusTab() {
 
 export default function Colaboradoras() {
   const [, navigate] = useLocation();
+  const params = new URLSearchParams(useSearch());
+  const tabParam = params.get("tab") ?? "";
+  const proParam = params.get("pro") ?? "";
   return (
     <AppLayout>
       <div className="flex flex-col gap-5 animate-in fade-in duration-400 max-w-5xl mx-auto">
@@ -566,14 +640,14 @@ export default function Colaboradoras() {
             <p className="text-sm text-muted-foreground">Referidos, cobros SaaS y comisiones.</p>
           </div>
         </div>
-        <Tabs defaultValue="colaboradoras">
+        <Tabs defaultValue={tabParam === "cobros" || tabParam === "estado" ? tabParam : "colaboradoras"}>
           <TabsList className="bg-card border border-border/50 p-1 rounded-xl shadow-sm h-auto gap-1 flex-wrap">
             <TabsTrigger value="colaboradoras" className="rounded-lg text-sm">Colaboradoras</TabsTrigger>
             <TabsTrigger value="cobros" className="rounded-lg text-sm">Cobros y comisiones</TabsTrigger>
             <TabsTrigger value="estado" className="rounded-lg text-sm">Alta / baja</TabsTrigger>
           </TabsList>
           <TabsContent value="colaboradoras" className="mt-5"><CollaboratorsTab /></TabsContent>
-          <TabsContent value="cobros" className="mt-5"><ReceiptsTab /></TabsContent>
+          <TabsContent value="cobros" className="mt-5"><ReceiptsTab initialPro={/^\d+$/.test(proParam) ? proParam : ""} /></TabsContent>
           <TabsContent value="estado" className="mt-5"><StatusTab /></TabsContent>
         </Tabs>
       </div>

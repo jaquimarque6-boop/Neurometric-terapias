@@ -7,12 +7,14 @@ import {
   patientFilesTable, deletionLogTable,
   userActivityEventsTable,
 } from "@workspace/db/schema";
-import { eq, ne, inArray, or, sql } from "drizzle-orm";
+import { eq, ne, inArray, or, sql, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { storageConfigured, deleteStorageObject } from "../lib/supabaseStorage";
 import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
 import { referralAttributionsTable, collaboratorsTable, saasReceiptsTable, saasStatusEventsTable } from "@workspace/db/schema";
 import { getUsageAuditStatus, readUsageAuditRows } from "../lib/usage-audit";
+import { commercialFields, commercialSnapshot, commercialRevision, logCommercialChange } from "../lib/commercial-service";
+import { reviewCommercialAccount, validCommercialDate } from "../lib/commercial-policy";
 
 const router: IRouter = Router();
 
@@ -174,6 +176,9 @@ function userToJson(u: typeof usersTable.$inferSelect) {
     monthlyAmount: u.monthlyAmount ?? null,
     paymentMethod: u.paymentMethod ?? null,
     internalNotes: u.internalNotes ?? null,
+    trialStartPending: u.trialStartPending,
+    commercialReview: reviewCommercialAccount(u),
+    commercialRevision: commercialRevision(u),
   };
 }
 
@@ -377,6 +382,7 @@ router.post("/users", async (req, res) => {
     specialty: specialty?.trim() || null,
     active: true,
     professionalId: null,
+    trialStartPending: (role ?? "professional") === "professional",
     }).returning();
     await attributeReferral(tx, created.id, referralCode, "admin_user_create", req.session.userId!);
     return created;
@@ -388,6 +394,22 @@ router.post("/users", async (req, res) => {
   }
 
   return res.status(201).json(userToJson(user));
+});
+
+router.get("/users/:id/commercial-history", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Usuario inválido" });
+  const rows = await db.select({
+    id: saasStatusEventsTable.id, event: saasStatusEventsTable.event,
+    actorUserId: saasStatusEventsTable.actorUserId, actorName: usersTable.name,
+    effectiveDate: saasStatusEventsTable.effectiveDate, occurredAt: saasStatusEventsTable.occurredAt,
+    details: saasStatusEventsTable.details,
+  }).from(saasStatusEventsTable).leftJoin(usersTable, eq(usersTable.id, saasStatusEventsTable.actorUserId))
+    .where(eq(saasStatusEventsTable.professionalUserId, id))
+    .orderBy(desc(saasStatusEventsTable.occurredAt), desc(saasStatusEventsTable.id)).limit(200);
+  return res.json(rows);
 });
 
 // PATCH /api/users/:id — update user.
@@ -408,10 +430,27 @@ router.patch("/users/:id", async (req, res) => {
     name, email, role, specialty, active, password,
     commercialStatus, trialStartDate, trialEndDate, lastPaymentDate,
     nextDueDate, monthlyAmount, paymentMethod, internalNotes,
+    commercialChangeReason,
+    expectedCommercialRevision,
   } = req.body;
 
   if (!isAdmin && (role !== undefined || active !== undefined)) {
     return res.status(403).json({ error: "No tienes permiso para cambiar el rol o el estado de la cuenta" });
+  }
+  if (!isAdmin && commercialFields.some(key => req.body[key] !== undefined)) {
+    return res.status(403).json({ error: "Solo administradores pueden modificar datos comerciales" });
+  }
+  if (commercialChangeReason !== undefined && (typeof commercialChangeReason !== "string" || commercialChangeReason.length > 500)) {
+    return res.status(400).json({ error: "El motivo debe tener hasta 500 caracteres" });
+  }
+  if (expectedCommercialRevision !== undefined && (typeof expectedCommercialRevision !== "string" || !/^[a-f0-9]{64}$/.test(expectedCommercialRevision))) {
+    return res.status(400).json({ error: "Versión comercial inválida" });
+  }
+  for (const key of ["trialStartDate", "trialEndDate", "lastPaymentDate", "nextDueDate"] as const) {
+    const value = req.body[key];
+    if (value !== undefined && value !== null && value !== "" && !validCommercialDate(value)) {
+      return res.status(400).json({ error: `Fecha inválida: ${key}` });
+    }
   }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
@@ -459,14 +498,29 @@ router.patch("/users/:id", async (req, res) => {
   }
 
   const updated = await db.transaction(async tx => {
-    if (updates.commercialStatus !== undefined && updates.commercialStatus !== existing.commercialStatus) {
-      await changeCommercialStatus(tx, id, updates.commercialStatus, req.session.userId!);
+    await tx.execute(sql`SELECT id FROM users WHERE id = ${id} FOR UPDATE`);
+    const [before] = await tx.select().from(usersTable).where(eq(usersTable.id, id));
+    if (!before) throw new Error("Usuario no encontrado");
+    if (expectedCommercialRevision !== undefined && expectedCommercialRevision !== commercialRevision(before)) return null;
+    if (isAdmin && ((trialStartDate !== undefined && (trialStartDate || null) !== before.trialStartDate) ||
+        (trialEndDate !== undefined && (trialEndDate || null) !== before.trialEndDate) ||
+        (commercialStatus !== undefined && commercialStatus !== "trial"))) {
+      updates.trialStartPending = false;
+    }
+    if (updates.commercialStatus !== undefined && updates.commercialStatus !== before.commercialStatus && before.role === "professional") {
+      await changeCommercialStatus(tx, id, updates.commercialStatus, req.session.userId!, undefined, false);
       delete updates.commercialStatus;
     }
-    const [record] = await tx.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
+    const [record] = Object.keys(updates).length
+      ? await tx.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning()
+      : await tx.select().from(usersTable).where(eq(usersTable.id, id));
+    await logCommercialChange(tx, id, req.session.userId!, "commercial_correction",
+      commercialSnapshot(before), commercialSnapshot(record),
+      commercialChangeReason?.trim() ? { reason: commercialChangeReason.trim() } : {});
     return record;
   });
 
+  if (!updated) return res.status(409).json({ error: "Los datos comerciales cambiaron mientras editabas. Cerrá la edición y volvé a abrirla para revisar los valores actuales; no se guardó ningún cambio." });
   return res.json(userToJson(updated));
 });
 

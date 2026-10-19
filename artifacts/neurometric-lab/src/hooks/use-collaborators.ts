@@ -74,7 +74,8 @@ export type CreateCollaboratorInput = {
 export type UpdateCollaboratorInput = Partial<Pick<Collaborator, "name" | "country" | "code" | "commissionPercent" | "active">>;
 export type CreateReceiptInput = {
   professionalUserId: number; amount: string; currency: string; receivedAt: string;
-  periodFrom: string; periodTo: string; reference: string; idempotencyKey: string;
+  /** Omitir para profesionales renovables: el servidor calcula el período. */
+  periodFrom?: string; periodTo?: string; reference: string; idempotencyKey: string;
 };
 
 export class ApiError extends Error {
@@ -181,6 +182,8 @@ export function useUpdateCollaborator() {
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: keys.list(uid) });
       qc.invalidateQueries({ queryKey: keys.dashboard(uid, c.id) });
+      qc.invalidateQueries({ queryKey: keys.users(uid) });
+      qc.invalidateQueries({ queryKey: ["commercial", uid] });
     },
   });
 }
@@ -208,6 +211,8 @@ export function useCreateReceipt() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.receipts(uid) });
       qc.invalidateQueries({ queryKey: ["collab", uid, "dashboard"] });
+      qc.invalidateQueries({ queryKey: keys.users(uid) });
+      qc.invalidateQueries({ queryKey: ["commercial", uid] });
     },
   });
 }
@@ -224,6 +229,8 @@ export function useMarkReceiptPaid() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.receipts(uid) });
       qc.invalidateQueries({ queryKey: ["collab", uid, "dashboard"] });
+      qc.invalidateQueries({ queryKey: keys.users(uid) });
+      qc.invalidateQueries({ queryKey: ["commercial", uid] });
     },
   });
 }
@@ -237,6 +244,7 @@ export function useSetSaasStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.users(uid) });
       qc.invalidateQueries({ queryKey: ["collab", uid, "dashboard"] });
+      qc.invalidateQueries({ queryKey: ["commercial", uid] });
     },
   });
 }
