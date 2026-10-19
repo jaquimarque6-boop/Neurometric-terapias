@@ -1,0 +1,94 @@
+## NEUROMETRIC TERAPIAS — Automatizar vencimientos utilizando el sistema comercial existente
+
+Quiero mejorar el sistema de suscripciones de Neurometric Terapias, aprovechando el Panel de usuarios y los campos comerciales que ya existen.
+
+**No quiero crear un sistema nuevo ni duplicar estructuras.**
+
+### 1. Auditar primero el funcionamiento actual
+
+Revisar cómo funcionan actualmente:
+
+- Los estados Pagando, En prueba, Pago vencido, Cortesía y Dados de baja.
+- Las fechas de inicio y fin de prueba.
+- La fecha del último pago.
+- La fecha del próximo vencimiento.
+- Los permisos de acceso de cada usuaria.
+
+Determinar si los vencimientos ya se calculan automáticamente o si solamente se registran manualmente.
+
+### 2. Automatizar los 15 días de prueba
+
+- Contar 15 días desde el inicio real de la prueba.
+- Mostrar dentro de la plataforma cuántos días quedan.
+- Al finalizar el período, cambiar automáticamente el estado comercial a vencido y bloquear las funciones clínicas.
+- No permitir que una usuaria reinicie su prueba cerrando sesión o cambiando de dispositivo.
+
+### 3. Automatizar las suscripciones mensuales
+
+- Utilizar el campo «Último pago» y el vencimiento existente.
+- Cuando la administradora registre un pago confirmado, habilitar un mes calendario de acceso.
+- Calcular automáticamente el próximo vencimiento.
+- Si paga antes de vencer, conservar los días abonados y extender un mes desde el vencimiento vigente.
+- Si paga después del vencimiento, comenzar el nuevo período desde el pago confirmado.
+- Al vencer, bloquear automáticamente las funciones clínicas hasta que se registre una renovación.
+
+No marcar un pago como confirmado simplemente porque la administradora modificó el estado comercial.
+
+### 4. Avisos automáticos
+
+Mostrar un aviso discreto en el panel de la profesional:
+
+- Durante la prueba: «Te quedan X días de prueba gratuita».
+- Durante la suscripción: «Tu acceso está activo hasta el DD/MM/AAAA».
+- A 5 días del vencimiento: «Tu suscripción vence en 5 días».
+- A 3 días: mostrar un aviso destacado.
+- A 1 día: «Tu suscripción vence mañana».
+
+No mostrar ventanas emergentes repetitivas durante las sesiones clínicas.
+
+### 5. Bloqueo por vencimiento
+
+Cuando la prueba o suscripción venza:
+
+- Mostrar una pantalla de acceso vencido.
+- Impedir crear, editar o consultar información clínica mientras el acceso esté suspendido.
+- Mantener la posibilidad de consultar cómo renovar y cerrar sesión.
+- Conservar íntegramente pacientes, anamnesis, sesiones, informes, objetivos y documentos.
+- Reactivar el acceso al confirmar un nuevo pago.
+
+La validación debe realizarse desde el backend, no solamente ocultando pantallas.
+
+### 6. Respetar los estados existentes
+
+- Cortesía: acceso habilitado según las condiciones definidas por la administradora.
+- Dados de baja: mantener el comportamiento actual y no reactivarlos automáticamente.
+- Administradora principal: no bloquear su acceso por vencimientos comerciales.
+- No modificar los permisos clínicos ni administrativos existentes.
+
+### 7. Proteger a las usuarias actuales
+
+Actualmente existen usuarias pagando, en prueba y en cortesía.
+
+Antes de activar los bloqueos:
+
+- Revisar qué cuentas tienen fechas completas y cuáles no.
+- No inventar fechas de pago ni de inicio de prueba.
+- No bloquear masivamente cuentas existentes por fechas faltantes o inconsistentes.
+- Presentar a la administradora un listado de cuentas que necesitan regularización.
+- Mantener el sistema en modo de verificación hasta validar los datos.
+
+### 8. Verificación
+
+Probar con cuentas temporales:
+
+- Prueba vigente y vencida.
+- Suscripción vigente y vencida.
+- Renovación anticipada.
+- Renovación posterior al vencimiento.
+- Cortesía.
+- Cuenta dada de baja.
+- Acceso de administradora.
+- Conservación de datos clínicos.
+- Revalidación de acceso con la plataforma abierta.
+
+**Primero entregarme una auditoría breve del sistema actual y los cambios necesarios. No implementar bloqueos ni desplegar en producción hasta que yo apruebe la propuesta.**

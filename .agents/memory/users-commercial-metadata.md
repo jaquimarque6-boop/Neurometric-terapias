@@ -27,3 +27,18 @@ or with clinical patient payments. Mixing them caused confusion in the original 
   clinical date `registros_clinicos.fecha` (text YYYY-MM-DD), falling back to
   `created_at` only when `fecha` is missing/invalid — because `created_at` (row insert
   time) drifts from when the session actually happened.
+
+## Safety constraints for subscription automation
+
+Reuse the existing commercial system; do not create parallel subscription structures.
+Never invent payment or trial-start dates for existing accounts or mass-block them
+because dates are missing or inconsistent. Validate and regularize their data in
+verification mode before enabling commercial enforcement, with the user's approval.
+Changing a commercial status alone is not confirmation of payment.
+
+**Why:** The user requires protection of existing paying, trial, and courtesy accounts
+when introducing automated expiration.
+
+**How to apply:** Propose commercial expiration as a restriction on clinical operations,
+not as account deactivation. Preserve renewal information and logout, existing roles,
+clinical data, and the current behavior of manually deactivated accounts.
