@@ -107,6 +107,17 @@ test("commercial verification integration with temporary accounts and fictitious
     assert.equal(started.trialEndDate, addDays(today, 14));
     assert.equal(started.trialStartPending, false);
     assert.equal((await request("GET", "/commercial/me", fresh)).body.daysRemaining, 15);
+    const auditUsers = await request("GET", "/users", admin);
+    const auditedFresh = auditUsers.body.find((u: any) => u.id === fresh.id);
+    assert.equal(auditUsers.status, 200);
+    assert.equal(auditedFresh.stats.pacientesAsignados, 0);
+    assert.equal(auditedFresh.stats.sesionesRegistradas, 0);
+    assert.ok(auditedFresh.stats.activity.firstLoginAt);
+    assert.ok(auditedFresh.stats.activity.lastLoginAt);
+    assert.equal(auditedFresh.stats.activity.loginCount30Days, 3);
+    assert.equal(auditedFresh.stats.activity.lastActivityAt, auditedFresh.stats.activity.lastLoginAt);
+    assert.equal(auditedFresh.stats.ultimaActividad, auditedFresh.stats.activity.lastLoginAt,
+      "a professional with no clinical records must still show login as last activity");
     await request("POST", "/auth/logout", fresh);
     await login(fresh);
     assert.deepEqual(await read(fresh.id), started);

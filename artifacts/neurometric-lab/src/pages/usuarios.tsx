@@ -58,7 +58,9 @@ type UserStats = {
 type UserActivityStats = {
   available: boolean;
   status: AuditStatus;
+  firstLoginAt: string | null;
   lastLoginAt: string | null;
+  lastActivityAt: string | null;
   loginCount30Days: number;
   hasClinicalActivity: boolean;
   eventCounts30Days: {
@@ -136,7 +138,9 @@ const EMPTY_STATS: UserStats = {
   activity: {
     available: false,
     status: "unavailable",
+    firstLoginAt: null,
     lastLoginAt: null,
+    lastActivityAt: null,
     loginCount30Days: 0,
     hasClinicalActivity: false,
     eventCounts30Days: {
@@ -1214,7 +1218,15 @@ export default function Usuarios() {
                               </Badge>
                               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <LogIn className="h-3 w-3 shrink-0" />
+                                Primer ingreso: {activity.available ? formatDateTime(activity.firstLoginAt) : "No disponible"}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <LogIn className="h-3 w-3 shrink-0" />
                                 Último ingreso: {activity.available ? formatDateTime(activity.lastLoginAt) : "No disponible"}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Activity className="h-3 w-3 shrink-0" />
+                                Última actividad: {activity.available ? formatDateTime(activity.lastActivityAt) : "No disponible"}
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {activity.available ? `${activity.loginCount30Days} ingresos / 30 días` : "Ingresos no disponibles"}

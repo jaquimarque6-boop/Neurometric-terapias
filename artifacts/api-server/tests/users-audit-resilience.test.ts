@@ -49,7 +49,9 @@ const users = [
 
 const unexpectedAuditRows = [{
   userId: 1,
+  firstLoginAt: "2026-09-01T12:34:56.000Z",
   lastLoginAt: "2026-10-01T12:34:56.000Z",
+  lastActivityAt: "2026-10-02T12:34:56.000Z",
   loginCount30Days: 3,
   patientSaved30Days: 2,
   clinicalRecordSaved30Days: 1,
@@ -134,7 +136,10 @@ test("GET /api/users normalizes string audit dates and falls open when lastLogin
   assert.equal(validResponse.status, 200, JSON.stringify(validBody));
   assert.deepEqual(validBody.map(user => user.id), [1, 2]);
   assert.equal(validBody[0].stats.activity.available, true);
+  assert.equal(validBody[0].stats.activity.firstLoginAt, "2026-09-01T12:34:56.000Z");
   assert.equal(validBody[0].stats.activity.lastLoginAt, "2026-10-01T12:34:56.000Z");
+  assert.equal(validBody[0].stats.activity.lastActivityAt, "2026-10-02T12:34:56.000Z");
+  assert.equal(validBody[0].stats.ultimaActividad, "2026-10-02T12:34:56.000Z");
 
   unexpectedAuditRows[0].lastLoginAt = "not-a-valid-timestamp";
   const invalidResponse = await fetch(`http://127.0.0.1:${address.port}/api/users`);
@@ -147,7 +152,9 @@ test("GET /api/users normalizes string audit dates and falls open when lastLogin
   assert.deepEqual(invalidBody[0].stats.activity, {
     available: false,
     status: "unavailable",
+    firstLoginAt: null,
     lastLoginAt: null,
+    lastActivityAt: null,
     loginCount30Days: 0,
     hasClinicalActivity: false,
     eventCounts30Days: {

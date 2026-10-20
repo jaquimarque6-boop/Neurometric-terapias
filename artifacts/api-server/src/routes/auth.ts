@@ -58,7 +58,6 @@ router.post("/auth/login", async (req, res) => {
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
-  if (user.trialStartPending) await startNewAccountTrial(user.id);
   req.session.userId = user.id;
   req.session.userRole = user.role;
   req.session.professionalId = user.professionalId ?? null;
@@ -76,11 +75,20 @@ router.post("/auth/login", async (req, res) => {
       console.error("[auth/login] session.save error:", err);
       return res.status(500).json({ error: "Error al guardar sesión" });
     }
-    console.log(`[auth/login] login exitoso email=${normalizedEmail} userId=${user.id} role=${user.role}`);
-    recordUserActivityEvent(user.id, "login");
-    // Return token alongside user data so the frontend can send it via
-    // Authorization header as a fallback for browsers that block cross-site cookies.
-    return res.json({ ...userToJson(user), token });
+    void (async () => {
+      // The trial clock begins only after credentials were validated AND the
+      // authenticated session was durably saved.
+      try {
+        if (user.trialStartPending) await startNewAccountTrial(user.id);
+      } catch (error) {
+        console.error("[auth/login] no se pudo iniciar la prueba pendiente", error);
+      }
+      await recordUserActivityEvent(user.id, "login");
+      console.log(`[auth/login] login exitoso email=${normalizedEmail} userId=${user.id} role=${user.role}`);
+      // Return token alongside user data so the frontend can send it via
+      // Authorization header as a fallback for browsers that block cross-site cookies.
+      res.json({ ...userToJson(user), token });
+    })();
   });
 });
 

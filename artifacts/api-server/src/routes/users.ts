@@ -36,7 +36,9 @@ function normalizeName(s: string | null | undefined): string {
 }
 
 type UserUsageAuditMetrics = {
+  firstLoginAt: string | null;
   lastLoginAt: string | null;
+  lastActivityAt: string | null;
   loginCount30Days: number;
   patientSaved30Days: number;
   clinicalRecordSaved30Days: number;
@@ -54,7 +56,9 @@ type UserUsageAuditRead = {
 type UserActivityProjection = {
   available: boolean;
   status: ReturnType<typeof getUsageAuditStatus>;
+  firstLoginAt: string | null;
   lastLoginAt: string | null;
+  lastActivityAt: string | null;
   loginCount30Days: number;
   hasClinicalActivity: boolean;
   eventCounts30Days: {
@@ -102,7 +106,9 @@ async function readUserUsageAudit(activityCutoff: Date): Promise<UserUsageAuditR
       () => db
         .select({
           userId: userActivityEventsTable.userId,
+          firstLoginAt: sql<Date | null>`min(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
           lastLoginAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
+          lastActivityAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt})`,
           loginCount30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'login' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
           patientSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'patient_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
           clinicalRecordSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'clinical_record_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
@@ -121,7 +127,9 @@ async function readUserUsageAudit(activityCutoff: Date): Promise<UserUsageAuditR
     const byUser = new Map<number, UserUsageAuditMetrics>();
     for (const row of result.rows) {
       byUser.set(row.userId, {
+        firstLoginAt: normalizeAuditTimestamp(row.firstLoginAt),
         lastLoginAt: normalizeAuditTimestamp(row.lastLoginAt),
+        lastActivityAt: normalizeAuditTimestamp(row.lastActivityAt),
         loginCount30Days: row.loginCount30Days,
         patientSaved30Days: row.patientSaved30Days,
         clinicalRecordSaved30Days: row.clinicalRecordSaved30Days,
@@ -143,7 +151,9 @@ function unavailableUserActivity(): UserActivityProjection {
   return {
     available: false,
     status: "unavailable",
+    firstLoginAt: null,
     lastLoginAt: null,
+    lastActivityAt: null,
     loginCount30Days: 0,
     hasClinicalActivity: false,
     eventCounts30Days: {
@@ -285,6 +295,11 @@ router.get("/users", async (req, res) => {
         const s = stats.get(u.id)!;
         const usage = usageRead.byUser.get(u.id);
         const hasClinicalActivity = s.sesionesRegistradas > 0 || (usage?.hasClinicalActivity ?? false);
+        const clinicalActivityAt = s.ultimaActividad?.toISOString() ?? null;
+        const trackedActivityAt = usage?.lastActivityAt ?? null;
+        const lastActivityAt = clinicalActivityAt && trackedActivityAt
+          ? (Date.parse(clinicalActivityAt) >= Date.parse(trackedActivityAt) ? clinicalActivityAt : trackedActivityAt)
+          : clinicalActivityAt ?? trackedActivityAt;
         const lastLoginAt = usage?.lastLoginAt ?? null;
         activityByUser.set(u.id, {
           available: true,
@@ -294,7 +309,9 @@ router.get("/users", async (req, res) => {
             lastLoginAt,
             trackingAvailable: true,
           }),
+          firstLoginAt: usage?.firstLoginAt ?? null,
           lastLoginAt,
+          lastActivityAt,
           loginCount30Days: usage?.loginCount30Days ?? 0,
           hasClinicalActivity,
           eventCounts30Days: {
@@ -324,7 +341,9 @@ router.get("/users", async (req, res) => {
           sesionesRegistradas: s.sesionesRegistradas,
           pacientesConSesion: s.pacientesConSesion.size,
           sesionesEsteMes: s.sesionesEsteMes,
-          ultimaActividad: s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
+           ultimaActividad: activityAvailable
+             ? activityByUser.get(u.id)?.lastActivityAt ?? null
+             : s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
           activity: activityAvailable
             ? activityByUser.get(u.id) ?? unavailableUserActivity()
             : unavailableUserActivity(),
