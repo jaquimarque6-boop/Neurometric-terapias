@@ -70,10 +70,11 @@ router.post("/auth/login", async (req, res) => {
   // immediate follow-up request (GET /api/auth/me), causing a 401.
   const token = createAuthToken(user.id, user.role);
 
-  return req.session.save((err) => {
+  return req.session.save((err): void => {
     if (err) {
       console.error("[auth/login] session.save error:", err);
-      return res.status(500).json({ error: "Error al guardar sesión" });
+      res.status(500).json({ error: "Error al guardar sesión" });
+      return;
     }
     void (async () => {
       // The trial clock begins only after credentials were validated AND the

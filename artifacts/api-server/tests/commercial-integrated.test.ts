@@ -100,6 +100,10 @@ test("commercial verification integration with temporary accounts and fictitious
     assert.equal(fresh.trialStartDate, null);
     assert.equal((await request("POST", "/auth/login", undefined, { email: fresh.email, password: "wrong" })).status, 401);
     assert.equal((await read(fresh.id)).trialStartDate, null);
+    const beforeSuccessfulLogin = await request("GET", "/users", admin);
+    const notYetAudited = beforeSuccessfulLogin.body.find((u: any) => u.id === fresh.id);
+    assert.equal(notYetAudited.stats.activity.firstLoginAt, null);
+    assert.equal(notYetAudited.stats.activity.loginCount30Days, 0);
     const logins = await Promise.all([login(fresh), login(fresh)]);
     assert.deepEqual(logins.map(r => r.status), [200, 200]);
     const started = await read(fresh.id);
@@ -107,6 +111,8 @@ test("commercial verification integration with temporary accounts and fictitious
     assert.equal(started.trialEndDate, addDays(today, 14));
     assert.equal(started.trialStartPending, false);
     assert.equal((await request("GET", "/commercial/me", fresh)).body.daysRemaining, 15);
+    await request("POST", "/auth/logout", fresh);
+    assert.equal((await login(fresh)).status, 200);
     const auditUsers = await request("GET", "/users", admin);
     const auditedFresh = auditUsers.body.find((u: any) => u.id === fresh.id);
     assert.equal(auditUsers.status, 200);
@@ -118,8 +124,6 @@ test("commercial verification integration with temporary accounts and fictitious
     assert.equal(auditedFresh.stats.activity.lastActivityAt, auditedFresh.stats.activity.lastLoginAt);
     assert.equal(auditedFresh.stats.ultimaActividad, auditedFresh.stats.activity.lastLoginAt,
       "a professional with no clinical records must still show login as last activity");
-    await request("POST", "/auth/logout", fresh);
-    await login(fresh);
     assert.deepEqual(await read(fresh.id), started);
     assert.equal((await db.select().from(saasStatusEventsTable).where(eq(saasStatusEventsTable.professionalUserId, fresh.id))).length, 1);
     const created = await request("POST", "/users", admin, {
