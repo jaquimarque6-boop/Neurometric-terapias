@@ -11,6 +11,10 @@ import {
   canRoleAccessApiRoute,
   shouldBypassCurrentUserAuthorization,
 } from "../src/routes/access-policy";
+import {
+  buildPsychologySessionSummary,
+  createEmptyPsychologySessionDraft,
+} from "../../neurometric-lab/src/lib/psychology-session";
 
 // Bundle only the real route source. No application bootstrap, session store,
 // database pool or external AI client is loaded by this harness.
@@ -503,6 +507,47 @@ test("session materials photos are record-scoped, signed only after access check
   assert.deepEqual(storage.deletedPaths, [expectedPath]);
   assert.equal(storage.objects.has(expectedPath), false);
   assert.equal((tables.get(schema.registrosClinicosTable) ?? []).length, 0);
+});
+
+test("clinical-record routes preserve structured Psychology notes when saving and reading", async () => {
+  reset();
+  const ages = [4, 10, 16, 35, 75];
+  tables.set(schema.patientsTable, ages.map((age, index) => ({
+    id: index + 1,
+    name: `Paciente ficticio ${age}`,
+    age: String(age),
+    diagnosis: null,
+    assignedProfessionalId: 2,
+  })));
+  const summary = buildPsychologySessionSummary(
+    ["emotion", "strengths"],
+    {
+      ...createEmptyPsychologySessionDraft(),
+      focus: "Explorar recursos actuales.",
+      objectives: "Acordar un objetivo con la persona.",
+      nextSteps: "Revisar el objetivo en el próximo encuentro.",
+    },
+  );
+  const observations = "Registrar hechos observables y su contexto.";
+
+  for (let index = 0; index < ages.length; index += 1) {
+    const created = await request("POST", "/registros-clinicos", "owner", {
+      patientId: index + 1,
+      fecha: "2026-10-22",
+      resumenSesion: summary,
+      observaciones: observations,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+
+    const recovered = await request(
+      "GET",
+      `/registros-clinicos/${created.body.id}`,
+      "owner",
+    );
+    assert.equal(recovered.status, 200, JSON.stringify(recovered.body));
+    assert.equal(recovered.body.resumenSesion, summary);
+    assert.equal(recovered.body.observaciones, observations);
+  }
 });
 
 test("editing clinical record materials preserves, removes, and cleans up photos under record access checks", async () => {

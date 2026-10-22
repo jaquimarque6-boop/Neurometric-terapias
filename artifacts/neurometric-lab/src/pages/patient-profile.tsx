@@ -2751,7 +2751,7 @@ export default function PatientProfile() {
                         {isExpanded && (
                           <div className="mt-3 ml-11 space-y-2.5">
                             {r.resumenSesion && (
-                              <p className="text-sm text-foreground/80 leading-relaxed">{r.resumenSesion}</p>
+                              <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed">{r.resumenSesion}</p>
                             )}
                             <div className="grid sm:grid-cols-2 gap-2">
                               {r.observaciones && (

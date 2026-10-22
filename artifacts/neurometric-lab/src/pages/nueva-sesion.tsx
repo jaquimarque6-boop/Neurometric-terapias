@@ -39,6 +39,18 @@ import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { API_BASE } from "@/lib/api";
 import { ACTIVIDADES_URL } from "@/lib/actividades";
 import { findAccessiblePatient, parsePatientId } from "@/lib/session-navigation";
+import { getPsychologyAgeStage } from "@/lib/psychology-clinical";
+import {
+  buildPsychologySessionSummary,
+  createEmptyPsychologySessionDraft,
+  hasPsychologySessionContent,
+  type PsychologySessionDraft,
+} from "@/lib/psychology-session";
+import {
+  PsychologyObservationSuggestion,
+  PsychologySessionFields,
+  PsychologySessionGuide,
+} from "@/components/psychology-session-guide";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -967,6 +979,10 @@ export default function NuevaSesion() {
   const [observaciones, setObservaciones]     = useState("");
   const [materialesActividades, setMaterialesActividades] = useState<SessionMaterialDraft[]>([]);
   const [focoTerapeutico, setFocoTerapeutico] = useState("");
+  const [psychologyAreas, setPsychologyAreas] = useState<string[]>([]);
+  const [psychologySession, setPsychologySession] = useState<PsychologySessionDraft>(
+    createEmptyPsychologySessionDraft,
+  );
   const [isSaving, setIsSaving]               = useState(false);
   const [selectedBloque, setSelectedBloque]   = useState<string | null>(null);
   const [selectedEdad, setSelectedEdad]       = useState("3-5");
@@ -981,6 +997,13 @@ export default function NuevaSesion() {
     if (edadPaciente == null) return null;
     return edadAFranja(edadPaciente);
   }, [edadPaciente]);
+
+  const psychologyAge = useMemo(
+    () => patient
+      ? getPsychologyAgeStage(patient.fechaNacimiento, patient.age)
+      : null,
+    [patient],
+  );
 
   useEffect(() => {
     if (franjaPaciente) {
@@ -1160,6 +1183,13 @@ export default function NuevaSesion() {
   }, [patient, loadingGoals, suggestedGoals]);
 
   const selectPatient = (p: any) => {
+    if (profesion === "psicologia" && patient?.id !== p.id) {
+      setPsychologyAreas([]);
+      setPsychologySession(createEmptyPsychologySessionDraft());
+      setObservaciones("");
+      setResumen("");
+      setMaterialesActividades([]);
+    }
     setPatient(p);
     setPatientSearch(p.name);
     setShowPatientList(false);
@@ -1564,7 +1594,12 @@ export default function NuevaSesion() {
   const checkedGoals  = goals.filter(g => rows[g.id]?.checked);
   const checkedAdHoc  = adHocGoals.filter(g => adHocRows[g.id]?.checked !== false);
   const totalSelected = checkedGoals.length + checkedAdHoc.length;
-  const canSave       = !!patient && (totalSelected > 0 || resumen.trim().length > 0);
+  const psychologySummary = buildPsychologySessionSummary(psychologyAreas, psychologySession);
+  const canSave = !!patient && (
+    profesion === "psicologia"
+      ? totalSelected > 0 || hasPsychologySessionContent(psychologyAreas, psychologySession, observaciones)
+      : totalSelected > 0 || resumen.trim().length > 0
+  );
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const diagnosticoSesion = serializeDiagnoses(sessionDiagnoses);
@@ -1587,7 +1622,7 @@ export default function NuevaSesion() {
         patientId: patient.id,
         fecha,
         diagnostico: diagnosticoSesion || undefined,
-        resumenSesion: resumen || undefined,
+        resumenSesion: (profesion === "psicologia" ? psychologySummary : resumen) || undefined,
         observaciones: observaciones || undefined,
       }, materialesActividades, API_BASE);
 
@@ -1860,17 +1895,19 @@ export default function NuevaSesion() {
             </div>
 
             {/* Clinical detail toggle — always available when row is checked */}
-            <button
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-              onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId)}
-            >
-              <Info className="h-3.5 w-3.5" />
-              {showDetail ? "Ocultar guía clínica" : "Ver guía clínica"}
-              <ChevronRight className={`h-3 w-3 transition-transform ${showDetail ? "rotate-90" : ""}`} />
-            </button>
+            {profesion !== "psicologia" && (
+              <button
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => toggleDetailFor(detailKey, goalIdForDetail ?? goalId)}
+              >
+                <Info className="h-3.5 w-3.5" />
+                {showDetail ? "Ocultar guía clínica" : "Ver guía clínica"}
+                <ChevronRight className={`h-3 w-3 transition-transform ${showDetail ? "rotate-90" : ""}`} />
+              </button>
+            )}
 
             {/* Clinical detail panel */}
-            {showDetail && (
+            {profesion !== "psicologia" && showDetail && (
               <div className="border border-border rounded-xl overflow-hidden text-xs">
 
                 {/* Definición operativa */}
@@ -2045,7 +2082,13 @@ export default function NuevaSesion() {
                           {p.name.charAt(0)}
                         </div>
                         <span className="text-sm font-medium text-foreground">{p.name}</span>
-                        {p.age && <span className="text-xs text-muted-foreground ml-1">{p.age} años</span>}
+                        {profesion === "psicologia"
+                          ? formatEdad(p.fechaNacimiento, p.age) && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              {formatEdad(p.fechaNacimiento, p.age)}
+                            </span>
+                          )
+                          : p.age && <span className="ml-1 text-xs text-muted-foreground">{p.age} años</span>}
                       </button>
                     ))}
                   </div>
@@ -2054,7 +2097,9 @@ export default function NuevaSesion() {
               {patient && (
                 <p className="text-xs text-muted-foreground pl-1">
                   <strong className="text-foreground/80">{patient.name}</strong>
-                  {patient.age && ` · ${patient.age} años`}
+                  {profesion === "psicologia"
+                    ? formatEdad(patient.fechaNacimiento, patient.age) && ` · ${formatEdad(patient.fechaNacimiento, patient.age)}`
+                    : patient.age && ` · ${patient.age} años`}
                 </p>
               )}
             </div>
@@ -2090,12 +2135,20 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía por edad y área ─────────────────────────────────────── */}
-        {patient && !hasSpecialtySpecificContent(profesion) && (
+        {patient && profesion === "psicologia" && psychologyAge && (
+          <PsychologySessionGuide
+            stageLabel={psychologyAge.label}
+            formattedAge={psychologyAge.formattedAge}
+            selectedAreaIds={psychologyAreas}
+            onSelectedAreaIdsChange={setPsychologyAreas}
+          />
+        )}
+        {patient && profesion !== "psicologia" && !hasSpecialtySpecificContent(profesion) && (
           <div className="rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
             No hay guías clínicas específicas configuradas para esta especialidad. Los diagnósticos y registros existentes se mantienen disponibles.
           </div>
         )}
-        {patient && hasSpecialtySpecificContent(profesion) && (
+        {patient && profesion !== "psicologia" && hasSpecialtySpecificContent(profesion) && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
             {/* Header — warm autumn */}
             <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: "#E8D5C4", background: "#FDF3E9" }}>
@@ -2234,7 +2287,9 @@ export default function NuevaSesion() {
         {patient && (
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-xs text-muted-foreground flex-wrap">
             <span className="font-semibold text-foreground/80">{patient.name}</span>
-            {patient.age && <span>{patient.age} años</span>}
+            {profesion === "psicologia"
+              ? psychologyAge?.formattedAge && <span>{psychologyAge.formattedAge}</span>
+              : patient.age && <span>{patient.age} años</span>}
             <span className="text-border/70">·</span>
             <span>{fecha}</span>
             {sessionDiagnosis && (
@@ -2549,7 +2604,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Foco terapéutico ─────────────────────────────────────────── */}
-        {patient && (
+        {patient && profesion !== "psicologia" && (
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-2">
             <label className="text-sm font-semibold text-foreground/80">Foco terapéutico</label>
             <Textarea
@@ -2577,26 +2632,28 @@ export default function NuevaSesion() {
                   </span>
                 )}
               </h2>
-              <button
-                onClick={loadingAISesion ? undefined : fetchAISesionSuggestions}
-                disabled={loadingAISesion}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shrink-0"
-                style={{
-                  color: BRAND_BLUE,
-                  borderColor: `${BRAND_BLUE}40`,
-                  background: showAISesion ? `${BRAND_BLUE}08` : "transparent",
-                }}
-              >
-                {loadingAISesion
-                  ? <span className="h-3 w-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
-                  : <Sparkles className="h-3.5 w-3.5" />
-                }
-                {loadingAISesion ? "Analizando…" : "Sugerir objetivos para esta sesión"}
-              </button>
+              {profesion !== "psicologia" && (
+                <button
+                  onClick={loadingAISesion ? undefined : fetchAISesionSuggestions}
+                  disabled={loadingAISesion}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shrink-0"
+                  style={{
+                    color: BRAND_BLUE,
+                    borderColor: `${BRAND_BLUE}40`,
+                    background: showAISesion ? `${BRAND_BLUE}08` : "transparent",
+                  }}
+                >
+                  {loadingAISesion
+                    ? <span className="h-3 w-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+                    : <Sparkles className="h-3.5 w-3.5" />
+                  }
+                  {loadingAISesion ? "Analizando…" : "Sugerir objetivos para esta sesión"}
+                </button>
+              )}
             </div>
 
             {/* ── AI session suggestion panel ─────────────────────────── */}
-            {showAISesion && (
+            {profesion !== "psicologia" && showAISesion && (
               <div className="border-b border-border/50">
                 {loadingAISesion ? (
                   <div className="px-5 py-6 flex items-center gap-3 text-sm text-muted-foreground">
@@ -3007,37 +3064,59 @@ export default function NuevaSesion() {
         {patient && (
           <>
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Notas de sesión <span className="text-muted-foreground font-normal">(opcional)</span></h2>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Resumen</label>
-                <button
-                  type="button"
-                  onClick={() => setResumen(buildResumenSugerido())}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all bg-muted/50 hover:bg-muted hover:text-foreground/80"
-                  style={{ color: BRAND_TEAL, borderColor: `${BRAND_TEAL}40` }}
-                  title="Genera un texto sugerido basado en el diagnóstico, objetivos y foco terapéutico de la sesión"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Generar sugerencia
-                </button>
-              </div>
-              <Textarea
-                placeholder="Describe lo trabajado en la sesión… o usa 'Generar sugerencia' para un punto de partida."
-                rows={4}
-                value={resumen}
-                onChange={e => setResumen(e.target.value)}
-                className="bg-muted/50 resize-none text-sm leading-relaxed"
+            <h2 className="text-sm font-semibold text-foreground">
+              {profesion === "psicologia" ? "Registro de sesión psicológica" : "Notas de sesión"}
+              <span className="font-normal text-muted-foreground"> (opcional)</span>
+            </h2>
+            {profesion === "psicologia" && psychologyAge ? (
+              <PsychologySessionFields
+                stage={psychologyAge.stage}
+                selectedAreaIds={psychologyAreas}
+                value={psychologySession}
+                onChange={setPsychologySession}
               />
-              {resumen.trim().length > 0 && (
-                <p className="text-[10px] text-muted-foreground/60 pl-0.5">
-                  Texto editable — modifícalo libremente antes de guardar.
-                </p>
-              )}
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-medium text-muted-foreground">Resumen</label>
+                  <button
+                    type="button"
+                    onClick={() => setResumen(buildResumenSugerido())}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg border transition-all bg-muted/50 hover:bg-muted hover:text-foreground/80"
+                    style={{ color: BRAND_TEAL, borderColor: `${BRAND_TEAL}40` }}
+                    title="Genera un texto sugerido basado en el diagnóstico, objetivos y foco terapéutico de la sesión"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Generar sugerencia
+                  </button>
+                </div>
+                <Textarea
+                  placeholder="Describe lo trabajado en la sesión… o usa 'Generar sugerencia' para un punto de partida."
+                  rows={4}
+                  value={resumen}
+                  onChange={e => setResumen(e.target.value)}
+                  className="bg-muted/50 resize-none text-sm leading-relaxed"
+                />
+                {resumen.trim().length > 0 && (
+                  <p className="text-[10px] text-muted-foreground/60 pl-0.5">
+                    Texto editable — modifícalo libremente antes de guardar.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground">Observaciones</label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  {profesion === "psicologia" ? "Observaciones clínicas" : "Observaciones"}
+                </label>
+                {profesion === "psicologia" && psychologyAge && (
+                  <PsychologyObservationSuggestion
+                    stage={psychologyAge.stage}
+                    selectedAreaIds={psychologyAreas}
+                    value={observaciones}
+                    onChange={setObservaciones}
+                  />
+                )}
                 {hasSpeechSupport && (
                   <button
                     type="button"
@@ -3055,7 +3134,11 @@ export default function NuevaSesion() {
                 )}
               </div>
               <Textarea
-                placeholder={isRecording ? "Escuchando… habla ahora" : "Observaciones clínicas relevantes…"}
+                placeholder={isRecording
+                  ? "Escuchando… habla ahora"
+                  : profesion === "psicologia"
+                    ? "Registrar hechos observables y su contexto…"
+                    : "Observaciones clínicas relevantes…"}
                 rows={3}
                 value={observaciones}
                 onChange={e => setObservaciones(e.target.value)}
