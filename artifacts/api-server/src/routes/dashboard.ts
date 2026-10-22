@@ -1,7 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { patientsTable, registrosTable, goalsTable, professionalsTable, goalLibraryTable } from "@workspace/db/schema";
-import { eq, count, gte, inArray } from "drizzle-orm";
+import {
+  patientsTable,
+  registrosTable,
+  registrosClinicosTable,
+  goalLibraryTable,
+  usersTable,
+} from "@workspace/db/schema";
+import { and, eq, count, gte, inArray, lt } from "drizzle-orm";
+import { getDashboardCalendarRanges } from "../lib/dashboard-calendar";
 
 const router: IRouter = Router();
 
@@ -20,25 +27,31 @@ router.get("/dashboard/stats", async (req, res) => {
 
   const isAdmin = sess.role === "admin";
 
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const dateRanges = getDashboardCalendarRanges();
 
   if (isAdmin) {
     // Admin sees global stats
     const [{ value: totalPatients }] = await db.select({ value: count() }).from(patientsTable);
     const [{ value: activeSessions }] = await db.select({ value: count() }).from(registrosTable);
     const [{ value: goalsAchieved }] = await db.select({ value: count() }).from(goalLibraryTable);
-    const [{ value: totalProfessionals }] = await db.select({ value: count() }).from(professionalsTable);
+    const [{ value: totalProfessionals }] = await db
+      .select({ value: count() })
+      .from(usersTable)
+      .where(and(eq(usersTable.role, "professional"), eq(usersTable.active, true)));
     const [{ value: sessionsThisWeek }] = await db
       .select({ value: count() })
-      .from(registrosTable)
-      .where(gte(registrosTable.createdAt, oneWeekAgo));
+      .from(registrosClinicosTable)
+      .where(and(
+        gte(registrosClinicosTable.fecha, dateRanges.weekStart),
+        lt(registrosClinicosTable.fecha, dateRanges.nextWeekStart),
+      ));
     const [{ value: newPatientsThisMonth }] = await db
       .select({ value: count() })
       .from(patientsTable)
-      .where(gte(patientsTable.createdAt, oneMonthAgo));
+      .where(and(
+        gte(patientsTable.createdAt, dateRanges.monthStartAt),
+        lt(patientsTable.createdAt, dateRanges.nextMonthStartAt),
+      ));
 
     return res.json({
       totalPatients: Number(totalPatients),
@@ -58,23 +71,36 @@ router.get("/dashboard/stats", async (req, res) => {
 
   const totalPatients = myPatients.length;
   const patientIds = myPatients.map(p => p.id);
-  const newPatientsThisMonth = myPatients.filter(p => p.createdAt >= oneMonthAgo).length;
+  const newPatientsThisMonth = myPatients.filter(
+    p => p.createdAt >= dateRanges.monthStartAt && p.createdAt < dateRanges.nextMonthStartAt,
+  ).length;
 
   let activeSessions = 0;
   let sessionsThisWeek = 0;
 
   if (patientIds.length > 0) {
+    const [{ value: clinicalSessionsThisWeek }] = await db
+      .select({ value: count() })
+      .from(registrosClinicosTable)
+      .where(and(
+        inArray(registrosClinicosTable.patientId, patientIds),
+        gte(registrosClinicosTable.fecha, dateRanges.weekStart),
+        lt(registrosClinicosTable.fecha, dateRanges.nextWeekStart),
+      ));
     const myRegistros = await db
       .select({ createdAt: registrosTable.createdAt })
       .from(registrosTable)
       .where(inArray(registrosTable.patientId, patientIds));
 
     activeSessions = myRegistros.length;
-    sessionsThisWeek = myRegistros.filter(r => r.createdAt >= oneWeekAgo).length;
+    sessionsThisWeek = Number(clinicalSessionsThisWeek);
   }
 
   const [{ value: goalsAchieved }] = await db.select({ value: count() }).from(goalLibraryTable);
-  const [{ value: totalProfessionals }] = await db.select({ value: count() }).from(professionalsTable);
+  const [{ value: totalProfessionals }] = await db
+    .select({ value: count() })
+    .from(usersTable)
+    .where(and(eq(usersTable.role, "professional"), eq(usersTable.active, true)));
 
   return res.json({
     totalPatients,

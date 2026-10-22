@@ -402,10 +402,10 @@ function AdminDashboard() {
   });
 
   const cards = [
-    { label: "Pacientes registrados", value: data?.totalPatients },
-    { label: "Profesionales", value: data?.totalProfessionals },
-    { label: "Nuevos pacientes este mes", value: data?.newPatientsThisMonth },
-    { label: "Sesiones registradas esta semana", value: data?.sessionsThisWeek },
+    { label: "Pacientes registrados", value: data?.totalPatients, note: "Incluye pacientes archivados." },
+    { label: "Profesionales", value: data?.totalProfessionals, note: undefined },
+    { label: "Nuevos pacientes este mes", value: data?.newPatientsThisMonth, note: "Incluye pacientes archivados." },
+    { label: "Sesiones registradas esta semana", value: data?.sessionsThisWeek, note: undefined },
   ];
 
   return (
@@ -429,6 +429,9 @@ function AdminDashboard() {
                 <p className="mt-2 text-3xl font-display font-bold text-foreground">
                   {isLoading ? "…" : Number(card.value ?? 0).toLocaleString("es-AR")}
                 </p>
+                {card.note && (
+                  <p className="mt-1 text-xs text-muted-foreground">{card.note}</p>
+                )}
               </div>
             ))}
           </div>

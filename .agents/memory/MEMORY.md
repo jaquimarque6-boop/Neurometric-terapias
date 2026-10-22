@@ -10,4 +10,4 @@
 - [Collaborator boundaries](collaborator-boundaries.md) — default-deny portal access; preserve attribution and frozen recurring commissions independently of clinical billing.
 - [Audit privacy](usage-audit-privacy.md) — Keep only account, event type, and time; never collect patient identifiers or clinical content; metrics must fail open.
 - [API workflow auto-restarts](api-workflow-auto-restarts.md) — Editing API source can restart dev and run startup initialization even without a manual workflow restart.
-- [Admin/professional identity separation](admin-professional-separation.md) — The user already has separate admin and professional accounts; do not create accounts or migrate patients for separation.
+- [Admin/professional identity separation](admin-professional-separation.md) — Keep access accounts and the clinical contact directory distinct; don't create duplicates or migrate data without approval.

@@ -60,7 +60,7 @@ type Professional = {
 };
 
 export default function Professionals() {
-  const { data: professionals, isLoading } = useListProfessionals();
+  const { data: professionals, isLoading, isError, refetch } = useListProfessionals();
   const [showForm, setShowForm] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -87,7 +87,14 @@ export default function Professionals() {
               Equipo Clínico
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              {professionals?.length ?? 0} profesional{professionals?.length !== 1 ? "es" : ""} registrado{professionals?.length !== 1 ? "s" : ""}
+              {isLoading
+                ? "Cargando directorio…"
+                : isError
+                  ? "No se pudo cargar el directorio."
+                  : `${professionals?.length ?? 0} profesional${professionals?.length !== 1 ? "es" : ""} registrado${professionals?.length !== 1 ? "s" : ""}`}
+            </p>
+            <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
+              Directorio independiente de contacto y matrícula. Agregar aquí no crea ni sincroniza una cuenta de acceso; las cuentas profesionales se gestionan en Usuarios.
             </p>
           </div>
           <Button
@@ -95,7 +102,7 @@ export default function Professionals() {
             className="bg-primary text-white hover:bg-primary/90 shadow-sm border border-primary/20 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Agregar profesional
+            Agregar al directorio
           </Button>
         </div>
 
@@ -133,6 +140,11 @@ export default function Professionals() {
                   {Array(2).fill(0).map((_, i) => (
                     <Skeleton key={i} className="h-12 rounded-lg" />
                   ))}
+                </div>
+              ) : isError ? (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+                  <span>No se pudo cargar el directorio.</span>
+                  <Button size="sm" variant="outline" onClick={() => refetch()}>Reintentar</Button>
                 </div>
               ) : matches.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-3 px-1">
@@ -179,6 +191,11 @@ export default function Professionals() {
                   </CardContent>
                 </Card>
               ))
+            ) : isError ? (
+              <div role="alert" className="col-span-full flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
+                <p>No se pudo cargar el directorio clínico.</p>
+                <Button size="sm" variant="outline" onClick={() => refetch()}>Reintentar</Button>
+              </div>
             ) : professionals && professionals.length > 0 ? (
               (professionals as Professional[]).map(pro => (
                 <Card
@@ -231,8 +248,8 @@ export default function Professionals() {
             ) : (
               <div className="col-span-full py-20 text-center bg-card rounded-2xl border border-dashed border-border">
                 <Stethoscope className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-                <p className="font-medium text-foreground/70">No hay profesionales registrados</p>
-                <p className="text-muted-foreground text-sm mt-1">Agrega el primer miembro del equipo clínico.</p>
+                <p className="font-medium text-foreground/70">No hay registros en el directorio</p>
+                <p className="text-muted-foreground text-sm mt-1">Las cuentas profesionales de Usuarios no se agregan aquí automáticamente.</p>
               </div>
             )}
           </div>
@@ -274,7 +291,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListProfessionalsQueryKey() });
-          toast({ title: "Profesional agregado", description: "El nuevo miembro fue registrado en el equipo." });
+          toast({ title: "Registro agregado al directorio", description: "Se guardaron los datos de contacto del profesional." });
           onClose();
         },
         onError: (e: any) => {
@@ -290,10 +307,10 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <Stethoscope className="h-5 w-5 text-primary" />
-            Nuevo profesional
+            Nuevo registro del directorio
           </DialogTitle>
           <DialogDescription>
-            Registra un nuevo miembro del equipo clínico en la plataforma.
+            Agrega datos de contacto y matrícula; esto no crea una cuenta de acceso.
           </DialogDescription>
         </DialogHeader>
 
@@ -383,7 +400,7 @@ function ProfessionalForm({ onClose }: { onClose: () => void }) {
               disabled={!form.name || !form.email || !form.specialty || createPro.isPending}
               onClick={handleSubmit}
             >
-              {createPro.isPending ? "Guardando..." : "Registrar profesional"}
+              {createPro.isPending ? "Guardando..." : "Guardar en el directorio"}
             </Button>
           </div>
         </div>
