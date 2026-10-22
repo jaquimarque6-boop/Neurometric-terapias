@@ -12,6 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListGoalsQueryKey } from "@workspace/api-client-react";
 import { API_BASE } from "@/lib/api";
+import {
+  CLINICAL_SPECIALTY_LABELS,
+  type ClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 
 type SuggestedGoal = {
   title: string;
@@ -36,13 +40,6 @@ const NIVEL_STYLE: Record<string, string> = {
   inicial:     "bg-emerald-100 text-emerald-700 border-emerald-200",
   intermedio:  "bg-amber-100 text-amber-700 border-amber-200",
   avanzado:    "bg-orange-100 text-orange-700 border-orange-200",
-};
-
-const DISCIPLINE_LABEL: Record<string, string> = {
-  "fonoaudiología":     "Fonoaudiología",
-  "psicopedagogía":     "Psicopedagogía",
-  "terapia_ocupacional": "Terapia Ocupacional",
-  "general":            "General",
 };
 
 export function AIObjetivosDialog({ open, onClose, patientId, patientName }: Props) {
@@ -177,7 +174,7 @@ export function AIObjetivosDialog({ open, onClose, patientId, patientName }: Pro
             {isLoading
               ? `Analizando historial clínico de ${patientName.split(" ")[0]}…`
               : discipline
-              ? `Generado para ${DISCIPLINE_LABEL[discipline] ?? discipline} · ${patientName.split(" ")[0]}`
+              ? `Generado para ${CLINICAL_SPECIALTY_LABELS[discipline as ClinicalSpecialty] ?? discipline} · ${patientName.split(" ")[0]}`
               : `Seleccioná los objetivos que deseas agregar al plan de ${patientName.split(" ")[0]}.`
             }
           </DialogDescription>

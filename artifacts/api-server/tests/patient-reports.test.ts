@@ -98,6 +98,27 @@ async function call(method: string, path: string, user?: number, body?: unknown)
   return { status: response.status, body: await response.json() };
 }
 
+test("an assigned professional can still read previously saved clinical reports", async () => {
+  reports.length = 0;
+  reports.push({
+    id: 7,
+    patientId: 1,
+    reportType: "evolution",
+    title: "Informe clínico anterior",
+    content: { patientSnapshot: { name: "Paciente" }, summary: "Evolución registrada." },
+    authorUserId: 2,
+    updatedByUserId: 2,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const response = await call("GET", "/patients/1/reports", 2);
+  assert.equal(response.status, 200);
+  assert.equal(response.body.length, 1);
+  assert.equal(response.body[0].title, "Informe clínico anterior");
+  assert.equal(response.body[0].content.summary, "Evolución registrada.");
+});
+
 test("patient access precedes report reads and writes; admin remains authorized", async () => {
   reports.length = 0;
   assert.equal((await call("GET", "/patients/1/reports")).status, 401);

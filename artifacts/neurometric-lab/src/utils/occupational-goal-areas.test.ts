@@ -19,7 +19,7 @@ const requiredOccupationalAreas = [
 ];
 
 test("the occupational session bank includes all requested areas", () => {
-  const areas = getBancoAreas("ocupacional");
+  const areas = getBancoAreas("terapia_ocupacional");
   for (const area of requiredOccupationalAreas) {
     assert.ok(areas.includes(area), `${area} should be available to OT`);
   }
@@ -34,7 +34,7 @@ test("each occupational area has a code prefix and subarea choices", () => {
 });
 
 test("legacy and shared occupational filters remain available", () => {
-  const areas = getBancoAreas("ocupacional");
+  const areas = getBancoAreas("terapia_ocupacional");
   for (const area of [
     "integración sensorial",
     "motricidad fina",

@@ -13,6 +13,7 @@ import { API_BASE } from "@/lib/api";
 import { ACTIVIDADES_URL } from "@/lib/actividades";
 import { LastSessionSummary } from "@/components/last-session-summary";
 import { getProfesion } from "@/utils/profession-map";
+import { hasSpecialtySpecificContent } from "@workspace/clinical-specialty";
 import { parseDiagnoses, serializeDiagnoses } from "@/utils/diagnosis-map";
 import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
@@ -54,6 +55,7 @@ const CHIP_GROUPS = [
 
 type ChipKey = typeof CHIP_GROUPS[number]["key"];
 type ChipState = Record<ChipKey, string[]>;
+type ChipGroup = typeof CHIP_GROUPS[number];
 
 const emptyChips = (): ChipState =>
   Object.fromEntries(CHIP_GROUPS.map(g => [g.key, []])) as unknown as ChipState;
@@ -68,8 +70,12 @@ function todayISO() {
   return new Date().toISOString().split("T")[0];
 }
 
-function serializeChipsToObservaciones(chips: ChipState, observacion: string): string {
-  const lines = CHIP_GROUPS
+function serializeChipsToObservaciones(
+  chips: ChipState,
+  observacion: string,
+  groups: readonly ChipGroup[],
+): string {
+  const lines = groups
     .map(g => {
       const sel = chips[g.key];
       if (!sel.length) return null;
@@ -111,6 +117,9 @@ export default function SesionRapida() {
   const [organizedProposal, setOrganizedProposal] = useState<OrganizedRecordFields | null>(null);
 
   const profesion = getProfesion(user?.specialty);
+  const visibleChipGroups: readonly ChipGroup[] = hasSpecialtySpecificContent(profesion)
+    ? CHIP_GROUPS
+    : CHIP_GROUPS.filter(group => group.key === "estado" || group.key === "participacion");
 
   const [isRecording, setIsRecording]       = useState(false);
   const recognitionRef                      = useRef<any>(null);
@@ -147,7 +156,10 @@ export default function SesionRapida() {
     });
   }, []);
 
-  const totalChipsSelected = Object.values(chips).reduce((n, arr) => n + arr.length, 0);
+  const totalChipsSelected = visibleChipGroups.reduce(
+    (count, group) => count + chips[group.key].length,
+    0,
+  );
 
   // ── Voice recording (Web Speech API) ──────────────────────────────────────
   const startRecording = useCallback(() => {
@@ -269,7 +281,11 @@ export default function SesionRapida() {
     setShowDiagScopeModal(false);
     setIsSaving(true);
     try {
-      const observaciones = serializeChipsToObservaciones(chips, observacion);
+      const observaciones = serializeChipsToObservaciones(
+        chips,
+        observacion,
+        visibleChipGroups,
+      );
 
       const { failedPhotos } = await saveClinicalRecordWithMaterials({
         patientId: selectedId,
@@ -416,7 +432,7 @@ export default function SesionRapida() {
 
           {showChips && (
             <div className="px-4 pb-4 space-y-4 border-t border-border/40 pt-3">
-              {CHIP_GROUPS.map(group => (
+              {visibleChipGroups.map(group => (
                 <div key={group.key}>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     {group.label}

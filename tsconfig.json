@@ -4,6 +4,9 @@
   "files": [],
   "references": [
     {
+      "path": "./lib/clinical-specialty"
+    },
+    {
       "path": "./lib/db"
     },
     {

@@ -13,7 +13,10 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
-import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
+import {
+  resolveClinicalSpecialty,
+  type ClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 import { selectClinicalPeriod, validClinicalDay } from "./report-period";
@@ -31,15 +34,23 @@ const router: IRouter = Router();
 
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
-  return { id: req.session.userId, role: req.session.userRole ?? "professional" };
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+    specialty: req.session.userSpecialty ?? null,
+  };
 }
 
 // ─── Discipline detection ─────────────────────────────────────────────────────
 
 // ─── Discipline-specific system prompts ──────────────────────────────────────
 
-function buildSystemPrompt(discipline: ClinicalDiscipline): string {
-  const base = `Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.
+function buildSystemPrompt(discipline: ClinicalSpecialty): string {
+  const assistantRole =
+    discipline === "psicologia" || discipline === "general"
+      ? "Eres un asistente clínico de propósito general."
+      : "Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.";
+  const base = `${assistantRole}
 Tu tarea es redactar secciones de un informe clínico de evolución basándote EXCLUSIVAMENTE en los datos reales del paciente que se te proporcionan.
 Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
@@ -52,28 +63,30 @@ Reglas estrictas:
 - Evita repetir el nombre del paciente. Describe solo registros presentes en el período; un registro en el período no implica que sea la única sesión de toda la historia clínica. Si no hay registros clínicos en el período no afirmes que hubo sesiones ni uses "Durante las sesiones".
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
-  const disciplines: Record<ClinicalDiscipline, string> = {
-    "fonoaudiología": `
+  const neutralGuidance = `
+Especialidad reconocida sin guía específica configurada.
+Redacta únicamente con información explícitamente documentada y terminología clínica general. No agregues ejercicios, diagnósticos, categorías ni términos propios de otra especialidad.`;
+  const disciplines: Record<ClinicalSpecialty, string> = {
+    fonoaudiologia: `
 Especialidad: FONOAUDIOLOGÍA.
 Enfocate en: lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).
 Terminología a usar: "producción fonológica", "inteligibilidad del habla", "estructuración del lenguaje", "comprensión auditiva", "habilidades pragmáticas", "comunicación intencional", "sistemas de comunicación aumentativa", "patrón articulatorio", "discriminación auditiva", "narrativa oral".
 Al describir evolución: mencionar cambios en la claridad del habla, ampliación del vocabulario, longitud de enunciados, uso comunicativo del lenguaje o comprensión de consignas únicamente si están registrados explícitamente.`,
 
-    "psicopedagogía": `
+    psicopedagogia: `
 Especialidad: PSICOPEDAGOGÍA.
 Enfocate en: procesos de aprendizaje, atención sostenida y selectiva, memoria operativa, funciones ejecutivas, lectoescritura, comprensión lectora, cálculo.
 Terminología a usar: "estrategias cognitivas", "procesos de aprendizaje", "nivel de adquisición", "metacognición", "planificación y organización", "flexibilidad cognitiva", "inhibición de respuestas", "decodificación lectora", "conciencia fonológica", "procesamiento de la información".
 Al describir evolución: mencionar cambios en el rendimiento, estrategias adquiridas, autonomía o generalización únicamente si están registrados explícitamente.`,
 
-    "terapia_ocupacional": `
+    terapia_ocupacional: `
 Especialidad: TERAPIA OCUPACIONAL.
 Enfocate en: AVD y autonomía, rutinas y hábitos, procesamiento y regulación sensorial, destreza manual, motricidad, coordinación visomotora, grafomotricidad, juego y participación social/escolar, considerando los apoyos y las adaptaciones del entorno.
 Terminología a usar: "desempeño ocupacional", "participación en ocupaciones significativas", "apoyo requerido", "adaptaciones del entorno", "rutina", "destreza manual", "coordinación bimanual", "autonomía en AVD".
 Al describir evolución: mencionar cambios en la participación funcional, autonomía, uso de apoyos, ejecución de rutinas o acceso a actividades únicamente si están registrados explícitamente; no reducir la evolución a déficits corporales.`,
 
-    "general": `
- Redacta el informe con terminología clínica general apropiada para terapias del neurodesarrollo.
- Identifica áreas a partir de anamnesis, evaluaciones, actividades y observaciones de sesión y objetivos si existen. No infieras resultados ni áreas sin respaldo documental.`,
+    psicologia: neutralGuidance,
+    general: neutralGuidance,
   };
 
   return base + disciplines[discipline];
@@ -128,9 +141,10 @@ router.post("/ai/informe-generate", async (req, res) => {
   ]);
 
   // ── Detect discipline ──────────────────────────────────────────────────────
-  const specialties = professionals.map(p => p.specialty).join(" ");
-  const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = resolveClinicalSpecialty(
+    sess.specialty,
+    professionals.map((professional) => professional.specialty),
+  );
 
   // ── Filter sessions by selected range ─────────────────────────────────────
   const period = selectClinicalPeriod(allRegistrosClinicos, rango);

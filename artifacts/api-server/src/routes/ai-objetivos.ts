@@ -13,7 +13,10 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
-import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
+import {
+  resolveClinicalSpecialty,
+  type ClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 
@@ -21,33 +24,58 @@ const router: IRouter = Router();
 
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
-  return { id: req.session.userId, role: req.session.userRole ?? "professional" };
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+    specialty: req.session.userSpecialty ?? null,
+  };
 }
 
-function buildDisciplineGuidance(discipline: ClinicalDiscipline): string {
-  const map: Record<ClinicalDiscipline, string> = {
-    "fonoaudiología": `Disciplina: FONOAUDIOLOGÍA.
+function buildDisciplineGuidance(discipline: ClinicalSpecialty): string {
+  const neutralGuidance = `Disciplina: GENERAL / sin guía específica configurada.
+Usa solo áreas y objetivos ya documentados; no infieras una profesión a partir de los datos ni agregues ejercicios, diagnósticos, terminología o materiales propios de otra especialidad.
+Si el historial no aporta base suficiente para un objetivo, no lo propongas.
+Indicadores: usa criterios observables únicamente cuando puedan justificarse con los datos disponibles.`;
+
+  const map: Record<ClinicalSpecialty, string> = {
+    fonoaudiologia: `Disciplina: FONOAUDIOLOGÍA.
 Áreas a considerar: fonología, lenguaje expresivo, lenguaje comprensivo, articulación, pragmática, comunicación funcional, voz, deglución.
 Redacta los objetivos usando términos como: "producción fonológica", "inteligibilidad del habla", "estructuras sintácticas", "vocabulario funcional", "comprensión auditiva", "habilidades pragmáticas", "comunicación intencional", "discriminación auditiva", "narración oral".
 Indicadores de logro: expresados en producciones correctas por intento (ej. "8/10 en denominación de imágenes").`,
 
-    "psicopedagogía": `Disciplina: PSICOPEDAGOGÍA.
+    psicopedagogia: `Disciplina: PSICOPEDAGOGÍA.
 Áreas a considerar: atención sostenida y selectiva, memoria de trabajo, funciones ejecutivas (planificación, inhibición, flexibilidad), lectoescritura, comprensión lectora, cálculo, estrategias metacognitivas.
 Redacta los objetivos usando términos como: "estrategias cognitivas", "nivel de adquisición", "autorregulación", "secuenciación de tareas", "procesamiento de la información", "conciencia fonológica", "decodificación lectora", "producción escrita".
 Indicadores de logro: expresados en porcentaje de aciertos, ítems completados o tiempo de atención sostenida.`,
 
-    "terapia_ocupacional": `Disciplina: TERAPIA OCUPACIONAL.
+    terapia_ocupacional: `Disciplina: TERAPIA OCUPACIONAL.
 Áreas a considerar: AVD y autonomía, rutinas y hábitos, procesamiento y regulación sensorial, destreza manual, motricidad, coordinación visomotora, grafomotricidad, juego, participación social y escolar, planificación motora y entorno.
 Priorizá desempeño funcional, elección y participación en ocupaciones significativas, considerando apoyos y adaptaciones del contexto.
 Redacta objetivos con una acción observable, el contexto funcional y el nivel de ayuda o criterio de logro; evitá centrarte solo en déficits corporales.
 Indicadores: pasos realizados con el apoyo acordado, participación en oportunidades funcionales o uso de una estrategia en la rutina.`,
 
-    "general": `Disciplina: GENERAL / sin determinar.
-Redacta objetivos clínicamente válidos adaptados a las áreas de trabajo detectadas en los objetivos actuales del paciente.
-Indicadores de logro: expresados con criterio observable y cuantificable.`,
+    psicologia: neutralGuidance,
+    general: neutralGuidance,
   };
   return map[discipline];
 }
+
+const OBJECTIVE_EXAMPLES: Record<
+  ClinicalSpecialty,
+  { areaClinica: string; category: string }
+> = {
+  fonoaudiologia: { areaClinica: "fonología", category: "habla" },
+  psicopedagogia: {
+    areaClinica: "funciones ejecutivas",
+    category: "planificación",
+  },
+  terapia_ocupacional: {
+    areaClinica: "participación escolar",
+    category: "participación",
+  },
+  psicologia: { areaClinica: "general", category: "general" },
+  general: { areaClinica: "general", category: "general" },
+};
 
 function trunc(s: string | null | undefined, max = 300): string {
   if (!s) return "";
@@ -94,9 +122,11 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
   ]);
 
   // ── Detect discipline ──────────────────────────────────────────────────
-  const specialties = professionals.map(p => p.specialty).join(" ");
-  const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = resolveClinicalSpecialty(
+    sess.specialty,
+    professionals.map((professional) => professional.specialty),
+  );
+  const objectiveExample = OBJECTIVE_EXAMPLES[discipline];
 
   // ── Build context ──────────────────────────────────────────────────────
   const patientCtx = [
@@ -205,8 +235,12 @@ DESEMPEÑO POR OBJETIVO EN SESIONES
 ═══════════════════════════════════════
 ${perfCtx}` : ""}`;
 
+  const assistantRole =
+    discipline === "psicologia" || discipline === "general"
+      ? "Eres un asistente clínico de propósito general."
+      : "Eres un asistente clínico especializado en terapias del neurodesarrollo.";
   const systemPrompt = isSesion
-    ? `Eres un asistente clínico especializado en terapias del neurodesarrollo.
+    ? `${assistantRole}
 Tu tarea es sugerir entre 1 y 3 objetivos PRÁCTICOS para trabajar HOY en sesión, basándote EXCLUSIVAMENTE en el historial real del paciente.
 ${buildDisciplineGuidance(discipline)}
 
@@ -217,7 +251,7 @@ Reglas estrictas:
 - Si los objetivos activos tienen buen progreso, podés sugerir el siguiente paso lógico.
 - No inventes datos que no estén en el contexto.
 - Responde EXCLUSIVAMENTE con JSON válido. Sin markdown. Sin texto fuera del JSON.`
-    : `Eres un asistente clínico especializado en terapias del neurodesarrollo.
+    : `${assistantRole}
 Tu tarea es proponer objetivos terapéuticos nuevos, clínicamente válidos y medibles, basados EXCLUSIVAMENTE en los datos reales del paciente.
 ${buildDisciplineGuidance(discipline)}
 
@@ -246,8 +280,8 @@ Para cada objetivo devuelve exactamente este JSON:
   "objetivos": [
     {
       "title": "Objetivo corto, concreto y trabajable hoy. Describe la conducta observable.",
-      "areaClinica": "fonología",
-      "category": "habla",
+      "areaClinica": "${objectiveExample.areaClinica}",
+      "category": "${objectiveExample.category}",
       "nivelDificultad": "inicial",
       "rationale": "Breve justificación clínica (1 oración) de por qué trabajar esto HOY basada en el historial."
     }
@@ -276,8 +310,8 @@ Para cada objetivo devuelve exactamente este formato JSON:
       "intentosSugeridos": 10,
       "sesionesEstimadas": 8,
       "nivelDificultad": "inicial",
-      "areaClinica": "fonología",
-      "category": "habla",
+      "areaClinica": "${objectiveExample.areaClinica}",
+      "category": "${objectiveExample.category}",
       "notas": "Estrategias o materiales sugeridos para trabajar este objetivo."
     }
   ]

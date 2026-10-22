@@ -1,48 +1,58 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { detectClinicalDiscipline } from "../src/lib/clinical-discipline";
+import {
+  hasSpecialtySpecificContent,
+  normalizeClinicalSpecialty,
+  resolveClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 
-const occupationalAreas = [
-  "actividades de la vida diaria y autonomía",
-  "rutinas y hábitos",
-  "procesamiento y regulación sensorial",
-  "motricidad fina y destreza manual",
-  "motricidad gruesa",
-  "coordinación visomotora",
-  "grafomotricidad",
-  "juego",
-  "participación social",
-  "participación escolar",
-  "planificación y organización motora",
-  "entorno y participación",
-];
-
-test("recognizes every new occupational-therapy goal area", () => {
-  for (const area of occupationalAreas) {
-    assert.equal(
-      detectClinicalDiscipline("", [area]),
-      "terapia_ocupacional",
-      `${area} should select the occupational-therapy branch`,
-    );
-  }
+test("recognizes the four core specialties and existing psychology labels", () => {
+  assert.equal(normalizeClinicalSpecialty("Fonoaudiología"), "fonoaudiologia");
+  assert.equal(normalizeClinicalSpecialty("Psicopedagogía"), "psicopedagogia");
+  assert.equal(normalizeClinicalSpecialty("Terapia Ocupacional"), "terapia_ocupacional");
+  assert.equal(normalizeClinicalSpecialty("Psicología"), "psicologia");
+  assert.equal(normalizeClinicalSpecialty("Psicología Infantil"), "psicologia");
+  assert.equal(normalizeClinicalSpecialty("Neuropsicología"), "psicologia");
+  assert.equal(normalizeClinicalSpecialty("Logopedia"), "fonoaudiologia");
 });
 
-test("an explicit specialty takes precedence over overlapping goal areas", () => {
+test("unknown and missing specialties resolve to general rather than Fonoaudiología", () => {
+  assert.equal(normalizeClinicalSpecialty("Otra especialidad"), "general");
+  assert.equal(normalizeClinicalSpecialty(undefined), "general");
+  assert.equal(normalizeClinicalSpecialty(""), "general");
+});
+
+test("an explicit professional specialty takes precedence over patient assignments", () => {
   assert.equal(
-    detectClinicalDiscipline("Terapia Ocupacional", ["lectoescritura"]),
+    resolveClinicalSpecialty("Neuropsicología", ["Fonoaudiología"]),
+    "psicologia",
+  );
+  assert.equal(
+    resolveClinicalSpecialty("Terapia Ocupacional", ["Psicopedagogía"]),
     "terapia_ocupacional",
   );
+});
+
+test("assignment fallback is used only when it identifies one specialty", () => {
+  assert.equal(resolveClinicalSpecialty(null, ["Psicopedagogía"]), "psicopedagogia");
   assert.equal(
-    detectClinicalDiscipline("Fonoaudiología", ["juego"]),
-    "fonoaudiología",
+    resolveClinicalSpecialty(null, ["Fonoaudiología", "Psicopedagogía"]),
+    "general",
   );
   assert.equal(
-    detectClinicalDiscipline("Psicopedagogía", ["rutinas y hábitos"]),
-    "psicopedagogía",
+    resolveClinicalSpecialty("Especialidad no reconocida", ["Fonoaudiología"]),
+    "general",
   );
 });
 
-test("keeps existing shared-area inference intact", () => {
-  assert.equal(detectClinicalDiscipline("", ["cognición"]), "psicopedagogía");
-  assert.equal(detectClinicalDiscipline("", ["lenguaje"]), "fonoaudiología");
+test("only specialties with configured content use specialty-specific guidance", () => {
+  for (const specialty of [
+    "fonoaudiologia",
+    "psicopedagogia",
+    "terapia_ocupacional",
+  ] as const) {
+    assert.equal(hasSpecialtySpecificContent(specialty), true);
+  }
+  assert.equal(hasSpecialtySpecificContent("psicologia"), false);
+  assert.equal(hasSpecialtySpecificContent("general"), false);
 });

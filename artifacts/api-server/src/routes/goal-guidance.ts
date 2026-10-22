@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import OpenAI from "openai";
 import { requireAiConsent } from "../lib/consents";
 import { recordUserActivityEvent } from "../lib/usage-audit-db";
+import { normalizeClinicalSpecialty } from "@workspace/clinical-specialty";
 
 const router: IRouter = Router();
 
@@ -42,11 +43,19 @@ router.post("/goal-guidance", async (req, res) => {
     .filter(Boolean)
     .join("\n");
 
-  const systemPrompt = `Eres un fonoaudiólogo clínico experto en terapia del lenguaje y cognición infantil. 
+  const specialty = normalizeClinicalSpecialty(req.session.userSpecialty);
+  const isFonoaudiologia = specialty === "fonoaudiologia";
+  const systemPrompt = isFonoaudiologia
+    ? `Eres un fonoaudiólogo clínico experto en terapia del lenguaje y cognición infantil.
 Respondes SIEMPRE en JSON válido con exactamente dos campos: "marcoConceptual" y "sugerenciaFamilia".
+No incluyas texto fuera del JSON. No uses markdown.`
+    : `Eres un asistente clínico de propósito general.
+Responde SIEMPRE en JSON válido con exactamente dos campos: "marcoConceptual" y "sugerenciaFamilia".
+Usa únicamente información explícita del objetivo; no agregues diagnósticos, ejercicios ni terminología propia de otra especialidad. Si no hay base suficiente, indícalo con claridad en ambos campos.
 No incluyas texto fuera del JSON. No uses markdown.`;
 
-  const userPrompt = `Dado el siguiente objetivo terapéutico, genera:
+  const userPrompt = isFonoaudiologia
+    ? `Dado el siguiente objetivo terapéutico, genera:
 
 1. "marcoConceptual": 1-2 oraciones explicando POR QUÉ este objetivo importa para el desarrollo del niño. Lenguaje clínico pero accesible.
 
@@ -56,7 +65,17 @@ Objetivo:
 ${contexto}
 
 Responde con este JSON exacto (sin código markdown):
-{"marcoConceptual": "...", "sugerenciaFamilia": "• Actividad 1.\n• Actividad 2."}`;
+{"marcoConceptual": "...", "sugerenciaFamilia": "• Actividad 1.\n• Actividad 2."}`
+    : `Dado el siguiente objetivo, redacta:
+
+1. "marcoConceptual": una explicación breve, basada únicamente en lo que el objetivo declara.
+2. "sugerenciaFamilia": una pauta general para acompañar el objetivo acordado, sin proponer ejercicios ni actividades de otra especialidad.
+
+Objetivo:
+${contexto}
+
+Responde con este JSON exacto (sin código markdown):
+{"marcoConceptual": "...", "sugerenciaFamilia": "..."}`;
 
   try {
     const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;

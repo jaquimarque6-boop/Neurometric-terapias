@@ -165,6 +165,9 @@ importers:
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
+      '@workspace/clinical-specialty':
+        specifier: workspace:*
+        version: link:../../lib/clinical-specialty
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -503,6 +506,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/clinical-specialty':
+        specifier: workspace:*
+        version: link:../../lib/clinical-specialty
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -639,6 +645,8 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 3.25.76
+
+  lib/clinical-specialty: {}
 
   lib/db:
     dependencies:

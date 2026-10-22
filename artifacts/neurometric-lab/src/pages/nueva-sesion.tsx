@@ -13,6 +13,7 @@ import { formatEdad } from "@/utils/edad";
 import { DiagnosisPicker } from "@/components/diagnosis-picker";
 import { useAuth } from "@/contexts/auth-context";
 import { EvalSugerida } from "@/components/eval-sugerida";
+import { hasSpecialtySpecificContent } from "@workspace/clinical-specialty";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -908,7 +909,12 @@ export default function NuevaSesion() {
   const { user }                   = useAuth();
   const profesion                  = useMemo(() => getProfesion(user?.specialty), [user]);
   const diagnosisOptions           = useMemo(() => getDiagnosesByProfesion(profesion), [profesion]);
-  const bloquesActivos             = useMemo(() => profesion === "psicopedagogia" ? BLOQUES_PSICOPED : profesion === "ocupacional" ? BLOQUES_TO : BLOQUES_SESION, [profesion]);
+  const bloquesActivos             = useMemo(() => {
+    if (profesion === "psicopedagogia") return BLOQUES_PSICOPED;
+    if (profesion === "terapia_ocupacional") return BLOQUES_TO;
+    if (profesion === "fonoaudiologia") return BLOQUES_SESION;
+    return [];
+  }, [profesion]);
   const bancoAreaOptions           = useMemo(() => getBancoAreas(profesion), [profesion]);
 
   // Pre-selected patient from URL query: /nueva-sesion?patientId=5
@@ -1076,7 +1082,7 @@ export default function NuevaSesion() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: showBanco && !!bancoArea,
+    enabled: showBanco && hasSpecialtySpecificContent(profesion) && !!bancoArea,
   });
 
   const goals = (goalsRaw as any[]).filter(
@@ -1183,7 +1189,10 @@ export default function NuevaSesion() {
 
   // ── Fetch diagnosis-based goal suggestions from the library ──────────────────
   useEffect(() => {
-    if (!patient || !sessionDiagnosis) { setDiagSuggestions([]); return; }
+    if (!patient || !sessionDiagnosis || !hasSpecialtySpecificContent(profesion)) {
+      setDiagSuggestions([]);
+      return;
+    }
     let cancelled = false;
     setLoadingDiagSug(true);
     const params = new URLSearchParams({ diagnosis: sessionDiagnosis, limit: "12" });
@@ -1193,7 +1202,7 @@ export default function NuevaSesion() {
       .catch(() => { if (!cancelled) setDiagSuggestions([]); })
       .finally(() => { if (!cancelled) setLoadingDiagSug(false); });
     return () => { cancelled = true; };
-  }, [patient?.id, sessionDiagnosis]);
+  }, [patient?.id, sessionDiagnosis, profesion]);
 
   // ── Clear phoneme selection when diagnosis changes ─────────────────────────
   useEffect(() => {
@@ -1473,12 +1482,19 @@ export default function NuevaSesion() {
     ];
 
     const diagLower = diag.toLowerCase();
-    const matchedCtx = DIAG_CTX.find(d => d.match.some(m => diagLower.includes(m)))?.ctx ?? {
-      area: diag || "intervención terapéutica",
-      focus: "los objetivos terapéuticos seleccionados",
-      progress: "Se registró participación adecuada al contexto de la sesión y respuesta favorable a las actividades planteadas.",
-      recomendacion: "Se recomienda reforzar los aprendizajes de la sesión en el entorno cotidiano del paciente.",
-    };
+    const matchedCtx = hasSpecialtySpecificContent(profesion)
+      ? DIAG_CTX.find(d => d.match.some(m => diagLower.includes(m)))?.ctx ?? {
+          area: diag || "intervención terapéutica",
+          focus: "los objetivos terapéuticos seleccionados",
+          progress: "Se registró participación adecuada al contexto de la sesión y respuesta favorable a las actividades planteadas.",
+          recomendacion: "Se recomienda reforzar los aprendizajes de la sesión en el entorno cotidiano del paciente.",
+        }
+      : {
+          area: "la sesión clínica",
+          focus: "los objetivos y el foco registrados",
+          progress: "Se registraron las observaciones y el desempeño disponible, sin inferir resultados no documentados.",
+          recomendacion: "No hay recomendaciones generales configuradas para esta especialidad.",
+        };
 
     const ESTADO_LABEL: Record<string, string> = {
       nuevo:         "en abordaje inicial",
@@ -2061,7 +2077,7 @@ export default function NuevaSesion() {
                 onChange={setSessionDiagnoses}
                 profesion={profesion}
               />
-              {sessionDiagnosis && (
+              {sessionDiagnosis && hasSpecialtySpecificContent(profesion) && (
                 <EvalSugerida diagnosis={sessionDiagnosis} compact />
               )}
             </div>
@@ -2074,7 +2090,12 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía por edad y área ─────────────────────────────────────── */}
-        {patient && (
+        {patient && !hasSpecialtySpecificContent(profesion) && (
+          <div className="rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
+            No hay guías clínicas específicas configuradas para esta especialidad. Los diagnósticos y registros existentes se mantienen disponibles.
+          </div>
+        )}
+        {patient && hasSpecialtySpecificContent(profesion) && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}>
             {/* Header — warm autumn */}
             <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: "#E8D5C4", background: "#FDF3E9" }}>
@@ -2239,7 +2260,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Guía de adquisición de fonemas (TSH) ─────────────────────── */}
-        {patient && (sessionDiagnosis === "TSH" || sessionDiagnosis === "Dislalia") && (
+        {patient && profesion === "fonoaudiologia" && (sessionDiagnosis === "TSH" || sessionDiagnosis === "Dislalia") && (
           <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: `${BRAND_TEAL}35`, background: `linear-gradient(135deg, ${BRAND_TEAL}08 0%, #faf7f5 100%)` }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-3.5 border-b" style={{ borderColor: `${BRAND_TEAL}20` }}>
@@ -2340,7 +2361,7 @@ export default function NuevaSesion() {
         )}
 
         {/* ── Objetivos sugeridos por diagnóstico ───────────────────────── */}
-        {patient && sessionDiagnosis && (
+        {patient && sessionDiagnosis && hasSpecialtySpecificContent(profesion) && (
           <div className="rounded-2xl border border-violet-200 shadow-sm overflow-hidden bg-violet-50/40">
             <button
               className="w-full flex items-center justify-between gap-2 px-5 py-3.5"
@@ -2783,16 +2804,22 @@ export default function NuevaSesion() {
 
             {/* ── Banco de objetivos ───────────────────────────────────── */}
             <div className="border-t border-border/50">
-              {!showBanco ? (
+              {!showBanco || !hasSpecialtySpecificContent(profesion) ? (
                 <div className="divide-y divide-border/30">
-                  <button
-                    className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"
-                    onClick={() => setShowBanco(true)}
-                  >
-                    <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground/70 transition-colors" />
-                    Agregar del banco
-                    <BookOpen className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground" />
-                  </button>
+                  {hasSpecialtySpecificContent(profesion) ? (
+                    <button
+                      className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"
+                      onClick={() => setShowBanco(true)}
+                    >
+                      <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground/70 transition-colors" />
+                      Agregar del banco
+                      <BookOpen className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground" />
+                    </button>
+                  ) : (
+                    <p className="px-5 py-3.5 text-xs text-muted-foreground">
+                      El banco clínico no tiene áreas configuradas para esta especialidad.
+                    </p>
+                  )}
                   {patient && (
                     <button
                       className="w-full flex items-center gap-2 px-5 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group"

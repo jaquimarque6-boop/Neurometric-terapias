@@ -8,7 +8,11 @@ import {
   type DiagnosisCategory,
   type DiagnosisOption,
 } from "@/utils/diagnosis-map";
-import { getDiagnosesByProfesion, type Profesion } from "@/utils/profession-map";
+import {
+  getDiagnosesByProfesion,
+  getDiagnosisOptionsForProfesion,
+  type Profesion,
+} from "@/utils/profession-map";
 
 const BRAND_TEAL = "#81B29A";
 
@@ -43,17 +47,11 @@ export function DiagnosisPicker({
   const [search, setSearch] = useState("");
   const [customText, setCustomText] = useState("");
 
-  const bankOptions = useMemo(() => getDiagnosesByProfesion(profesion), [profesion]);
-
-  // Opciones a mostrar: banco de la profesión + cualquier diagnóstico ya
-  // seleccionado que no esté en ese banco (personalizado o de otra profesión).
-  const allOptions = useMemo(() => {
-    const known = new Set(bankOptions.map(o => o.value));
-    const extras: DiagnosisOption[] = value
-      .filter(v => !known.has(v))
-      .map(v => ({ value: v, label: getDiagnosisLabel(v), category: "Otros" as DiagnosisCategory }));
-    return [...bankOptions, ...extras];
-  }, [bankOptions, value]);
+  const bankOptions = useMemo(
+    () => getDiagnosisOptionsForProfesion(profesion, value),
+    [profesion, value],
+  );
+  const allOptions = bankOptions;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -226,7 +224,11 @@ export function DiagnosisPicker({
       {/* Banco por categorías */}
       <div className="max-h-64 overflow-y-auto pr-1 space-y-3">
         {grouped.length === 0 && (
-          <p className="text-xs text-muted-foreground py-2">Sin resultados para “{search}”.</p>
+          <p className="text-xs text-muted-foreground py-2">
+            {getDiagnosesByProfesion(profesion).length === 0
+              ? "No hay diagnósticos sugeridos para esta especialidad. Los diagnósticos existentes se conservan."
+              : `Sin resultados para “${search}”.`}
+          </p>
         )}
         {grouped.map(({ category, items }) => (
           <div key={category}>

@@ -13,7 +13,10 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
-import { detectClinicalDiscipline, type ClinicalDiscipline } from "../lib/clinical-discipline";
+import {
+  resolveClinicalSpecialty,
+  type ClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 import { canAccessPatient } from "./access-policy";
 import { requireAiConsent } from "../lib/consents";
 
@@ -23,13 +26,21 @@ const router: IRouter = Router();
 
 function getSessionUser(req: any) {
   if (!req.session?.userId) return null;
-  return { id: req.session.userId, role: req.session.userRole ?? "professional" };
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+    specialty: req.session.userSpecialty ?? null,
+  };
 }
 
 // ─── Discipline-specific prompt ───────────────────────────────────────────────
 
-function buildSystemPrompt(discipline: ClinicalDiscipline): string {
-  const base = `Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.
+function buildSystemPrompt(discipline: ClinicalSpecialty): string {
+  const assistantRole =
+    discipline === "psicologia" || discipline === "general"
+      ? "Eres un asistente clínico de propósito general."
+      : "Eres un asistente clínico especializado en terapias del neurodesarrollo e intervención infanto-juvenil.";
+  const base = `${assistantRole}
 Tu tarea es redactar un PERFIL CLÍNICO de síntesis del paciente, basándote EXCLUSIVAMENTE en los datos reales que se te proporcionan (anamnesis, objetivos, sesiones y desempeño).
 Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
@@ -39,15 +50,17 @@ Reglas estrictas:
 - El perfil es una herramienta de trabajo editable para el profesional, no un informe formal para terceros.
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
-  const disciplines: Record<ClinicalDiscipline, string> = {
-    "fonoaudiología": `
+  const neutralGuidance = `
+Especialidad reconocida sin guía específica configurada. Resume solo información explícitamente registrada y usa terminología clínica general; no agregues diagnósticos, actividades ni categorías propias de otra especialidad.`;
+  const disciplines: Record<ClinicalSpecialty, string> = {
+    fonoaudiologia: `
 Especialidad: FONOAUDIOLOGÍA. Enfocate en lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).`,
-    "psicopedagogía": `
+    psicopedagogia: `
 Especialidad: PSICOPEDAGOGÍA. Enfocate en procesos de aprendizaje, atención, memoria operativa, funciones ejecutivas, lectoescritura y comprensión.`,
-    "terapia_ocupacional": `
+    terapia_ocupacional: `
 Especialidad: TERAPIA OCUPACIONAL. Enfocate en desempeño funcional, autonomía, rutinas, regulación sensorial, juego, participación social/escolar y ajustes del entorno. Prioriza los apoyos y ocupaciones relevantes para la persona; no infieras cambios que no estén registrados.`,
-    "general": `
-Redacta con terminología clínica general apropiada para terapias del neurodesarrollo, según las áreas de los objetivos registrados.`,
+    psicologia: neutralGuidance,
+    general: neutralGuidance,
   };
 
   return base + disciplines[discipline];
@@ -204,9 +217,10 @@ router.post("/ai/perfil-generate", async (req, res) => {
   ]);
 
   // ── Detect discipline ──────────────────────────────────────────────────────
-  const specialties = professionals.map(p => p.specialty).join(" ");
-  const goalAreas = allGoals.map(g => g.areaClinica ?? g.category ?? "");
-  const discipline = detectClinicalDiscipline((specialties || patient.profesionalNombre) ?? "", goalAreas);
+  const discipline = resolveClinicalSpecialty(
+    sess.specialty,
+    professionals.map((professional) => professional.specialty),
+  );
 
   // ── Group goal progress by goalId ─────────────────────────────────────────
   const progressByGoal = new Map<number, typeof allGoalProgress>();

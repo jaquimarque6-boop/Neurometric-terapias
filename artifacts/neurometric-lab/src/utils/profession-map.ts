@@ -1,21 +1,17 @@
-import { getDiagnosisOptions, type DiagnosisOption } from "./diagnosis-map";
+import {
+  getDiagnosisLabel,
+  getDiagnosisOptions,
+  type DiagnosisOption,
+} from "./diagnosis-map";
+import {
+  normalizeClinicalSpecialty,
+  type ClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 
-export type Profesion = "fonoaudiologia" | "psicopedagogia" | "ocupacional";
+export type Profesion = ClinicalSpecialty;
 
 export function getProfesion(specialty: string | null | undefined): Profesion {
-  if (!specialty) return "fonoaudiologia";
-  const s = specialty.toLowerCase();
-  if (
-    s.includes("ocupacional") ||
-    s.includes(" to ") ||
-    s === "to"
-  ) return "ocupacional";
-  if (
-    s.includes("psicoped") ||
-    s.includes("pedagog") ||
-    s.includes("aprendizaje")
-  ) return "psicopedagogia";
-  return "fonoaudiologia";
+  return normalizeClinicalSpecialty(specialty);
 }
 
 // Subconjuntos relevantes por profesión (referencian el banco maestro
@@ -52,9 +48,31 @@ export const DIAGNOSES_PSICOPED: DiagnosisOption[] = getDiagnosisOptions(DIAGNOS
 export const DIAGNOSES_TO: DiagnosisOption[] = getDiagnosisOptions(DIAGNOSES_TO_VALUES);
 
 export function getDiagnosesByProfesion(profesion: Profesion): DiagnosisOption[] {
+  if (profesion === "psicologia" || profesion === "general") return [];
   if (profesion === "psicopedagogia") return DIAGNOSES_PSICOPED;
-  if (profesion === "ocupacional")    return DIAGNOSES_TO;
-  return DIAGNOSES_FONO;
+  if (profesion === "terapia_ocupacional") return DIAGNOSES_TO;
+  if (profesion === "fonoaudiologia") return DIAGNOSES_FONO;
+  return [];
+}
+
+/**
+ * Keeps diagnoses already saved on a patient/session visible even when the
+ * current specialty has no specialty-specific suggestion bank.
+ */
+export function getDiagnosisOptionsForProfesion(
+  profesion: Profesion,
+  selected: readonly string[],
+): DiagnosisOption[] {
+  const bankOptions = getDiagnosesByProfesion(profesion);
+  const known = new Set(bankOptions.map((option) => option.value));
+  const existing = selected
+    .filter((value) => !known.has(value))
+    .map((value) => ({
+      value,
+      label: getDiagnosisLabel(value),
+      category: "Otros" as const,
+    }));
+  return [...bankOptions, ...existing];
 }
 
 // ── Banco de objetivos: áreas disponibles por profesión ──────────────────────
@@ -110,13 +128,17 @@ export const BANCO_AREAS_TO = [
 ];
 
 export function getBancoAreas(profesion: Profesion): string[] {
+  if (profesion === "psicologia" || profesion === "general") return [];
   if (profesion === "psicopedagogia") return BANCO_AREAS_PSICOPED;
-  if (profesion === "ocupacional")    return BANCO_AREAS_TO;
-  return BANCO_AREAS_FONO;
+  if (profesion === "terapia_ocupacional") return BANCO_AREAS_TO;
+  if (profesion === "fonoaudiologia") return BANCO_AREAS_FONO;
+  return [];
 }
 
 export const PROFESION_LABEL: Record<Profesion, string> = {
   fonoaudiologia: "Fonoaudiología",
   psicopedagogia: "Psicopedagogía",
-  ocupacional: "Terapia Ocupacional",
+  terapia_ocupacional: "Terapia Ocupacional",
+  psicologia: "Psicología",
+  general: "General",
 };

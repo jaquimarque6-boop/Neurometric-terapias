@@ -21,6 +21,8 @@ import { GoalCodePreview } from "@/components/ui/goal-code-preview";
 import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-clinico-form";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { EvalSugerida } from "@/components/eval-sugerida";
+import { getProfesion } from "@/utils/profession-map";
+import { hasSpecialtySpecificContent } from "@workspace/clinical-specialty";
 import { AnamnesisPhotoImportDialog } from "@/components/anamnesis-photo-import-dialog";
 import {
   useGetPatient,
@@ -1349,6 +1351,9 @@ export default function PatientProfile() {
 
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const hasSpecialtyGuides = hasSpecialtySpecificContent(
+    getProfesion(user?.specialty),
+  );
 
   const { data: patient, isLoading: loadingPatient } = useGetPatient(patientId);
   const { data: allRegistros = [] } = useListRegistrosClinicos(
@@ -2233,7 +2238,9 @@ export default function PatientProfile() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-0.5">Diagnóstico</p>
                   <p className="text-foreground text-sm">{getDiagnosisLabel(patient.diagnosis)}</p>
-                  <EvalSugerida diagnosis={patient.diagnosis} />
+                  {hasSpecialtyGuides && (
+                    <EvalSugerida diagnosis={patient.diagnosis} />
+                  )}
                 </div>
               </div>
             )}
@@ -2830,14 +2837,20 @@ export default function PatientProfile() {
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Sugerir con IA
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBankDialog(true)}
-                  className="h-9 text-sm border-primary/30 text-primary hover:bg-primary/5"
-                >
-                  <Library className="h-4 w-4 mr-1.5" /> Desde el banco
-                </Button>
+                {hasSpecialtyGuides ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBankDialog(true)}
+                    className="h-9 text-sm border-primary/30 text-primary hover:bg-primary/5"
+                  >
+                    <Library className="h-4 w-4 mr-1.5" /> Desde el banco
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    El banco clínico no tiene áreas configuradas para esta especialidad.
+                  </p>
+                )}
                 <Button
                   size="sm"
                   onClick={() => setShowGoalForm(true)}
@@ -2900,11 +2913,17 @@ export default function PatientProfile() {
               <div className="py-16 text-center bg-card rounded-2xl border border-dashed border-border">
                 <Target className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
                 <p className="text-muted-foreground font-medium">Sin objetivos definidos</p>
-                <p className="text-muted-foreground text-sm mt-1">Agrega objetivos desde el banco clínico o crea uno personalizado.</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {hasSpecialtyGuides
+                    ? "Agrega objetivos desde el banco clínico o crea uno personalizado."
+                    : "Podés crear un objetivo personalizado. El banco clínico no tiene áreas configuradas para esta especialidad."}
+                </p>
                 <div className="flex items-center justify-center gap-2 mt-4">
-                  <Button size="sm" variant="outline" onClick={() => setShowBankDialog(true)}>
-                    <Library className="h-3.5 w-3.5 mr-1.5" /> Desde el banco
-                  </Button>
+                  {hasSpecialtyGuides && (
+                    <Button size="sm" variant="outline" onClick={() => setShowBankDialog(true)}>
+                      <Library className="h-3.5 w-3.5 mr-1.5" /> Desde el banco
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => setShowGoalForm(true)}>
                     <Plus className="h-3.5 w-3.5 mr-1.5" /> Objetivo personalizado
                   </Button>
@@ -3465,7 +3484,7 @@ export default function PatientProfile() {
       )}
 
       {/* Add from bank dialog */}
-      {showBankDialog && (
+      {showBankDialog && hasSpecialtyGuides && (
         <AddFromBankDialog
           patientId={patientId}
           existingGoalLibraryIds={goals.map(g => g.goalLibraryId).filter(Boolean) as number[]}

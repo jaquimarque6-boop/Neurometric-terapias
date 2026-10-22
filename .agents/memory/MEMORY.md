@@ -12,3 +12,4 @@
 - [API workflow auto-restarts](api-workflow-auto-restarts.md) — Editing API source can restart dev and run startup initialization even without a manual workflow restart.
 - [Admin/professional identity separation](admin-professional-separation.md) — Keep access accounts and the clinical contact directory distinct; don't create duplicates or migrate data without approval.
 - [Isolated PostgreSQL route tests](isolated-postgres-route-tests.md) — Use a fresh loopback-only cluster and mount routers directly; Postgres loopback addresses may include a CIDR suffix.
+- [Specialty rollout](specialty-rollout.md) — Phase 1 recognizes Psychology variants neutrally; anamnesis, age guides and Psychology-specific content belong to phase 2.
