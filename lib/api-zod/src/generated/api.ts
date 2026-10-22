@@ -260,6 +260,70 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List all patients
  */
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax = 20000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemTitleMax = 200;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax = 120;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsMax = 30;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax = 200;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax = 120;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax = 6000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsMax = 30;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax = 12000;
+
+export const listPatientsResponsePsychologyDataOneEvaluationsMax = 50;
+
 export const ListPatientsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
@@ -278,6 +342,227 @@ export const ListPatientsResponseItem = zod.object({
   anamnesisUpdatedAt: zod.date().nullish(),
   anamnesisUpdatedByUserId: zod.number().nullish(),
   anamnesisUpdatedByName: zod.string().nullish(),
+  psychologyData: zod
+    .union([
+      zod.object({
+        schemaVersion: zod.literal(1),
+        anamnesis: zod.object({
+          sections: zod.object({
+            reasonAndExpectations: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax,
+                ),
+            }),
+            personalFamilyHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax,
+                ),
+            }),
+            developmentalHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax,
+                ),
+            }),
+            emotionalRegulation: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax,
+                ),
+            }),
+            behaviorDailyFunctioning: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax,
+                ),
+            }),
+            relationshipsSupport: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax,
+                ),
+            }),
+            lifeContext: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax,
+                ),
+            }),
+            sleepHabitsRoutines: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax,
+                ),
+            }),
+            strengthsInterestsResources: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax,
+                ),
+            }),
+            previousTreatmentsStrategies: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax,
+                ),
+            }),
+            riskAndProtection: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax,
+                ),
+            }),
+          }),
+        }),
+        evaluations: zod
+          .array(
+            zod.object({
+              id: zod.string().uuid(),
+              title: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneEvaluationsItemTitleMax,
+                ),
+              date: zod
+                .string()
+                .regex(
+                  listPatientsResponsePsychologyDataOneEvaluationsItemDateRegExp,
+                )
+                .nullable(),
+              status: zod.enum(["draft", "completed"]),
+              areas: zod.object({
+                emotionalAffective: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax,
+                  ),
+                behavioral: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax,
+                  ),
+                cognitiveExecutive: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax,
+                  ),
+                socialRelational: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax,
+                  ),
+                autonomyDailyFunctioning: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax,
+                  ),
+                copingEmotionalRegulation: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax,
+                  ),
+                strengthsResources: zod
+                  .string()
+                  .max(
+                    listPatientsResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax,
+                  ),
+              }),
+              interviews: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    date: zod
+                      .string()
+                      .regex(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp,
+                      )
+                      .nullable(),
+                    participant: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax,
+                      ),
+                    notes: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax,
+                      ),
+                  }),
+                )
+                .max(
+                  listPatientsResponsePsychologyDataOneEvaluationsItemInterviewsMax,
+                ),
+              instruments: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    name: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax,
+                      ),
+                    version: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax,
+                      ),
+                    date: zod
+                      .string()
+                      .regex(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp,
+                      )
+                      .nullable(),
+                    results: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax,
+                      ),
+                    interpretation: zod
+                      .string()
+                      .max(
+                        listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax,
+                      ),
+                  }),
+                )
+                .max(
+                  listPatientsResponsePsychologyDataOneEvaluationsItemInstrumentsMax,
+                ),
+              professionalInterpretation: zod
+                .string()
+                .max(
+                  listPatientsResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax,
+                ),
+            }),
+          )
+          .max(listPatientsResponsePsychologyDataOneEvaluationsMax),
+      }),
+      zod.null(),
+    ])
+    .optional(),
 });
 export const ListPatientsResponse = zod.array(ListPatientsResponseItem);
 
@@ -302,6 +587,70 @@ export const GetPatientParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax = 20000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemTitleMax = 200;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax = 120;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInterviewsMax = 30;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax = 200;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax = 120;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax = 6000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsMax = 30;
+
+export const getPatientResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax = 12000;
+
+export const getPatientResponsePsychologyDataOneEvaluationsMax = 50;
+
 export const GetPatientResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
@@ -320,6 +669,227 @@ export const GetPatientResponse = zod.object({
   anamnesisUpdatedAt: zod.date().nullish(),
   anamnesisUpdatedByUserId: zod.number().nullish(),
   anamnesisUpdatedByName: zod.string().nullish(),
+  psychologyData: zod
+    .union([
+      zod.object({
+        schemaVersion: zod.literal(1),
+        anamnesis: zod.object({
+          sections: zod.object({
+            reasonAndExpectations: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax,
+                ),
+            }),
+            personalFamilyHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax,
+                ),
+            }),
+            developmentalHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax,
+                ),
+            }),
+            emotionalRegulation: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax,
+                ),
+            }),
+            behaviorDailyFunctioning: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax,
+                ),
+            }),
+            relationshipsSupport: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax,
+                ),
+            }),
+            lifeContext: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax,
+                ),
+            }),
+            sleepHabitsRoutines: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax,
+                ),
+            }),
+            strengthsInterestsResources: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax,
+                ),
+            }),
+            previousTreatmentsStrategies: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax,
+                ),
+            }),
+            riskAndProtection: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax,
+                ),
+            }),
+          }),
+        }),
+        evaluations: zod
+          .array(
+            zod.object({
+              id: zod.string().uuid(),
+              title: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneEvaluationsItemTitleMax,
+                ),
+              date: zod
+                .string()
+                .regex(
+                  getPatientResponsePsychologyDataOneEvaluationsItemDateRegExp,
+                )
+                .nullable(),
+              status: zod.enum(["draft", "completed"]),
+              areas: zod.object({
+                emotionalAffective: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax,
+                  ),
+                behavioral: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax,
+                  ),
+                cognitiveExecutive: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax,
+                  ),
+                socialRelational: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax,
+                  ),
+                autonomyDailyFunctioning: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax,
+                  ),
+                copingEmotionalRegulation: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax,
+                  ),
+                strengthsResources: zod
+                  .string()
+                  .max(
+                    getPatientResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax,
+                  ),
+              }),
+              interviews: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    date: zod
+                      .string()
+                      .regex(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp,
+                      )
+                      .nullable(),
+                    participant: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax,
+                      ),
+                    notes: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax,
+                      ),
+                  }),
+                )
+                .max(
+                  getPatientResponsePsychologyDataOneEvaluationsItemInterviewsMax,
+                ),
+              instruments: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    name: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax,
+                      ),
+                    version: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax,
+                      ),
+                    date: zod
+                      .string()
+                      .regex(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp,
+                      )
+                      .nullable(),
+                    results: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax,
+                      ),
+                    interpretation: zod
+                      .string()
+                      .max(
+                        getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax,
+                      ),
+                  }),
+                )
+                .max(
+                  getPatientResponsePsychologyDataOneEvaluationsItemInstrumentsMax,
+                ),
+              professionalInterpretation: zod
+                .string()
+                .max(
+                  getPatientResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax,
+                ),
+            }),
+          )
+          .max(getPatientResponsePsychologyDataOneEvaluationsMax),
+      }),
+      zod.null(),
+    ])
+    .optional(),
 });
 
 /**
@@ -329,6 +899,70 @@ export const UpdatePatientParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const updatePatientBodyPsychologyDataAnamnesisSectionsReasonAndExpectationsTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsPersonalFamilyHistoryTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsDevelopmentalHistoryTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsEmotionalRegulationTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsBehaviorDailyFunctioningTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsRelationshipsSupportTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsLifeContextTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsSleepHabitsRoutinesTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsStrengthsInterestsResourcesTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsPreviousTreatmentsStrategiesTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataAnamnesisSectionsRiskAndProtectionTextMax = 20000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemTitleMax = 200;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasEmotionalAffectiveMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasBehavioralMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasCognitiveExecutiveMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasSocialRelationalMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasAutonomyDailyFunctioningMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasCopingEmotionalRegulationMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemAreasStrengthsResourcesMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemParticipantMax = 120;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemNotesMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInterviewsMax = 30;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemNameMax = 200;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemVersionMax = 120;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemResultsMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemInterpretationMax = 6000;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemInstrumentsMax = 30;
+
+export const updatePatientBodyPsychologyDataEvaluationsItemProfessionalInterpretationMax = 12000;
+
+export const updatePatientBodyPsychologyDataEvaluationsMax = 50;
+
 export const UpdatePatientBody = zod.object({
   name: zod.string().optional(),
   age: zod.number().optional(),
@@ -337,7 +971,283 @@ export const UpdatePatientBody = zod.object({
   profesionalNombre: zod.string().optional(),
   franjaEtaria: zod.string().optional(),
   observaciones: zod.string().optional(),
+  psychologyData: zod
+    .object({
+      schemaVersion: zod.literal(1),
+      anamnesis: zod.object({
+        sections: zod.object({
+          reasonAndExpectations: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsReasonAndExpectationsTextMax,
+              ),
+          }),
+          personalFamilyHistory: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsPersonalFamilyHistoryTextMax,
+              ),
+          }),
+          developmentalHistory: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsDevelopmentalHistoryTextMax,
+              ),
+          }),
+          emotionalRegulation: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsEmotionalRegulationTextMax,
+              ),
+          }),
+          behaviorDailyFunctioning: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsBehaviorDailyFunctioningTextMax,
+              ),
+          }),
+          relationshipsSupport: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsRelationshipsSupportTextMax,
+              ),
+          }),
+          lifeContext: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsLifeContextTextMax,
+              ),
+          }),
+          sleepHabitsRoutines: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsSleepHabitsRoutinesTextMax,
+              ),
+          }),
+          strengthsInterestsResources: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsStrengthsInterestsResourcesTextMax,
+              ),
+          }),
+          previousTreatmentsStrategies: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsPreviousTreatmentsStrategiesTextMax,
+              ),
+          }),
+          riskAndProtection: zod.object({
+            status: zod.enum(["not_explored", "draft", "recorded"]),
+            text: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataAnamnesisSectionsRiskAndProtectionTextMax,
+              ),
+          }),
+        }),
+      }),
+      evaluations: zod
+        .array(
+          zod.object({
+            id: zod.string().uuid(),
+            title: zod
+              .string()
+              .max(updatePatientBodyPsychologyDataEvaluationsItemTitleMax),
+            date: zod
+              .string()
+              .regex(updatePatientBodyPsychologyDataEvaluationsItemDateRegExp)
+              .nullable(),
+            status: zod.enum(["draft", "completed"]),
+            areas: zod.object({
+              emotionalAffective: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasEmotionalAffectiveMax,
+                ),
+              behavioral: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasBehavioralMax,
+                ),
+              cognitiveExecutive: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasCognitiveExecutiveMax,
+                ),
+              socialRelational: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasSocialRelationalMax,
+                ),
+              autonomyDailyFunctioning: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasAutonomyDailyFunctioningMax,
+                ),
+              copingEmotionalRegulation: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasCopingEmotionalRegulationMax,
+                ),
+              strengthsResources: zod
+                .string()
+                .max(
+                  updatePatientBodyPsychologyDataEvaluationsItemAreasStrengthsResourcesMax,
+                ),
+            }),
+            interviews: zod
+              .array(
+                zod.object({
+                  id: zod.string().uuid(),
+                  date: zod
+                    .string()
+                    .regex(
+                      updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemDateRegExp,
+                    )
+                    .nullable(),
+                  participant: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemParticipantMax,
+                    ),
+                  notes: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInterviewsItemNotesMax,
+                    ),
+                }),
+              )
+              .max(updatePatientBodyPsychologyDataEvaluationsItemInterviewsMax),
+            instruments: zod
+              .array(
+                zod.object({
+                  id: zod.string().uuid(),
+                  name: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemNameMax,
+                    ),
+                  version: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemVersionMax,
+                    ),
+                  date: zod
+                    .string()
+                    .regex(
+                      updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemDateRegExp,
+                    )
+                    .nullable(),
+                  results: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemResultsMax,
+                    ),
+                  interpretation: zod
+                    .string()
+                    .max(
+                      updatePatientBodyPsychologyDataEvaluationsItemInstrumentsItemInterpretationMax,
+                    ),
+                }),
+              )
+              .max(
+                updatePatientBodyPsychologyDataEvaluationsItemInstrumentsMax,
+              ),
+            professionalInterpretation: zod
+              .string()
+              .max(
+                updatePatientBodyPsychologyDataEvaluationsItemProfessionalInterpretationMax,
+              ),
+          }),
+        )
+        .max(updatePatientBodyPsychologyDataEvaluationsMax),
+    })
+    .optional(),
 });
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax = 20000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemTitleMax = 200;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax = 120;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsMax = 30;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax = 200;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax = 120;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax = 6000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsMax = 30;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax = 12000;
+
+export const updatePatientResponsePsychologyDataOneEvaluationsMax = 50;
 
 export const UpdatePatientResponse = zod.object({
   id: zod.number(),
@@ -357,6 +1267,227 @@ export const UpdatePatientResponse = zod.object({
   anamnesisUpdatedAt: zod.date().nullish(),
   anamnesisUpdatedByUserId: zod.number().nullish(),
   anamnesisUpdatedByName: zod.string().nullish(),
+  psychologyData: zod
+    .union([
+      zod.object({
+        schemaVersion: zod.literal(1),
+        anamnesis: zod.object({
+          sections: zod.object({
+            reasonAndExpectations: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax,
+                ),
+            }),
+            personalFamilyHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax,
+                ),
+            }),
+            developmentalHistory: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsDevelopmentalHistoryTextMax,
+                ),
+            }),
+            emotionalRegulation: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsEmotionalRegulationTextMax,
+                ),
+            }),
+            behaviorDailyFunctioning: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsBehaviorDailyFunctioningTextMax,
+                ),
+            }),
+            relationshipsSupport: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsRelationshipsSupportTextMax,
+                ),
+            }),
+            lifeContext: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsLifeContextTextMax,
+                ),
+            }),
+            sleepHabitsRoutines: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsSleepHabitsRoutinesTextMax,
+                ),
+            }),
+            strengthsInterestsResources: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsStrengthsInterestsResourcesTextMax,
+                ),
+            }),
+            previousTreatmentsStrategies: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsPreviousTreatmentsStrategiesTextMax,
+                ),
+            }),
+            riskAndProtection: zod.object({
+              status: zod.enum(["not_explored", "draft", "recorded"]),
+              text: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneAnamnesisSectionsRiskAndProtectionTextMax,
+                ),
+            }),
+          }),
+        }),
+        evaluations: zod
+          .array(
+            zod.object({
+              id: zod.string().uuid(),
+              title: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneEvaluationsItemTitleMax,
+                ),
+              date: zod
+                .string()
+                .regex(
+                  updatePatientResponsePsychologyDataOneEvaluationsItemDateRegExp,
+                )
+                .nullable(),
+              status: zod.enum(["draft", "completed"]),
+              areas: zod.object({
+                emotionalAffective: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasEmotionalAffectiveMax,
+                  ),
+                behavioral: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasBehavioralMax,
+                  ),
+                cognitiveExecutive: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasCognitiveExecutiveMax,
+                  ),
+                socialRelational: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasSocialRelationalMax,
+                  ),
+                autonomyDailyFunctioning: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasAutonomyDailyFunctioningMax,
+                  ),
+                copingEmotionalRegulation: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasCopingEmotionalRegulationMax,
+                  ),
+                strengthsResources: zod
+                  .string()
+                  .max(
+                    updatePatientResponsePsychologyDataOneEvaluationsItemAreasStrengthsResourcesMax,
+                  ),
+              }),
+              interviews: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    date: zod
+                      .string()
+                      .regex(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemDateRegExp,
+                      )
+                      .nullable(),
+                    participant: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemParticipantMax,
+                      ),
+                    notes: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsItemNotesMax,
+                      ),
+                  }),
+                )
+                .max(
+                  updatePatientResponsePsychologyDataOneEvaluationsItemInterviewsMax,
+                ),
+              instruments: zod
+                .array(
+                  zod.object({
+                    id: zod.string().uuid(),
+                    name: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemNameMax,
+                      ),
+                    version: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemVersionMax,
+                      ),
+                    date: zod
+                      .string()
+                      .regex(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemDateRegExp,
+                      )
+                      .nullable(),
+                    results: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemResultsMax,
+                      ),
+                    interpretation: zod
+                      .string()
+                      .max(
+                        updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsItemInterpretationMax,
+                      ),
+                  }),
+                )
+                .max(
+                  updatePatientResponsePsychologyDataOneEvaluationsItemInstrumentsMax,
+                ),
+              professionalInterpretation: zod
+                .string()
+                .max(
+                  updatePatientResponsePsychologyDataOneEvaluationsItemProfessionalInterpretationMax,
+                ),
+            }),
+          )
+          .max(updatePatientResponsePsychologyDataOneEvaluationsMax),
+      }),
+      zod.null(),
+    ])
+    .optional(),
 });
 
 /**

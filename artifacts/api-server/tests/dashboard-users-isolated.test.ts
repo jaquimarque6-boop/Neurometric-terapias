@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { UpdatePatientBody } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import { canRoleAccessApiRoute } from "../src/routes/access-policy";
 import { getDashboardCalendarRanges } from "../src/lib/dashboard-calendar";
@@ -35,6 +36,7 @@ const {
 } = await import("@workspace/db");
 const { default: dashboardRouter } = await import("../src/routes/dashboard");
 const { default: usersRouter } = await import("../src/routes/users");
+const { default: patientsRouter } = await import("../src/routes/patients");
 
 const addDays = (date: string, days: number) => {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -70,8 +72,38 @@ async function createTestSchema() {
     CREATE TABLE patients (
       id serial PRIMARY KEY,
       name text NOT NULL,
+      age integer,
+      fecha_nacimiento text,
+      diagnosis text,
+      profesional_nombre text,
       assigned_professional_id integer,
+      franja_etaria text,
+      fecha_inicio text,
+      progreso text,
+      promedio_desempeno real,
+      semaforo text,
+      observaciones text,
+      motivo_consulta text,
+      antecedentes text,
+      historia_familiar text,
+      escolaridad text,
+      lenguaje_comunicacion text,
+      atencion_conducta text,
+      voz_habla text,
+      deglucion text,
+      impresion_clinica text,
+      rutinas_habitos text,
+      entorno_participacion text,
+      anamnesis_updated_at timestamptz,
+      anamnesis_updated_by_user_id integer,
+      informe_evolucion text,
+      informe_familia text,
+      informe_mensual text,
+      perfil_ia text,
+      perfil_ia_created_at timestamp,
+      perfil_ia_updated_at timestamp,
       archived boolean NOT NULL DEFAULT false,
+      archived_at timestamp,
       created_at timestamp NOT NULL DEFAULT now()
     );
     CREATE TABLE registros (
@@ -87,6 +119,24 @@ async function createTestSchema() {
       created_at timestamp NOT NULL DEFAULT now()
     );
     CREATE TABLE goal_library (id serial PRIMARY KEY);
+    CREATE TABLE goals (
+      id serial PRIMARY KEY,
+      patient_id integer NOT NULL,
+      goal_library_id integer,
+      codigo text,
+      title text NOT NULL,
+      description text,
+      category text NOT NULL,
+      area_clinica text,
+      franja_etaria text,
+      nivel_dificultad text,
+      status text NOT NULL DEFAULT 'activo',
+      progress_pct integer,
+      fecha_asignacion text,
+      target_date text,
+      notas text,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
     CREATE TABLE saas_status_events (
       id serial PRIMARY KEY,
       professional_user_id integer NOT NULL,
@@ -112,6 +162,8 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
   );
 
   await createTestSchema();
+  // Exercise the additive schema migration only on this disposable loopback DB.
+  await pool.query("ALTER TABLE public.patients ADD COLUMN psychology_data jsonb");
 
   const testApp = express();
   testApp.use(express.json());
@@ -128,11 +180,16 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
       res.status(403).json({ error: "Acceso denegado" });
       return;
     }
-    (req as any).session = { userId, userRole: role };
+    (req as any).session = {
+      userId,
+      userRole: role,
+      userSpecialty: req.header("x-test-specialty") ?? null,
+    };
     next();
   });
   testApp.use("/api", dashboardRouter);
   testApp.use("/api", usersRouter);
+  testApp.use("/api", patientsRouter);
   let lastRouteError: any;
   testApp.use((error: any, _req: unknown, res: express.Response, _next: unknown) => {
     lastRouteError = error;
@@ -152,6 +209,7 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     const request = async (path: string, options: {
       role?: string;
       userId?: number;
+      specialty?: string;
       method?: string;
       body?: unknown;
     } = {}) => {
@@ -161,6 +219,7 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
           ...(options.role && options.userId
             ? { "x-test-role": options.role, "x-test-user-id": String(options.userId) }
             : {}),
+          ...(options.specialty ? { "x-test-specialty": options.specialty } : {}),
           ...(options.body === undefined ? {} : { "content-type": "application/json" }),
         },
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
@@ -171,12 +230,18 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
       return { status: response.status, body, text };
     };
 
-    const account = async (email: string, role: string, active = true) => {
+    const account = async (
+      email: string,
+      role: string,
+      active = true,
+      specialty: string | null = null,
+    ) => {
       const [created] = await db.insert(usersTable).values({
         email,
         passwordHash: "fictitious-test-hash",
         name: `Cuenta ficticia ${email}`,
         role,
+        specialty,
         active,
         commercialStatus: "trial",
         trialStartDate: "2026-10-01",
@@ -187,8 +252,8 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     };
 
     const admin = await account("admin@isolated.test", "admin");
-    const professionalA = await account("professional-a@isolated.test", "professional");
-    const professionalB = await account("professional-b@isolated.test", "professional");
+    const professionalA = await account("professional-a@isolated.test", "professional", true, "Psicología");
+    const professionalB = await account("professional-b@isolated.test", "professional", true, "Fonoaudiología");
     await account("inactive-professional@isolated.test", "professional", false);
     const collaborator = await account("collaborator@isolated.test", "collaborator");
 
@@ -401,6 +466,171 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     assert.equal(eventRows.length, 1);
     assert.equal(eventRows[0]?.event, "commercial_correction");
     assert.deepEqual(eventRows[0]?.details && (eventRows[0].details as any).after.trialEndDate, newTrialEndDate);
+
+    const section = (status: "not_explored" | "draft" | "recorded", text = "") => ({ status, text });
+    const psychologyDataForAge = (age: number) => ({
+      schemaVersion: 1 as const,
+      anamnesis: {
+        sections: {
+          reasonAndExpectations: section("draft", `Motivo ficticio para paciente de ${age} años`),
+          personalFamilyHistory: section("not_explored"),
+          developmentalHistory: section("not_explored"),
+          emotionalRegulation: section("not_explored"),
+          behaviorDailyFunctioning: section("not_explored"),
+          relationshipsSupport: section("not_explored"),
+          lifeContext: section("not_explored"),
+          sleepHabitsRoutines: section("not_explored"),
+          strengthsInterestsResources: section("not_explored"),
+          previousTreatmentsStrategies: section("not_explored"),
+          riskAndProtection: section("not_explored"),
+        },
+      },
+      evaluations: [{
+        id: `00000000-0000-4000-8000-${String(age).padStart(12, "0")}`,
+        title: `Evaluación ficticia ${age}`,
+        date: "2026-10-22",
+        status: "draft" as const,
+        areas: {
+          emotionalAffective: "Observación ficticia",
+          behavioral: "",
+          cognitiveExecutive: "",
+          socialRelational: "",
+          autonomyDailyFunctioning: "",
+          copingEmotionalRegulation: "",
+          strengthsResources: "",
+        },
+        interviews: [{
+          id: `10000000-0000-4000-8000-${String(age).padStart(12, "0")}`,
+          date: null,
+          participant: "Informante ficticio",
+          notes: "Nota de entrevista ficticia",
+        }],
+        instruments: [{
+          id: `20000000-0000-4000-8000-${String(age).padStart(12, "0")}`,
+          name: "Instrumento ficticio",
+          version: "",
+          date: "2026-10-22",
+          results: "Resultado manual ficticio",
+          interpretation: "Interpretación profesional ficticia",
+        }],
+        professionalInterpretation: "Borrador ficticio, sin diagnóstico ni puntuación automática.",
+      }],
+    });
+
+    const psychologyPatientIds: Array<{ age: number; id: number; data: ReturnType<typeof psychologyDataForAge> }> = [];
+    for (const age of [4, 10, 16, 35, 75]) {
+      const inserted = await pool.query(
+        `INSERT INTO patients (name, age, assigned_professional_id, motivo_consulta)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [`Paciente ficticio ${age}`, age, professionalA.id, "Motivo histórico sin modificar"],
+      );
+      const patientId = Number(inserted.rows[0]?.id);
+      const psychologyData = psychologyDataForAge(age);
+      const contractValidation = UpdatePatientBody.pick({ psychologyData: true }).safeParse({ psychologyData });
+      assert.equal(
+        contractValidation.success,
+        true,
+        `fictional psychology data must match OpenAPI: ${contractValidation.success ? "" : JSON.stringify(contractValidation.error.issues)}`,
+      );
+      const saved = await request(`/patients/${patientId}`, {
+        role: "professional",
+        userId: professionalA.id,
+        specialty: "Psicología",
+        method: "PUT",
+        body: { psychologyData },
+      });
+      assert.equal(
+        saved.status,
+        200,
+        `psychology data saves for the fictional ${age}-year-old patient: ${JSON.stringify(saved.body)}`,
+      );
+      assert.deepEqual(saved.body.psychologyData, psychologyData);
+      assert.equal(saved.body.motivoConsulta, "Motivo histórico sin modificar");
+
+      const loaded = await request(`/patients/${patientId}`, {
+        role: "professional",
+        userId: professionalA.id,
+        specialty: "Psicología",
+      });
+      assert.equal(loaded.status, 200);
+      assert.deepEqual(loaded.body.psychologyData, psychologyData, `psychology data reloads for age ${age}`);
+      psychologyPatientIds.push({ age, id: patientId, data: psychologyData });
+    }
+
+    const psychologistList = await request("/patients", {
+      role: "professional",
+      userId: professionalA.id,
+      specialty: "Psicología",
+    });
+    assert.equal(psychologistList.status, 200);
+    assert.equal(
+      psychologistList.body.some((patient: any) => Object.hasOwn(patient, "psychologyData")),
+      false,
+      "the general patient list does not include sensitive Psychology content",
+    );
+
+    const fonoPatient = await pool.query(
+      `INSERT INTO patients (name, age, assigned_professional_id, motivo_consulta, psychology_data)
+       VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING id`,
+      [
+        "Paciente ficticio de Fonoaudiología",
+        10,
+        professionalB.id,
+        "Anamnesis heredada de Fonoaudiología",
+        JSON.stringify(psychologyDataForAge(10)),
+      ],
+    );
+    const fonoPatientId = Number(fonoPatient.rows[0]?.id);
+    const fonoDetail = await request(`/patients/${fonoPatientId}`, {
+      role: "professional",
+      userId: professionalB.id,
+      specialty: "Fonoaudiología",
+    });
+    assert.equal(fonoDetail.status, 200);
+    assert.equal(Object.hasOwn(fonoDetail.body, "psychologyData"), false, "non-Psychology professionals cannot read the Psychology field");
+    const fonoList = await request("/patients", {
+      role: "professional",
+      userId: professionalB.id,
+      specialty: "Fonoaudiología",
+    });
+    assert.equal(fonoList.status, 200);
+    assert.equal(
+      fonoList.body.some((patient: any) => Object.hasOwn(patient, "psychologyData")),
+      false,
+      "other specialties do not receive Psychology content from list responses",
+    );
+    const fonoLegacyUpdate = await request(`/patients/${fonoPatientId}`, {
+      role: "professional",
+      userId: professionalB.id,
+      specialty: "Fonoaudiología",
+      method: "PUT",
+      body: { motivoConsulta: "Anamnesis heredada actualizada" },
+    });
+    assert.equal(fonoLegacyUpdate.status, 200);
+    assert.equal(Object.hasOwn(fonoLegacyUpdate.body, "psychologyData"), false, "unrelated updates do not expose Psychology content");
+    const fonoStoredAfterLegacyUpdate = await pool.query(
+      "SELECT psychology_data, motivo_consulta FROM patients WHERE id = $1",
+      [fonoPatientId],
+    );
+    assert.deepEqual(fonoStoredAfterLegacyUpdate.rows[0]?.psychology_data, psychologyDataForAge(10));
+    assert.equal(fonoStoredAfterLegacyUpdate.rows[0]?.motivo_consulta, "Anamnesis heredada actualizada");
+    const deniedPsychologyWrite = await request(`/patients/${fonoPatientId}`, {
+      role: "professional",
+      userId: professionalB.id,
+      specialty: "Fonoaudiología",
+      method: "PUT",
+      body: { psychologyData: psychologyDataForAge(10) },
+    });
+    assert.equal(deniedPsychologyWrite.status, 403, "other specialties cannot write Psychology data");
+
+    const invalidPsychologyData = await request(`/patients/${psychologyPatientIds[0].id}`, {
+      role: "professional",
+      userId: professionalA.id,
+      specialty: "Psicología",
+      method: "PUT",
+      body: { psychologyData: null },
+    });
+    assert.equal(invalidPsychologyData.status, 400, "null cannot accidentally erase Psychology data");
 
     await pool.query("DROP TABLE public.patients");
     const unavailablePatients = await request("/users", { role: "admin", userId: admin.id });

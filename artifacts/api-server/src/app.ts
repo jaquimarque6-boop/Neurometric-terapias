@@ -82,6 +82,9 @@ app.use(cors({
 // The manuscript endpoint receives one compressed image as JSON. Keep the
 // larger body limit scoped to that route instead of changing all API payloads.
 app.use("/api/ai/manuscrito-transcribe", express.json({ limit: "12mb" }));
+// Psychology anamnesis and evaluation are structured JSON stored on a patient.
+// Keep the larger body limit scoped to patient endpoints.
+app.use("/api/patients", express.json({ limit: "512kb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

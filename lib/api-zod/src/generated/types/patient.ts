@@ -5,6 +5,7 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+import type { PsychologyClinicalData } from "./psychologyClinicalData";
 
 export interface Patient {
   id: number;
@@ -27,4 +28,5 @@ export interface Patient {
   anamnesisUpdatedByUserId?: number | null;
   /** @nullable */
   anamnesisUpdatedByName?: string | null;
+  psychologyData?: PsychologyClinicalData | null;
 }

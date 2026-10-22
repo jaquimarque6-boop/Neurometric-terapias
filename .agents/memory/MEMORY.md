@@ -14,3 +14,4 @@
 - [Isolated PostgreSQL route tests](isolated-postgres-route-tests.md) — Use a fresh loopback-only cluster and mount routers directly; Postgres loopback addresses may include a CIDR suffix.
 - [Specialty rollout](specialty-rollout.md) — Phase 1 recognizes Psychology variants neutrally; anamnesis, age guides and Psychology-specific content belong to phase 2.
 - [TSX component tests](tsx-component-tests.md) — Node/tsx tests may use a different JSX transform than Vite; make the React runtime explicit for server-render tests.
+- [Generated API contracts](generated-api-contracts.md) — after codegen, rebuild project-reference declarations; OpenAPI `format: date` can produce Zod Date objects for string dates.

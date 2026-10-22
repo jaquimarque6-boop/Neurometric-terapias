@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { UpdatePatientBody } from "@workspace/api-zod";
+import { normalizeClinicalSpecialty } from "@workspace/clinical-specialty";
 import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
@@ -6,6 +8,7 @@ import {
   registrosClinicosTable, goalsTable, goalProgressTable,
   usersTable, patientProfessionalsTable, sessionsTable,
   citasTable, pagosTable,
+  type PsychologyClinicalData,
 } from "@workspace/db/schema";
 import { eq, count, inArray, and, sql } from "drizzle-orm";
 import { canAccessPatient, getPatientListScope } from "./access-policy";
@@ -73,9 +76,22 @@ function computeCurrentFocus(goals: PatientGoal[]): { title: string; area: strin
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 
-function getSessionUser(req: any): { id: number; role: string } | null {
+function getSessionUser(req: any): { id: number; role: string; specialty: string | null } | null {
   if (!req.session?.userId) return null;
-  return { id: req.session.userId, role: req.session.userRole ?? "professional" };
+  return {
+    id: req.session.userId,
+    role: req.session.userRole ?? "professional",
+    specialty: req.session.userSpecialty ?? null,
+  };
+}
+
+function isPsychologyProfessional(sess: { role: string; specialty: string | null }) {
+  return sess.role === "professional" && normalizeClinicalSpecialty(sess.specialty) === "psicologia";
+}
+
+function omitPsychologyData(patient: typeof patientsTable.$inferSelect) {
+  const { psychologyData: _psychologyData, ...safePatient } = patient;
+  return safePatient;
 }
 
 async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typeof goalsTable.$inferSelect[]) {
@@ -97,7 +113,7 @@ async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typ
   const nextAction = computeNextAction(clinicalStatus, activeGoals.length, achievedGoals.length);
 
   return {
-    ...p,
+    ...omitPsychologyData(p),
     totalRegistros: Number(value),
     createdAt: p.createdAt.toISOString(),
     clinicalStatus,
@@ -219,7 +235,11 @@ router.post("/patients", async (req, res) => {
     }).returning();
 
     recordUserActivityEvent(sess.id, "patient_saved");
-    return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
+    return res.status(201).json({
+      ...omitPsychologyData(patient),
+      totalRegistros: 0,
+      createdAt: patient.createdAt.toISOString(),
+    });
 
   } catch (err: any) {
     const detail = err?.message ?? String(err);
@@ -250,12 +270,36 @@ router.get("/patients/:id", async (req, res) => {
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   const anamnesisUpdatedByName = await anamnesisName(patient.anamnesisUpdatedByUserId);
-  return res.json({ ...patient, anamnesisUpdatedByName, totalRegistros: Number(value), createdAt: patient.createdAt.toISOString() });
+  const responsePatient = isPsychologyProfessional(sess)
+    ? patient
+    : omitPsychologyData(patient);
+  return res.json({
+    ...responsePatient,
+    anamnesisUpdatedByName,
+    totalRegistros: Number(value),
+    createdAt: patient.createdAt.toISOString(),
+  });
 });
 
 async function updatePatientById(id: number, body: any, req: any, res: any) {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return res.status(400).json({ error: "Datos del paciente inválidos" });
+  }
+  let parsedPsychologyData: PsychologyClinicalData | undefined;
+  if (Object.prototype.hasOwnProperty.call(body, "psychologyData")) {
+    if (!isPsychologyProfessional(sess)) {
+      return res.status(403).json({ error: "Solo profesionales de Psicología pueden modificar estos datos" });
+    }
+    const parsed = UpdatePatientBody.pick({ psychologyData: true }).safeParse({
+      psychologyData: body.psychologyData,
+    });
+    if (!parsed.success || !parsed.data.psychologyData) {
+      return res.status(400).json({ error: "Datos de Psicología inválidos" });
+    }
+    parsedPsychologyData = parsed.data.psychologyData;
+  }
 
   const [existing] = await db.select().from(patientsTable).where(eq(patientsTable.id, id));
   if (!existing) return res.status(404).json({ error: "Patient not found" });
@@ -299,7 +343,7 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
     }
   }
 
-  const [updated] = await db.update(patientsTable).set({
+  const updateValues: typeof patientsTable.$inferInsert = {
     ...anamnesisMetadata(body, sess.id),
     name: body.name ?? existing.name,
     age: body.age !== undefined ? body.age : existing.age,
@@ -323,12 +367,27 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
     entornoParticipacion: body.entornoParticipacion !== undefined ? body.entornoParticipacion : existing.entornoParticipacion,
     informeEvolucion: body.informeEvolucion !== undefined ? body.informeEvolucion : existing.informeEvolucion,
     informeFamilia: body.informeFamilia !== undefined ? body.informeFamilia : existing.informeFamilia,
-  }).where(eq(patientsTable.id, id)).returning();
+  };
+  if (parsedPsychologyData !== undefined) {
+    updateValues.psychologyData = parsedPsychologyData;
+  }
+  const [updated] = await db.update(patientsTable)
+    .set(updateValues)
+    .where(eq(patientsTable.id, id))
+    .returning();
 
   const [{ value }] = await db.select({ value: count() }).from(registrosTable).where(eq(registrosTable.patientId, id));
   const anamnesisUpdatedByName = await anamnesisName(updated.anamnesisUpdatedByUserId);
   recordUserActivityEvent(sess.id, "patient_saved");
-  return res.json({ ...updated, anamnesisUpdatedByName, totalRegistros: Number(value), createdAt: updated.createdAt.toISOString() });
+  const responsePatient = isPsychologyProfessional(sess)
+    ? updated
+    : omitPsychologyData(updated);
+  return res.json({
+    ...responsePatient,
+    anamnesisUpdatedByName,
+    totalRegistros: Number(value),
+    createdAt: updated.createdAt.toISOString(),
+  });
 }
 
 router.put("/patients/:id", async (req, res) => {
@@ -362,7 +421,7 @@ router.patch("/patients/:id/archive", async (req, res) => {
       .where(eq(patientsTable.id, id))
       .returning();
 
-    return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+    return res.json({ ...omitPsychologyData(updated), createdAt: updated.createdAt.toISOString() });
   } catch {
     return res.status(500).json({ error: "Error al archivar el paciente" });
   }
@@ -386,7 +445,7 @@ router.patch("/patients/:id/restore", async (req, res) => {
       .where(eq(patientsTable.id, id))
       .returning();
 
-    return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+    return res.json({ ...omitPsychologyData(updated), createdAt: updated.createdAt.toISOString() });
   } catch {
     return res.status(500).json({ error: "Error al restaurar el paciente" });
   }

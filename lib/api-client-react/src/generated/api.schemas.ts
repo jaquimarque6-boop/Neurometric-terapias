@@ -193,6 +193,127 @@ export interface HealthStatus {
   status: string;
 }
 
+export type PsychologyAnamnesisSectionStatus =
+  (typeof PsychologyAnamnesisSectionStatus)[keyof typeof PsychologyAnamnesisSectionStatus];
+
+export const PsychologyAnamnesisSectionStatus = {
+  not_explored: "not_explored",
+  draft: "draft",
+  recorded: "recorded",
+} as const;
+
+export interface PsychologyAnamnesisSection {
+  status: PsychologyAnamnesisSectionStatus;
+  /** @maxLength 20000 */
+  text: string;
+}
+
+export interface PsychologyAnamnesisSections {
+  reasonAndExpectations: PsychologyAnamnesisSection;
+  personalFamilyHistory: PsychologyAnamnesisSection;
+  developmentalHistory: PsychologyAnamnesisSection;
+  emotionalRegulation: PsychologyAnamnesisSection;
+  behaviorDailyFunctioning: PsychologyAnamnesisSection;
+  relationshipsSupport: PsychologyAnamnesisSection;
+  lifeContext: PsychologyAnamnesisSection;
+  sleepHabitsRoutines: PsychologyAnamnesisSection;
+  strengthsInterestsResources: PsychologyAnamnesisSection;
+  previousTreatmentsStrategies: PsychologyAnamnesisSection;
+  riskAndProtection: PsychologyAnamnesisSection;
+}
+
+export interface PsychologyInterview {
+  id: string;
+  /**
+   * @nullable
+   * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+   */
+  date: string | null;
+  /** @maxLength 120 */
+  participant: string;
+  /** @maxLength 6000 */
+  notes: string;
+}
+
+export interface PsychologyInstrument {
+  id: string;
+  /** @maxLength 200 */
+  name: string;
+  /** @maxLength 120 */
+  version: string;
+  /**
+   * @nullable
+   * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+   */
+  date: string | null;
+  /** @maxLength 6000 */
+  results: string;
+  /** @maxLength 6000 */
+  interpretation: string;
+}
+
+export type PsychologyEvaluationStatus =
+  (typeof PsychologyEvaluationStatus)[keyof typeof PsychologyEvaluationStatus];
+
+export const PsychologyEvaluationStatus = {
+  draft: "draft",
+  completed: "completed",
+} as const;
+
+export type PsychologyEvaluationAreas = {
+  /** @maxLength 6000 */
+  emotionalAffective: string;
+  /** @maxLength 6000 */
+  behavioral: string;
+  /** @maxLength 6000 */
+  cognitiveExecutive: string;
+  /** @maxLength 6000 */
+  socialRelational: string;
+  /** @maxLength 6000 */
+  autonomyDailyFunctioning: string;
+  /** @maxLength 6000 */
+  copingEmotionalRegulation: string;
+  /** @maxLength 6000 */
+  strengthsResources: string;
+};
+
+export interface PsychologyEvaluation {
+  id: string;
+  /** @maxLength 200 */
+  title: string;
+  /**
+   * @nullable
+   * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+   */
+  date: string | null;
+  status: PsychologyEvaluationStatus;
+  areas: PsychologyEvaluationAreas;
+  /** @maxItems 30 */
+  interviews: PsychologyInterview[];
+  /** @maxItems 30 */
+  instruments: PsychologyInstrument[];
+  /** @maxLength 12000 */
+  professionalInterpretation: string;
+}
+
+export type PsychologyClinicalDataSchemaVersion =
+  (typeof PsychologyClinicalDataSchemaVersion)[keyof typeof PsychologyClinicalDataSchemaVersion];
+
+export const PsychologyClinicalDataSchemaVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type PsychologyClinicalDataAnamnesis = {
+  sections: PsychologyAnamnesisSections;
+};
+
+export interface PsychologyClinicalData {
+  schemaVersion: PsychologyClinicalDataSchemaVersion;
+  anamnesis: PsychologyClinicalDataAnamnesis;
+  /** @maxItems 50 */
+  evaluations: PsychologyEvaluation[];
+}
+
 export interface Patient {
   id: number;
   name: string;
@@ -214,6 +335,7 @@ export interface Patient {
   anamnesisUpdatedByUserId?: number | null;
   /** @nullable */
   anamnesisUpdatedByName?: string | null;
+  psychologyData?: PsychologyClinicalData | null;
 }
 
 export type PatientReportInputReportType =
@@ -303,6 +425,7 @@ export interface UpdatePatient {
   profesionalNombre?: string;
   franjaEtaria?: string;
   observaciones?: string;
+  psychologyData?: PsychologyClinicalData;
 }
 
 export interface Registro {

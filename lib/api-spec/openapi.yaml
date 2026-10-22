@@ -1088,6 +1088,115 @@ components:
           type: string
       required: [status]
 
+    PsychologyAnamnesisSection:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [not_explored, draft, recorded]
+        text:
+          type: string
+          maxLength: 20000
+      required: [status, text]
+
+    PsychologyAnamnesisSections:
+      type: object
+      properties:
+        reasonAndExpectations: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        personalFamilyHistory: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        developmentalHistory: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        emotionalRegulation: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        behaviorDailyFunctioning: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        relationshipsSupport: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        lifeContext: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        sleepHabitsRoutines: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        strengthsInterestsResources: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        previousTreatmentsStrategies: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+        riskAndProtection: { $ref: "#/components/schemas/PsychologyAnamnesisSection" }
+      required:
+        - reasonAndExpectations
+        - personalFamilyHistory
+        - developmentalHistory
+        - emotionalRegulation
+        - behaviorDailyFunctioning
+        - relationshipsSupport
+        - lifeContext
+        - sleepHabitsRoutines
+        - strengthsInterestsResources
+        - previousTreatmentsStrategies
+        - riskAndProtection
+
+    PsychologyInterview:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: ["string", "null"], pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' }
+        participant: { type: string, maxLength: 120 }
+        notes: { type: string, maxLength: 6000 }
+      required: [id, date, participant, notes]
+
+    PsychologyInstrument:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 200 }
+        version: { type: string, maxLength: 120 }
+        date: { type: ["string", "null"], pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' }
+        results: { type: string, maxLength: 6000 }
+        interpretation: { type: string, maxLength: 6000 }
+      required: [id, name, version, date, results, interpretation]
+
+    PsychologyEvaluation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        date: { type: ["string", "null"], pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' }
+        status: { type: string, enum: [draft, completed] }
+        areas:
+          type: object
+          properties:
+            emotionalAffective: { type: string, maxLength: 6000 }
+            behavioral: { type: string, maxLength: 6000 }
+            cognitiveExecutive: { type: string, maxLength: 6000 }
+            socialRelational: { type: string, maxLength: 6000 }
+            autonomyDailyFunctioning: { type: string, maxLength: 6000 }
+            copingEmotionalRegulation: { type: string, maxLength: 6000 }
+            strengthsResources: { type: string, maxLength: 6000 }
+          required:
+            - emotionalAffective
+            - behavioral
+            - cognitiveExecutive
+            - socialRelational
+            - autonomyDailyFunctioning
+            - copingEmotionalRegulation
+            - strengthsResources
+        interviews:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/PsychologyInterview" }
+        instruments:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/PsychologyInstrument" }
+        professionalInterpretation: { type: string, maxLength: 12000 }
+      required: [id, title, date, status, areas, interviews, instruments, professionalInterpretation]
+
+    PsychologyClinicalData:
+      type: object
+      properties:
+        schemaVersion: { type: integer, enum: [1] }
+        anamnesis:
+          type: object
+          properties:
+            sections: { $ref: "#/components/schemas/PsychologyAnamnesisSections" }
+          required: [sections]
+        evaluations:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/PsychologyEvaluation" }
+      required: [schemaVersion, anamnesis, evaluations]
+
     Patient:
       type: object
       properties:
@@ -1126,6 +1235,10 @@ components:
           type: ["integer", "null"]
         anamnesisUpdatedByName:
           type: ["string", "null"]
+        psychologyData:
+          oneOf:
+            - $ref: "#/components/schemas/PsychologyClinicalData"
+            - type: "null"
       required: [id, name, createdAt]
 
     PatientReportInput:
@@ -1205,6 +1318,8 @@ components:
           type: string
         observaciones:
           type: string
+        psychologyData:
+          $ref: "#/components/schemas/PsychologyClinicalData"
 
     Registro:
       type: object
