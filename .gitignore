@@ -61,6 +61,7 @@ Thumbs.db
 !scripts/user-consent-acceptances-v1.sql
 !scripts/registros-clinicos-materiales-v1.sql
 !scripts/commercial-verification-v1.sql
+!scripts/commercial-events-v2.sql
 *.tar.gz
 *.tar
 *.dump

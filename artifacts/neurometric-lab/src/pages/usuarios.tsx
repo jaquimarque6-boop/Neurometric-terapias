@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { responseErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 import { normalizeReferralCode } from "@/lib/referral";
@@ -298,8 +299,7 @@ export default function Usuarios() {
       });
       if (r.ok) { toast({ title: "Usuario actualizado" }); cancelEdit(); await loadAll(); }
       else {
-        const e = await r.json().catch(() => ({}));
-        toast({ title: e.error ?? "Error al actualizar", variant: "destructive" });
+        toast({ title: await responseErrorMessage(r, "Error al actualizar"), variant: "destructive" });
         if (r.status === 409) await loadAll();
       }
     } finally { setSaving(false); }

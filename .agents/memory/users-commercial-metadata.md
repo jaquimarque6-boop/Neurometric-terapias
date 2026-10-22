@@ -28,6 +28,14 @@ or with clinical patient payments. Mixing them caused confusion in the original 
   `created_at` only when `fecha` is missing/invalid — because `created_at` (row insert
   time) drifts from when the session actually happened.
 
+## Commercial audit event constraint
+
+Keep the `saas_status_events.event` CHECK constraint synchronized with every event passed to `logCommercialChange`, including `commercial_status_changed`, `commercial_correction`, `trial_started`, and `payment_renewal`. The audit insert shares a transaction with the user/receipt update; an unsupported event triggers PostgreSQL `23514` and rolls back the whole operation.
+
+**Why:** The initial event constraint allowed only referral-lifecycle events, while later audit writers added commercial correction and renewal event names. The resulting database error surfaced as a generic HTTP 500 in the admin form.
+
+**How to apply:** Search all `logCommercialChange` call sites before changing audit behavior; update both fresh-schema SQL and the existing-database constraint migration. Check the live constraint read-only before proposing a schema change, and never rerun column additions without confirming the column is absent.
+
 ## Safety constraints for subscription automation
 
 Reuse the existing commercial system; do not create parallel subscription structures.

@@ -89,7 +89,8 @@ async function createTestSchema() {
     CREATE TABLE saas_status_events (
       id serial PRIMARY KEY,
       professional_user_id integer NOT NULL,
-      event text NOT NULL,
+      event text NOT NULL CONSTRAINT saas_status_events_event_check
+        CHECK (event IN ('baseline', 'first_paid', 'cancellation', 'reactivation')),
       actor_user_id integer NOT NULL,
       effective_date date NOT NULL,
       occurred_at timestamptz NOT NULL DEFAULT now(),
@@ -131,8 +132,10 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
   });
   testApp.use("/api", dashboardRouter);
   testApp.use("/api", usersRouter);
-  testApp.use((error: unknown, _req: unknown, res: express.Response, _next: unknown) => {
-    res.status(500).json({ error: "Internal server error" });
+  let lastRouteError: any;
+  testApp.use((error: any, _req: unknown, res: express.Response, _next: unknown) => {
+    lastRouteError = error;
+    res.status(500).type("html").send("<!doctype html><html><body><pre>Internal Server Error</pre></body></html>");
   });
 
   const server = testApp.listen(0);
@@ -325,6 +328,53 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     assert.equal(deniedEdit.status, 403, "professional cannot edit commercial dates");
 
     const newTrialEndDate = addDays(ranges.monthStart, 30);
+    const rejectedByLegacyConstraint = await request(`/users/${professionalA.id}`, {
+      role: "admin",
+      userId: admin.id,
+      method: "PATCH",
+      body: editPayload(editableUser, newTrialEndDate),
+    });
+    assert.equal(rejectedByLegacyConstraint.status, 500);
+    assert.match(rejectedByLegacyConstraint.text, /Internal Server Error/);
+    assert.equal(
+      rejectedByLegacyConstraint.body,
+      null,
+      "Express's production-style unhandled error response is not JSON",
+    );
+    const databaseError = lastRouteError?.cause ?? lastRouteError;
+    assert.equal(databaseError?.code, "23514", "PostgreSQL check_violation rejects commercial_correction");
+    assert.equal(databaseError?.constraint, "saas_status_events_event_check");
+
+    const unchanged = await db
+      .select({ trialEndDate: usersTable.trialEndDate })
+      .from(usersTable)
+      .where(eq(usersTable.id, professionalA.id));
+    assert.equal(
+      unchanged[0]?.trialEndDate,
+      editableUser.trialEndDate,
+      "audit constraint failure rolls the date update back",
+    );
+
+    // Replace only the disposable test fixture schema with the corrected event
+    // constraint; no production migration is run by this test.
+    await pool.query(`
+      DROP TABLE public.saas_status_events;
+      CREATE TABLE public.saas_status_events (
+        id serial PRIMARY KEY,
+        professional_user_id integer NOT NULL,
+        event text NOT NULL CONSTRAINT saas_status_events_event_check CHECK (
+          event IN (
+            'baseline','first_paid','cancellation','reactivation',
+            'commercial_status_changed','commercial_correction','trial_started','payment_renewal'
+          )
+        ),
+        actor_user_id integer NOT NULL,
+        effective_date date NOT NULL,
+        occurred_at timestamptz NOT NULL DEFAULT now(),
+        details jsonb
+      );
+    `);
+
     const updated = await request(`/users/${professionalA.id}`, {
       role: "admin",
       userId: admin.id,
@@ -333,28 +383,10 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     });
     assert.equal(updated.status, 200, `admin trial-end edit should save; received ${updated.status}`);
     assert.equal(updated.body.trialEndDate, newTrialEndDate);
-    assert.equal(
-      (await db.select().from(saasStatusEventsTable)).length,
-      1,
-      "commercial date edit keeps its audit event",
-    );
-
-    await pool.query("ALTER TABLE public.saas_status_events DROP COLUMN details");
-    const latestUsers = await request("/users", { role: "admin", userId: admin.id });
-    const latestEditableUser = latestUsers.body.find((user: any) => user.id === professionalA.id);
-    const previousTrialEndDate = latestEditableUser.trialEndDate;
-    const schemaMismatch = await request(`/users/${professionalA.id}`, {
-      role: "admin",
-      userId: admin.id,
-      method: "PATCH",
-      body: editPayload(latestEditableUser, addDays(ranges.monthStart, 35)),
-    });
-    assert.equal(schemaMismatch.status, 500, "missing audit JSON column causes the transaction to fail");
-    const persistedUser = await db
-      .select({ trialEndDate: usersTable.trialEndDate })
-      .from(usersTable)
-      .where(eq(usersTable.id, professionalA.id));
-    assert.equal(persistedUser[0]?.trialEndDate, previousTrialEndDate, "failed audit write rolls the date edit back");
+    const eventRows = await db.select().from(saasStatusEventsTable);
+    assert.equal(eventRows.length, 1);
+    assert.equal(eventRows[0]?.event, "commercial_correction");
+    assert.deepEqual(eventRows[0]?.details && (eventRows[0].details as any).after.trialEndDate, newTrialEndDate);
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close(error => error ? reject(error) : resolve());

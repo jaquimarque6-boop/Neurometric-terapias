@@ -50,7 +50,12 @@ CREATE INDEX saas_receipts_collaborator_idx ON saas_receipts(collaborator_id);
 CREATE TABLE saas_status_events (
  id serial PRIMARY KEY,
  professional_user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
- event text NOT NULL CHECK (event IN ('baseline','first_paid','cancellation','reactivation')),
+  event text NOT NULL CONSTRAINT saas_status_events_event_check CHECK (
+   event IN (
+    'baseline','first_paid','cancellation','reactivation',
+    'commercial_status_changed','commercial_correction','trial_started','payment_renewal'
+   )
+  ),
  actor_user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
  effective_date date NOT NULL,
  occurred_at timestamptz NOT NULL DEFAULT now()
