@@ -7,6 +7,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { build } from "esbuild";
 import * as schema from "@workspace/db/schema";
+import { canAdminAccessApiRoute } from "../src/routes/access-policy";
 
 // Bundle only the real route source. No application bootstrap, session store,
 // database pool or external AI client is loaded by this harness.
@@ -214,8 +215,8 @@ async function loadRouter(file: string) {
 }
 
 const routes = await Promise.all([
-  "goal-library", "actividades", "goal-codes", "goal-guidance",
-  "ai-perfil", "ai-objetivos", "registros-clinicos", "auth",
+  "auth", "users", "patients", "professionals", "goal-library", "actividades", "goal-codes", "goal-guidance",
+  "ai-perfil", "ai-objetivos", "registros-clinicos",
 ].map(loadRouter));
 const app = express();
 app.use(express.json());
@@ -241,7 +242,16 @@ if (!address || typeof address === "string") throw new Error("Test server addres
 const base = `http://127.0.0.1:${address.port}/api`;
 after(() => server.close());
 
-async function request(method: string, path: string, user?: "owner" | "foreign" | "admin", body?: any) {
+async function request(
+  method: string,
+  path: string,
+  user?: "owner" | "foreign" | "admin",
+  body?: any,
+  bypassAdminPolicy = false,
+) {
+  if (user === "admin" && !bypassAdminPolicy && !canAdminAccessApiRoute(method, `/api${path}`)) {
+    return { status: 403, body: { error: "Acceso denegado" } };
+  }
   const id = user === "admin" ? 1 : user === "foreign" ? 3 : 2;
   const response = await fetch(base + path, {
     method,
@@ -275,6 +285,92 @@ test("all protected route methods reject anonymous requests before DB or AI", as
   assert.equal(stats.selects + stats.inserts + stats.updates + stats.deletes + stats.ai, 0);
 });
 
+test("admin sessions are denied clinical routes before any clinical query, write, or AI call", async () => {
+  reset();
+  const endpoints: [string, string, any?][] = [
+    ["GET", "/goal-library"],
+    ["POST", "/goal-library", { idObjetivo: "NEW", nombreObjetivo: "Objetivo" }],
+    ["GET", "/patients/1/suggested-goals"],
+    ["POST", "/goal-library/10/assign", { patientId: 1 }],
+    ["GET", "/actividades"],
+    ["POST", "/actividades", { titulo: "Actividad" }],
+    ["GET", "/goal-codes/check?code=L-01"],
+    ["POST", "/goal-codes/generate", { areaClinica: "lenguaje" }],
+    ["POST", "/goal-codes/migrate", {}],
+    ["POST", "/goal-guidance", { title: "Objetivo" }],
+    ["GET", "/ai/perfil/1"],
+    ["PUT", "/ai/perfil/1", { perfil: {} }],
+    ["POST", "/ai/perfil-generate", { patientId: 1 }],
+    ["POST", "/ai/objetivos-suggest", { patientId: 1 }],
+    ["POST", "/registros-clinicos", { patientId: 1, fecha: "2026-01-01" }],
+  ];
+  for (const [method, path, body] of endpoints) {
+    assert.equal(await status(method, path, "admin", body), 403, `${method} ${path}`);
+  }
+  assert.equal(stats.selects + stats.inserts + stats.updates + stats.deletes + stats.ai, 0);
+});
+
+test("patient router independently rejects admin requests before reading patient data", async () => {
+  reset();
+  const result = await request("GET", "/patients", "admin", undefined, true);
+  assert.equal(result.status, 403);
+  assert.equal(stats.selects, 0);
+});
+
+test("admin user management returns account metadata only and cannot change a role", async () => {
+  reset();
+  tables.set(schema.usersTable, [{
+    id: 2,
+    email: "professional@example.test",
+    name: "Profesional de prueba",
+    passwordHash: "not-returned",
+    role: "professional",
+    specialty: "Fonoaudiología",
+    active: true,
+    createdAt: now,
+    commercialStatus: "trial",
+    trialStartDate: null,
+    trialEndDate: null,
+    trialStartPending: false,
+    lastPaymentDate: null,
+    nextDueDate: null,
+    monthlyAmount: null,
+    paymentMethod: null,
+    internalNotes: null,
+    professionalId: null,
+  }]);
+  const users = await request("GET", "/users", "admin");
+  assert.equal(users.status, 200);
+  assert.equal(users.body.length, 1);
+  assert.equal(users.body[0].email, "professional@example.test");
+  assert.equal("passwordHash" in users.body[0], false);
+  assert.equal("stats" in users.body[0], false);
+  assert.equal("pacientes" in users.body[0], false);
+  assert.equal(await status("PATCH", "/users/2", "admin", { role: "admin" }), 403);
+  assert.equal(stats.selects, 1, "the rejected role change does not query clinical or account rows");
+});
+
+test("admin professional directory returns contact metadata without querying patient assignments", async () => {
+  reset();
+  tables.set(schema.professionalsTable, [{
+    id: 7,
+    name: "Profesional de prueba",
+    email: "professional@example.test",
+    phone: "555-0100",
+    specialty: "Fonoaudiología",
+    license: "LIC-7",
+    status: "active",
+    createdAt: now,
+  }]);
+
+  const result = await request("GET", "/professionals", "admin");
+  assert.equal(result.status, 200);
+  assert.equal(result.body.length, 1);
+  assert.equal(result.body[0].name, "Profesional de prueba");
+  assert.equal("patientCount" in result.body[0], false);
+  assert.equal(stats.selects, 1, "the directory reads professional records only");
+});
+
 test("patient routes deny foreign patients before inserts, context queries and AI", async () => {
   reset();
   grantAiConsent(2);
@@ -303,17 +399,14 @@ test("patient routes deny foreign patients before inserts, context queries and A
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 999 }), 404);
 });
 
-test("admin and assigned professional pass clinical guards; authorized AI uses mocked provider", async () => {
+test("assigned professional can access own clinical data and authorized AI uses mocked provider", async () => {
   reset();
   grantAiConsent(2);
   assert.equal(await status("GET", "/patients/1/suggested-goals", "owner"), 200);
-  assert.equal(await status("GET", "/patients/2/suggested-goals", "admin"), 200);
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 1 }), 201);
-  assert.equal(await status("POST", "/goal-library/10/assign", "admin", { patientId: 2 }), 201);
   assert.equal(await status("POST", "/registros-clinicos", "owner", { patientId: 1, fecha: "2026-01-01" }), 201);
   assert.equal(await status("GET", "/ai/perfil/1", "owner"), 200);
   assert.equal(await status("PUT", "/ai/perfil/1", "owner", { perfil: { motivoConsulta: "Test" } }), 200);
-  assert.equal(await status("GET", "/ai/perfil/2", "admin"), 200);
   const suggested = await request("POST", "/ai/objetivos-suggest", "owner", { patientId: 1 });
   assert.equal(suggested.status, 200, JSON.stringify(suggested.body));
   assert.equal(suggested.body.objetivos[0].title, "Autorizado");
@@ -478,18 +571,18 @@ test("editing clinical record materials preserves, removes, and cleans up photos
   assert.equal(storage.objects.has(secondPath), false);
 });
 
-test("global library is readable to professionals but admin-written; custom goals are owner-only", async () => {
+test("global library is read-only to professionals, custom goals are owner-only, and admins are denied", async () => {
   reset();
   assert.deepEqual((await request("GET", "/goal-library", "owner")).body.map((g: any) => g.id), [10, 11]);
-  assert.deepEqual((await request("GET", "/goal-library", "admin")).body.map((g: any) => g.id), [10, 11, 12]);
+  assert.equal(await status("GET", "/goal-library", "admin"), 403);
   assert.equal(await status("POST", "/goal-library", "owner", { idObjetivo: "NEW", nombreObjetivo: "Global" }), 403);
   assert.equal(await status("PATCH", "/goal-library/10", "owner", { nombreObjetivo: "Change" }), 403);
   assert.equal(await status("PATCH", "/goal-library/12", "owner", { nombreObjetivo: "Change" }), 403);
   assert.equal(await status("POST", "/goal-library/12/assign", "owner", { patientId: 1 }), 403);
   assert.equal(await status("PATCH", "/goal-library/11", "owner", { nombreObjetivo: "Updated" }), 200);
   assert.equal(await status("POST", "/goal-library", "owner", { idObjetivo: "NEW", nombreObjetivo: "Mine", isCustom: true }), 201);
-  assert.equal(await status("POST", "/goal-library", "admin", { idObjetivo: "ADM", nombreObjetivo: "Admin" }), 201);
-  assert.equal(await status("PATCH", "/goal-library/10", "admin", { nombreObjetivo: "Updated" }), 200);
+  assert.equal(await status("POST", "/goal-library", "admin", { idObjetivo: "ADM", nombreObjetivo: "Admin" }), 403);
+  assert.equal(await status("PATCH", "/goal-library/10", "admin", { nombreObjetivo: "Updated" }), 403);
   assert.equal(await status("POST", "/goal-library/11/assign", "owner", { patientId: 1 }), 201);
   const suggested = (await request("GET", "/patients/1/suggested-goals", "owner")).body;
   assert.ok(suggested.every((g: any) => g.createdBy !== 3));
@@ -498,7 +591,7 @@ test("global library is readable to professionals but admin-written; custom goal
 test("activities inherit linked goal visibility and writes, including reassociation target", async () => {
   reset();
   assert.deepEqual((await request("GET", "/actividades", "owner")).body.map((a: any) => a.id), [20, 21, 23]);
-  assert.deepEqual((await request("GET", "/actividades", "admin")).body.map((a: any) => a.id), [20, 21, 22, 23]);
+  assert.equal(await status("GET", "/actividades", "admin"), 403);
   assert.equal(await status("POST", "/actividades", "owner", { titulo: "No link" }), 403);
   assert.equal(await status("POST", "/actividades", "owner", { titulo: "Global", goalLibraryId: 10 }), 403);
   assert.equal(await status("POST", "/actividades", "owner", { titulo: "Foreign", goalLibraryId: 12 }), 403);
@@ -511,16 +604,17 @@ test("activities inherit linked goal visibility and writes, including reassociat
   assert.equal(await status("POST", "/actividades", "owner", { titulo: "Own", goalLibraryId: 11 }), 201);
   assert.equal(await status("PATCH", "/actividades/21", "owner", { titulo: "Edited" }), 200);
   assert.equal(await status("DELETE", "/actividades/21", "owner"), 204);
-  assert.equal(await status("POST", "/actividades", "admin", { titulo: "Global", goalLibraryId: 10 }), 201);
-  assert.equal(await status("PATCH", "/actividades/20", "admin", { goalLibraryId: 12 }), 200);
+  assert.equal(await status("POST", "/actividades", "admin", { titulo: "Global", goalLibraryId: 10 }), 403);
+  assert.equal(await status("PATCH", "/actividades/20", "admin", { goalLibraryId: 12 }), 403);
 });
 
-test("migration is admin-only and guidance requires authentication", async () => {
+test("goal-code migration stays disabled and clinical guidance is professional-only", async () => {
   reset();
   grantAiConsent(2);
   assert.equal(await status("POST", "/goal-codes/migrate", "owner", {}), 403);
   assert.equal(stats.selects, 0);
-  assert.equal(await status("POST", "/goal-codes/migrate", "admin", {}), 200);
+  assert.equal(await status("POST", "/goal-codes/migrate", "admin", {}), 403);
+  assert.equal(await status("POST", "/goal-guidance", "admin", { title: "Objetivo" }), 403);
   assert.equal(await status("POST", "/goal-guidance", "owner", { title: "Goal" }), 200);
   assert.equal(stats.ai, 1);
 });

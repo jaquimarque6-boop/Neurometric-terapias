@@ -19,11 +19,11 @@ async function anamnesisName(userId: number | null) {
 
 const router: IRouter = Router();
 
-router.use((req, res, next) => {
+router.use("/patients", (req, res, next) => {
   if (req.session?.userId && req.session.userRole !== "professional") {
     return res.status(403).json({ error: "Acceso reservado a profesionales" });
   }
-  next();
+  return next();
 });
 
 // ─── Clinical insight helpers ─────────────────────────────────────────────────
@@ -113,7 +113,6 @@ async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typ
 router.get("/patients", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) {
-    console.log(`[GET /api/patients] 401 — sin sesión (cookie: ${req.headers.cookie ? "presente" : "ausente"}, origin: ${req.headers.origin ?? "none"})`);
     return res.status(401).json({ error: "No autenticado" });
   }
 
@@ -148,7 +147,6 @@ router.get("/patients", async (req, res) => {
     : [];
 
   const withCounts = await Promise.all(patients.map(p => enrichPatient(p, allGoals)));
-  console.log(`[GET /api/patients] userId=${sess.id} role=${sess.role} includeArchived=${includeArchived} → devolviendo ${withCounts.length} pacientes`);
   return res.json(withCounts);
 });
 
@@ -221,12 +219,10 @@ router.post("/patients", async (req, res) => {
     }).returning();
 
     recordUserActivityEvent(sess.id, "patient_saved");
-    console.log(`[POST /api/patients] ✓ creado id=${patient.id} name="${patient.name}" profesional=${profesionalNombre ?? "ninguno"} assignedId=${assignedProfessionalId}`);
     return res.status(201).json({ ...patient, totalRegistros: 0, createdAt: patient.createdAt.toISOString() });
 
   } catch (err: any) {
     const detail = err?.message ?? String(err);
-    console.error(`[POST /api/patients] ERROR userId=${sess.id} →`, detail);
 
     // Provide a user-friendly message while logging the real cause
     const friendly =
@@ -366,10 +362,8 @@ router.patch("/patients/:id/archive", async (req, res) => {
       .where(eq(patientsTable.id, id))
       .returning();
 
-    console.log(`[PATCH /api/patients/${id}/archive] userId=${sess.id} → archivado "${updated.name}"`);
     return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
-  } catch (err: any) {
-    console.error(`[PATCH /api/patients/${id}/archive] ERROR →`, err?.message);
+  } catch {
     return res.status(500).json({ error: "Error al archivar el paciente" });
   }
 });
@@ -392,10 +386,8 @@ router.patch("/patients/:id/restore", async (req, res) => {
       .where(eq(patientsTable.id, id))
       .returning();
 
-    console.log(`[PATCH /api/patients/${id}/restore] userId=${sess.id} → restaurado "${updated.name}"`);
     return res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
-  } catch (err: any) {
-    console.error(`[PATCH /api/patients/${id}/restore] ERROR →`, err?.message);
+  } catch {
     return res.status(500).json({ error: "Error al restaurar el paciente" });
   }
 });
@@ -471,14 +463,9 @@ router.delete("/patients/:id", async (req, res) => {
       await tx.delete(patientsTable).where(eq(patientsTable.id, id));
     });
 
-    console.log(
-      `[DELETE /api/patients/${id}] ✓ eliminado definitivamente "${existing.name}"` +
-      ` | userId=${sess.id} role=${sess.role}`
-    );
     return res.json({ ok: true, deletedId: id });
   } catch (err: any) {
     const detail = err?.message ?? String(err);
-    console.error(`[DELETE /api/patients/${id}] ERROR userId=${sess.id} →`, detail);
     return res.status(500).json({
       error: "Error al eliminar el paciente. Intenta de nuevo.",
       detail,

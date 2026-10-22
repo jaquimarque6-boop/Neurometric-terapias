@@ -156,8 +156,11 @@ router.patch("/users/:id", async (req, res) => {
     expectedCommercialRevision,
   } = req.body;
 
-  if (!isAdmin && (role !== undefined || active !== undefined)) {
-    return res.status(403).json({ error: "No tienes permiso para cambiar el rol o el estado de la cuenta" });
+  if (role !== undefined) {
+    return res.status(403).json({ error: "El rol no se puede cambiar desde administración; cree una cuenta con el rol correcto" });
+  }
+  if (!isAdmin && active !== undefined) {
+    return res.status(403).json({ error: "No tienes permiso para cambiar el estado de la cuenta" });
   }
   if (!isAdmin && commercialFields.some(key => req.body[key] !== undefined)) {
     return res.status(403).json({ error: "Solo administradores pueden modificar datos comerciales" });
@@ -178,13 +181,6 @@ router.patch("/users/:id", async (req, res) => {
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!existing) return res.status(404).json({ error: "Usuario no encontrado" });
   if (existing.role === "collaborator") return res.status(403).json({ error: "Use /api/collaborators para gestionar colaboradoras" });
-  if (existing.role === "collaborator" && role !== undefined && role !== "collaborator") return res.status(403).json({ error: "El rol colaboradora no se cambia desde usuarios" });
-  if (role === "collaborator") return res.status(403).json({ error: "Use /api/collaborators" });
-  if (role !== undefined && role !== "admin" && role !== "professional") return res.status(400).json({ error: "Rol inválido" });
-  if (existing.role === "professional" && role === "admin") {
-    const [attribution] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.professionalUserId, id));
-    if (attribution) return res.status(409).json({ error: "No se puede cambiar el rol de un referido consolidado" });
-  }
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (name !== undefined) updates.name = name.trim();
@@ -193,7 +189,6 @@ router.patch("/users/:id", async (req, res) => {
   if (password) updates.passwordHash = await bcrypt.hash(password, 10);
   // Privileged fields — admins only.
   if (isAdmin) {
-    if (role !== undefined) updates.role = role;
     if (active !== undefined) updates.active = active;
     // Datos comerciales (solo admin). No afectan login/auth ni pagos clínicos.
     if (commercialStatus !== undefined) {

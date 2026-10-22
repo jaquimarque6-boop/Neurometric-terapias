@@ -300,8 +300,6 @@ areaClinica y category: en minúsculas, acordes a la disciplina.`;
 
     const openai = new OpenAI({ apiKey, baseURL });
 
-    console.log(`[ai-objetivos] paciente=${patientId} modo=${mode} disciplina=${discipline} sesiones=${recentRC.length} objetivos_actuales=${activeGoals.length} modelo=${model}`);
-
     const response = await openai.chat.completions.create({
       model,
       messages: [

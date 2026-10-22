@@ -3,8 +3,8 @@ import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
   ArrowLeft, ShieldCheck, Stethoscope, Eye, EyeOff, KeyRound,
-  History, UserCircle, ClipboardList, Trash2, RotateCcw,
-  CalendarDays, Activity, Search, CreditCard, DollarSign, FileText, LogIn,
+  History, UserCircle, Trash2, RotateCcw,
+  CalendarDays, Activity, Search, CreditCard, DollarSign, FileText,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -16,25 +16,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 import { normalizeReferralCode } from "@/lib/referral";
 import { useReferral, validateReferralCode } from "@/providers/referral-provider";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { AlertTriangle, ShieldAlert, Receipt } from "lucide-react";
+import { ShieldAlert, Receipt } from "lucide-react";
 import { Link } from "wouter";
 import { useInvalidateCommercial, type CommercialReview } from "@/hooks/use-commercial";
 import { VerificationPanel } from "@/components/commercial/verification-panel";
 import { CommercialHistoryDialog } from "@/components/commercial/commercial-history-dialog";
-
-type DeletionPreview = {
-  userId: number;
-  userName: string;
-  pacientes: number;
-  registros: number;
-  documentos: number;
-  sesiones: number;
-  pagos: number;
-  gastos: number;
-};
 
 const SPECIALTIES = [
   "Fonoaudiología",
@@ -45,32 +31,6 @@ const SPECIALTIES = [
   "Neurología",
   "Otro",
 ];
-
-type UserStats = {
-  pacientesAsignados: number;
-  sesionesRegistradas: number;
-  pacientesConSesion: number;
-  sesionesEsteMes: number;
-  ultimaActividad: string | null;
-  activity?: UserActivityStats;
-};
-
-type UserActivityStats = {
-  available: boolean;
-  status: AuditStatus;
-  firstLoginAt: string | null;
-  lastLoginAt: string | null;
-  lastActivityAt: string | null;
-  loginCount30Days: number;
-  hasClinicalActivity: boolean;
-  eventCounts30Days: {
-    patientSaved: number;
-    clinicalRecordSaved: number;
-    goalSaved: number;
-    reportSaved: number;
-    aiUsed: number;
-  };
-};
 
 type CommercialStatus = "trial" | "paying" | "overdue" | "courtesy" | "churned";
 
@@ -93,7 +53,6 @@ type AppUser = {
   trialStartPending?: boolean;
   commercialReview?: CommercialReview;
   commercialRevision?: string;
-  stats?: UserStats;
 };
 
 const COMMERCIAL_META: Record<CommercialStatus, { label: string; className: string }> = {
@@ -112,14 +71,6 @@ const COMMERCIAL_OPTIONS: { value: CommercialStatus; label: string }[] = [
   { value: "churned", label: "Baja" },
 ];
 
-function isWithinDays(iso: string | null, days: number): boolean {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  if (isNaN(t)) return false;
-  const delta = Date.now() - t;
-  return delta >= 0 && delta <= days * 24 * 60 * 60 * 1000;
-}
-
 function isOverdue(u: AppUser): boolean {
   if (u.commercialStatus === "overdue") return true;
   if (u.nextDueDate) {
@@ -129,65 +80,8 @@ function isOverdue(u: AppUser): boolean {
   return false;
 }
 
-const EMPTY_STATS: UserStats = {
-  pacientesAsignados: 0,
-  sesionesRegistradas: 0,
-  pacientesConSesion: 0,
-  sesionesEsteMes: 0,
-  ultimaActividad: null,
-  activity: {
-    available: false,
-    status: "unavailable",
-    firstLoginAt: null,
-    lastLoginAt: null,
-    lastActivityAt: null,
-    loginCount30Days: 0,
-    hasClinicalActivity: false,
-    eventCounts30Days: {
-      patientSaved: 0,
-      clinicalRecordSaved: 0,
-      goalSaved: 0,
-      reportSaved: 0,
-      aiUsed: 0,
-    },
-  },
-};
-
-const EMPTY_ACTIVITY = EMPTY_STATS.activity!;
-
-type AuditStatus = "active" | "login_only" | "no_login" | "inactive" | "unavailable";
-
-const AUDIT_STATUS_META: Record<AuditStatus, { label: string; className: string }> = {
-  active: {
-    label: "Activa",
-    className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  },
-  login_only: {
-    label: "Solo ingresó",
-    className: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  },
-  no_login: {
-    label: "Sin ingresos registrados",
-    className: "border-border bg-muted/50 text-muted-foreground",
-  },
-  inactive: {
-    label: "Inactiva",
-    className: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  },
-  unavailable: {
-    label: "Auditoría no disponible",
-    className: "border-border bg-muted/50 text-muted-foreground",
-  },
-};
-
 type ActivityFilter =
   | "todos"
-  | "con-pacientes"
-  | "sin-pacientes"
-  | "con-sesiones-mes"
-  | "sin-sesiones-mes"
-  | "activos-30"
-  | "inactivos-30"
   | "pagando"
   | "en-prueba"
   | "vencidos"
@@ -290,13 +184,6 @@ export default function Usuarios() {
   // El resumen y los conteos consideran solo usuarios activos; los dados de baja
   // (active = false) se cuentan y se listan por separado.
   const summary = useMemo(() => {
-    let activosEsteMes = 0;
-    let conPacientes = 0;
-    let conSesiones = 0;
-    let sinPacientes = 0;
-    let sinActividad = 0;
-    let conSesionesMes = 0;
-    let activos30 = 0;
     let pagando = 0;
     let enPrueba = 0;
     let vencidos = 0;
@@ -304,30 +191,17 @@ export default function Usuarios() {
 
     const activos = users.filter(u => u.active);
     for (const u of activos) {
-      const s = u.stats ?? EMPTY_STATS;
-      if (s.sesionesEsteMes > 0) { activosEsteMes++; conSesionesMes++; }
-      if (s.pacientesAsignados > 0) conPacientes++;
-      if (s.sesionesRegistradas > 0) conSesiones++;
-      if (s.pacientesAsignados === 0) sinPacientes++;
-      if (s.pacientesAsignados === 0 && s.sesionesRegistradas === 0) sinActividad++;
-      if (isWithinDays(s.ultimaActividad, 30)) activos30++;
       if (u.commercialStatus === "paying") pagando++;
       else if (u.commercialStatus === "trial") enPrueba++;
       else if (u.commercialStatus === "courtesy") cortesia++;
       if (isOverdue(u)) vencidos++;
     }
 
-    // Total de sesiones considerando a todos los usuarios (para "Mi perfil").
-    let totalSesiones = 0;
-    for (const u of users) totalSesiones += u.stats?.sesionesRegistradas ?? 0;
-
     const activosCount = activos.length;
     const dadosDeBaja = users.length - activosCount;
     const hayDatos = users.length > 0;
     return {
-      activosEsteMes, conPacientes, conSesiones, sinPacientes, sinActividad,
-      conSesionesMes, activos30, pagando, enPrueba, vencidos, cortesia,
-      totalSesiones, activosCount, dadosDeBaja, hayDatos,
+      pagando, enPrueba, vencidos, cortesia, activosCount, dadosDeBaja, hayDatos,
     };
   }, [users]);
 
@@ -377,58 +251,11 @@ export default function Usuarios() {
     if (r.ok) { toast({ title: u.active ? "Usuario desactivado" : "Usuario activado" }); await loadAll(); }
   };
 
-  // ── Eliminación definitiva ─────────────────────────────────────────────────
-  const [deleteTarget, setDeleteTarget]   = useState<AppUser | null>(null);
-  const [deletePreview, setDeletePreview] = useState<DeletionPreview | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting, setDeleting]           = useState(false);
-
-  const openPermanentDelete = async (u: AppUser) => {
-    setDeleteTarget(u);
-    setDeletePreview(null);
-    setDeleteConfirm("");
-    const r = await fetch(`${API_BASE}/api/users/${u.id}/deletion-preview`, { credentials: "include" });
-    if (r.ok) {
-      setDeletePreview(await r.json());
-    } else {
-      const e = await r.json().catch(() => ({}));
-      toast({ title: e.error ?? "No se pudo obtener el detalle de eliminación", variant: "destructive" });
-      setDeleteTarget(null);
-    }
-  };
-
-  const handlePermanentDelete = async () => {
-    if (!deleteTarget || deleteConfirm !== "ELIMINAR") return;
-    setDeleting(true);
-    try {
-      const r = await fetch(`${API_BASE}/api/users/${deleteTarget.id}/permanent`, {
-        method: "DELETE", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "ELIMINAR" }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok) {
-        toast({
-          title: "Usuario eliminado definitivamente",
-          description: `Se borraron ${data.pacientes} paciente(s), ${data.registros} registro(s) y ${data.documentos} documento(s).`,
-        });
-        setDeleteTarget(null);
-        await loadAll();
-      } else {
-        toast({ title: data.error ?? "No se pudo eliminar. No se borró ningún dato.", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Error de conexión. No se borró ningún dato.", variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   // ── Inline edit ────────────────────────────────────────────────────────────
   const startEdit = (u: AppUser) => {
     setEditingId(u.id);
     setEditForm({
-      name: u.name, email: u.email, role: u.role as any, specialty: u.specialty ?? "", password: "",
+      name: u.name, email: u.email, specialty: u.specialty ?? "", password: "",
       commercialStatus: u.commercialStatus,
       commercialRevision: u.commercialRevision,
       trialStartDate: u.trialStartDate ?? "",
@@ -451,7 +278,7 @@ export default function Usuarios() {
     setSaving(true);
     try {
       const payload: any = {
-        name: editForm.name, email: editForm.email, role: editForm.role, specialty: editForm.specialty || null,
+        name: editForm.name, email: editForm.email, specialty: editForm.specialty || null,
         commercialStatus: editForm.commercialStatus,
         expectedCommercialRevision: editForm.commercialRevision,
         trialStartDate: editForm.trialStartDate || null,
@@ -506,20 +333,12 @@ export default function Usuarios() {
   const filteredUsers = useMemo(() => {
     const q = normalizeText(search);
     return users.filter(u => {
-      const s = u.stats ?? EMPTY_STATS;
-
       // Los dados de baja se muestran solo en su propio filtro; el resto de los
       // filtros operan únicamente sobre usuarios activos.
       if (activityFilter === "dados-de-baja") {
         if (u.active) return false;
       } else {
         if (!u.active) return false;
-        if (activityFilter === "con-pacientes" && !(s.pacientesAsignados > 0)) return false;
-        if (activityFilter === "sin-pacientes" && s.pacientesAsignados !== 0) return false;
-        if (activityFilter === "con-sesiones-mes" && !(s.sesionesEsteMes > 0)) return false;
-        if (activityFilter === "sin-sesiones-mes" && s.sesionesEsteMes !== 0) return false;
-        if (activityFilter === "activos-30" && !isWithinDays(s.ultimaActividad, 30)) return false;
-        if (activityFilter === "inactivos-30" && isWithinDays(s.ultimaActividad, 30)) return false;
         if (activityFilter === "pagando" && u.commercialStatus !== "paying") return false;
         if (activityFilter === "en-prueba" && u.commercialStatus !== "trial") return false;
         if (activityFilter === "vencidos" && !isOverdue(u)) return false;
@@ -542,13 +361,8 @@ export default function Usuarios() {
   }, [users, search, activityFilter]);
 
   const activityFilterOptions: { value: ActivityFilter; label: string; count: number }[] = [
-    { value: "todos",            label: "Todos",                  count: summary.activosCount },
-    { value: "con-pacientes",    label: "Con pacientes",          count: summary.conPacientes },
-    { value: "sin-pacientes",    label: "Sin pacientes",          count: summary.sinPacientes },
-    { value: "con-sesiones-mes", label: "Con sesiones este mes",  count: summary.conSesionesMes },
-    { value: "sin-sesiones-mes", label: "Sin sesiones este mes",  count: summary.activosCount - summary.conSesionesMes },
-    { value: "activos-30",       label: "Activos últimos 30 días", count: summary.activos30 },
-    { value: "inactivos-30",     label: "Inactivos +30 días",     count: summary.activosCount - summary.activos30 },
+    { value: "todos",            label: "Activos",                count: summary.activosCount },
+    { value: "dados-de-baja",    label: "Dados de baja",           count: summary.dadosDeBaja },
   ];
 
   const commercialFilterOptions: { value: ActivityFilter; label: string; count: number }[] = [
@@ -556,24 +370,10 @@ export default function Usuarios() {
     { value: "en-prueba",     label: "En prueba",     count: summary.enPrueba },
     { value: "vencidos",      label: "Vencidos",      count: summary.vencidos },
     { value: "cortesia",      label: "Cortesía",      count: summary.cortesia },
-    { value: "dados-de-baja", label: "Dados de baja", count: summary.dadosDeBaja },
   ];
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
-
-  const formatDateTime = (iso: string | null) => {
-    if (!iso) return "Sin registro";
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString("es-AR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   // Fechas «solo día» (columnas date, formato YYYY-MM-DD) sin corrimiento de zona.
   const formatDateOnly = (d: string | null) =>
@@ -624,7 +424,7 @@ export default function Usuarios() {
               )}
             </TabsTrigger>
             <TabsTrigger value="auditoria" className="rounded-lg text-sm flex items-center gap-1.5">
-              <History className="h-3.5 w-3.5" /> Auditoría
+              <History className="h-3.5 w-3.5" /> Historial de cuentas
             </TabsTrigger>
             <TabsTrigger value="mi-perfil" className="rounded-lg text-sm flex items-center gap-1.5">
               <UserCircle className="h-3.5 w-3.5" /> Mi perfil
@@ -636,36 +436,9 @@ export default function Usuarios() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <TabsContent value="usuarios" className="mt-5 space-y-4">
 
-            {/* ── Resumen de uso (solo usuarios activos) ── */}
+            {/* ── Resumen administrativo y comercial ── */}
             {!loading && summary.hayDatos && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <CalendarDays className="h-3.5 w-3.5 text-primary" /> Activos este mes
-                    </div>
-                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.activosEsteMes}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Users className="h-3.5 w-3.5 text-primary" /> Con pacientes
-                    </div>
-                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conPacientes}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <ClipboardList className="h-3.5 w-3.5 text-primary" /> Con sesiones
-                    </div>
-                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.conSesiones}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <UserX className="h-3.5 w-3.5 text-muted-foreground" /> Sin pacientes ni registros
-                    </div>
-                    <p className="mt-1 text-2xl font-display font-bold text-foreground">{summary.sinActividad}</p>
-                  </div>
-                </div>
-
                 {/* Resumen comercial */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/40 shadow-sm p-4">
@@ -808,7 +581,7 @@ export default function Usuarios() {
             {!loading && users.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-start gap-2 flex-wrap">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 mr-1">Actividad</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 mr-1">Cuenta</span>
                   {activityFilterOptions.map(f => {
                     const active = activityFilter === f.value;
                     return (
@@ -874,8 +647,6 @@ export default function Usuarios() {
             ) : (
               <div className="space-y-3">
                 {filteredUsers.map(u => {
-                  const stats  = u.stats ?? EMPTY_STATS;
-                  const sinActividad = stats.pacientesAsignados === 0 && stats.sesionesRegistradas === 0;
                   const isEditing   = editingId === u.id;
                   const isResetting = resettingId === u.id;
 
@@ -909,21 +680,6 @@ export default function Usuarios() {
                                 <Badge variant="outline" className={`text-xs gap-1 py-0 ${COMMERCIAL_META[u.commercialStatus]?.className ?? ""}`}>
                                   <CreditCard className="h-3 w-3" />{COMMERCIAL_META[u.commercialStatus]?.label ?? u.commercialStatus}
                                 </Badge>
-                                {stats.pacientesAsignados > 0 && (
-                                  <Badge variant="outline" className="text-xs gap-1 border-emerald-500/40 text-emerald-600 py-0">
-                                    <Users className="h-3 w-3" />Tiene pacientes
-                                  </Badge>
-                                )}
-                                {stats.sesionesRegistradas > 0 && (
-                                  <Badge variant="outline" className="text-xs gap-1 border-sky-500/40 text-sky-600 py-0">
-                                    <ClipboardList className="h-3 w-3" />Tiene sesiones
-                                  </Badge>
-                                )}
-                                {sinActividad && (
-                                  <Badge variant="outline" className="text-xs gap-1 border-muted-foreground/30 text-muted-foreground py-0">
-                                    <Activity className="h-3 w-3" />Sin actividad
-                                  </Badge>
-                                )}
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5 truncate">{u.email}</p>
                               {u.specialty && (
@@ -972,34 +728,6 @@ export default function Usuarios() {
 
                           {/* Stats strip */}
                           <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-5 flex-wrap">
-                            {sinActividad ? (
-                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70 italic">
-                                <Activity className="h-3 w-3 text-muted-foreground/50" />
-                                Sin actividad registrada
-                              </span>
-                            ) : (
-                              <>
-                                {stats.pacientesAsignados > 0 && (
-                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Users className="h-3 w-3 text-muted-foreground/60" />
-                                    <span className="font-semibold text-foreground">{stats.pacientesAsignados}</span> paciente{stats.pacientesAsignados !== 1 ? "s" : ""} asignado{stats.pacientesAsignados !== 1 ? "s" : ""}
-                                  </span>
-                                )}
-                                {stats.sesionesRegistradas > 0 && (
-                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <ClipboardList className="h-3 w-3 text-muted-foreground/60" />
-                                    <span className="font-semibold text-foreground">{stats.sesionesRegistradas}</span> sesión{stats.sesionesRegistradas !== 1 ? "es" : ""} registrada{stats.sesionesRegistradas !== 1 ? "s" : ""}
-                                  </span>
-                                )}
-                                {stats.ultimaActividad && (
-                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Activity className="h-3 w-3 text-muted-foreground/60" />
-                                    <span className="text-muted-foreground/60">Última actividad:</span>
-                                    <span className="text-foreground">{formatDate(stats.ultimaActividad)}</span>
-                                  </span>
-                                )}
-                              </>
-                            )}
                             {u.monthlyAmount && (
                               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <DollarSign className="h-3 w-3 text-muted-foreground/60" />
@@ -1034,13 +762,6 @@ export default function Usuarios() {
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-muted-foreground">Email</label>
                               <Input value={editForm.email ?? ""} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="bg-background h-8 text-sm" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-medium text-muted-foreground">Rol</label>
-                              <select value={editForm.role ?? "professional"} onChange={e => setEditForm(f => ({ ...f, role: e.target.value as any }))} className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
-                                <option value="professional">Profesional</option>
-                                <option value="admin">Administrador</option>
-                              </select>
                             </div>
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-muted-foreground">Especialidad</label>
@@ -1178,8 +899,8 @@ export default function Usuarios() {
             <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
                 <History className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-foreground">Registro de usuarios</h2>
-                <span className="ml-auto text-xs text-muted-foreground">{users.length} en total</span>
+                <h2 className="text-sm font-semibold text-foreground">Historial administrativo de cuentas</h2>
+                <span className="ml-auto text-xs text-muted-foreground">{users.length} cuentas</span>
               </div>
               <div className="divide-y divide-border/40">
                 {loading ? (
@@ -1187,75 +908,31 @@ export default function Usuarios() {
                 ) : (
                   [...users]
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .map(u => {
-                      const stats = u.stats ?? EMPTY_STATS;
-                      const activity = stats.activity ?? EMPTY_ACTIVITY;
-                      const hasClinicalActivity = activity.hasClinicalActivity || stats.sesionesRegistradas > 0;
-                      const auditStatus: AuditStatus = !u.active
-                        ? "inactive"
-                        : hasClinicalActivity
-                          ? "active"
-                          : activity.status;
-                      const statusMeta = AUDIT_STATUS_META[auditStatus];
-                      return (
-                        <div key={u.id} className="flex flex-col gap-2 px-5 py-3 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center">
-                          <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
-                            {u.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 sm:w-48 sm:shrink-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
-                              {u.role === "admin"
-                                ? <Badge variant="outline" className="text-[10px] gap-0.5 border-primary/40 text-primary py-0"><ShieldCheck className="h-2.5 w-2.5" />Admin</Badge>
-                                : <Badge variant="outline" className="text-[10px] gap-0.5 border-accent/40 text-accent py-0"><Stethoscope className="h-2.5 w-2.5" />Prof.</Badge>}
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate">{u.email}{u.specialty ? ` · ${u.specialty}` : ""}</p>
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1 sm:text-right">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
-                              <Badge variant="outline" className={`text-[10px] py-0 ${statusMeta.className}`}>
-                                {statusMeta.label}
-                              </Badge>
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <LogIn className="h-3 w-3 shrink-0" />
-                                Primer ingreso: {activity.available ? formatDateTime(activity.firstLoginAt) : "No disponible"}
-                              </span>
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <LogIn className="h-3 w-3 shrink-0" />
-                                Último ingreso: {activity.available ? formatDateTime(activity.lastLoginAt) : "No disponible"}
-                              </span>
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Activity className="h-3 w-3 shrink-0" />
-                                Última actividad: {activity.available ? formatDateTime(activity.lastActivityAt) : "No disponible"}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {activity.available ? `${activity.loginCount30Days} ingresos / 30 días` : "Ingresos no disponibles"}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:justify-end">
-                              <span className="flex items-center gap-1">
-                                <Activity className="h-3 w-3 shrink-0" />
-                                {stats.pacientesAsignados} pacientes · {stats.sesionesRegistradas} registros clínicos
-                              </span>
-                              <span title="Conteos de eventos en los últimos 30 días">
-                                {activity.available
-                                  ? `Informes ${activity.eventCounts30Days.reportSaved} · Objetivos ${activity.eventCounts30Days.goalSaved} · IA ${activity.eventCounts30Days.aiUsed} (30 días)`
-                                  : "Conteos no disponibles"}
-                              </span>
-                            </div>
-                          </div>
+                    .map(u => (
+                      <div key={u.id} className="flex flex-col gap-2 px-5 py-3 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${u.role === "admin" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
+                          {u.name.charAt(0).toUpperCase()}
                         </div>
-                      );
-                    })
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
+                            <Badge variant="outline" className={u.role === "admin" ? "text-[10px] border-primary/40 text-primary" : "text-[10px] border-accent/40 text-accent"}>
+                              {u.role === "admin" ? "Admin" : "Profesional"}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px]">
+                              {u.active ? "Cuenta activa" : "Cuenta inactiva"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:justify-end">
+                          <span>Estado comercial: {COMMERCIAL_META[u.commercialStatus]?.label ?? u.commercialStatus}</span>
+                          <span>Cuenta creada: {formatDate(u.createdAt)}</span>
+                        </div>
+                      </div>
+                    ))
                 )}
               </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border/40 px-4 py-3">
-              <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Esta vista registra solo ingresos exitosos, guardados de pacientes, registros clínicos, objetivos e informes, y uso exitoso de IA. No almacena identificadores de pacientes, contenido clínico, textos, prompts ni respuestas. Los ingresos anteriores al inicio del seguimiento no se pueden reconstruir.
-              </p>
             </div>
           </TabsContent>
 
@@ -1304,8 +981,8 @@ export default function Usuarios() {
                         <p className="text-[10px] text-emerald-600 mt-0.5">Activos</p>
                       </div>
                       <div className="text-center p-3 rounded-xl bg-muted/40 border border-border/40">
-                        <p className="text-2xl font-bold text-muted-foreground">{summary.totalSesiones}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Sesiones total</p>
+                        <p className="text-2xl font-bold text-muted-foreground">{summary.pagando}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Pagando</p>
                       </div>
                     </div>
                   </div>
@@ -1317,69 +994,6 @@ export default function Usuarios() {
         <CommercialHistoryDialog user={historyUser} onClose={() => setHistoryUser(null)} />
       </div>
 
-      {/* ── Modal de eliminación definitiva ─────────────────────────────── */}
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Eliminar definitivamente
-            </DialogTitle>
-            <DialogDescription>
-              Esta acción eliminará permanentemente al usuario, sus pacientes y toda la información clínica asociada. No se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-
-          {deleteTarget && (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                <p className="text-sm font-semibold text-foreground mb-2">
-                  Se eliminará a <span className="text-destructive">{deleteTarget.name}</span> junto con:
-                </p>
-                {deletePreview ? (
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• <span className="font-semibold text-foreground">{deletePreview.pacientes}</span> paciente{deletePreview.pacientes !== 1 ? "s" : ""} asignado{deletePreview.pacientes !== 1 ? "s" : ""}</li>
-                    <li>• <span className="font-semibold text-foreground">{deletePreview.registros}</span> registro{deletePreview.registros !== 1 ? "s" : ""} clínico{deletePreview.registros !== 1 ? "s" : ""}</li>
-                    <li>• <span className="font-semibold text-foreground">{deletePreview.sesiones}</span> sesión{deletePreview.sesiones !== 1 ? "es" : ""}</li>
-                    <li>• <span className="font-semibold text-foreground">{deletePreview.pagos}</span> pago{deletePreview.pagos !== 1 ? "s" : ""} y <span className="font-semibold text-foreground">{deletePreview.gastos}</span> gasto{deletePreview.gastos !== 1 ? "s" : ""}</li>
-                    <li>• <span className="font-semibold text-foreground">{deletePreview.documentos}</span> documento{deletePreview.documentos !== 1 ? "s" : ""} (incluye archivos en el almacenamiento)</li>
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Calculando datos a eliminar…</p>
-                )}
-              </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground mb-1.5">
-                  Escribí <span className="font-bold text-destructive">ELIMINAR</span> para confirmar:
-                </p>
-                <Input
-                  value={deleteConfirm}
-                  onChange={(e) => setDeleteConfirm(e.target.value)}
-                  placeholder="ELIMINAR"
-                  autoComplete="off"
-                  className="bg-muted/30"
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handlePermanentDelete}
-              disabled={deleting || !deletePreview || deleteConfirm !== "ELIMINAR"}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              {deleting ? "Eliminando…" : "Eliminar definitivamente"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }

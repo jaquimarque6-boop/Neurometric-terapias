@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { professionalsTable, patientProfessionalsTable } from "@workspace/db/schema";
+import { professionalsTable } from "@workspace/db/schema";
 import { CreateProfessionalBody } from "@workspace/api-zod";
-import { eq, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -21,16 +20,10 @@ function requireAdmin(req: any, res: any): boolean {
 router.get("/professionals", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const professionals = await db.select().from(professionalsTable).orderBy(professionalsTable.createdAt);
-
-  const withCounts = await Promise.all(professionals.map(async (pro) => {
-    const [{ value }] = await db
-      .select({ value: count() })
-      .from(patientProfessionalsTable)
-      .where(eq(patientProfessionalsTable.professionalId, pro.id));
-    return { ...pro, patientCount: Number(value), createdAt: pro.createdAt.toISOString() };
-  }));
-
-  res.json(withCounts);
+  return res.json(professionals.map(pro => ({
+    ...pro,
+    createdAt: pro.createdAt.toISOString(),
+  })));
 });
 
 router.post("/professionals", async (req, res) => {

@@ -332,8 +332,6 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
 
     const openai = new OpenAI({ apiKey, baseURL });
 
-    console.log(`[ai-perfil] paciente=${patientId} disciplina=${discipline} sesiones=${sortedRC.length} objetivos=${allGoals.length} modelo=${model}`);
-
     const response = await openai.chat.completions.create({
       model,
       messages: [

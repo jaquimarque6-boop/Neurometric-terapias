@@ -6,11 +6,11 @@ import { eq, desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.use((req, res, next) => {
+router.use("/goals", (req, res, next) => {
   if (req.session?.userId && req.session.userRole !== "professional") {
     return res.status(403).json({ error: "Acceso reservado a profesionales" });
   }
-  next();
+  return next();
 });
 
 function getSessionUser(req: any): { id: number; role: string } | null {

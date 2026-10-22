@@ -126,9 +126,6 @@ function isPublicApiRoute(req: express.Request): boolean {
 // reaching a route. This deliberately ignores the role carried by a Bearer
 // token: active status and the current role must come from `users`.
 app.use(async (req, res, next) => {
-  // Only log auth resolution for /api routes to avoid noise on static assets.
-  const isApi = req.url.startsWith("/api");
-
   // Login, public registration, logout, and health must be able to run without
   // a currently valid account. Logout also needs to work for a just-deactivated
   // account so its old cookie can be destroyed cleanly.
@@ -139,12 +136,6 @@ app.use(async (req, res, next) => {
 
   if (req.session.userId) {
     authSource = "cookie-session";
-    if (isApi) {
-      console.log(
-        `[auth] ✓ cookie-session | ${req.method} ${req.url}` +
-        ` | userId=${req.session.userId} role=${req.session.userRole ?? "?"}`
-      );
-    }
   } else {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith("Bearer ")) {
@@ -154,26 +145,7 @@ app.use(async (req, res, next) => {
         // The token identifies the account, but its role is not authoritative.
         req.session.userId = claims.userId;
         authSource = "bearer-token";
-        if (isApi) {
-          console.log(
-            `[auth] ✓ bearer-token | ${req.method} ${req.url}` +
-            ` | userId=${claims.userId}` +
-            ` | origin=${req.headers.origin ?? "none"}`
-          );
-        }
-      } else if (isApi) {
-        console.warn(
-          `[auth] ✗ token inválido o expirado | ${req.method} ${req.url}` +
-          ` | origin=${req.headers.origin ?? "none"}`
-        );
       }
-    } else if (isApi) {
-      console.log(
-        `[auth] · sin credenciales | ${req.method} ${req.url}` +
-        ` | cookie=${req.headers.cookie ? "presente" : "ausente"}` +
-        ` | authHeader=${authHeader ? "presente-no-bearer" : "ausente"}` +
-        ` | origin=${req.headers.origin ?? "none"}`
-      );
     }
   }
 

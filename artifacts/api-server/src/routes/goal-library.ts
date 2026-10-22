@@ -8,12 +8,15 @@ import { canAccessLibraryGoal, canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
-router.use((req, res, next) => {
+const requireProfessional = (req: any, res: any, next: any) => {
   if (req.session?.userId && req.session.userRole !== "professional") {
     return res.status(403).json({ error: "Acceso reservado a profesionales" });
   }
-  next();
-});
+  return next();
+};
+
+router.use("/goal-library", requireProfessional);
+router.use("/patients/:id/suggested-goals", requireProfessional);
 
 // ─── List goal library with filters ──────────────────────────────────────────
 router.get("/goal-library", async (req, res) => {

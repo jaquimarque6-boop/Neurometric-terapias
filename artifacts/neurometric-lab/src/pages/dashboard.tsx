@@ -86,6 +86,7 @@ export default function Dashboard() {
 
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ["listPatients"],
+    enabled: user?.role === "professional",
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/patients`, { credentials: "include" });
       if (!res.ok) return [];
@@ -95,6 +96,7 @@ export default function Dashboard() {
 
   const { data: goals = [] } = useQuery<any[]>({
     queryKey: ["listGoals"],
+    enabled: user?.role === "professional",
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/goals`, { credentials: "include" });
       if (!res.ok) return [];
@@ -104,6 +106,7 @@ export default function Dashboard() {
 
   const { data: citasHoy = [], isLoading: loadingCitas } = useQuery<any[]>({
     queryKey: ["citas", today, today],
+    enabled: user?.role === "professional",
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/citas?start=${today}&end=${today}`, { credentials: "include" });
       if (!res.ok) return [];
@@ -113,6 +116,7 @@ export default function Dashboard() {
 
   const { data: citasSemana = [] } = useQuery<any[]>({
     queryKey: ["citas", weekStart, weekEnd],
+    enabled: user?.role === "professional",
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/citas?start=${weekStart}&end=${weekEnd}`, { credentials: "include" });
       if (!res.ok) return [];
@@ -159,6 +163,8 @@ export default function Dashboard() {
     { label: "Objetivos activos", value: activeGoals,    icon: Target     },
     { label: "Citas esta semana", value: sessionsSemana, icon: TrendingUp },
   ];
+
+  if (isAdmin) return <AdminDashboard />;
 
   return (
     <AppLayout>
@@ -380,6 +386,71 @@ export default function Dashboard() {
         open={showNewPatient}
         onClose={() => setShowNewPatient(false)}
       />
+    </AppLayout>
+  );
+}
+
+function AdminDashboard() {
+  const [, navigate] = useLocation();
+  const { data, isLoading, isError } = useQuery<any>({
+    queryKey: ["adminDashboardStats"],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/dashboard/stats`, { credentials: "include" });
+      if (!response.ok) throw new Error("No se pudieron cargar las estadísticas generales");
+      return response.json();
+    },
+  });
+
+  const cards = [
+    { label: "Pacientes registrados", value: data?.totalPatients },
+    { label: "Profesionales", value: data?.totalProfessionals },
+    { label: "Nuevos pacientes este mes", value: data?.newPatientsThisMonth },
+    { label: "Sesiones registradas esta semana", value: data?.sessionsThisWeek },
+  ];
+
+  return (
+    <AppLayout>
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Administración</p>
+          <h1 className="mt-1 text-2xl font-display font-bold text-foreground">Resumen general</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Estadísticas agregadas y gestión administrativa.</p>
+        </header>
+
+        {isError ? (
+          <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            No se pudieron cargar las estadísticas generales.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {cards.map(card => (
+              <div key={card.label} className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+                <p className="text-sm text-muted-foreground">{card.label}</p>
+                <p className="mt-2 text-3xl font-display font-bold text-foreground">
+                  {isLoading ? "…" : Number(card.value ?? 0).toLocaleString("es-AR")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          {[
+            ["Usuarios", "/usuarios"],
+            ["Profesionales", "/professionals"],
+            ["Colaboradoras", "/colaboradoras"],
+          ].map(([label, path]) => (
+            <button
+              key={path}
+              type="button"
+              onClick={() => navigate(path)}
+              className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
     </AppLayout>
   );
 }

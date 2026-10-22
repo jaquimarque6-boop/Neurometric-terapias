@@ -5,6 +5,14 @@ import { recordUserActivityEvent } from "../lib/usage-audit-db";
 
 const router: IRouter = Router();
 
+router.use("/goal-guidance", (req, res, next) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  return next();
+});
+
 router.post("/goal-guidance", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   if (!await requireAiConsent(req, res)) return;

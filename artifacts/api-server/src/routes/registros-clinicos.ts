@@ -23,11 +23,11 @@ import {
 
 const router: IRouter = Router();
 
-router.use((req, res, next) => {
+router.use("/registros-clinicos", (req, res, next) => {
   if (req.session?.userId && req.session.userRole !== "professional") {
     return res.status(403).json({ error: "Acceso reservado a profesionales" });
   }
-  next();
+  return next();
 });
 
 function getSessionUser(req: any): {
@@ -402,8 +402,7 @@ router.delete("/registros-clinicos/:id", async (req, res) => {
     if (!storageConfigured()) return res.status(503).json({ error: "No se puede eliminar el registro porque Storage no está disponible" });
     try {
       await Promise.all(storagePaths.map(path => deleteStorageObject(path)));
-    } catch (err) {
-      console.error(`[DELETE /registros-clinicos/${id}] No se pudieron eliminar todas las imágenes`, err);
+    } catch {
       return res.status(500).json({ error: "No se pudo eliminar el registro y sus imágenes" });
     }
   }

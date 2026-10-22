@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { goalLibraryTable, goalsTable } from "@workspace/db/schema";
-import { isNull, or, eq } from "drizzle-orm";
 import {
   buildCodePrefix,
   buildFullCode,
@@ -16,7 +15,15 @@ import {
 
 const router: IRouter = Router();
 
-// ─── Get all mapping tables (for admin UI) ────────────────────────────────────
+router.use("/goal-codes", (req, res, next) => {
+  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
+  if (req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  return next();
+});
+
+// ─── Get all mapping tables for professional tools ────────────────────────────
 router.get("/goal-codes/mappings", (_req, res) => {
   res.json({
     areaPrefixes:  getAllAreaOptions(),
@@ -93,61 +100,8 @@ router.get("/goal-codes/check", async (req, res) => {
 });
 
 // ─── Migrate goals without codes ──────────────────────────────────────────────
-router.post("/goal-codes/migrate", async (req, res) => {
-  if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
-  if (req.session.userRole !== "admin") return res.status(403).json({ error: "Solo administradores" });
-  // Collect all existing codes first
-  const [libraryGoals, patientGoals] = await Promise.all([
-    db.select().from(goalLibraryTable),
-    db.select().from(goalsTable),
-  ]);
-
-  const existingCodes: string[] = [
-    ...libraryGoals.map(g => g.idObjetivo).filter(Boolean) as string[],
-    ...patientGoals.map(g => g.codigo).filter(Boolean) as string[],
-  ];
-
-  const usedCodes = new Set(existingCodes);
-  const results: { id: number; type: string; oldCode: string | null; newCode: string }[] = [];
-
-  // Migrate library goals with missing/null idObjetivo
-  for (const goal of libraryGoals) {
-    if (!goal.idObjetivo || goal.idObjetivo.trim() === "") {
-      const { code, prefix } = generateUniqueCode({
-        areaClinica: goal.areaClinica ?? goal.area ?? "lenguaje",
-        franjaEtariaMin: goal.franjaEtariaMin ?? null,
-        franjaEtariaMax: goal.franjaEtariaMax ?? null,
-        subarea: goal.subarea ?? null,
-        nivelDificultad: goal.nivelDificultad ?? "básico",
-      }, Array.from(usedCodes));
-
-      await db.update(goalLibraryTable).set({ idObjetivo: code }).where(eq(goalLibraryTable.id, goal.id));
-      usedCodes.add(code);
-      results.push({ id: goal.id, type: "library", oldCode: goal.idObjetivo, newCode: code });
-    }
-  }
-
-  // Migrate patient goals with missing codigo
-  for (const goal of patientGoals) {
-    if (!goal.codigo || goal.codigo.trim() === "") {
-      const { code } = generateUniqueCode({
-        areaClinica: goal.areaClinica ?? goal.category ?? "lenguaje",
-        franjaEtariaMin: null,
-        franjaEtariaMax: null,
-        subarea: null,
-        nivelDificultad: goal.nivelDificultad ?? "básico",
-      }, Array.from(usedCodes));
-
-      await db.update(goalsTable).set({ codigo: code }).where(eq(goalsTable.id, goal.id));
-      usedCodes.add(code);
-      results.push({ id: goal.id, type: "patient-goal", oldCode: goal.codigo, newCode: code });
-    }
-  }
-
-  return res.json({
-    migrated: results.length,
-    results,
-  });
+router.post("/goal-codes/migrate", (_req, res) => {
+  return res.status(403).json({ error: "La migración de códigos está deshabilitada" });
 });
 
 export default router;

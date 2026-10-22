@@ -5,11 +5,11 @@ import { eq, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.use((req, res, next) => {
+router.use(["/sessions", "/registros"], (req, res, next) => {
   if (req.session?.userId && req.session.userRole !== "professional") {
     return res.status(403).json({ error: "Acceso reservado a profesionales" });
   }
-  next();
+  return next();
 });
 
 function getSessionUser(req: any): { id: number; role: string } | null {
@@ -22,10 +22,6 @@ function getSessionUser(req: any): { id: number; role: string } | null {
 
 // Return registros scoped to the logged-in user's patients
 async function getScopedRegistros(sess: { id: number; role: string }) {
-  if (sess.role === "admin") {
-    return await db.select().from(registrosTable).orderBy(registrosTable.fecha);
-  }
-
   // Professionals: only see registros for their own patients
   const myPatients = await db
     .select({ id: patientsTable.id })
@@ -47,7 +43,7 @@ router.get("/sessions", async (req, res) => {
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 
   const registros = await getScopedRegistros(sess);
-  res.json(registros.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
+  return res.json(registros.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
 router.get("/registros", async (req, res) => {
@@ -55,7 +51,7 @@ router.get("/registros", async (req, res) => {
   if (!sess) return res.status(401).json({ error: "No autenticado" });
 
   const registros = await getScopedRegistros(sess);
-  res.json(registros.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
+  return res.json(registros.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
 router.get("/registros/:id", async (req, res) => {

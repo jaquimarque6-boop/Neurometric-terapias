@@ -86,6 +86,23 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function ProfessionalRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) setLocation("/login");
+      else if (user.role === "admin") setLocation("/");
+      else if (user.role === "collaborator") setLocation("/colaboradora");
+    }
+  }, [loading, user, setLocation]);
+
+  if (loading) return <PageFallback />;
+  if (!user || user.role !== "professional") return null;
+  return <Component />;
+}
+
 function CollaboratorRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
@@ -141,25 +158,25 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      <Route path="/seleccion" component={() => <ProtectedRoute component={Seleccion} />} />
+      <Route path="/seleccion" component={() => <ProfessionalRoute component={Seleccion} />} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/patients" component={() => <ProtectedRoute component={Patients} />} />
-      <Route path="/patients/:id" component={() => <ProtectedRoute component={PatientProfile} />} />
-      <Route path="/sessions" component={() => <ProtectedRoute component={Sessions} />} />
-      <Route path="/registros" component={() => <ProtectedRoute component={Registros} />} />
-      <Route path="/objetivos" component={() => <ProtectedRoute component={Objetivos} />} />
-      <Route path="/actividades" component={() => <ProtectedRoute component={Actividades} />} />
-      <Route path="/mis-materiales" component={() => <ProtectedRoute component={MisMateriales} />} />
-      <Route path="/reportes" component={() => <ProtectedRoute component={Reportes} />} />
+      <Route path="/patients" component={() => <ProfessionalRoute component={Patients} />} />
+      <Route path="/patients/:id" component={() => <ProfessionalRoute component={PatientProfile} />} />
+      <Route path="/sessions" component={() => <ProfessionalRoute component={Sessions} />} />
+      <Route path="/registros" component={() => <ProfessionalRoute component={Registros} />} />
+      <Route path="/objetivos" component={() => <ProfessionalRoute component={Objetivos} />} />
+      <Route path="/actividades" component={() => <ProfessionalRoute component={Actividades} />} />
+      <Route path="/mis-materiales" component={() => <ProfessionalRoute component={MisMateriales} />} />
+      <Route path="/reportes" component={() => <ProfessionalRoute component={Reportes} />} />
       <Route path="/professionals" component={() => <AdminRoute component={Professionals} />} />
-      <Route path="/goal-library" component={() => <ProtectedRoute component={GoalLibrary} />} />
-      <Route path="/nueva-sesion" component={() => <ProtectedRoute component={NuevaSesion} />} />
-      <Route path="/agenda" component={() => <ProtectedRoute component={Agenda} />} />
-      <Route path="/agenda-pagos" component={() => <ProtectedRoute component={AgendaPagos} />} />
+      <Route path="/goal-library" component={() => <ProfessionalRoute component={GoalLibrary} />} />
+      <Route path="/nueva-sesion" component={() => <ProfessionalRoute component={NuevaSesion} />} />
+      <Route path="/agenda" component={() => <ProfessionalRoute component={Agenda} />} />
+      <Route path="/agenda-pagos" component={() => <ProfessionalRoute component={AgendaPagos} />} />
       <Route path="/usuario" component={() => <ProtectedRoute component={Usuario} />} />
       <Route path="/usuarios" component={() => <AdminRoute component={Usuarios} />} />
-      <Route path="/sesion-rapida" component={() => <ProtectedRoute component={SesionRapida} />} />
-      <Route path="/respaldo" component={() => <ProtectedRoute component={Respaldo} />} />
+      <Route path="/sesion-rapida" component={() => <ProfessionalRoute component={SesionRapida} />} />
+      <Route path="/respaldo" component={() => <ProfessionalRoute component={Respaldo} />} />
       <Route path="/colaboradoras" component={() => <AdminRoute component={Colaboradoras} />} />
       <Route path="/colaboradora" component={() => <CollaboratorRoute component={ColaboradoraPortal} />} />
       <Route component={NotFound} />

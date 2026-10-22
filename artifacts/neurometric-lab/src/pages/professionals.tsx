@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useMemo, useState } from "react";
 import {
-  Stethoscope, Plus, Mail, ShieldCheck, Users as UsersIcon,
-  Phone, Search, X, Cake, ClipboardList, CalendarDays, ChevronRight,
+  Stethoscope, Plus, Mail, ShieldCheck, Phone, Search, X,
 } from "lucide-react";
 import {
   useListProfessionals,
   useCreateProfessional,
-  useListPatients,
-  useListPatientProfessionals,
   getListProfessionalsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,17 +49,6 @@ function normalize(s: string | null | undefined) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function formatDate(iso?: string | null) {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleDateString("es-AR", {
-      year: "numeric", month: "short", day: "numeric",
-    });
-  } catch {
-    return null;
-  }
-}
-
 type Professional = {
   id: number;
   name: string;
@@ -72,15 +57,12 @@ type Professional = {
   specialty?: string | null;
   license?: string | null;
   status?: string | null;
-  patientCount?: number;
 };
 
 export default function Professionals() {
   const { data: professionals, isLoading } = useListProfessionals();
   const [showForm, setShowForm] = useState(false);
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const detailRef = useRef<HTMLDivElement | null>(null);
 
   const matches = useMemo<Professional[]>(() => {
     if (!professionals) return [];
@@ -92,32 +74,6 @@ export default function Professionals() {
       normalize(p.specialty).includes(q)
     );
   }, [professionals, query]);
-
-  // Auto-select when there's exactly one match (guarded to avoid redundant
-  // state writes on every render).
-  useEffect(() => {
-    if (query.trim() && matches.length === 1 && selectedId !== matches[0].id) {
-      setSelectedId(matches[0].id);
-    }
-  }, [query, matches, selectedId]);
-
-  // If selected pro disappears from current matches (e.g. cleared), keep it
-  // but scroll into view when newly selected.
-  useEffect(() => {
-    if (selectedId && detailRef.current) {
-      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [selectedId]);
-
-  const selectedPro: Professional | null = useMemo(() => {
-    if (!selectedId || !professionals) return null;
-    return (professionals as Professional[]).find(p => p.id === selectedId) ?? null;
-  }, [selectedId, professionals]);
-
-  const clearSelection = () => {
-    setSelectedId(null);
-    setQuery("");
-  };
 
   return (
     <AppLayout>
@@ -160,7 +116,7 @@ export default function Professionals() {
             {query && (
               <button
                 type="button"
-                onClick={() => { setQuery(""); setSelectedId(null); }}
+                onClick={() => setQuery("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition"
                 aria-label="Limpiar búsqueda"
               >
@@ -184,17 +140,9 @@ export default function Professionals() {
                 </p>
               ) : (
                 <ul className="divide-y divide-border/60 border border-border/60 rounded-lg overflow-hidden bg-background">
-                  {matches.slice(0, 8).map(pro => {
-                    const isSelected = pro.id === selectedId;
-                    return (
+                  {matches.slice(0, 8).map(pro => (
                       <li key={pro.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedId(pro.id)}
-                          className={`w-full text-left px-3.5 py-2.5 flex items-center gap-3 transition hover:bg-muted/60 ${
-                            isSelected ? "bg-primary/10" : ""
-                          }`}
-                        >
+                        <div className="w-full text-left px-3.5 py-2.5 flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                             {pro.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
                           </div>
@@ -204,33 +152,17 @@ export default function Professionals() {
                               {pro.specialty}{pro.email ? ` · ${pro.email}` : ""}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-foreground/70 shrink-0">
-                            <UsersIcon className="h-3.5 w-3.5 text-primary" />
-                            <span className="font-semibold text-primary">{pro.patientCount ?? 0}</span>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </button>
+                        </div>
                       </li>
-                    );
-                  })}
+                  ))}
                 </ul>
               )}
             </div>
           )}
         </div>
 
-        {/* Selected professional → patients section */}
-        {selectedPro && (
-          <div ref={detailRef}>
-            <ProfessionalPatientsPanel
-              pro={selectedPro}
-              onClose={clearSelection}
-            />
-          </div>
-        )}
-
-        {/* Default grid when no search/selection */}
-        {!query.trim() && !selectedPro && (
+        {/* Professional contact cards */}
+        {!query.trim() && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {isLoading ? (
               Array(3).fill(0).map((_, i) => (
@@ -293,24 +225,6 @@ export default function Professionals() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(pro.id)}
-                      className="w-full px-5 sm:px-6 py-3.5 bg-muted/60 border-t border-border/50 flex items-center justify-between hover:bg-muted transition text-left group/footer"
-                      aria-label={`Ver pacientes de ${pro.name}`}
-                    >
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <UsersIcon className="h-4 w-4 text-primary" />
-                        <span className="font-semibold text-primary">{pro.patientCount ?? 0}</span>
-                        <span className="text-foreground/70">
-                          paciente{(pro.patientCount ?? 0) !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      <span className="text-xs font-medium text-primary inline-flex items-center gap-1">
-                        Ver
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </span>
-                    </button>
                   </CardContent>
                 </Card>
               ))
@@ -329,146 +243,6 @@ export default function Professionals() {
         <ProfessionalForm onClose={() => setShowForm(false)} />
       )}
     </AppLayout>
-  );
-}
-
-function ProfessionalPatientsPanel({
-  pro, onClose,
-}: { pro: Professional; onClose: () => void }) {
-  const [, navigate] = useLocation();
-  const { data: allPatients, isLoading: loadingPatients } = useListPatients();
-  const { data: links, isLoading: loadingLinks } = useListPatientProfessionals({ professionalId: pro.id });
-
-  // Source of truth = patient_professionals links (same table the card's
-  // `patientCount` is computed from). Hydrate each link with patient details
-  // from /api/patients. Deduped by patientId.
-  const patients = useMemo(() => {
-    if (!allPatients || !links) return [];
-    const byId = new Map<number, any>();
-    for (const p of allPatients as any[]) byId.set(p.id, p);
-    const seen = new Set<number>();
-    const out: any[] = [];
-    for (const l of links as any[]) {
-      if (seen.has(l.patientId)) continue;
-      seen.add(l.patientId);
-      const p = byId.get(l.patientId);
-      if (p) out.push(p);
-    }
-    return out.sort((a, b) =>
-      (a.name ?? "").localeCompare(b.name ?? "", "es", { sensitivity: "base" })
-    );
-  }, [allPatients, links]);
-
-  const loading = loadingPatients || loadingLinks;
-  const total = patients.length;
-
-  return (
-    <Card className="border-border/50 shadow-sm overflow-hidden">
-      <CardContent className="p-0">
-        {/* Header */}
-        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-base font-display shadow-md shadow-primary/20 shrink-0">
-              {pro.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <h2 className="font-display font-bold text-lg text-foreground leading-tight truncate">
-                Pacientes de {pro.name}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-0.5 truncate">
-                {pro.specialty}
-                {pro.email && <> · <span className="text-foreground/70">{pro.email}</span></>}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              <UsersIcon className="h-3.5 w-3.5 mr-1" />
-              {total} paciente{total !== 1 ? "s" : ""}
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="bg-background border-border text-foreground hover:bg-muted"
-            >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Cerrar
-            </Button>
-          </div>
-        </div>
-
-        {/* List */}
-        <div className="p-4 sm:p-5">
-          {loading ? (
-            <div className="space-y-3">
-              {Array(3).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-20 rounded-lg" />
-              ))}
-            </div>
-          ) : total === 0 ? (
-            <div className="py-12 text-center">
-              <UsersIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="font-medium text-foreground/70">
-                Este profesional todavía no tiene pacientes cargados.
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-2.5">
-              {patients.map((p: any) => {
-                const created = formatDate(p.createdAt);
-                return (
-                  <li
-                    key={p.id}
-                    className="p-3.5 sm:p-4 rounded-lg border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground leading-tight">
-                          {p.name}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/70">
-                          {p.age != null && (
-                            <span className="inline-flex items-center gap-1">
-                              <Cake className="h-3.5 w-3.5 text-muted-foreground" />
-                              {p.age} año{p.age !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                          {p.diagnosis && (
-                            <span className="inline-flex items-center gap-1 max-w-full">
-                              <ClipboardList className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="truncate">{p.diagnosis}</span>
-                            </span>
-                          )}
-                          {created && (
-                            <span className="inline-flex items-center gap-1 text-muted-foreground">
-                              <CalendarDays className="h-3.5 w-3.5" />
-                              {created}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => navigate(`/nueva-sesion?patientId=${p.id}`)}
-                        className="bg-primary text-white hover:bg-primary/90 border border-primary/20 shadow-sm w-full sm:w-auto shrink-0"
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Agregar sesión
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="px-5 sm:px-6 py-2.5 border-t border-border/50 bg-muted/40 text-xs text-muted-foreground">
-          Solo lectura — no se puede editar ni eliminar pacientes desde acá.
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
