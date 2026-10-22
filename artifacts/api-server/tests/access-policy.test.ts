@@ -4,7 +4,10 @@ import {
   canAccessLibraryGoal,
   canAccessPatient,
   canAdminAccessApiRoute,
+  canCollaboratorAccessApiRoute,
+  canRoleAccessApiRoute,
   getPatientListScope,
+  shouldBypassCurrentUserAuthorization,
 } from "../src/routes/access-policy";
 
 const admin = { id: 1, role: "admin" };
@@ -105,4 +108,49 @@ test("admin API access is default-deny with only administrative and aggregate en
   ]) {
     assert.equal(canAdminAccessApiRoute(method, path), true, `${method} ${path}`);
   }
+});
+
+test("login reaches credential validation with or without any existing account session", () => {
+  const roles = ["admin", "professional", "collaborator"] as const;
+  for (const role of roles) {
+    for (const hasSession of [false, true]) {
+      assert.equal(
+        shouldBypassCurrentUserAuthorization(
+          "POST",
+          "/api/auth/login",
+          hasSession,
+          false,
+        ),
+        true,
+        `${role} login with ${hasSession ? "prior session/token" : "no session"}`,
+      );
+    }
+  }
+  assert.equal(
+    shouldBypassCurrentUserAuthorization("POST", "/api/auth/login", false, true),
+    true,
+    "a stale bearer token must not block credential validation",
+  );
+
+  // Login is not added to either authenticated role's protected-route
+  // allowlist; it is bypassed only to reach the credential-checking handler.
+  assert.equal(canAdminAccessApiRoute("POST", "/api/auth/login"), false);
+  assert.equal(canCollaboratorAccessApiRoute("POST", "/api/auth/login"), false);
+});
+
+test("login bypass does not bypass authorization on protected clinical routes", () => {
+  for (const role of ["admin", "professional", "collaborator"]) {
+    assert.equal(
+      shouldBypassCurrentUserAuthorization("GET", "/api/patients", true, false),
+      false,
+      `${role} session must not bypass the patients route`,
+    );
+  }
+  assert.equal(canRoleAccessApiRoute("admin", "GET", "/api/patients"), false);
+  assert.equal(canRoleAccessApiRoute("collaborator", "GET", "/api/patients"), false);
+  assert.equal(canRoleAccessApiRoute("professional", "GET", "/api/patients"), true);
+
+  const patient = { assignedProfessionalId: owner.id };
+  assert.equal(canAccessPatient(patient, owner), true);
+  assert.equal(canAccessPatient(patient, other), false);
 });

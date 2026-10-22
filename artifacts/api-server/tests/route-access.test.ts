@@ -7,7 +7,10 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { build } from "esbuild";
 import * as schema from "@workspace/db/schema";
-import { canAdminAccessApiRoute } from "../src/routes/access-policy";
+import {
+  canRoleAccessApiRoute,
+  shouldBypassCurrentUserAuthorization,
+} from "../src/routes/access-policy";
 
 // Bundle only the real route source. No application bootstrap, session store,
 // database pool or external AI client is loaded by this harness.
@@ -222,7 +225,7 @@ const app = express();
 app.use(express.json());
 app.use((req: any, _res, next) => {
   const id = Number(req.headers["x-test-user"]);
-  const role = req.headers["x-test-role"] === "admin" ? "admin" : "professional";
+  const role = req.headers["x-test-role"] ?? "professional";
   req.session = {
     ...(id ? { userId: id, userRole: role } : {}),
     save: (cb: (err?: Error) => void) => {
@@ -245,23 +248,42 @@ after(() => server.close());
 async function request(
   method: string,
   path: string,
-  user?: "owner" | "foreign" | "admin",
+  user?: "owner" | "foreign" | "admin" | "collaborator",
   body?: any,
-  bypassAdminPolicy = false,
+  bypassRolePolicy = false,
 ) {
-  if (user === "admin" && !bypassAdminPolicy && !canAdminAccessApiRoute(method, `/api${path}`)) {
+  const role =
+    user === "owner" || user === "foreign"
+      ? "professional"
+      : user === "admin" || user === "collaborator"
+        ? user
+        : undefined;
+  const hasPriorSession = Boolean(user);
+  const bypassCurrentUserAuthorization = shouldBypassCurrentUserAuthorization(
+    method,
+    `/api${path}`,
+    hasPriorSession,
+    false,
+  );
+  if (
+    hasPriorSession &&
+    !bypassCurrentUserAuthorization &&
+    !bypassRolePolicy &&
+    role &&
+    !canRoleAccessApiRoute(role, method, `/api${path}`)
+  ) {
     return { status: 403, body: { error: "Acceso denegado" } };
   }
-  const id = user === "admin" ? 1 : user === "foreign" ? 3 : 2;
+  const id = user === "admin" ? 1 : user === "foreign" ? 3 : user === "collaborator" ? 4 : 2;
   const response = await fetch(base + path, {
     method,
-    headers: { ...(user ? { "x-test-user": String(id), "x-test-role": user === "admin" ? "admin" : "professional" } : {}), "content-type": "application/json" },
+    headers: { ...(user ? { "x-test-user": String(id), "x-test-role": role ?? "professional" } : {}), "content-type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const text = await response.text();
   return { status: response.status, body: text ? JSON.parse(text) : null };
 }
-async function status(method: string, path: string, user?: "owner" | "foreign" | "admin", body?: any) {
+async function status(method: string, path: string, user?: "owner" | "foreign" | "admin" | "collaborator", body?: any) {
   return (await request(method, path, user, body)).status;
 }
 
@@ -315,6 +337,16 @@ test("patient router independently rejects admin requests before reading patient
   const result = await request("GET", "/patients", "admin", undefined, true);
   assert.equal(result.status, 403);
   assert.equal(stats.selects, 0);
+});
+
+test("collaborator sessions cannot enter clinical routes while login remains public", async () => {
+  reset();
+  const before = stats.selects + stats.inserts + stats.updates + stats.deletes + stats.ai;
+  const deniedPatients = await request("GET", "/patients", "collaborator");
+  assert.equal(deniedPatients.status, 403);
+  const deniedClinicalRecords = await request("GET", "/registros-clinicos", "collaborator");
+  assert.equal(deniedClinicalRecords.status, 403);
+  assert.equal(stats.selects + stats.inserts + stats.updates + stats.deletes + stats.ai, before);
 });
 
 test("admin user management returns account metadata only and cannot change a role", async () => {
@@ -619,22 +651,62 @@ test("goal-code migration stays disabled and clinical guidance is professional-o
   assert.equal(stats.ai, 1);
 });
 
-test("unchanged login accepts admin and professional using bcrypt and persists the session", async () => {
+test("login validates admin, professional, and collaborator credentials with or without a prior session", async () => {
   reset();
   const hash = await bcrypt.hash("correct-password", 4);
   tables.set(schema.usersTable, [
     { id: 1, email: "admin@example.test", passwordHash: hash, name: "Admin", role: "admin", active: true, professionalId: null },
     { id: 2, email: "pro@example.test", passwordHash: hash, name: "Professional", role: "professional", active: true, professionalId: null },
+    { id: 4, email: "collaborator@example.test", passwordHash: hash, name: "Collaborator", role: "collaborator", active: true, professionalId: null },
   ]);
-  for (const role of ["admin", "pro"]) {
-    const result = await request("POST", "/auth/login", undefined, { email: `${role}@example.test`, password: "correct-password" });
-    assert.equal(result.status, 200);
-    assert.equal(result.body.role, role === "pro" ? "professional" : "admin");
-    assert.ok(result.body.token);
-    assert.equal(await status("POST", "/auth/login", undefined, { email: `${role}@example.test`, password: "wrong" }), 401);
+  const accounts = [
+    { email: "admin@example.test", role: "admin", expectedId: 1 },
+    { email: "pro@example.test", role: "professional", expectedId: 2 },
+    { email: "collaborator@example.test", role: "collaborator", expectedId: 4 },
+  ] as const;
+  const priorSessions = [
+    { actor: "admin", label: "admin" },
+    { actor: "owner", label: "professional" },
+    { actor: "collaborator", label: "collaborator" },
+  ] as const;
+
+  for (const account of accounts) {
+    const withoutSession = await request("POST", "/auth/login", undefined, {
+      email: account.email,
+      password: "correct-password",
+    });
+    assert.equal(withoutSession.status, 200, `${account.role} login without session`);
+    assert.equal(withoutSession.body.role, account.role);
+    assert.equal(withoutSession.body.id, account.expectedId);
+    assert.ok(withoutSession.body.token);
+    const invalidWithoutSession = await request("POST", "/auth/login", undefined, {
+      email: account.email,
+      password: "wrong",
+    });
+    assert.equal(invalidWithoutSession.status, 401, `${account.role} invalid credentials without session`);
   }
-  assert.deepEqual(savedSessions, [
-    { userId: 1, userRole: "admin" },
-    { userId: 2, userRole: "professional" },
-  ]);
+
+  for (const previousSession of priorSessions) {
+    for (const account of accounts) {
+      const result = await request("POST", "/auth/login", previousSession.actor, {
+        email: account.email,
+        password: "correct-password",
+      });
+      assert.equal(result.status, 200, `${account.role} login with previous ${previousSession.label} session`);
+      assert.equal(result.body.role, account.role);
+      assert.equal(result.body.id, account.expectedId);
+      assert.ok(result.body.token);
+
+      const invalid = await request("POST", "/auth/login", previousSession.actor, {
+        email: account.email,
+        password: "wrong",
+      });
+      assert.equal(invalid.status, 401, `${account.role} invalid credentials with previous ${previousSession.label} session`);
+    }
+  }
+
+  assert.equal(savedSessions.length, accounts.length * (priorSessions.length + 1));
+  assert.ok(savedSessions.every(session => accounts.some(
+    account => account.expectedId === session.userId && account.role === session.userRole,
+  )));
 });

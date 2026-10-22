@@ -59,3 +59,53 @@ export function canAdminAccessApiRoute(method: string, path: string): boolean {
     (entry) => entry.method === normalizedMethod && entry.path.test(normalizedPath),
   );
 }
+
+const COLLABORATOR_API_ALLOWLIST: Array<{ method: string; path: RegExp }> = [
+  { method: "GET", path: /^\/api\/auth\/me$/ },
+  { method: "GET", path: /^\/api\/collaborator\/dashboard$/ },
+  { method: "GET", path: /^\/api\/consents\/status$/ },
+  { method: "POST", path: /^\/api\/consents\/accept$/ },
+  { method: "POST", path: /^\/api\/auth\/logout$/ },
+];
+
+export function canCollaboratorAccessApiRoute(method: string, path: string): boolean {
+  const normalizedPath = path.split("?")[0].replace(/\/+$/, "") || "/";
+  const normalizedMethod = method.toUpperCase();
+  return COLLABORATOR_API_ALLOWLIST.some(
+    (entry) => entry.method === normalizedMethod && entry.path.test(normalizedPath),
+  );
+}
+
+export function canRoleAccessApiRoute(role: string, method: string, path: string): boolean {
+  if (role === "admin") return canAdminAccessApiRoute(method, path);
+  if (role === "collaborator") return canCollaboratorAccessApiRoute(method, path);
+  // Professionals continue to be checked by route-level ownership rules.
+  return role === "professional";
+}
+
+export function shouldBypassCurrentUserAuthorization(
+  method: string,
+  path: string,
+  hasSessionUser: boolean,
+  hasBearerToken: boolean,
+): boolean {
+  const normalizedPath = path.split("?")[0].replace(/\/+$/, "") || "/";
+  const normalizedMethod = method.toUpperCase();
+
+  // Login must reach its credential verifier even when the browser sends an
+  // old cookie or token. This does not grant access: the route still validates
+  // the submitted credentials and only then replaces the session identity.
+  if (normalizedMethod === "POST" && normalizedPath === "/api/auth/login") return true;
+
+  // Logout must remain available to sessions that have since been revoked.
+  if (normalizedMethod === "POST" && normalizedPath === "/api/auth/logout") return true;
+
+  const isPublicRoute =
+    (normalizedMethod === "POST" &&
+      ["/api/auth/register", "/api/auth/logout"].includes(normalizedPath)) ||
+    (normalizedMethod === "GET" &&
+      (normalizedPath === "/api/healthz" ||
+        /^\/api\/referrals\/[A-Za-z0-9]{2,32}$/.test(normalizedPath)));
+
+  return isPublicRoute && !hasSessionUser && !hasBearerToken;
+}

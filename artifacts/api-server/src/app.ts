@@ -10,7 +10,10 @@ import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 import { verifyAuthToken } from "./auth-token";
-import { canAdminAccessApiRoute } from "./routes/access-policy";
+import {
+  canRoleAccessApiRoute,
+  shouldBypassCurrentUserAuthorization,
+} from "./routes/access-policy";
 
 const PgSession = connectPgSimple(session);
 
@@ -110,13 +113,6 @@ app.use(session({
   },
 }));
 
-function isPublicApiRoute(req: express.Request): boolean {
-  return (
-    (req.method === "POST" && (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path === "/api/auth/logout")) ||
-    (req.method === "GET" && (req.path === "/api/healthz" || /^\/api\/referrals\/[A-Za-z0-9]{2,32}$/.test(req.path)))
-  );
-}
-
 // ─── Centralized current-user validation ──────────────────────────────────────
 // Cross-origin deployments (Netlify ↔ Render) suffer from third-party cookie
 // blocking in Safari and Chrome 120+. If the session cookie was dropped by the
@@ -126,11 +122,15 @@ function isPublicApiRoute(req: express.Request): boolean {
 // reaching a route. This deliberately ignores the role carried by a Bearer
 // token: active status and the current role must come from `users`.
 app.use(async (req, res, next) => {
-  // Login, public registration, logout, and health must be able to run without
-  // a currently valid account. Logout also needs to work for a just-deactivated
-  // account so its old cookie can be destroyed cleanly.
-  if (isPublicApiRoute(req) && (req.path === "/api/auth/logout" ||
-      (!req.session.userId && !req.headers.authorization?.startsWith("Bearer ")))) return next();
+  // Login always reaches its credential verifier, even with an old cookie.
+  // Logout must also work for revoked accounts; other public routes bypass
+  // current-user validation only when the request has no session or bearer.
+  if (shouldBypassCurrentUserAuthorization(
+    req.method,
+    req.path,
+    Boolean(req.session.userId),
+    req.headers.authorization?.startsWith("Bearer ") ?? false,
+  )) return next();
 
   let authSource: "cookie-session" | "bearer-token" | null = null;
 
@@ -181,13 +181,7 @@ app.use(async (req, res, next) => {
     req.session.userName = currentUser.name;
     req.session.userEmail = currentUser.email;
     req.session.userSpecialty = currentUser.specialty ?? null;
-    if (currentUser.role === "collaborator" && !(
-      (req.method === "GET" && (req.path === "/api/auth/me" || req.path === "/api/collaborator/dashboard")) ||
-      (req.method === "GET" && req.path === "/api/consents/status") ||
-      (req.method === "POST" && req.path === "/api/consents/accept") ||
-      (req.method === "POST" && req.path === "/api/auth/logout")
-    )) return res.status(403).json({ error: "Acceso denegado" });
-    if (currentUser.role === "admin" && !canAdminAccessApiRoute(req.method, req.path)) {
+    if (!canRoleAccessApiRoute(currentUser.role, req.method, req.path)) {
       return res.status(403).json({ error: "Acceso denegado" });
     }
     return next();
