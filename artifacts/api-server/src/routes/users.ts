@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
+  patientsTable,
+  registrosClinicosTable,
   usersTable,
 } from "@workspace/db/schema";
-import { eq, or, sql, desc } from "drizzle-orm";
+import { count, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
 import { referralAttributionsTable, saasStatusEventsTable } from "@workspace/db/schema";
@@ -46,14 +48,81 @@ function userToJson(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /api/users — administrative account and commercial metadata only.
+async function safelyLoadMetricRows<T>(
+  query: PromiseLike<T[]>,
+  req: any,
+  metric: "patients" | "clinical_sessions",
+): Promise<T[] | null> {
+  try {
+    return await query;
+  } catch (error) {
+    req.log?.warn?.({ err: error, metric }, "Could not calculate admin user metric");
+    return null;
+  }
+}
+
+// GET /api/users — administrative account data plus aggregate clinical counts.
 router.get("/users", async (req, res) => {
   const sessionUserId = req.session?.userId;
   if (!sessionUserId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
 
-  const users = await db.select().from(usersTable).orderBy(usersTable.name);
-  return res.json(users.map(userToJson));
+  const [users, patientMetricRows, clinicalSessionMetricRows] = await Promise.all([
+    db.select().from(usersTable).orderBy(usersTable.name),
+    safelyLoadMetricRows(
+      db.select({
+        userId: patientsTable.assignedProfessionalId,
+        value: count(),
+      })
+        .from(patientsTable)
+        .where(isNotNull(patientsTable.assignedProfessionalId))
+        .groupBy(patientsTable.assignedProfessionalId),
+      req,
+      "patients",
+    ),
+    safelyLoadMetricRows(
+      db.select({
+        userId: registrosClinicosTable.userId,
+        value: count(),
+      })
+        .from(registrosClinicosTable)
+        .groupBy(registrosClinicosTable.userId),
+      req,
+      "clinical_sessions",
+    ),
+  ]);
+
+  const patientCounts = new Map<number, number>();
+  for (const row of patientMetricRows ?? []) {
+    if (row.userId != null) patientCounts.set(Number(row.userId), Number(row.value));
+  }
+
+  const hasUnattributedSessions = clinicalSessionMetricRows?.some(
+    row => row.userId == null && Number(row.value) > 0,
+  ) ?? false;
+  const clinicalSessionCounts = new Map<number, number>();
+  for (const row of clinicalSessionMetricRows ?? []) {
+    if (row.userId != null) {
+      clinicalSessionCounts.set(Number(row.userId), Number(row.value));
+    }
+  }
+
+  return res.json(users.map(user => {
+    const isProfessional = user.role === "professional";
+    return {
+      ...userToJson(user),
+      patientCount: isProfessional
+        ? patientMetricRows === null
+          ? null
+          : patientCounts.get(user.id) ?? 0
+        : null,
+      clinicalSessionCount: isProfessional
+        ? clinicalSessionMetricRows === null || hasUnattributedSessions
+          ? null
+          : clinicalSessionCounts.get(user.id) ?? 0
+        : null,
+    };
+  }));
 });
 
 // GET /api/users/professionals — list active professionals for selectors

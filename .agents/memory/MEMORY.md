@@ -13,3 +13,4 @@
 - [Admin/professional identity separation](admin-professional-separation.md) — Keep access accounts and the clinical contact directory distinct; don't create duplicates or migrate data without approval.
 - [Isolated PostgreSQL route tests](isolated-postgres-route-tests.md) — Use a fresh loopback-only cluster and mount routers directly; Postgres loopback addresses may include a CIDR suffix.
 - [Specialty rollout](specialty-rollout.md) — Phase 1 recognizes Psychology variants neutrally; anamnesis, age guides and Psychology-specific content belong to phase 2.
+- [TSX component tests](tsx-component-tests.md) — Node/tsx tests may use a different JSX transform than Vite; make the React runtime explicit for server-render tests.

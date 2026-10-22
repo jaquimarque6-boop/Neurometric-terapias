@@ -4,10 +4,12 @@ import { ShieldAlert, History, Edit2, Receipt, CheckCircle2 } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtDayOnly, type CommercialReview } from "@/hooks/use-commercial";
+import { ClinicalUserCounts } from "./clinical-user-counts";
 
 export type ReviewUser = {
   id: number; name: string; email: string; role: string; active: boolean;
   commercialStatus: string; trialStartPending?: boolean; commercialReview?: CommercialReview;
+  patientCount?: number | null; clinicalSessionCount?: number | null;
 };
 
 const SEV_CLS = {
@@ -72,6 +74,13 @@ export function VerificationPanel({ users, onEdit, onHistory }: {
                       {r?.expiresOn && ` · vence ${fmtDayOnly(r.expiresOn)}`}
                       {r?.daysRemaining != null && ` (${r.daysRemaining < 0 ? `hace ${-r.daysRemaining} días` : `${r.daysRemaining} días`})`}
                     </p>
+                    <ClinicalUserCounts
+                      userId={u.id}
+                      role={u.role}
+                      patientCount={u.patientCount}
+                      clinicalSessionCount={u.clinicalSessionCount}
+                      className="mt-2"
+                    />
                     <ul className="mt-2 space-y-1 text-sm">
                       {u.trialStartPending && <li className="text-foreground/90">- Inicio de prueba pendiente: se fijará al primer ingreso; no requiere acción.</li>}
                       {(r?.issues ?? []).map(i => <li key={i.code} className="text-foreground/90" data-testid={`text-issue-${u.id}-${i.code}`}>- {i.message}</li>)}

@@ -82,6 +82,7 @@ async function createTestSchema() {
     CREATE TABLE registros_clinicos (
       id serial PRIMARY KEY,
       patient_id integer NOT NULL,
+      user_id integer,
       fecha text NOT NULL,
       created_at timestamp NOT NULL DEFAULT now()
     );
@@ -235,18 +236,18 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     const staleCreatedAt = new Date("2000-01-01T00:00:00.000Z");
     const currentCreatedAt = new Date();
     const clinicalRows = [
-      { patientId: patientA.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
-      { patientId: patientA.id, fecha: sunday, createdAt: staleCreatedAt },
-      { patientId: patientB.id, fecha: sunday, createdAt: staleCreatedAt },
-      { patientId: patientA.id, fecha: ranges.nextWeekStart, createdAt: currentCreatedAt },
-      { patientId: patientA.id, fecha: beforeWeek, createdAt: currentCreatedAt },
-      { patientId: patientC.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
-      { patientId: patientD.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
+      { patientId: patientA.id, userId: professionalA.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
+      { patientId: patientA.id, userId: professionalA.id, fecha: sunday, createdAt: staleCreatedAt },
+      { patientId: patientB.id, userId: professionalA.id, fecha: sunday, createdAt: staleCreatedAt },
+      { patientId: patientA.id, userId: professionalA.id, fecha: ranges.nextWeekStart, createdAt: currentCreatedAt },
+      { patientId: patientA.id, userId: professionalA.id, fecha: beforeWeek, createdAt: currentCreatedAt },
+      { patientId: patientC.id, userId: professionalB.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
+      { patientId: patientD.id, userId: admin.id, fecha: ranges.weekStart, createdAt: staleCreatedAt },
     ];
     for (const row of clinicalRows) {
       await pool.query(
-        "INSERT INTO registros_clinicos (patient_id, fecha, created_at) VALUES ($1, $2, $3)",
-        [row.patientId, row.fecha, row.createdAt],
+        "INSERT INTO registros_clinicos (patient_id, user_id, fecha, created_at) VALUES ($1, $2, $3, $4)",
+        [row.patientId, row.userId, row.fecha, row.createdAt],
       );
     }
     await pool.query(
@@ -304,6 +305,19 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     assert.equal(userList.status, 200);
     const editableUser = userList.body.find((user: any) => user.id === professionalA.id);
     assert.ok(editableUser?.commercialRevision);
+    const listedProfessionalA = userList.body.find((user: any) => user.id === professionalA.id);
+    const listedProfessionalB = userList.body.find((user: any) => user.id === professionalB.id);
+    const listedInactiveProfessional = userList.body.find((user: any) => user.email === "inactive-professional@isolated.test");
+    const listedAdmin = userList.body.find((user: any) => user.id === admin.id);
+    assert.equal(listedProfessionalA.patientCount, 2, "patient total includes active and archived assigned patients");
+    assert.equal(listedProfessionalB.patientCount, 1, "patient counts remain scoped to each account");
+    assert.equal(listedInactiveProfessional.patientCount, 0, "no assigned patients is returned as a real zero");
+    assert.equal(listedProfessionalA.clinicalSessionCount, 5, "session totals use the exact account relation across all dates");
+    assert.equal(listedProfessionalB.clinicalSessionCount, 1, "sessions are attributed by recording account, not another professional's patient list");
+    assert.equal(listedInactiveProfessional.clinicalSessionCount, 0, "no linked sessions is returned as a real zero");
+    assert.equal(listedAdmin.patientCount, null, "clinical metrics do not apply to administrative accounts");
+    assert.equal(listedAdmin.clinicalSessionCount, null, "clinical metrics do not apply to administrative accounts");
+    assert.equal(JSON.stringify(userList.body).includes("Paciente ficticio"), false, "user metrics never return patient details");
 
     const editPayload = (user: any, trialEndDate: string) => ({
       name: user.name,
@@ -387,6 +401,41 @@ test("summary SQL, role scope, and trial-end edit work only against fake isolate
     assert.equal(eventRows.length, 1);
     assert.equal(eventRows[0]?.event, "commercial_correction");
     assert.deepEqual(eventRows[0]?.details && (eventRows[0].details as any).after.trialEndDate, newTrialEndDate);
+
+    await pool.query("DROP TABLE public.patients");
+    const unavailablePatients = await request("/users", { role: "admin", userId: admin.id });
+    assert.equal(unavailablePatients.status, 200, "a failed metric does not prevent the administrative user list");
+    assert.equal(
+      unavailablePatients.body.find((user: any) => user.id === professionalA.id).patientCount,
+      null,
+      "an uncomputable metric is distinct from a true zero",
+    );
+    assert.equal(
+      unavailablePatients.body.find((user: any) => user.id === professionalA.id).clinicalSessionCount,
+      5,
+      "one metric can remain available when the other query fails",
+    );
+
+    await pool.query(
+      "INSERT INTO registros_clinicos (patient_id, user_id, fecha) VALUES ($1, NULL, $2)",
+      [patientA.id, "2020-01-01"],
+    );
+    const unattributedSessions = await request("/users", { role: "admin", userId: admin.id });
+    assert.equal(unattributedSessions.status, 200);
+    assert.equal(
+      unattributedSessions.body.find((user: any) => user.id === professionalA.id).clinicalSessionCount,
+      null,
+      "unattributed historical sessions do not get guessed or silently omitted from professional totals",
+    );
+
+    await pool.query("DROP TABLE public.registros_clinicos");
+    const unavailableSessions = await request("/users", { role: "admin", userId: admin.id });
+    assert.equal(unavailableSessions.status, 200);
+    assert.equal(
+      unavailableSessions.body.find((user: any) => user.id === professionalA.id).clinicalSessionCount,
+      null,
+      "an uncomputable session total is distinct from a true zero",
+    );
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close(error => error ? reject(error) : resolve());

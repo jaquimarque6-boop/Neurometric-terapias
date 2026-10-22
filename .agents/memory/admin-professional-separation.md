@@ -7,6 +7,8 @@ The user already has a separate professional account from the administrator acco
 
 Keep the `users` access-account list distinct from the `professionals` contact and license directory. Do not auto-sync, merge, duplicate, or migrate records between them without explicit authorization.
 
+For administrative counts, attribute patients through their explicit account assignment and include archived patients. Attribute clinical sessions through the exact account link only; if any session rows lack an account link, show the total as unavailable rather than guessing or silently omitting them.
+
 **Why:** the user explicitly stated this and asked to preserve the existing accounts and patient associations.
 
-**How to apply:** verify the two identities and check for clinical data assigned to or owned by the administrator before changing permissions. Do not create accounts, duplicate directory entries, or migrate records without authorization.
+**How to apply:** keep account metrics separate from directory-professional assignments. Verify the two identities before changing ownership or permissions. Use aggregate counts on explicit links; never infer attribution from names or merge records without authorization.

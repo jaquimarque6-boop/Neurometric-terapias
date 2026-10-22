@@ -21,6 +21,7 @@ import { ShieldAlert, Receipt } from "lucide-react";
 import { Link } from "wouter";
 import { useInvalidateCommercial, type CommercialReview } from "@/hooks/use-commercial";
 import { VerificationPanel } from "@/components/commercial/verification-panel";
+import { ClinicalUserCounts } from "@/components/commercial/clinical-user-counts";
 import { CommercialHistoryDialog } from "@/components/commercial/commercial-history-dialog";
 
 const SPECIALTIES = [
@@ -51,6 +52,8 @@ type AppUser = {
   monthlyAmount: string | null;
   paymentMethod: string | null;
   internalNotes: string | null;
+  patientCount?: number | null;
+  clinicalSessionCount?: number | null;
   trialStartPending?: boolean;
   commercialReview?: CommercialReview;
   commercialRevision?: string;
@@ -728,6 +731,13 @@ export default function Usuarios() {
 
                           {/* Stats strip */}
                           <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-5 flex-wrap">
+                            <ClinicalUserCounts
+                              userId={u.id}
+                              role={u.role}
+                              patientCount={u.patientCount}
+                              clinicalSessionCount={u.clinicalSessionCount}
+                              className="mr-auto"
+                            />
                             {u.monthlyAmount && (
                               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <DollarSign className="h-3 w-3 text-muted-foreground/60" />
