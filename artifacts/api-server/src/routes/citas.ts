@@ -6,6 +6,13 @@ import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
+router.use((req, res, next) => {
+  if (req.session?.userId && req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  next();
+});
+
 function getSessionUser(req: any): { id: number; role: string } | null {
   if (!req.session?.userId) return null;
   return {

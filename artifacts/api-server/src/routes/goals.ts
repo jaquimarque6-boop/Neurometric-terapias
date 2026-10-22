@@ -6,6 +6,13 @@ import { eq, desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+router.use((req, res, next) => {
+  if (req.session?.userId && req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  next();
+});
+
 function getSessionUser(req: any): { id: number; role: string } | null {
   if (!req.session?.userId) return null;
   return {
@@ -21,7 +28,7 @@ async function enrich(g: typeof goalsTable.$inferSelect) {
 
 // Resolve the list of patientIds a user may access
 async function accessiblePatientIds(sess: { id: number; role: string }): Promise<number[] | null> {
-  if (sess.role === "admin") return null; // null = unrestricted
+  if (sess.role !== "professional") return [];
   const patients = await db
     .select({ id: patientsTable.id })
     .from(patientsTable)

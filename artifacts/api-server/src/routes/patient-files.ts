@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { patientFilesTable, patientsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { canAccessPatient } from "./access-policy";
 import {
   createSignedUploadUrl,
   createSignedDownloadUrl,
@@ -47,7 +48,7 @@ async function resolveAccessiblePatient(
     res.status(404).json({ error: "Paciente no encontrado" });
     return null;
   }
-  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+  if (!canAccessPatient(patient, sess)) {
     res.status(403).json({ error: "Sin acceso a este paciente" });
     return null;
   }

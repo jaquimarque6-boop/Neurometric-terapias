@@ -1,18 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
-  usersTable, patientsTable, registrosClinicosTable,
-  registrosTable, goalsTable, goalProgressTable, sessionsTable,
-  patientProfessionalsTable, citasTable, pagosTable, gastosTable,
-  patientFilesTable, deletionLogTable,
-  userActivityEventsTable,
+  usersTable,
 } from "@workspace/db/schema";
-import { eq, ne, inArray, or, sql, desc } from "drizzle-orm";
+import { eq, or, sql, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { storageConfigured, deleteStorageObject } from "../lib/supabaseStorage";
 import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
-import { referralAttributionsTable, collaboratorsTable, saasReceiptsTable, saasStatusEventsTable } from "@workspace/db/schema";
-import { getUsageAuditStatus, readUsageAuditRows } from "../lib/usage-audit";
+import { referralAttributionsTable, saasStatusEventsTable } from "@workspace/db/schema";
 import { commercialFields, commercialSnapshot, commercialRevision, logCommercialChange } from "../lib/commercial-service";
 import { reviewCommercialAccount, validCommercialDate } from "../lib/commercial-policy";
 
@@ -24,146 +18,6 @@ function requireAdmin(req: any, res: any): boolean {
     return false;
   }
   return true;
-}
-
-function normalizeName(s: string | null | undefined): string {
-  return (s ?? "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-type UserUsageAuditMetrics = {
-  firstLoginAt: string | null;
-  lastLoginAt: string | null;
-  lastActivityAt: string | null;
-  loginCount30Days: number;
-  patientSaved30Days: number;
-  clinicalRecordSaved30Days: number;
-  goalSaved30Days: number;
-  reportSaved30Days: number;
-  aiUsed30Days: number;
-  hasClinicalActivity: boolean;
-};
-
-type UserUsageAuditRead = {
-  available: boolean;
-  byUser: Map<number, UserUsageAuditMetrics>;
-};
-
-type UserActivityProjection = {
-  available: boolean;
-  status: ReturnType<typeof getUsageAuditStatus>;
-  firstLoginAt: string | null;
-  lastLoginAt: string | null;
-  lastActivityAt: string | null;
-  loginCount30Days: number;
-  hasClinicalActivity: boolean;
-  eventCounts30Days: {
-    patientSaved: number;
-    clinicalRecordSaved: number;
-    goalSaved: number;
-    reportSaved: number;
-    aiUsed: number;
-  };
-};
-
-function warnUsageAuditFailure(): void {
-  try {
-    process.emitWarning("Could not read or process user usage events", {
-      code: "USAGE_EVENT_READ_FAILED",
-    });
-  } catch {
-    // Warning failures must not affect the users endpoint.
-  }
-}
-
-function normalizeAuditTimestamp(value: unknown): string | null {
-  if (value == null) return null;
-
-  const date = value instanceof Date
-    ? value
-    : typeof value === "string" || typeof value === "number"
-      ? new Date(value)
-      : null;
-
-  if (!date || !Number.isFinite(date.getTime())) {
-    throw new TypeError("Invalid user activity timestamp");
-  }
-  return date.toISOString();
-}
-
-async function readUserUsageAudit(activityCutoff: Date): Promise<UserUsageAuditRead> {
-  const unavailable = (): UserUsageAuditRead => ({
-    available: false,
-    byUser: new Map(),
-  });
-
-  try {
-    const result = await readUsageAuditRows(
-      () => db
-        .select({
-          userId: userActivityEventsTable.userId,
-          firstLoginAt: sql<Date | null>`min(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
-          lastLoginAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt}) filter (where ${userActivityEventsTable.eventType} = 'login')`,
-          lastActivityAt: sql<Date | null>`max(${userActivityEventsTable.occurredAt})`,
-          loginCount30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'login' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          patientSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'patient_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          clinicalRecordSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'clinical_record_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          goalSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'goal_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          reportSaved30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'report_saved' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          aiUsed30Days: sql<number>`count(*) filter (where ${userActivityEventsTable.eventType} = 'ai_used' and ${userActivityEventsTable.occurredAt} >= ${activityCutoff})`.mapWith(Number),
-          hasClinicalActivity: sql<boolean>`coalesce(bool_or(${userActivityEventsTable.eventType} = 'clinical_record_saved'), false)`.mapWith(Boolean),
-        })
-        .from(userActivityEventsTable)
-        .groupBy(userActivityEventsTable.userId),
-      warnUsageAuditFailure,
-    );
-
-    if (!result.available) return unavailable();
-
-    const byUser = new Map<number, UserUsageAuditMetrics>();
-    for (const row of result.rows) {
-      byUser.set(row.userId, {
-        firstLoginAt: normalizeAuditTimestamp(row.firstLoginAt),
-        lastLoginAt: normalizeAuditTimestamp(row.lastLoginAt),
-        lastActivityAt: normalizeAuditTimestamp(row.lastActivityAt),
-        loginCount30Days: row.loginCount30Days,
-        patientSaved30Days: row.patientSaved30Days,
-        clinicalRecordSaved30Days: row.clinicalRecordSaved30Days,
-        goalSaved30Days: row.goalSaved30Days,
-        reportSaved30Days: row.reportSaved30Days,
-        aiUsed30Days: row.aiUsed30Days,
-        hasClinicalActivity: row.hasClinicalActivity,
-      });
-    }
-
-    return { available: true, byUser };
-  } catch {
-    warnUsageAuditFailure();
-    return unavailable();
-  }
-}
-
-function unavailableUserActivity(): UserActivityProjection {
-  return {
-    available: false,
-    status: "unavailable",
-    firstLoginAt: null,
-    lastLoginAt: null,
-    lastActivityAt: null,
-    loginCount30Days: 0,
-    hasClinicalActivity: false,
-    eventCounts30Days: {
-      patientSaved: 0,
-      clinicalRecordSaved: 0,
-      goalSaved: 0,
-      reportSaved: 0,
-      aiUsed: 0,
-    },
-  };
 }
 
 const COMMERCIAL_STATUSES = ["trial", "paying", "overdue", "courtesy", "churned"] as const;
@@ -192,165 +46,14 @@ function userToJson(u: typeof usersTable.$inferSelect) {
   };
 }
 
-// GET /api/users — list all users (admin only).
-// Each user is enriched with patient/clinical counts plus minimal usage events.
+// GET /api/users — administrative account and commercial metadata only.
 router.get("/users", async (req, res) => {
   const sessionUserId = req.session?.userId;
-  const sessionRole   = req.session?.userRole;
-  console.log(`[GET /api/users] sessionUserId=${sessionUserId} role=${sessionRole}`);
   if (!sessionUserId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
 
   const users = await db.select().from(usersTable).orderBy(usersTable.name);
-
-  const activityCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [patients, registros, usageRead] = await Promise.all([
-    db
-      .select({
-        assignedProfessionalId: patientsTable.assignedProfessionalId,
-        archived: patientsTable.archived,
-      })
-      .from(patientsTable),
-    db
-      .select({
-        patientId: registrosClinicosTable.patientId,
-        userId: registrosClinicosTable.userId,
-        professionalId: registrosClinicosTable.professionalId,
-        professionalName: registrosClinicosTable.professionalName,
-        fecha: registrosClinicosTable.fecha,
-        createdAt: registrosClinicosTable.createdAt,
-      })
-      .from(registrosClinicosTable),
-    readUserUsageAudit(activityCutoff),
-  ]);
-
-  // Lookup maps to recover records whose user_id is null.
-  const userByProfId = new Map<number, number>();
-  const userByName = new Map<string, number>();
-  for (const u of users) {
-    if (u.professionalId != null) userByProfId.set(u.professionalId, u.id);
-    const n = normalizeName(u.name);
-    if (n && !userByName.has(n)) userByName.set(n, u.id);
-  }
-
-  const attribute = (r: (typeof registros)[number]): number | null => {
-    if (r.userId != null) return r.userId;
-    if (r.professionalId != null && userByProfId.has(r.professionalId)) {
-      return userByProfId.get(r.professionalId)!;
-    }
-    const n = normalizeName(r.professionalName);
-    if (n && userByName.has(n)) return userByName.get(n)!;
-    return null;
-  };
-
-  type Stat = {
-    pacientesAsignados: number;
-    sesionesRegistradas: number;
-    pacientesConSesion: Set<number>;
-    sesionesEsteMes: number;
-    ultimaActividad: Date | null;
-  };
-  const stats = new Map<number, Stat>();
-  for (const u of users) {
-    stats.set(u.id, {
-      pacientesAsignados: 0,
-      sesionesRegistradas: 0,
-      pacientesConSesion: new Set<number>(),
-      sesionesEsteMes: 0,
-      ultimaActividad: null,
-    });
-  }
-
-  for (const p of patients) {
-    if (p.archived) continue;
-    if (p.assignedProfessionalId == null) continue;
-    const s = stats.get(p.assignedProfessionalId);
-    if (s) s.pacientesAsignados++;
-  }
-
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  for (const r of registros) {
-    const uid = attribute(r);
-    if (uid == null) continue;
-    const s = stats.get(uid);
-    if (!s) continue;
-    s.sesionesRegistradas++;
-    s.pacientesConSesion.add(r.patientId);
-    // Preferimos la fecha clínica real (r.fecha, texto YYYY-MM-DD que escribe el
-    // profesional) y usamos created_at solo como respaldo si la fecha no es válida.
-    const parsed = r.fecha ? new Date(`${r.fecha}T00:00:00`) : null;
-    const eff = parsed && !isNaN(parsed.getTime()) ? parsed : r.createdAt;
-    if (eff && eff >= monthStart) s.sesionesEsteMes++;
-    if (eff && (!s.ultimaActividad || eff > s.ultimaActividad)) {
-      s.ultimaActividad = eff;
-    }
-  }
-
-  const activityByUser = new Map<number, UserActivityProjection>();
-  let activityAvailable = usageRead.available;
-  if (activityAvailable) {
-    try {
-      for (const u of users) {
-        const s = stats.get(u.id)!;
-        const usage = usageRead.byUser.get(u.id);
-        const hasClinicalActivity = s.sesionesRegistradas > 0 || (usage?.hasClinicalActivity ?? false);
-        const clinicalActivityAt = s.ultimaActividad?.toISOString() ?? null;
-        const trackedActivityAt = usage?.lastActivityAt ?? null;
-        const lastActivityAt = clinicalActivityAt && trackedActivityAt
-          ? (Date.parse(clinicalActivityAt) >= Date.parse(trackedActivityAt) ? clinicalActivityAt : trackedActivityAt)
-          : clinicalActivityAt ?? trackedActivityAt;
-        const lastLoginAt = usage?.lastLoginAt ?? null;
-        activityByUser.set(u.id, {
-          available: true,
-          status: getUsageAuditStatus({
-            accountActive: u.active,
-            hasClinicalActivity,
-            lastLoginAt,
-            trackingAvailable: true,
-          }),
-          firstLoginAt: usage?.firstLoginAt ?? null,
-          lastLoginAt,
-          lastActivityAt,
-          loginCount30Days: usage?.loginCount30Days ?? 0,
-          hasClinicalActivity,
-          eventCounts30Days: {
-            patientSaved: usage?.patientSaved30Days ?? 0,
-            clinicalRecordSaved: usage?.clinicalRecordSaved30Days ?? 0,
-            goalSaved: usage?.goalSaved30Days ?? 0,
-            reportSaved: usage?.reportSaved30Days ?? 0,
-            aiUsed: usage?.aiUsed30Days ?? 0,
-          },
-        });
-      }
-    } catch {
-      activityAvailable = false;
-      activityByUser.clear();
-      warnUsageAuditFailure();
-    }
-  }
-
-  console.log(`[GET /api/users] returning ${users.length} users`);
-  return res.json(
-    users.map((u) => {
-      const s = stats.get(u.id)!;
-      return {
-        ...userToJson(u),
-        stats: {
-          pacientesAsignados: s.pacientesAsignados,
-          sesionesRegistradas: s.sesionesRegistradas,
-          pacientesConSesion: s.pacientesConSesion.size,
-          sesionesEsteMes: s.sesionesEsteMes,
-           ultimaActividad: activityAvailable
-             ? activityByUser.get(u.id)?.lastActivityAt ?? null
-             : s.ultimaActividad ? s.ultimaActividad.toISOString() : null,
-          activity: activityAvailable
-            ? activityByUser.get(u.id) ?? unavailableUserActivity()
-            : unavailableUserActivity(),
-        },
-      };
-    })
-  );
+  return res.json(users.map(userToJson));
 });
 
 // GET /api/users/professionals — list active professionals for selectors
@@ -565,210 +268,20 @@ router.delete("/users/:id", async (req, res) => {
   return res.json(userToJson(updated));
 });
 
-// ─── Eliminación definitiva ───────────────────────────────────────────────────
-
-// Helper: patients whose PRIMARY professional is this user. Patients assigned to
-// other professionals are never touched.
-async function getOwnedPatientIds(userId: number): Promise<number[]> {
-  const rows = await db
-    .select({ id: patientsTable.id })
-    .from(patientsTable)
-    .where(eq(patientsTable.assignedProfessionalId, userId));
-  return rows.map((r) => r.id);
-}
-
-// GET /api/users/:id/deletion-preview — real counts of what a permanent delete
-// would remove (admin only). Read-only.
+// Clinical records are not part of administrative account management. Do not
+// expose deletion previews or allow a user-management action to erase them.
 router.get("/users/:id/deletion-preview", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
-  const id = parseInt(req.params.id);
-  if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
-
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
-  if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-
-  const patientIds = await getOwnedPatientIds(id);
-
-  const countWhere = async (table: any, cond: any) =>
-    (await db.select({ id: table.id }).from(table).where(cond)).length;
-
-  // Solo se cuentan (y luego se borran) filas de pacientes CUYO profesional
-  // principal es el usuario a eliminar. Las filas históricas del usuario en
-  // pacientes de otros profesionales se conservan (se desvinculan, no se borran).
-  const registros = patientIds.length
-    ? await countWhere(registrosClinicosTable, inArray(registrosClinicosTable.patientId, patientIds))
-    : 0;
-
-  const documentos = patientIds.length
-    ? await countWhere(patientFilesTable, inArray(patientFilesTable.patientId, patientIds))
-    : 0;
-
-  const sesiones = patientIds.length
-    ? await countWhere(sessionsTable, inArray(sessionsTable.patientId, patientIds))
-    : 0;
-
-  const pagos = patientIds.length
-    ? await countWhere(pagosTable, inArray(pagosTable.patientId, patientIds))
-    : 0;
-
-  const gastos = await countWhere(gastosTable, eq(gastosTable.userId, id));
-
-  return res.json({
-    userId: id,
-    userName: user.name,
-    pacientes: patientIds.length,
-    registros,
-    documentos,
-    sesiones,
-    pagos,
-    gastos,
-  });
+  return res.status(403).json({ error: "La vista previa de datos clínicos no está disponible en administración" });
 });
 
-// DELETE /api/users/:id/permanent — permanent, transactional delete of the user,
-// their assigned patients and ALL dependent data. Storage objects are removed
-// after the DB transaction commits; failures there are logged in deletion_log
-// (orphan files, never orphan metadata). Requires body { confirm: "ELIMINAR" }.
+// Permanent deletion would also erase or unlink clinical records. Administrators
+// can deactivate access with DELETE /users/:id, but cannot perform this action.
 router.delete("/users/:id/permanent", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });
   if (!requireAdmin(req, res)) return;
-  const id = parseInt(req.params.id);
-  if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
-
-  if (id === req.session.userId) {
-    return res.status(400).json({ error: "No puedes eliminar tu propio usuario" });
-  }
-  if (req.body?.confirm !== "ELIMINAR") {
-    return res.status(400).json({ error: "Confirmación inválida: debes escribir ELIMINAR" });
-  }
-
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
-  if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-  const [attributed] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.professionalUserId, id));
-  const [collaborator] = await db.select({ id: collaboratorsTable.id }).from(collaboratorsTable).where(eq(collaboratorsTable.userId, id));
-  const [receipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.professionalUserId, id));
-  const [event] = await db.select({ id: saasStatusEventsTable.id }).from(saasStatusEventsTable).where(eq(saasStatusEventsTable.professionalUserId, id));
-  const [actedEvent] = await db.select({ id: saasStatusEventsTable.id }).from(saasStatusEventsTable).where(eq(saasStatusEventsTable.actorUserId, id));
-  const [createdReceipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.createdByUserId, id));
-  const [paidReceipt] = await db.select({ id: saasReceiptsTable.id }).from(saasReceiptsTable).where(eq(saasReceiptsTable.paidByUserId, id));
-  const [createdAttribution] = await db.select({ id: referralAttributionsTable.id }).from(referralAttributionsTable).where(eq(referralAttributionsTable.createdByUserId, id));
-  if (attributed || collaborator || receipt || event || actedEvent || createdReceipt || paidReceipt || createdAttribution) return res.status(409).json({ error: "La cuenta tiene historial comercial protegido" });
-
-  const adminId = req.session.userId;
-  const [admin] = await db.select().from(usersTable).where(eq(usersTable.id, adminId));
-
-  try {
-    const patientIds = await getOwnedPatientIds(id);
-
-    // Collect storage paths BEFORE deleting metadata.
-    const files = patientIds.length
-      ? await db
-          .select({ id: patientFilesTable.id, storagePath: patientFilesTable.storagePath })
-          .from(patientFilesTable)
-          .where(inArray(patientFilesTable.patientId, patientIds))
-      : [];
-
-    let registrosDeleted = 0;
-
-    await db.transaction(async (tx) => {
-      // Delete ONLY rows belonging to patients whose primary professional is
-      // this user. Historical rows the user left on OTHER professionals'
-      // patients are preserved and merely unlinked (user_id → null), so no
-      // third-party clinical data is ever destroyed.
-      if (patientIds.length > 0) {
-        const goalIds = (
-          await tx.select({ id: goalsTable.id }).from(goalsTable)
-            .where(inArray(goalsTable.patientId, patientIds))
-        ).map((g) => g.id);
-        if (goalIds.length > 0) {
-          await tx.delete(goalProgressTable).where(inArray(goalProgressTable.goalId, goalIds));
-        }
-        await tx.delete(goalsTable).where(inArray(goalsTable.patientId, patientIds));
-        await tx.delete(registrosTable).where(inArray(registrosTable.patientId, patientIds));
-        const regs = await tx.delete(registrosClinicosTable)
-          .where(inArray(registrosClinicosTable.patientId, patientIds))
-          .returning({ id: registrosClinicosTable.id });
-        registrosDeleted = regs.length;
-        await tx.delete(sessionsTable).where(inArray(sessionsTable.patientId, patientIds));
-        await tx.delete(patientProfessionalsTable).where(inArray(patientProfessionalsTable.patientId, patientIds));
-        await tx.delete(citasTable).where(inArray(citasTable.patientId, patientIds));
-        await tx.delete(pagosTable).where(inArray(pagosTable.patientId, patientIds));
-        await tx.delete(patientFilesTable).where(inArray(patientFilesTable.patientId, patientIds));
-        await tx.delete(patientsTable).where(inArray(patientsTable.id, patientIds));
-      }
-
-      // Unlink (not delete) remaining rows that reference the user on other
-      // professionals' patients, so no dangling user_id references remain.
-      await tx.update(registrosClinicosTable).set({ userId: null })
-        .where(eq(registrosClinicosTable.userId, id));
-      await tx.update(citasTable).set({ userId: null })
-        .where(eq(citasTable.userId, id));
-      await tx.update(pagosTable).set({ userId: null })
-        .where(eq(pagosTable.userId, id));
-
-      // Personal data of the user
-      await tx.delete(gastosTable).where(eq(gastosTable.userId, id));
-
-      // Finally the user row itself
-      await tx.delete(usersTable).where(eq(usersTable.id, id));
-    });
-
-    // Post-commit steps. The DB deletion already succeeded at this point, so
-    // failures here must NEVER be reported as a rollback — only as warnings.
-    const storageErrors: string[] = [];
-    let filesDeleted = 0;
-    if (files.length > 0 && storageConfigured()) {
-      for (const f of files) {
-        try {
-          await deleteStorageObject(f.storagePath);
-          filesDeleted++;
-        } catch (e: any) {
-          storageErrors.push(`${f.storagePath}: ${e?.message ?? e}`);
-        }
-      }
-    } else if (files.length > 0) {
-      storageErrors.push("Storage no configurado: archivos no borrados del bucket");
-    }
-
-    try {
-      await db.insert(deletionLogTable).values({
-        adminId,
-        adminName: admin?.name ?? `admin#${adminId}`,
-        deletedUserId: id,
-        deletedUserName: user.name,
-        deletedUserEmail: user.email,
-        patientsDeleted: patientIds.length,
-        recordsDeleted: registrosDeleted,
-        filesDeleted,
-        storageErrors: storageErrors.length ? storageErrors.join(" | ") : null,
-      });
-    } catch (e: any) {
-      console.error(`[DELETE /api/users/${id}/permanent] deletion_log falló →`, e?.message ?? e);
-      storageErrors.push("No se pudo registrar el log de auditoría (la eliminación sí se completó)");
-    }
-
-    console.log(
-      `[DELETE /api/users/${id}/permanent] ✓ usuario "${user.name}" eliminado por admin=${adminId}` +
-      ` | pacientes=${patientIds.length} registros=${registrosDeleted} archivos=${filesDeleted}/${files.length}` +
-      (storageErrors.length ? ` | errores storage=${storageErrors.length}` : "")
-    );
-
-    return res.json({
-      ok: true,
-      deletedUserId: id,
-      pacientes: patientIds.length,
-      registros: registrosDeleted,
-      documentos: files.length,
-      archivosBorrados: filesDeleted,
-      storageWarnings: storageErrors.length ? storageErrors.length : undefined,
-    });
-  } catch (err: any) {
-    console.error(`[DELETE /api/users/${id}/permanent] ERROR →`, err?.message ?? err);
-    return res.status(500).json({
-      error: "No se pudo completar la eliminación. No se borró ningún dato (la transacción fue revertida).",
-    });
-  }
+  return res.status(403).json({ error: "La eliminación definitiva está deshabilitada. Desactive el acceso sin borrar datos clínicos." });
 });
 
 export default router;

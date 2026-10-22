@@ -8,6 +8,13 @@ import { canAccessLibraryGoal, canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
+router.use((req, res, next) => {
+  if (req.session?.userId && req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  next();
+});
+
 // ─── List goal library with filters ──────────────────────────────────────────
 router.get("/goal-library", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: "No autenticado" });

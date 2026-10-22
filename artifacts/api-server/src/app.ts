@@ -10,6 +10,7 @@ import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
 import { verifyAuthToken } from "./auth-token";
+import { canAdminAccessApiRoute } from "./routes/access-policy";
 
 const PgSession = connectPgSimple(session);
 
@@ -214,6 +215,9 @@ app.use(async (req, res, next) => {
       (req.method === "POST" && req.path === "/api/consents/accept") ||
       (req.method === "POST" && req.path === "/api/auth/logout")
     )) return res.status(403).json({ error: "Acceso denegado" });
+    if (currentUser.role === "admin" && !canAdminAccessApiRoute(req.method, req.path)) {
+      return res.status(403).json({ error: "Acceso denegado" });
+    }
     return next();
   } catch (err) {
     console.error("[auth] error al validar usuario actual:", err);

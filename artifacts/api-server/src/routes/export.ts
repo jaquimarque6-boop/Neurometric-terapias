@@ -99,6 +99,7 @@ function addSheet(wb: ExcelJS.Workbook, spec: SheetSpec) {
 router.get("/export/my-data", async (req, res) => {
   const sess = getSessionUser(req);
   if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (sess.role !== "professional") return res.status(403).json({ error: "La exportación clínica es exclusiva de profesionales" });
 
   try {
     // ── Patients owned by this user ────────────────────────────────────────

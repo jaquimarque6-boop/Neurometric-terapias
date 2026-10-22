@@ -19,6 +19,13 @@ async function anamnesisName(userId: number | null) {
 
 const router: IRouter = Router();
 
+router.use((req, res, next) => {
+  if (req.session?.userId && req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  next();
+});
+
 // ─── Clinical insight helpers ─────────────────────────────────────────────────
 
 type PatientGoal = typeof goalsTable.$inferSelect;
@@ -110,8 +117,7 @@ router.get("/patients", async (req, res) => {
     return res.status(401).json({ error: "No autenticado" });
   }
 
-  // Admin sees all patients in the requested state; professionals see only
-  // patients assigned to them, whether active or archived.
+  // Professionals see only patients assigned to them, whether active or archived.
   const includeArchived = req.query.includeArchived === "true";
   const listScope = getPatientListScope(sess, includeArchived);
 
@@ -164,14 +170,6 @@ router.post("/patients", async (req, res) => {
   }
 
   const body = req.body;
-  console.log(
-    `[POST /api/patients] ✓ autenticado` +
-    ` | userId=${sess.id}` +
-    ` | role=${sess.role}` +
-    ` | origin=${req.headers.origin ?? "none"}` +
-    ` | name=${JSON.stringify(body.name)}`
-  );
-
   // name is required
   if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
     return res.status(400).json({ error: "El nombre del paciente es obligatorio." });
@@ -202,15 +200,11 @@ router.post("/patients", async (req, res) => {
   let profesionalNombre: string | null = body.profesionalNombre ?? null;
 
   try {
-    if (body.assignedProfessionalId) {
-      assignedProfessionalId = parseInt(body.assignedProfessionalId);
-      if (!profesionalNombre) {
-        const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, assignedProfessionalId));
-        profesionalNombre = prof?.name ?? null;
-      }
-    } else if (sess.role !== "admin") {
-      // Professionals are automatically the assigned professional
-      assignedProfessionalId = sess.id;
+    if (body.assignedProfessionalId && parseInt(body.assignedProfessionalId) !== sess.id) {
+      return res.status(403).json({ error: "Solo puedes asignar pacientes a tu propia cuenta profesional" });
+    }
+    assignedProfessionalId = sess.id;
+    if (!profesionalNombre) {
       const [prof] = await db.select().from(usersTable).where(eq(usersTable.id, sess.id));
       profesionalNombre = prof?.name ?? null;
     }

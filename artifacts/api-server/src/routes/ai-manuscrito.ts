@@ -5,6 +5,7 @@ import { requireAiConsent } from "../lib/consents";
 import { db } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { patientsTable } from "@workspace/db/schema";
+import { canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
@@ -53,7 +54,7 @@ router.post("/ai/manuscrito-transcribe", async (req, res) => {
 
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
   if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
-  if (sess.role !== "admin" && patient.assignedProfessionalId !== sess.id) {
+  if (!canAccessPatient(patient, sess)) {
     return res.status(403).json({ error: "Sin acceso a este paciente" });
   }
 

@@ -6,9 +6,16 @@ import { canAccessLibraryGoal } from "./access-policy";
 
 const router: IRouter = Router();
 
+router.use((req, res, next) => {
+  if (req.session?.userId && req.session.userRole !== "professional") {
+    return res.status(403).json({ error: "Acceso reservado a profesionales" });
+  }
+  next();
+});
+
 async function linkedGoalAccess(goalLibraryId: number | null, userId: number, isAdmin: boolean, write: boolean) {
   // Activities have no owner of their own. Unlinked activities are shared/admin-managed.
-  if (goalLibraryId === null) return { exists: true, allowed: isAdmin || !write };
+  if (goalLibraryId === null) return { exists: true, allowed: !isAdmin && !write };
   const [goal] = await db.select().from(goalLibraryTable).where(eq(goalLibraryTable.id, goalLibraryId));
   if (!goal) return { exists: false, allowed: false };
   return {
