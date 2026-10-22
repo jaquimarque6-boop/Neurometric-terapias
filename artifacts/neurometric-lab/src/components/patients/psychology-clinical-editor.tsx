@@ -361,7 +361,6 @@ export function PsychologyClinicalEditor({
 }: EditorProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"anamnesis" | "evaluations">("anamnesis");
   const [data, setData] = useState(() => normalizePsychologyData(psychologyData));
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(normalizePsychologyData(psychologyData)));
   const initializedPatientId = useRef(patientId);
@@ -426,7 +425,6 @@ export function PsychologyClinicalEditor({
       ...current,
       evaluations: [...current.evaluations, createEmptyEvaluation()],
     }));
-    setActiveTab("evaluations");
   };
 
   return (
@@ -443,11 +441,6 @@ export function PsychologyClinicalEditor({
               Registro estructurado y editable para acompañar el criterio profesional. No establece diagnósticos ni genera recomendaciones clínicas.
             </p>
           </div>
-          {activeTab === "evaluations" && (
-            <Button type="button" onClick={addEvaluation} disabled={data.evaluations.length >= 50} data-testid="button-add-psychology-evaluation" className="min-h-10 shrink-0 bg-[#57766a] text-white hover:bg-[#456257]">
-              Nueva evaluación
-            </Button>
-          )}
         </div>
         {ageInfo.stage === "desconocida" && (
           <p className="mt-4 rounded-lg border border-stone-200 bg-white/80 px-3 py-2.5 text-sm leading-5 text-stone-600" data-testid="notice-psychology-age-unknown">
@@ -456,30 +449,45 @@ export function PsychologyClinicalEditor({
         )}
       </header>
 
-      <div className="flex gap-2 border-b border-stone-200" role="tablist" aria-label="Secciones de Psicología">
-        <button type="button" role="tab" aria-selected={activeTab === "anamnesis"} onClick={() => setActiveTab("anamnesis")} data-testid="tab-psychology-anamnesis" className={`border-b-2 px-4 py-3 text-sm font-medium ${activeTab === "anamnesis" ? "border-[#57766a] text-[#365447]" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
-          Anamnesis guiada
-        </button>
-        <button type="button" role="tab" aria-selected={activeTab === "evaluations"} onClick={() => setActiveTab("evaluations")} data-testid="tab-psychology-evaluations" className={`border-b-2 px-4 py-3 text-sm font-medium ${activeTab === "evaluations" ? "border-[#57766a] text-[#365447]" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
-          Evaluaciones <span className="ml-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs tabular-nums">{data.evaluations.length}</span>
-        </button>
-      </div>
-
-      {activeTab === "anamnesis" ? (
-        <div role="tabpanel" aria-labelledby="tab-psychology-anamnesis" className="space-y-5">
+      <section aria-labelledby="psychology-anamnesis-heading" className="space-y-4">
+        <header className="flex flex-col gap-1 border-b border-stone-200 pb-3">
+          <h3 id="psychology-anamnesis-heading" className="text-lg font-semibold text-stone-800">Anamnesis psicológica</h3>
+          <p className="text-sm leading-6 text-stone-500">Antecedentes y contexto organizados según la etapa de vida.</p>
+        </header>
+        <div className="space-y-5">
           <AnamnesisGuidedEditor sections={data.anamnesis.sections} stage={ageInfo.stage} onChange={changeSection} />
-          <SaveBar dirty={dirty} isPending={updatePatient.isPending} onSave={save} />
         </div>
-      ) : (
-        <div role="tabpanel" aria-labelledby="tab-psychology-evaluations" className="space-y-5">
-          {data.evaluations.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] px-5 py-10 text-center">
-              <p className="font-medium text-stone-700">Todavía no hay evaluaciones</p>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-500">Puedes crear una evaluación y guardar un borrador en cualquier momento. Todos los campos son opcionales.</p>
-              <Button type="button" onClick={addEvaluation} data-testid="button-create-first-evaluation" className="mt-5 bg-[#57766a] text-white hover:bg-[#456257]">Crear evaluación</Button>
-            </div>
-          ) : (
-            data.evaluations.map((evaluation) => (
+      </section>
+
+      <section aria-labelledby="psychology-evaluations-heading" className="space-y-4 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 id="psychology-evaluations-heading" className="text-lg font-semibold text-stone-800">Evaluación psicológica</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-stone-500">
+              Registra áreas, entrevistas, instrumentos y la interpretación profesional. Los campos son opcionales y no se generan diagnósticos ni puntuaciones.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={addEvaluation}
+            disabled={data.evaluations.length >= 50}
+            data-testid="button-add-psychology-evaluation"
+            className="min-h-10 shrink-0 bg-[#57766a] text-white hover:bg-[#456257]"
+          >
+            Nueva evaluación
+          </Button>
+        </header>
+
+        {data.evaluations.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-stone-300 bg-[#fbfaf7] px-5 py-8 text-center">
+            <p className="font-medium text-stone-700">Todavía no hay evaluaciones</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-500">
+              Puedes crear una evaluación y guardar un borrador en cualquier momento.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {data.evaluations.map((evaluation) => (
               <EvaluationEditor
                 key={evaluation.id}
                 evaluation={evaluation}
@@ -496,11 +504,12 @@ export function PsychologyClinicalEditor({
                   }
                 }}
               />
-            ))
-          )}
-          <SaveBar dirty={dirty} isPending={updatePatient.isPending} onSave={save} />
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
+
+      <SaveBar dirty={dirty} isPending={updatePatient.isPending} onSave={save} />
       {updatePatient.isError && (
         <p role="alert" data-testid="error-psychology-save" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           No se guardaron los cambios. Conservamos el contenido escrito en esta pantalla; vuelve a intentarlo.

@@ -2286,11 +2286,6 @@ export default function PatientProfile() {
             <TabsTrigger value="anamnesis" className="rounded-lg text-sm flex items-center gap-1.5">
               <ClipboardList className="h-3.5 w-3.5" /> Anamnesis
             </TabsTrigger>
-            {isPsychology && (
-              <TabsTrigger value="psicologia" className="rounded-lg text-sm flex items-center gap-1.5">
-                <Brain className="h-3.5 w-3.5" /> Psicología
-              </TabsTrigger>
-            )}
             <TabsTrigger value="registros" className="rounded-lg text-sm">Registros ({registros.length})</TabsTrigger>
             <TabsTrigger value="objetivos" className="rounded-lg text-sm flex items-center gap-1.5">
               <LayoutDashboard className="h-3.5 w-3.5" /> Plan Terapéutico
@@ -2319,7 +2314,22 @@ export default function PatientProfile() {
 
           {/* ── Anamnesis ───────────────────────────────────────────────── */}
           <TabsContent value="anamnesis" className="mt-6">
-            {(() => {
+            {isPsychology ? (
+              patient ? (
+                <PsychologyClinicalEditor
+                  patientId={patientId}
+                  psychologyData={
+                    (patient as unknown as { psychologyData?: PsychologyClinicalData | null }).psychologyData
+                  }
+                  fechaNacimiento={patient.fechaNacimiento}
+                  age={patient.age}
+                />
+              ) : (
+                <div className="rounded-xl border border-border/60 bg-card px-4 py-6 text-sm text-muted-foreground" role="status">
+                  Cargando la ficha del paciente…
+                </div>
+              )
+            ) : (() => {
               const SECCIONES_ANAMNESIS = [
                 {
                   key: "motivo",
@@ -2671,25 +2681,6 @@ export default function PatientProfile() {
               );
             })()}
           </TabsContent>
-
-          {isPsychology && (
-            <TabsContent value="psicologia" className="mt-6">
-              {patient ? (
-                <PsychologyClinicalEditor
-                  patientId={patientId}
-                  psychologyData={
-                    (patient as unknown as { psychologyData?: PsychologyClinicalData | null }).psychologyData
-                  }
-                  fechaNacimiento={patient.fechaNacimiento}
-                  age={patient.age}
-                />
-              ) : (
-                <div className="rounded-xl border border-border/60 bg-card px-4 py-6 text-sm text-muted-foreground" role="status">
-                  Cargando la ficha del paciente…
-                </div>
-              )}
-            </TabsContent>
-          )}
 
           {/* ── Registros ───────────────────────────────────────────────── */}
           <TabsContent value="registros" className="mt-6">
