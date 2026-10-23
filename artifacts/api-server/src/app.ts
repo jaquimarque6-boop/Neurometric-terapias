@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import router from "./routes";
 import { seedAdminIfNeeded, ensureJaquiAdmin, ensureTempAdmin } from "./routes/auth";
 import { seedGoalLibraryIfNeeded } from "./seeds/goal-library-seed";
+import { runStartupInitializers } from "./startup-initializers";
 import { verifyAuthToken } from "./auth-token";
 import {
   canRoleAccessApiRoute,
@@ -196,13 +197,13 @@ app.use(async (req, res, next) => {
 
 app.use("/api", router);
 
-// Integration tests provide their own fixtures in an isolated database. Avoid
-// creating accounts or importing external data while the test app is loaded.
-if (process.env.NODE_ENV !== "test") {
-  seedAdminIfNeeded().catch(console.error);
-  ensureJaquiAdmin().catch(console.error);
-  ensureTempAdmin().catch(console.error);
-  seedGoalLibraryIfNeeded().catch(console.error);
-}
+// Admin bootstrap is development-only. Production must never create accounts
+// with credentials baked into the source; existing accounts remain untouched.
+runStartupInitializers(process.env.NODE_ENV, {
+  seedAdminIfNeeded,
+  ensureJaquiAdmin,
+  ensureTempAdmin,
+  seedGoalLibraryIfNeeded,
+});
 
 export default app;

@@ -28,14 +28,17 @@ test("legacy migrations require a literal true opt-in", () => {
   }
 });
 
-test("API startup omits the old migration seed and retains normal seeds", () => {
+test("API startup omits the old migration seed and delegates startup seeds", () => {
   const appSource = readFileSync(new URL("../src/app.ts", import.meta.url), "utf8");
+  const initializerSource = readFileSync(
+    new URL("../src/startup-initializers.ts", import.meta.url),
+    "utf8",
+  );
 
   assert.ok(!appSource.includes("seedFromSupabaseIfNeeded"));
-  assert.ok(appSource.includes("seedAdminIfNeeded().catch(console.error)"));
-  assert.ok(appSource.includes("ensureJaquiAdmin().catch(console.error)"));
-  assert.ok(appSource.includes("ensureTempAdmin().catch(console.error)"));
-  assert.ok(appSource.includes("seedGoalLibraryIfNeeded().catch(console.error)"));
+  assert.ok(appSource.includes("runStartupInitializers(process.env.NODE_ENV"));
+  assert.ok(initializerSource.includes('nodeEnv === "development"'));
+  assert.ok(initializerSource.includes("start(initializers.seedGoalLibraryIfNeeded)"));
 });
 
 test("historical scripts use the environment key and remain opt-in gated", () => {

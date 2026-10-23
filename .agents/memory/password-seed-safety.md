@@ -3,8 +3,8 @@ name: Password seed safety
 description: Startup account initialization must not overwrite credentials of existing users.
 ---
 
-Account bootstrap routines may create a missing administrator with an initial password, but existing users must retain their current password hash. Role or active-state normalization must be separate from credential initialization.
+Default administrator bootstrap is development-only. Production, staging, test, and unset `NODE_ENV` must not invoke account-creation seeds; existing users, password hashes, and roles remain untouched.
 
-**Why:** Rewriting an existing hash at backend startup makes a manually changed password stop working after a restart or deploy.
+**Why:** Automatically creating production administrators with credentials baked into source creates avoidable access risk, while rewriting existing hashes can lock out legitimate users.
 
-**How to apply:** Keep password hashing inside the create-only branch, and audit every startup seed separately from explicit migration workflows.
+**How to apply:** Gate startup account seeds on explicit `NODE_ENV=development`. Keep local test fixtures separate, and audit manual migration scripts independently from backend startup.
