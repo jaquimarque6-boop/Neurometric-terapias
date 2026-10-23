@@ -57,6 +57,8 @@ export function hasActiveActivitiesSubscription(
 ): boolean {
   if (!account.active || account.role !== "professional") return false;
 
+  if (account.commercialStatus === "courtesy") return true;
+
   if (account.commercialStatus === "trial") {
     return validCommercialDate(account.trialStartDate)
       && validCommercialDate(account.trialEndDate)

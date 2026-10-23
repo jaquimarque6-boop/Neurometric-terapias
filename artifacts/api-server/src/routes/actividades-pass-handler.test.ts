@@ -115,7 +115,7 @@ test("rejects missing sessions and non-professional roles", async () => {
 
   const inactive = await requestPass({
     sessionUserId: paidProfessional.id,
-    account: { ...paidProfessional, active: false },
+    account: { ...paidProfessional, active: false, commercialStatus: "courtesy" },
   });
   assert.equal(inactive.response.status, 401);
 });
@@ -149,12 +149,56 @@ test("allows paid subscriptions and trials only while their valid dates are curr
       id: 419,
       commercialStatus: "trial",
       trialStartDate: "2026-10-10",
-      trialEndDate: "2026-10-23",
+      trialEndDate: "2026-10-24",
       lastPaymentDate: null,
       nextDueDate: null,
     },
   });
   assert.equal(currentTrial.response.status, 200);
+
+  const lastMomentOfTrial = await requestPass({
+    sessionUserId: 419,
+    now: new Date("2026-10-25T02:59:59.000Z"),
+    account: {
+      ...paidProfessional,
+      id: 419,
+      commercialStatus: "trial",
+      trialStartDate: "2026-10-10",
+      trialEndDate: "2026-10-24",
+      lastPaymentDate: null,
+      nextDueDate: null,
+    },
+  });
+  assert.equal(lastMomentOfTrial.response.status, 200);
+
+  const firstMomentAfterTrial = await requestPass({
+    sessionUserId: 419,
+    now: new Date("2026-10-25T03:00:00.000Z"),
+    account: {
+      ...paidProfessional,
+      id: 419,
+      commercialStatus: "trial",
+      trialStartDate: "2026-10-10",
+      trialEndDate: "2026-10-24",
+      lastPaymentDate: null,
+      nextDueDate: null,
+    },
+  });
+  assert.equal(firstMomentAfterTrial.response.status, 402);
+
+  const futureTrial = await requestPass({
+    sessionUserId: 419,
+    account: {
+      ...paidProfessional,
+      id: 419,
+      commercialStatus: "trial",
+      trialStartDate: "2026-10-24",
+      trialEndDate: "2026-11-07",
+      lastPaymentDate: null,
+      nextDueDate: null,
+    },
+  });
+  assert.equal(futureTrial.response.status, 402);
 
   const expiredTrial = await requestPass({
     sessionUserId: 420,
@@ -171,11 +215,46 @@ test("allows paid subscriptions and trials only while their valid dates are curr
   assert.equal(expiredTrial.response.status, 402);
   assert.deepEqual(expiredTrial.body, { error: "subscription_inactive" });
 
+  const expiredPaidSubscription = await requestPass({
+    sessionUserId: 422,
+    account: {
+      ...paidProfessional,
+      id: 422,
+      lastPaymentDate: "2026-10-01",
+      nextDueDate: "2026-10-22",
+    },
+  });
+  assert.equal(expiredPaidSubscription.response.status, 402);
+
   const missingPaymentDates = await requestPass({
     sessionUserId: 421,
     account: { ...paidProfessional, id: 421, lastPaymentDate: null, nextDueDate: null },
   });
   assert.equal(missingPaymentDates.response.status, 402);
+});
+
+test("allows active courtesy accounts without billing dates and rejects overdue or churned statuses", async () => {
+  const courtesy = await requestPass({
+    sessionUserId: 423,
+    account: {
+      ...paidProfessional,
+      id: 423,
+      commercialStatus: "courtesy",
+      trialStartDate: null,
+      trialEndDate: null,
+      lastPaymentDate: null,
+      nextDueDate: null,
+    },
+  });
+  assert.equal(courtesy.response.status, 200);
+
+  for (const commercialStatus of ["overdue", "churned"]) {
+    const denied = await requestPass({
+      sessionUserId: 424,
+      account: { ...paidProfessional, id: 424, commercialStatus },
+    });
+    assert.equal(denied.response.status, 402, `${commercialStatus} must not receive a pass`);
+  }
 });
 
 test("does not issue a pass when the shared signing secret is missing or too short", async () => {
