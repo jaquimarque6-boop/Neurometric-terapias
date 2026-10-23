@@ -47,8 +47,8 @@ function reset() {
   storage.deletedPaths.length = 0;
   storage.objects.clear();
   tables.set(schema.patientsTable, [
-    { id: 1, name: "Propio", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 2 },
-    { id: 2, name: "Ajeno", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 3 },
+    { id: 1, name: "Propio", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 2, createdAt: now },
+    { id: 2, name: "Ajeno", age: "5", diagnosis: "lenguaje", assignedProfessionalId: 3, createdAt: now },
   ]);
   tables.set(schema.goalLibraryTable, [globalGoal, ownerGoal, foreignGoal].map(g => ({ ...g })));
   tables.set(schema.actividadesTable, [activity(20, 10), activity(21, 11), activity(22, 12), activity(23, null)]);
@@ -110,7 +110,13 @@ function filterConsentRows(rows: any[], condition: any): any[] {
 }
 
 const db = {
-  select(_columns?: unknown) {
+  select(columns?: unknown) {
+    const isCountOnlyQuery = Boolean(
+      columns &&
+      typeof columns === "object" &&
+      "value" in columns &&
+      !("userId" in columns),
+    );
     return {
       from(table: object) {
         stats.selects++;
@@ -126,6 +132,10 @@ const db = {
               const rows = table === schema.userConsentAcceptancesTable
                 ? filterConsentRows(sourceRows, condition)
                 : filterRows(sourceRows, condition);
+              if (isCountOnlyQuery) {
+                resolve([{ value: rows.length }]);
+                return;
+              }
               resolve(rowLimit === undefined ? rows : rows.slice(0, rowLimit));
             } catch (error) { reject?.(error as Error); }
           },
@@ -434,6 +444,53 @@ test("patient routes deny foreign patients before inserts, context queries and A
   }
   assert.equal(await status("POST", "/registros-clinicos", "owner", { patientId: 999, fecha: "2026-01-01" }), 404);
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 999 }), 404);
+});
+
+test("patient coverage is optional, persists through existing patient access, and never changes unrelated fields", async () => {
+  reset();
+
+  const created = await request("POST", "/patients", "owner", {
+    name: "Paciente ficticio con cobertura",
+    coberturaMedica: "  Prepaga de prueba  ",
+    numeroAfiliado: "  AF-TEST-42  ",
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.coberturaMedica, "Prepaga de prueba");
+  assert.equal(created.body.numeroAfiliado, "AF-TEST-42");
+
+  const createdRow = tables.get(schema.patientsTable)?.find(row => row.id === created.body.id);
+  assert.equal(createdRow?.coberturaMedica, "Prepaga de prueba");
+  assert.equal(createdRow?.numeroAfiliado, "AF-TEST-42");
+
+  const privatePayPatient = await request("POST", "/patients", "owner", {
+    name: "Paciente particular ficticio",
+  });
+  assert.equal(privatePayPatient.status, 201);
+  assert.equal(privatePayPatient.body.coberturaMedica, null);
+  assert.equal(privatePayPatient.body.numeroAfiliado, null);
+
+  const updated = await request("PUT", "/patients/1", "owner", {
+    coberturaMedica: "Obra social de prueba",
+    numeroAfiliado: "",
+  });
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.coberturaMedica, "Obra social de prueba");
+  assert.equal(updated.body.numeroAfiliado, null);
+  assert.equal(updated.body.name, "Propio");
+  assert.equal(updated.body.diagnosis, "lenguaje");
+
+  const updatesBeforeDeniedRequest = stats.updates;
+  const denied = await request("PUT", "/patients/2", "owner", {
+    coberturaMedica: "No autorizado",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(stats.updates, updatesBeforeDeniedRequest);
+
+  const invalid = await request("PATCH", "/patients/1", "owner", {
+    numeroAfiliado: 42,
+  });
+  assert.equal(invalid.status, 400);
+  assert.equal(stats.updates, updatesBeforeDeniedRequest);
 });
 
 test("assigned professional can access own clinical data and authorized AI uses mocked provider", async () => {

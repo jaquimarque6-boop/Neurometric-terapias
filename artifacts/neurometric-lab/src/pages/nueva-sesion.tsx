@@ -23,6 +23,7 @@ import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { LastSessionSummary } from "@/components/last-session-summary";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AutoGrowTextarea } from "@/components/ui/auto-grow-textarea";
 import { Button } from "@/components/ui/button";
 import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -3090,9 +3091,10 @@ export default function NuevaSesion() {
                     Generar sugerencia
                   </button>
                 </div>
-                <Textarea
+                <AutoGrowTextarea
+                  minRows={7}
+                  maxRows={16}
                   placeholder="Describe lo trabajado en la sesión… o usa 'Generar sugerencia' para un punto de partida."
-                  rows={4}
                   value={resumen}
                   onChange={e => setResumen(e.target.value)}
                   className="bg-muted/50 resize-none text-sm leading-relaxed"
@@ -3133,13 +3135,14 @@ export default function NuevaSesion() {
                   </button>
                 )}
               </div>
-              <Textarea
+              <AutoGrowTextarea
+                minRows={6}
+                maxRows={16}
                 placeholder={isRecording
                   ? "Escuchando… habla ahora"
                   : profesion === "psicologia"
                     ? "Registrar hechos observables y su contexto…"
                     : "Observaciones clínicas relevantes…"}
-                rows={3}
                 value={observaciones}
                 onChange={e => setObservaciones(e.target.value)}
                 className={`resize-none text-sm transition-colors ${isRecording ? "bg-red-50/40 border-red-200 focus-visible:ring-red-300" : "bg-muted/50"}`}

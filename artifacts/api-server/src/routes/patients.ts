@@ -97,6 +97,16 @@ function omitPsychologyData(patient: typeof patientsTable.$inferSelect) {
   return safePatient;
 }
 
+function normalizeOptionalPatientText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function hasInvalidOptionalPatientText(body: Record<string, unknown>): boolean {
+  return ["coberturaMedica", "numeroAfiliado"].some(
+    field => body[field] !== undefined && body[field] !== null && typeof body[field] !== "string",
+  );
+}
+
 async function enrichPatient(p: typeof patientsTable.$inferSelect, allGoals: typeof goalsTable.$inferSelect[]) {
   const [{ value }] = await db
     .select({ value: count() })
@@ -191,6 +201,9 @@ router.post("/patients", async (req, res) => {
   if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
     return res.status(400).json({ error: "El nombre del paciente es obligatorio." });
   }
+  if (hasInvalidOptionalPatientText(body)) {
+    return res.status(400).json({ error: "Los datos de cobertura deben ser texto." });
+  }
 
   // Sanitise age — reject non-numeric strings, allow undefined/null
   let age: number | null = null;
@@ -230,6 +243,8 @@ router.post("/patients", async (req, res) => {
       name: body.name.trim(),
       age,
       fechaNacimiento,
+      coberturaMedica: normalizeOptionalPatientText(body.coberturaMedica),
+      numeroAfiliado: normalizeOptionalPatientText(body.numeroAfiliado),
       diagnosis: body.diagnosis?.trim() || null,
       profesionalNombre,
       assignedProfessionalId,
@@ -289,6 +304,9 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
   if (!sess) return res.status(401).json({ error: "No autenticado" });
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return res.status(400).json({ error: "Datos del paciente inválidos" });
+  }
+  if (hasInvalidOptionalPatientText(body)) {
+    return res.status(400).json({ error: "Los datos de cobertura deben ser texto." });
   }
   let parsedPsychologyData: PsychologyClinicalData | undefined;
   if (Object.prototype.hasOwnProperty.call(body, "psychologyData")) {
@@ -351,6 +369,12 @@ async function updatePatientById(id: number, body: any, req: any, res: any) {
     name: body.name ?? existing.name,
     age: body.age !== undefined ? body.age : existing.age,
     fechaNacimiento,
+    coberturaMedica: body.coberturaMedica !== undefined
+      ? normalizeOptionalPatientText(body.coberturaMedica)
+      : existing.coberturaMedica,
+    numeroAfiliado: body.numeroAfiliado !== undefined
+      ? normalizeOptionalPatientText(body.numeroAfiliado)
+      : existing.numeroAfiliado,
     diagnosis: body.diagnosis ?? existing.diagnosis,
     profesionalNombre,
     assignedProfessionalId,

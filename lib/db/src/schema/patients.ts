@@ -60,6 +60,8 @@ export const patientsTable = pgTable("patients", {
   name: text("name").notNull(),
   age: integer("age"),
   fechaNacimiento: text("fecha_nacimiento"),
+  coberturaMedica: text("cobertura_medica"),
+  numeroAfiliado: text("numero_afiliado"),
   diagnosis: text("diagnosis"),
   profesionalNombre: text("profesional_nombre"),
   assignedProfessionalId: integer("assigned_professional_id"),

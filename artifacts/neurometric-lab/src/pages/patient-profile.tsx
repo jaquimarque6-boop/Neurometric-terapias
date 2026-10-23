@@ -14,7 +14,7 @@ import {
   CheckSquare, Square, Milestone, CalendarCheck2, ArrowRight,
   GitCommitVertical, Filter, Printer, Pencil, Mic, MicOff, Save,
   Brain, Volume2, Utensils, GraduationCap, HelpCircle, Zap, Trash2,
-  Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2,
+  Wallet, Paperclip, UploadCloud, Download, FileType2, Loader2, ShieldCheck,
   Copy, RefreshCw, Moon,
 } from "lucide-react";
 import { GoalCodePreview } from "@/components/ui/goal-code-preview";
@@ -1524,6 +1524,8 @@ export default function PatientProfile() {
   const [epName, setEpName]           = useState("");
   const [epAge, setEpAge]             = useState("");
   const [epFechaNacimiento, setEpFechaNacimiento] = useState("");
+  const [epCoberturaMedica, setEpCoberturaMedica] = useState("");
+  const [epNumeroAfiliado, setEpNumeroAfiliado] = useState("");
   const [epDiagnosis, setEpDiagnosis] = useState("");
   const [epProf, setEpProf]           = useState("");
   const [epObs, setEpObs]             = useState("");
@@ -1684,6 +1686,8 @@ export default function PatientProfile() {
       setEpName(patient.name ?? "");
       setEpAge(patient.age != null ? String(patient.age) : "");
       setEpFechaNacimiento((patient as any).fechaNacimiento ?? "");
+      setEpCoberturaMedica(patient.coberturaMedica ?? "");
+      setEpNumeroAfiliado(patient.numeroAfiliado ?? "");
       setEpDiagnosis((patient as any).diagnosis ?? "");
       setEpProf((patient as any).profesionalNombre ?? "");
       setEpObs((patient as any).observaciones ?? "");
@@ -1737,6 +1741,8 @@ export default function PatientProfile() {
           name: epName.trim(),
           age: epAge ? parseInt(epAge) : null,
           fechaNacimiento: epFechaNacimiento || null,
+          coberturaMedica: epCoberturaMedica.trim() || null,
+          numeroAfiliado: epNumeroAfiliado.trim() || null,
           diagnosis: epDiagnosis || null,
           observaciones: epObs || null,
         }),
@@ -2208,6 +2214,12 @@ export default function PatientProfile() {
                   {formatEdad((patient as any).fechaNacimiento, patient.age) && <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-muted-foreground" />{formatEdad((patient as any).fechaNacimiento, patient.age)}</span>}
                   {(patient as any).franjaEtaria && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4 text-muted-foreground" />Franja {(patient as any).franjaEtaria}</span>}
                   {(patient as any).profesionalNombre && <span className="flex items-center gap-1.5"><Stethoscope className="h-4 w-4 text-muted-foreground" />{(patient as any).profesionalNombre}</span>}
+                  {patient.coberturaMedica && (
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                      Cobertura: {patient.coberturaMedica}
+                    </span>
+                  )}
                 </div>
                 {pct != null && (
                   <div className="mt-4 max-w-xs">
@@ -3251,6 +3263,46 @@ export default function PatientProfile() {
                     />
                   )}
                 </div>
+
+                <section
+                  aria-labelledby="ep-coverage-title"
+                  className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5"
+                >
+                  <div>
+                    <h3 id="ep-coverage-title" className="text-sm font-semibold text-foreground/80">
+                      Cobertura médica
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Opcional. Deja estos campos vacíos para pacientes particulares.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="ep-cobertura" className="text-xs font-semibold text-foreground/70">
+                      Obra social o prepaga <span className="font-normal text-muted-foreground">(opcional)</span>
+                    </label>
+                    <Input
+                      id="ep-cobertura"
+                      value={epCoberturaMedica}
+                      onChange={e => setEpCoberturaMedica(e.target.value)}
+                      placeholder="Nombre de la cobertura"
+                      className="bg-muted/50"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="ep-numero-afiliado" className="text-xs font-semibold text-foreground/70">
+                      Número de afiliado <span className="font-normal text-muted-foreground">(opcional)</span>
+                    </label>
+                    <Input
+                      id="ep-numero-afiliado"
+                      value={epNumeroAfiliado}
+                      onChange={e => setEpNumeroAfiliado(e.target.value)}
+                      placeholder="Número de afiliado"
+                      className="bg-muted/50"
+                      autoComplete="off"
+                    />
+                  </div>
+                </section>
 
                 <div className="space-y-1.5">
                   <label htmlFor="ep-diagnosis" className="text-xs font-semibold text-foreground/70">Diagnóstico</label>

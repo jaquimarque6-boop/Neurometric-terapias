@@ -319,6 +319,10 @@ export interface Patient {
   name: string;
   age?: number;
   fechaNacimiento?: string;
+  /** @nullable */
+  coberturaMedica?: string | null;
+  /** @nullable */
+  numeroAfiliado?: string | null;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;
@@ -410,6 +414,10 @@ export interface CreatePatient {
   name: string;
   age?: number;
   fechaNacimiento?: string;
+  /** @nullable */
+  coberturaMedica?: string | null;
+  /** @nullable */
+  numeroAfiliado?: string | null;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;
@@ -421,6 +429,10 @@ export interface UpdatePatient {
   name?: string;
   age?: number;
   fechaNacimiento?: string;
+  /** @nullable */
+  coberturaMedica?: string | null;
+  /** @nullable */
+  numeroAfiliado?: string | null;
   diagnosis?: string;
   profesionalNombre?: string;
   franjaEtaria?: string;

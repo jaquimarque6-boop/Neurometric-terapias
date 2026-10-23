@@ -1208,6 +1208,10 @@ components:
           type: integer
         fechaNacimiento:
           type: string
+        coberturaMedica:
+          type: ["string", "null"]
+        numeroAfiliado:
+          type: ["string", "null"]
         diagnosis:
           type: string
         profesionalNombre:
@@ -1289,6 +1293,10 @@ components:
           type: integer
         fechaNacimiento:
           type: string
+        coberturaMedica:
+          type: ["string", "null"]
+        numeroAfiliado:
+          type: ["string", "null"]
         diagnosis:
           type: string
         profesionalNombre:
@@ -1310,6 +1318,10 @@ components:
           type: integer
         fechaNacimiento:
           type: string
+        coberturaMedica:
+          type: ["string", "null"]
+        numeroAfiliado:
+          type: ["string", "null"]
         diagnosis:
           type: string
         profesionalNombre:

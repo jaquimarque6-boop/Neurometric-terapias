@@ -21,13 +21,27 @@ export function NuevoPacienteModal({
   const { toast }     = useToast();
   const createPatient = useCreatePatient();
 
-  const [form, setForm] = useState({ name: "", age: "", fechaNacimiento: "", diagnosis: "" });
+  const [form, setForm] = useState({
+    name: "",
+    age: "",
+    fechaNacimiento: "",
+    diagnosis: "",
+    coberturaMedica: "",
+    numeroAfiliado: "",
+  });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const canSave = form.name.trim().length > 0;
 
   const handleClose = () => {
-    setForm({ name: "", age: "", fechaNacimiento: "", diagnosis: "" });
+    setForm({
+      name: "",
+      age: "",
+      fechaNacimiento: "",
+      diagnosis: "",
+      coberturaMedica: "",
+      numeroAfiliado: "",
+    });
     onClose();
   };
 
@@ -39,6 +53,8 @@ export function NuevoPacienteModal({
       age: form.age ? parseInt(form.age) : undefined,
       fechaNacimiento: form.fechaNacimiento || undefined,
       diagnosis: form.diagnosis.trim() || undefined,
+      coberturaMedica: form.coberturaMedica.trim() || undefined,
+      numeroAfiliado: form.numeroAfiliado.trim() || undefined,
     };
 
     createPatient.mutate(
@@ -132,6 +148,46 @@ export function NuevoPacienteModal({
                 disabled={!!form.fechaNacimiento}
               />
             </div>
+
+            <section
+              aria-labelledby="np-coverage-title"
+              className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5"
+            >
+              <div>
+                <h3 id="np-coverage-title" className="text-sm font-semibold text-foreground/80">
+                  Cobertura médica
+                </h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Opcional. Deja estos campos vacíos para pacientes particulares.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="np-cobertura" className="text-sm font-medium text-foreground/80">
+                  Obra social o prepaga <span className="text-muted-foreground font-normal">(opcional)</span>
+                </label>
+                <Input
+                  id="np-cobertura"
+                  value={form.coberturaMedica}
+                  onChange={e => set("coberturaMedica", e.target.value)}
+                  placeholder="Nombre de la cobertura"
+                  className="bg-background"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="np-numero-afiliado" className="text-sm font-medium text-foreground/80">
+                  Número de afiliado <span className="text-muted-foreground font-normal">(opcional)</span>
+                </label>
+                <Input
+                  id="np-numero-afiliado"
+                  value={form.numeroAfiliado}
+                  onChange={e => set("numeroAfiliado", e.target.value)}
+                  placeholder="Número de afiliado"
+                  className="bg-background"
+                  autoComplete="off"
+                />
+              </div>
+            </section>
 
             <div className="space-y-1.5">
               <label htmlFor="np-diagnosis" className="text-sm font-medium text-foreground/80">

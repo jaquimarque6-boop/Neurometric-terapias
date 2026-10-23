@@ -7,6 +7,7 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AutoGrowTextarea } from "@/components/ui/auto-grow-textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
@@ -497,12 +498,14 @@ export default function SesionRapida() {
             </div>
           )}
 
-          <Textarea
+          <AutoGrowTextarea
+            minRows={7}
+            maxRows={16}
+            data-testid="session-notes-textarea"
             value={resumen}
             onChange={e => setResumen(e.target.value)}
             placeholder="Describe brevemente cómo fue la sesión, qué se trabajó, cómo respondió el paciente…"
-            className="min-h-[120px] resize-none bg-muted/20 text-sm rounded-xl border-border/60 focus-visible:ring-amber-400/30"
-            rows={5}
+            className="resize-none bg-muted/20 text-sm rounded-xl border-border/60 focus-visible:ring-amber-400/30"
           />
           <p className="text-[11px] text-muted-foreground text-right">{resumen.length > 0 ? `${resumen.length} caracteres` : "Campo libre"}</p>
         </div>
@@ -510,12 +513,14 @@ export default function SesionRapida() {
         {/* ── 5. Free observation ─────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-4 space-y-2">
           <label className="text-sm font-semibold text-foreground">Observación libre</label>
-          <Textarea
+          <AutoGrowTextarea
+            minRows={7}
+            maxRows={16}
+            data-testid="session-free-observation-textarea"
             value={observacion}
             onChange={e => setObservacion(e.target.value)}
             placeholder="Observaciones adicionales: conducta, contexto familiar, aspectos a seguir…"
-            className="min-h-[80px] resize-none bg-muted/20 text-sm rounded-xl border-border/60"
-            rows={3}
+            className="resize-none bg-muted/20 text-sm rounded-xl border-border/60"
           />
         </div>
 

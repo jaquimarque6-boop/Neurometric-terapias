@@ -1,5 +1,5 @@
 import { Brain, Check } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { AutoGrowTextarea } from "@/components/ui/auto-grow-textarea";
 import {
   getPsychologySessionSuggestions,
   PSYCHOLOGY_SESSION_AREAS,
@@ -139,13 +139,14 @@ export function PsychologySessionFields({
               </button>
             )}
           </div>
-          <Textarea
+          <AutoGrowTextarea
+            minRows={key === "interventions" || key === "objectives" ? 4 : 3}
+            maxRows={16}
             id={`psychology-session-${key}`}
             data-testid={`input-psychology-session-${key}`}
             value={value[key]}
             onChange={event => onChange({ ...value, [key]: event.target.value })}
-            rows={key === "interventions" || key === "objectives" ? 3 : 2}
-            className="resize-y bg-muted/30 text-sm"
+            className="resize-none bg-muted/30 text-sm"
             placeholder="Podés dejarlo vacío o agregar una nota propia."
           />
         </div>
