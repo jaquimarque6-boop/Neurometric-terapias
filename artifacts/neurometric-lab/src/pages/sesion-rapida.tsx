@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { AutoGrowTextarea } from "@/components/ui/auto-grow-textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import { useActividadesPass } from "@/hooks/use-actividades-pass";
 import { API_BASE } from "@/lib/api";
-import { ACTIVIDADES_URL } from "@/lib/actividades";
 import { LastSessionSummary } from "@/components/last-session-summary";
 import { getProfesion } from "@/utils/profession-map";
 import { hasSpecialtySpecificContent } from "@workspace/clinical-specialty";
@@ -96,6 +96,7 @@ export default function SesionRapida() {
   const search       = useSearch();
   const { toast }    = useToast();
   const { user }     = useAuth();
+  const { openActivities, openingActivities } = useActividadesPass();
 
   const preselectedId = parsePatientId(search);
 
@@ -553,13 +554,12 @@ export default function SesionRapida() {
 
           {/* Banco de Actividades (nueva pestaña, no interrumpe la sesión) */}
           <Button
-            asChild
             variant="outline"
+            onClick={() => void openActivities()}
+            disabled={openingActivities}
             className="w-full gap-2 border-sky-200 text-sky-700 hover:bg-sky-50 hover:border-sky-300"
           >
-            <a href={ACTIVIDADES_URL} target="_blank" rel="noopener noreferrer">
-              🎮 Abrir Banco de Actividades
-            </a>
+            {openingActivities ? "Conectando con Actividades…" : "🎮 Abrir Banco de Actividades"}
           </Button>
 
           {/* AI Organizer */}

@@ -16,3 +16,4 @@
 - [TSX component tests](tsx-component-tests.md) — Node/tsx tests may use a different JSX transform than Vite; make the React runtime explicit for server-render tests.
 - [Generated API contracts](generated-api-contracts.md) — after codegen, rebuild project-reference declarations; OpenAPI `format: date` can produce Zod Date objects for string dates.
 - [Mockup sandbox workflow](mockup-sandbox-workflow.md) — if the dev server cannot find Vite despite it being declared, re-link locked workspace dependencies before changing manifests.
+- [Activities pass access](actividades-pass-access.md) — every Terapias entry must use the pass and target `/acceso-terapias`; never link the public Lovable base.
