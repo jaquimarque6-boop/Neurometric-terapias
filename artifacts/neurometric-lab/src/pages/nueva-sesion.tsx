@@ -34,11 +34,11 @@ import {
   OrganizedRecordDialog,
   type OrganizedRecordFields,
 } from "@/components/organized-record-dialog";
-import { useActividadesPass } from "@/hooks/use-actividades-pass";
 
 import { getClinicalContent } from "@/config/goal-clinical-content";
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { API_BASE } from "@/lib/api";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 import { findAccessiblePatient, parsePatientId } from "@/lib/session-navigation";
 import { getPsychologyAgeStage } from "@/lib/psychology-clinical";
 import {
@@ -915,7 +915,6 @@ function calcPct(intentos: string, correctas: string): number | null {
 }
 
 export default function NuevaSesion() {
-  const { openActivities, openingActivities } = useActividadesPass();
   const [, navigate]               = useLocation();
   const search                     = useSearch();
   const { toast }                  = useToast();
@@ -3182,12 +3181,13 @@ export default function NuevaSesion() {
         {patient && (
           <div className="pb-3">
             <Button
+              asChild
               variant="outline"
-              onClick={() => void openActivities()}
-              disabled={openingActivities}
               className="w-full gap-2 border-sky-200 text-sky-700 hover:bg-sky-50 hover:border-sky-300"
             >
-              {openingActivities ? "Conectando con Actividades…" : "🎮 Abrir Banco de Actividades"}
+              <a href={ACTIVIDADES_URL} target="_blank" rel="noopener noreferrer">
+                🎮 Abrir Banco de Actividades
+              </a>
             </Button>
           </div>
         )}

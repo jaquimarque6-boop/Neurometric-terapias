@@ -3,7 +3,7 @@ import { Target, ChevronDown, CheckSquare, Square, ExternalLink } from "lucide-r
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useActividadesPass } from "@/hooks/use-actividades-pass";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 import type { PsychologyAgeStage } from "@/lib/psychology-clinical";
 import {
   buildPsychologySessionSummary,
@@ -18,6 +18,20 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+
+function getLovableUrl(area: string | null | undefined): string {
+  if (!area) return ACTIVIDADES_URL;
+  const k = area.toLowerCase().trim();
+  if (k.includes("lecto") || k.includes("lectura") || k.includes("escritura")) return `${ACTIVIDADES_URL}/?area=lectoescritura`;
+  if (k.includes("cogn") || k.includes("ejecut") || k.includes("memo") || k.includes("razon")) return `${ACTIVIDADES_URL}/?area=cognicion`;
+  if (k.includes("atenc") || k.includes("foco")) return `${ACTIVIDADES_URL}/?area=atencion`;
+  if (k.includes("hab") || k.includes("fonoló") || k.includes("fonolog") || k.includes("tsh") ||
+      k.includes("apraxi") || k.includes("disartr") || k.includes("degluc") || k.includes("voz") ||
+      k.includes("orofac") || k.includes("motric")) return `${ACTIVIDADES_URL}/?area=fonologia`;
+  if (k.includes("lenguaje") || k.includes("pragm") || k.includes("estimul") || k.includes("comunicac") ||
+      k.includes("tel") || k.includes("tdl")) return `${ACTIVIDADES_URL}/?area=lenguaje`;
+  return ACTIVIDADES_URL;
+}
 
 export type Goal = {
   id: number; patientId: number; goalLibraryId?: number | null;
@@ -57,7 +71,6 @@ export function RegistroForm({
   isSaving: boolean;
   onClose: () => void;
 }) {
-  const { openActivities, openingActivities } = useActividadesPass();
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split("T")[0],
     resumenSesion: "", observaciones: "", recomendacionesHogar: "",
@@ -153,20 +166,17 @@ export function RegistroForm({
                         {goal.areaClinica ?? goal.category}{goal.nivelDificultad ? ` · ${goal.nivelDificultad}` : ""}
                         {goal.status === "en progreso" && <span className="ml-1 text-amber-500">· En progreso</span>}
                       </p>
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          void openActivities();
-                        }}
-                        disabled={openingActivities}
-                        aria-busy={openingActivities}
+                      <a
+                        href={getLovableUrl(goal.areaClinica ?? goal.category)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
                         className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary/70 hover:text-primary transition-colors shrink-0"
-                        title="Abrir Actividades"
+                        title="Ver actividades para esta área"
                       >
                         <ExternalLink className="h-2.5 w-2.5" />
                         Actividades
-                      </button>
+                      </a>
                     </div>
                   </div>
                   {checked && (

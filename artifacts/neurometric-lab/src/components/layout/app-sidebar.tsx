@@ -30,8 +30,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useActividadesPass } from "@/hooks/use-actividades-pass";
 import { useOwnCollaboratorDashboard } from "@/hooks/use-collaborators";
+import { ACTIVIDADES_URL } from "@/lib/actividades";
 
 type NavItem = {
   title: string;
@@ -40,7 +40,6 @@ type NavItem = {
   adminOnly?: boolean;
   adminHidden?: boolean;
   external?: boolean;
-  action?: "open-activities";
 };
 
 const navItems: NavItem[] = [
@@ -51,7 +50,7 @@ const navItems: NavItem[] = [
   { title: "Registros Clínicos", url: "/registros",     icon: ClipboardList,   adminHidden: true },
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
-  { title: "Actividades",        action: "open-activities", icon: Sparkles,     adminHidden: true },
+  { title: "Actividades",        url: ACTIVIDADES_URL,  icon: Sparkles,        adminHidden: true, external: true },
   { title: "Mis materiales",     url: "/mis-materiales", icon: FolderLock,      adminHidden: true },
   { title: "Respaldo de datos",  url: "/respaldo",      icon: Download,        adminHidden: true },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },
@@ -64,7 +63,6 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const { openActivities, openingActivities } = useActividadesPass();
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "admin";
   const ownDashboard = useOwnCollaboratorDashboard();
@@ -108,7 +106,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="px-3 gap-0.5">
               {visibleItems.map((item) => {
-                const isActive = !item.external && !item.action && !!item.url && (
+                const isActive = !item.external && !!item.url && (
                   location === item.url ||
                   (item.url !== "/" && location.startsWith(item.url))
                 );
@@ -124,7 +122,7 @@ export function AppSidebar() {
                   </>
                 );
                 return (
-                  <SidebarMenuItem key={item.url ?? item.action ?? item.title}>
+                  <SidebarMenuItem key={item.url ?? item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
@@ -135,17 +133,7 @@ export function AppSidebar() {
                           : "text-sidebar-foreground/60 hover:bg-muted hover:text-sidebar-foreground"}
                       `}
                     >
-                      {item.action === "open-activities" ? (
-                        <button
-                          type="button"
-                          onClick={() => void openActivities()}
-                          disabled={openingActivities}
-                          aria-busy={openingActivities}
-                          className="flex items-center gap-3 px-3"
-                        >
-                          {linkContent}
-                        </button>
-                      ) : item.external ? (
+                      {item.external ? (
                         <a
                           href={item.url!}
                           target="_blank"

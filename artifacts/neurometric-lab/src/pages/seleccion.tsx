@@ -1,14 +1,17 @@
 import { useLocation } from "wouter";
 import { Activity, Stethoscope, Gamepad2, ArrowRight, ExternalLink } from "lucide-react";
 import { usePwa } from "@/pwa/experience";
-import { useActividadesPass } from "@/hooks/use-actividades-pass";
+
+const BANCO_ACTIVIDADES_URL = "https://therapy-spark-toolkit.lovable.app/";
 
 export default function SeleccionPage() {
   const { installMode, install } = usePwa();
-  const { openActivities, openingActivities } = useActividadesPass();
   const [, setLocation] = useLocation();
 
   const irAGestionClinica = () => setLocation("/");
+  const abrirBancoActividades = () => {
+    window.open(BANCO_ACTIVIDADES_URL, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -59,10 +62,8 @@ export default function SeleccionPage() {
           {/* Banco de Actividades */}
           <button
             type="button"
-            onClick={() => void openActivities()}
-            disabled={openingActivities}
-            aria-busy={openingActivities}
-            className="group text-left bg-card rounded-2xl border border-card-border shadow-sm p-7 transition-all hover:shadow-md hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-wait disabled:opacity-70"
+            onClick={abrirBancoActividades}
+            className="group text-left bg-card rounded-2xl border border-card-border shadow-sm p-7 transition-all hover:shadow-md hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary/10 text-primary mb-5">
               <Gamepad2 className="h-6 w-6" />
@@ -72,7 +73,7 @@ export default function SeleccionPage() {
               Recursos y actividades terapéuticas interactivas. Se abre en una pestaña nueva.
             </p>
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary mt-5 group-hover:gap-2.5 transition-all">
-              {openingActivities ? "Conectando…" : "Abrir"}
+              Abrir
               <ExternalLink className="h-4 w-4" />
             </span>
           </button>
