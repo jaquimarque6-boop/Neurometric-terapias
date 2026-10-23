@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -25,14 +25,17 @@ import { formatEdad, formatEdadCorta } from "@/utils/edad";
 import { buildSessionPath } from "@/lib/session-navigation";
 import {
   END_HOUR,
-  GRID_HEIGHT,
   HOURS_LABELS,
-  HOUR_PX,
   START_HOUR,
+  type AgendaViewMode,
+  gridHeightFor,
+  hourPxForView,
   heightPx,
   hourAtGridY,
+  readAgendaViewPreference,
   timeToMinutes,
   topPx,
+  writeAgendaViewPreference,
 } from "@/lib/agenda-layout";
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
@@ -105,6 +108,38 @@ export default function AgendaPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const [viewOverride, setViewOverride] = useState<{
+    userId: number | null;
+    mode: AgendaViewMode;
+  } | null>(null);
+  const currentUserId = user?.id ?? null;
+  const viewMode = viewOverride?.userId === currentUserId
+    ? viewOverride.mode
+    : readAgendaViewPreference(currentUserId);
+  const hourPx = hourPxForView(viewMode);
+  const gridHeight = gridHeightFor(hourPx);
+  const calendarScrollRef = useRef<HTMLDivElement>(null);
+  const dayHeadersRef = useRef<HTMLDivElement>(null);
+  const previousHourPxRef = useRef(hourPx);
+
+  useLayoutEffect(() => {
+    const previousHourPx = previousHourPxRef.current;
+    if (previousHourPx === hourPx) return;
+
+    const scrollContainer = calendarScrollRef.current;
+    if (scrollContainer) {
+      const dayHeaderHeight = dayHeadersRef.current?.offsetHeight ?? 0;
+      const timeOffset = Math.max(0, scrollContainer.scrollTop - dayHeaderHeight);
+      scrollContainer.scrollTop = dayHeaderHeight + (timeOffset * hourPx) / previousHourPx;
+    }
+    previousHourPxRef.current = hourPx;
+  }, [hourPx]);
+
+  const changeViewMode = (mode: AgendaViewMode) => {
+    setViewOverride({ userId: currentUserId, mode });
+    writeAgendaViewPreference(currentUserId, mode);
+  };
+
   const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(new Date()));
   // Recompute the week's days only when the selected week changes.
   const days = useMemo(() => weekDays(currentMonday), [currentMonday]);
@@ -311,12 +346,12 @@ export default function AgendaPage() {
           >
             <ChevronLeft className="h-3.5 w-3.5" /> Menú
           </button>
-          <div className="flex-1 flex items-center gap-2 max-w-2xl mx-auto">
+          <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-2 max-w-2xl mx-auto">
             <div>
               <h1 className="text-base font-semibold">Agenda</h1>
               <p className="text-xs text-muted-foreground capitalize">{formatWeekRange(currentMonday)}</p>
             </div>
-            <div className="flex items-center gap-1 ml-4">
+            <div className="flex items-center gap-1 ml-1 sm:ml-4">
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCurrentMonday(d => subWeeks(d, 1))}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -326,6 +361,32 @@ export default function AgendaPage() {
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCurrentMonday(d => addWeeks(d, 1))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+            <div
+              className="ml-auto flex shrink-0 items-center rounded-md border border-border/60 bg-muted/40 p-0.5"
+              role="group"
+              aria-label="Vista de agenda"
+              data-testid="agenda-view-selector"
+            >
+              {([
+                ["compact", "Compacta"],
+                ["expanded", "Ampliada"],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => changeViewMode(mode)}
+                  aria-pressed={viewMode === mode}
+                  data-testid={`agenda-view-${mode}`}
+                  className={`rounded px-2 py-1 text-[11px] font-medium transition-colors sm:text-xs ${
+                    viewMode === mode
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
           <Button
@@ -338,10 +399,10 @@ export default function AgendaPage() {
         </header>
 
         {/* Calendar grid */}
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div ref={calendarScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain">
           <div className="min-w-[980px]">
             {/* Day headers */}
-            <div className="sticky top-0 z-20 flex border-b border-border/50 bg-card/95 backdrop-blur">
+            <div ref={dayHeadersRef} className="sticky top-0 z-20 flex border-b border-border/50 bg-card/95 backdrop-blur">
               <div className="w-16 shrink-0" />
               {days.map((day, i) => (
                 <button
@@ -365,12 +426,12 @@ export default function AgendaPage() {
             {/* Time grid */}
             <div className="flex">
               {/* Hour labels */}
-              <div className="relative w-16 shrink-0" style={{ height: GRID_HEIGHT }}>
+              <div className="relative w-16 shrink-0" style={{ height: gridHeight }}>
                 {hoursLabels.map(h => (
                   <div
                     key={h}
                     className={`absolute right-2 text-xs font-medium leading-none text-muted-foreground ${h === START_HOUR ? "translate-y-0" : "-translate-y-1/2"}`}
-                    style={{ top: h === START_HOUR ? 6 : (h - START_HOUR) * HOUR_PX }}
+                    style={{ top: h === START_HOUR ? 6 : (h - START_HOUR) * hourPx }}
                   >
                     {String(h).padStart(2, "0")}:00
                   </div>
@@ -384,12 +445,12 @@ export default function AgendaPage() {
                   <div
                     key={dayIdx}
                     className={`group/col relative flex-1 cursor-pointer border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/[0.02]" : ""}`}
-                    style={{ height: GRID_HEIGHT }}
+                    style={{ height: gridHeight }}
                     onClick={e => {
                       if ((e.target as HTMLElement).closest("button")) return;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const relY = e.clientY - rect.top;
-                      const hour = hourAtGridY(relY);
+                      const hour = hourAtGridY(relY, hourPx);
                       openCreateForDay(day, hour);
                     }}
                   >
@@ -398,28 +459,30 @@ export default function AgendaPage() {
                       <div
                         key={h}
                         className="absolute left-0 right-0 border-t border-border/50"
-                        style={{ top: (h - START_HOUR) * HOUR_PX }}
+                        style={{ top: (h - START_HOUR) * hourPx }}
                       />
                     ))}
                     <div
                       className="absolute left-0 right-0 border-t border-border/60"
-                      style={{ top: GRID_HEIGHT }}
+                      style={{ top: gridHeight }}
                     />
                     {/* Half-hour dashed lines */}
                     {hoursLabels.map(h => (
                       <div
                         key={`h-${h}`}
                         className="absolute left-0 right-0 border-t border-dashed border-border/50/80"
-                        style={{ top: (h - START_HOUR) * HOUR_PX + HOUR_PX / 2 }}
+                        style={{ top: (h - START_HOUR) * hourPx + hourPx / 2 }}
                       />
                     ))}
 
                     {/* Appointments */}
                     {dayCitas.map(cita => {
-                      const top = topPx(cita.horaInicio);
-                      const height = heightPx(cita.horaInicio, cita.horaFin);
+                      const top = topPx(cita.horaInicio, hourPx);
+                      const height = heightPx(cita.horaInicio, cita.horaFin, hourPx);
                       const colors = ASISTENCIA_COLORS[cita.asistencia] ?? ASISTENCIA_COLORS.pendiente;
                       const durationMins = timeToMinutes(cita.horaFin) - timeToMinutes(cita.horaInicio);
+                      const showAppointmentTime = durationMins >= 30
+                        && (viewMode !== "compact" || durationMins >= 45);
                       const citaPatient = cita.patientId
                         ? (patients as any[]).find(p => p.id === cita.patientId)
                         : null;
@@ -432,15 +495,17 @@ export default function AgendaPage() {
                           className={`absolute left-1 right-1 overflow-hidden rounded-md border-l-4 text-left shadow-sm transition-all hover:brightness-95 hover:shadow-md active:scale-[0.99] ${colors.bg} ${colors.border}`}
                           style={{ top, height, zIndex: 1 }}
                         >
-                          <div className="flex h-full min-w-0 flex-col justify-start gap-0.5 px-2 py-0.5">
-                            <span className={`truncate text-xs font-semibold leading-4 ${colors.text}`}>
+                          <div className={`flex h-full min-w-0 flex-col justify-start ${
+                            viewMode === "compact" ? "gap-0 px-1 py-0" : "gap-0.5 px-2 py-0.5"
+                          }`}>
+                            <span className={`${viewMode === "compact" ? "truncate text-[10px] leading-3" : "truncate text-xs leading-4"} font-semibold ${colors.text}`}>
                               {displayName}
                               {citaPatient && formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age) && (
                                 <span className="font-normal opacity-60"> · {formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age)}</span>
                               )}
                             </span>
-                            {durationMins >= 30 && (
-                              <span className={`whitespace-nowrap text-[11px] leading-3 ${colors.text} opacity-70`}>
+                            {showAppointmentTime && (
+                              <span className={`whitespace-nowrap ${viewMode === "compact" ? "text-[9px]" : "text-[11px]"} leading-3 ${colors.text} opacity-70`}>
                                 {cita.horaInicio}–{cita.horaFin}
                               </span>
                             )}
