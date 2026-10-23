@@ -82,3 +82,15 @@ export function hasSpecialtySpecificContent(
     specialty === "terapia_ocupacional"
   );
 }
+
+export {
+  formatPsychologySessionSummary,
+  parsePsychologySessionSummary,
+  serializePsychologySessionSummary,
+  PSYCHOLOGY_SESSION_SECTION_LABELS,
+} from "./psychology-session-format";
+export type {
+  PsychologySessionArea,
+  PsychologySessionFields,
+  StructuredPsychologySession,
+} from "./psychology-session-format";

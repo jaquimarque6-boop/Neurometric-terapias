@@ -15,6 +15,7 @@ import {
   buildPsychologySessionSummary,
   createEmptyPsychologySessionDraft,
 } from "../../neurometric-lab/src/lib/psychology-session";
+import { parsePsychologySessionSummary } from "@workspace/clinical-specialty";
 
 // Bundle only the real route source. No application bootstrap, session store,
 // database pool or external AI client is loaded by this harness.
@@ -523,12 +524,12 @@ test("clinical-record routes preserve structured Psychology notes when saving an
     ["emotion", "strengths"],
     {
       ...createEmptyPsychologySessionDraft(),
-      focus: "Explorar recursos actuales.",
-      objectives: "Acordar un objetivo con la persona.",
-      nextSteps: "Revisar el objetivo en el próximo encuentro.",
+      focus: "Explorar recursos; incluir coma, |, ñ y 🧠.",
+      interventions: 'Recurso "A"\nsegunda línea',
     },
   );
   const observations = "Registrar hechos observables y su contexto.";
+  let firstRecordId: number | null = null;
 
   for (let index = 0; index < ages.length; index += 1) {
     const created = await request("POST", "/registros-clinicos", "owner", {
@@ -538,6 +539,7 @@ test("clinical-record routes preserve structured Psychology notes when saving an
       observaciones: observations,
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
+    if (index === 0) firstRecordId = created.body.id;
 
     const recovered = await request(
       "GET",
@@ -547,7 +549,34 @@ test("clinical-record routes preserve structured Psychology notes when saving an
     assert.equal(recovered.status, 200, JSON.stringify(recovered.body));
     assert.equal(recovered.body.resumenSesion, summary);
     assert.equal(recovered.body.observaciones, observations);
+    const parsed = parsePsychologySessionSummary(recovered.body.resumenSesion);
+    assert.ok(parsed);
+    assert.equal(parsed.fields.objectives, "");
+    assert.equal(parsed.fields.evolution, "");
   }
+
+  assert.ok(firstRecordId);
+  const revisedSummary = buildPsychologySessionSummary(
+    ["emotion", "strengths"],
+    {
+      ...createEmptyPsychologySessionDraft(),
+      focus: "Foco editado con símbolo → y acento.",
+      interventions: 'Recurso "A"\nsegunda línea',
+    },
+  );
+  const edited = await request("PATCH", `/registros-clinicos/${firstRecordId}`, "owner", {
+    resumenSesion: revisedSummary,
+  });
+  assert.equal(edited.status, 200, JSON.stringify(edited.body));
+
+  const reopened = await request("GET", `/registros-clinicos/${firstRecordId}`, "owner");
+  assert.equal(reopened.status, 200);
+  const finalSummary = parsePsychologySessionSummary(reopened.body.resumenSesion);
+  assert.ok(finalSummary);
+  assert.equal(finalSummary.fields.focus, "Foco editado con símbolo → y acento.");
+  assert.equal(finalSummary.fields.interventions, 'Recurso "A"\nsegunda línea');
+  assert.equal(finalSummary.fields.objectives, "");
+  assert.equal(reopened.body.observaciones, observations);
 });
 
 test("editing clinical record materials preserves, removes, and cleans up photos under record access checks", async () => {

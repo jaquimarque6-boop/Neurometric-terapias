@@ -22,10 +22,29 @@ import { RegistroForm, PERFORMANCE_MAP, type Goal } from "@/components/registro-
 import { AREA_SUBAREAS } from "@/utils/goal-code-generator";
 import { EvalSugerida } from "@/components/eval-sugerida";
 import { getProfesion } from "@/utils/profession-map";
-import { hasSpecialtySpecificContent, normalizeClinicalSpecialty } from "@workspace/clinical-specialty";
+import {
+  formatPsychologySessionSummary,
+  hasSpecialtySpecificContent,
+  normalizeClinicalSpecialty,
+  parsePsychologySessionSummary,
+  type PsychologySessionArea,
+} from "@workspace/clinical-specialty";
 import { AnamnesisPhotoImportDialog } from "@/components/anamnesis-photo-import-dialog";
 import { PsychologyClinicalEditor } from "@/components/patients/psychology-clinical-editor";
-import type { PsychologyClinicalData } from "@/lib/psychology-clinical";
+import {
+  getPsychologyAgeStage,
+  type PsychologyClinicalData,
+} from "@/lib/psychology-clinical";
+import {
+  buildPsychologySessionSummary,
+  createEmptyPsychologySessionDraft,
+  PSYCHOLOGY_SESSION_AREAS,
+  type PsychologySessionDraft,
+} from "@/lib/psychology-session";
+import {
+  PsychologySessionFields,
+  PsychologySessionGuide,
+} from "@/components/psychology-session-guide";
 import {
   useGetPatient,
   useListRegistrosClinicos,
@@ -334,7 +353,7 @@ function generarResumenProceso(
     (a, b) => new Date(b.fecha || b.createdAt).getTime() - new Date(a.fecha || a.createdAt).getTime()
   );
   const observaciones = sesionesOrdenadas.map(r => r.observaciones).filter(Boolean) as string[];
-  const notas         = sesionesOrdenadas.map(r => r.resumenSesion).filter(Boolean) as string[];
+  const notas         = sesionesOrdenadas.map(r => formatPsychologySessionSummary(r.resumenSesion)).filter(Boolean);
   const allObs        = [...observaciones, ...notas].join(" ").toLowerCase();
 
   const nombre = patient.name.split(" ")[0];
@@ -404,7 +423,7 @@ function generarConductaSesiones(registros: RC[], goals: Goal[] = []): string {
   );
 
   const todasObs   = sesionesOrdenadas.map(r => r.observaciones).filter(Boolean) as string[];
-  const todasNotas = sesionesOrdenadas.map(r => r.resumenSesion).filter(Boolean) as string[];
+  const todasNotas = sesionesOrdenadas.map(r => formatPsychologySessionSummary(r.resumenSesion)).filter(Boolean);
 
   if (todasObs.length === 0 && todasNotas.length === 0) {
     return "A lo largo de las sesiones se ha observado una actitud general de participación en las actividades propuestas. Se recomienda completar el campo de observaciones clínicas en cada sesión para enriquecer esta sección con datos específicos del comportamiento del paciente.";
@@ -497,9 +516,9 @@ function generarNarrativaArea(area: string, areaGoals: Goal[], registros: RC[]):
   } else {
     parts.push("El trabajo en esta área se encuentra en etapa inicial, requiriéndose apoyo sistemático y estrategias de moldeamiento progresivo.");
   }
-  const nota = registros.find(r => r.resumenSesion?.toLowerCase().includes(area.toLowerCase()));
+  const nota = registros.find(r => formatPsychologySessionSummary(r.resumenSesion).toLowerCase().includes(area.toLowerCase()));
   if (nota?.resumenSesion) {
-    const n = nota.resumenSesion;
+    const n = formatPsychologySessionSummary(nota.resumenSesion);
     parts.push(`Nota de sesión: "${n.slice(0, 180)}${n.length > 180 ? "…" : ""}"`);
   }
   return parts.join(" ");
@@ -1361,7 +1380,7 @@ export default function PatientProfile() {
   const { data: patient, isLoading: loadingPatient } = useGetPatient(patientId);
   const { data: allRegistros = [] } = useListRegistrosClinicos(
     { patientId },
-    { query: { refetchOnMount: "always" } },
+    { query: { queryKey: getListRegistrosClinicosQueryKey({ patientId }), refetchOnMount: "always" } },
   );
   const { data: allGoals = [] }     = useListGoals({ patientId });
   const { data: assignments = [] }  = useListPatientProfessionals({ patientId });
@@ -1521,9 +1540,16 @@ export default function PatientProfile() {
   const [erResumen, setErResumen]                 = useState("");
   const [erObs, setErObs]                         = useState("");
   const [erHogar, setErHogar]                     = useState("");
+  const [erPsychologySession, setErPsychologySession] = useState<{
+    areas: PsychologySessionArea[];
+    fields: PsychologySessionDraft;
+  } | null>(null);
   const [erMateriales, setErMateriales]           = useState<SessionMaterialDraft[]>([]);
   const [editingMaterialsLoadedFor, setEditingMaterialsLoadedFor] = useState<string | null>(null);
   const [isSavingRegistro, setIsSavingRegistro]   = useState(false);
+  const editingStructuredSummary = parsePsychologySessionSummary(editingRegistro?.resumenSesion);
+  const canEditStructuredPsychology = isPsychology && !!editingStructuredSummary;
+  const mustPreserveStructuredSummary = !isPsychology && !!editingStructuredSummary;
   const editMaterialsIdentity = editingRegistro && user?.id
     ? `${editingRegistro.id}:${user.id}`
     : null;
@@ -1667,12 +1693,18 @@ export default function PatientProfile() {
   // Pre-fill edit registro form when editing a registro
   useEffect(() => {
     if (editingRegistro) {
+      const structuredSummary = parsePsychologySessionSummary(editingRegistro.resumenSesion);
       setErFecha(editingRegistro.fecha ?? "");
-      setErResumen(editingRegistro.resumenSesion ?? "");
+      setErResumen(formatPsychologySessionSummary(editingRegistro.resumenSesion));
+      setErPsychologySession(
+        isPsychology && structuredSummary
+          ? { areas: structuredSummary.areas, fields: structuredSummary.fields }
+          : null,
+      );
       setErObs(editingRegistro.observaciones ?? "");
       setErHogar(editingRegistro.recomendacionesHogar ?? "");
     }
-  }, [editingRegistro]);
+  }, [editingRegistro, isPsychology]);
 
   useEffect(() => {
     if (
@@ -2042,12 +2074,14 @@ export default function PatientProfile() {
   const closeEditRegistro = () => {
     stopRecordingEr();
     setEditingRegistro(null);
+    setErPsychologySession(null);
     setErMateriales([]);
     setEditingMaterialsLoadedFor(null);
   };
 
   const handleSaveEditRegistro = async () => {
     if (!editingRegistro) return;
+    if (canEditStructuredPsychology && !erPsychologySession) return;
     const shouldSaveMaterials = editMaterialsIdentity !== null
       && editingMaterialsLoadedFor === editMaterialsIdentity;
     if (shouldSaveMaterials && erMateriales.some(material => !material.nombre.trim())) {
@@ -2064,7 +2098,15 @@ export default function PatientProfile() {
     try {
       const patch: Record<string, unknown> = {
         fecha: erFecha,
-        resumenSesion: erResumen || null,
+        resumenSesion: canEditStructuredPsychology && erPsychologySession
+          ? buildPsychologySessionSummary(
+              erPsychologySession.areas.map(area => area.id),
+              erPsychologySession.fields,
+              erPsychologySession.areas,
+            )
+          : mustPreserveStructuredSummary
+            ? editingRegistro.resumenSesion ?? null
+            : erResumen || null,
         observaciones: erObs || null,
         recomendacionesHogar: erHogar || null,
       };
@@ -2703,8 +2745,9 @@ export default function PatientProfile() {
                   [...registros].sort((a, b) => b.fecha.localeCompare(a.fecha)).map(r => {
                     const isExpanded = expanded === r.id;
                     // Build a short session title: date + first line of resumen
-                    const shortTitle = r.resumenSesion
-                      ? r.resumenSesion.split(/[\n.]/)[0].slice(0, 60).trim()
+                    const readableSummary = formatPsychologySessionSummary(r.resumenSesion);
+                    const shortTitle = readableSummary
+                      ? readableSummary.split(/[\n.]/)[0].slice(0, 60).trim()
                       : null;
                     return (
                       <div key={r.id} className="p-4">
@@ -2751,7 +2794,7 @@ export default function PatientProfile() {
                         {isExpanded && (
                           <div className="mt-3 ml-11 space-y-2.5">
                             {r.resumenSesion && (
-                              <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed">{r.resumenSesion}</p>
+                              <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed">{formatPsychologySessionSummary(r.resumenSesion)}</p>
                             )}
                             <div className="grid sm:grid-cols-2 gap-2">
                               {r.observaciones && (
@@ -3267,8 +3310,60 @@ export default function PatientProfile() {
                 <Input type="date" value={erFecha} onChange={e => setErFecha(e.target.value)} className="bg-muted/50" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/70">Resumen de sesión</label>
-                <Textarea value={erResumen} onChange={e => setErResumen(e.target.value)} placeholder="¿Qué se trabajó en la sesión?" rows={3} className="bg-muted/50 resize-none text-sm" />
+                {canEditStructuredPsychology ? (
+                  erPsychologySession ? (
+                    <div className="space-y-3">
+                      <PsychologySessionGuide
+                        stageLabel="Áreas de la sesión"
+                        formattedAge={null}
+                        selectedAreaIds={erPsychologySession.areas.map(area => area.id)}
+                        showAgeContext={false}
+                        onSelectedAreaIdsChange={ids => setErPsychologySession(current => {
+                          if (!current) return current;
+                          const knownIds = new Set<string>(PSYCHOLOGY_SESSION_AREAS.map(area => area.id));
+                          const selectedAreas = PSYCHOLOGY_SESSION_AREAS.filter(area => ids.includes(area.id));
+                          const preservedAreas = current.areas.filter(area => !knownIds.has(area.id));
+                          return { ...current, areas: [...selectedAreas, ...preservedAreas] };
+                        })}
+                      />
+                      {erPsychologySession.areas.some(
+                        area => !PSYCHOLOGY_SESSION_AREAS.some(known => known.id === area.id),
+                      ) && (
+                        <p className="text-xs text-muted-foreground">
+                          Las áreas anteriores que ya no están disponibles se conservarán al guardar.
+                        </p>
+                      )}
+                      <PsychologySessionFields
+                        stage="desconocida"
+                        selectedAreaIds={erPsychologySession.areas.map(area => area.id)}
+                        value={erPsychologySession.fields}
+                        onChange={fields => setErPsychologySession(current => current ? { ...current, fields } : current)}
+                        showSuggestions={false}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" role="status">
+                      Cargando las secciones guardadas…
+                    </p>
+                  )
+                ) : (
+                  <>
+                    <label className="text-xs font-semibold text-foreground/70">Resumen de sesión</label>
+                    <Textarea
+                      value={erResumen}
+                      onChange={e => setErResumen(e.target.value)}
+                      readOnly={mustPreserveStructuredSummary}
+                      placeholder="¿Qué se trabajó en la sesión?"
+                      rows={3}
+                      className="bg-muted/50 resize-none text-sm"
+                    />
+                    {mustPreserveStructuredSummary && (
+                      <p className="text-xs text-muted-foreground">
+                        Este registro está organizado por secciones y solo puede editarse desde una cuenta de Psicología.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -3339,7 +3434,7 @@ export default function PatientProfile() {
               <Button variant="outline" className="flex-1" onClick={closeEditRegistro} disabled={isSavingRegistro}>
                 Cancelar
               </Button>
-              <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro}>
+              <Button className="flex-1 bg-primary text-white hover:bg-primary/90" onClick={handleSaveEditRegistro} disabled={!erFecha || isSavingRegistro || (canEditStructuredPsychology && !erPsychologySession)}>
                 <Save className="h-4 w-4 mr-1.5" /> {isSavingRegistro ? "Guardando…" : "Guardar cambios"}
               </Button>
             </div>
@@ -3360,6 +3455,8 @@ export default function PatientProfile() {
             <RegistroForm
               patientId={patientId}
               workingGoals={[...activeGoals, ...inProgressGoals]}
+              isPsychology={isPsychology}
+              psychologyAge={getPsychologyAgeStage(patient.fechaNacimiento, patient.age)}
               onSave={handleSaveRegistro}
               isSaving={isSavingRC}
               onClose={() => setShowRegForm(false)}

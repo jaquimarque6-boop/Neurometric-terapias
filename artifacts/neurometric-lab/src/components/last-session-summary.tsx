@@ -4,6 +4,7 @@ import { API_BASE } from "@/lib/api";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { formatPsychologySessionSummary } from "@workspace/clinical-specialty";
 
 const BRAND_BLUE = "#E07A5F";
 const BRAND_TEAL = "#81B29A";
@@ -85,7 +86,7 @@ function SessionBody({ record, onOpenDetail }: { record: ClinicalRecord; onOpenD
         <div className="relative max-h-[11.5rem] overflow-hidden">
           <div className="space-y-2">
             {record.diagnostico && <PreviewSection label="Diagnóstico" value={record.diagnostico} />}
-            {record.resumenSesion && <PreviewSection label="Resumen" value={record.resumenSesion} />}
+            {record.resumenSesion && <PreviewSection label="Resumen" value={formatPsychologySessionSummary(record.resumenSesion)} />}
             {record.observaciones && <PreviewSection label="Observaciones / evolución" value={record.observaciones} />}
             {record.recomendacionesHogar && <PreviewSection label="Recomendaciones para el hogar" value={record.recomendacionesHogar} />}
           </div>
@@ -178,7 +179,7 @@ function RecordDetailModal({ record, onClose }: { record: ClinicalRecord | null;
             </div>
 
             <DetailField label="Diagnóstico" value={record.diagnostico} icon={<Stethoscope className="h-3 w-3" style={{ color: BRAND_TEAL }} />} />
-            <DetailField label="Resumen de la sesión" value={record.resumenSesion} />
+            <DetailField label="Resumen de la sesión" value={formatPsychologySessionSummary(record.resumenSesion)} />
             <DetailField label="Observaciones / evolución" value={record.observaciones} />
             <DetailField label="Recomendaciones para el hogar" value={record.recomendacionesHogar} icon={<Home className="h-3 w-3" style={{ color: BRAND_TEAL }} />} />
 

@@ -1,4 +1,10 @@
 import type { PsychologyAgeStage } from "./psychology-clinical";
+import {
+  PSYCHOLOGY_SESSION_SECTION_LABELS,
+  serializePsychologySessionSummary,
+  type PsychologySessionArea,
+  type PsychologySessionFields,
+} from "@workspace/clinical-specialty";
 
 export const PSYCHOLOGY_SESSION_AREAS = [
   { id: "emotion", label: "Regulación e identificación emocional" },
@@ -15,30 +21,13 @@ export const PSYCHOLOGY_SESSION_AREAS = [
 
 export type PsychologySessionAreaId = (typeof PSYCHOLOGY_SESSION_AREAS)[number]["id"];
 
-export type PsychologySessionDraft = {
-  focus: string;
-  objectives: string;
-  interventions: string;
-  participation: string;
-  evolution: string;
-  nextSteps: string;
-};
+export type PsychologySessionDraft = PsychologySessionFields;
 
 export type PsychologySessionSuggestionKey =
   | keyof PsychologySessionDraft
   | "clinicalObservations";
 
-export const PSYCHOLOGY_SESSION_FIELDS: {
-  key: keyof PsychologySessionDraft;
-  label: string;
-}[] = [
-  { key: "focus", label: "Foco terapéutico" },
-  { key: "objectives", label: "Objetivos de la sesión" },
-  { key: "interventions", label: "Intervenciones y técnicas utilizadas" },
-  { key: "participation", label: "Respuesta y participación del paciente" },
-  { key: "evolution", label: "Evolución observada" },
-  { key: "nextSteps", label: "Próximos pasos" },
-];
+export const PSYCHOLOGY_SESSION_FIELDS = PSYCHOLOGY_SESSION_SECTION_LABELS;
 
 export function createEmptyPsychologySessionDraft(): PsychologySessionDraft {
   return {
@@ -123,21 +112,17 @@ export function getPsychologySessionSuggestions(
 export function buildPsychologySessionSummary(
   selectedAreaIds: readonly string[],
   draft: PsychologySessionDraft,
+  preservedAreas: readonly PsychologySessionArea[] = [],
 ): string {
-  const selectedAreas = PSYCHOLOGY_SESSION_AREAS
-    .filter(area => selectedAreaIds.includes(area.id))
-    .map(area => area.label);
-  const sections: string[] = [];
-
-  if (selectedAreas.length) {
-    sections.push(`Áreas trabajadas: ${selectedAreas.join(", ")}`);
-  }
-  for (const { key, label } of PSYCHOLOGY_SESSION_FIELDS) {
-    const value = draft[key].trim();
-    if (value) sections.push(`${label}: ${value}`);
-  }
-
-  return sections.join("\n");
+  const knownAreas = selectedAreaIds
+    .map(id => PSYCHOLOGY_SESSION_AREAS.find(area => area.id === id))
+    .filter((area): area is (typeof PSYCHOLOGY_SESSION_AREAS)[number] => !!area);
+  const knownIds = new Set<string>(PSYCHOLOGY_SESSION_AREAS.map(area => area.id));
+  const forwardCompatibleAreas = preservedAreas.filter(area => !knownIds.has(area.id));
+  return serializePsychologySessionSummary(
+    [...knownAreas, ...forwardCompatibleAreas],
+    draft,
+  );
 }
 
 export function hasPsychologySessionContent(

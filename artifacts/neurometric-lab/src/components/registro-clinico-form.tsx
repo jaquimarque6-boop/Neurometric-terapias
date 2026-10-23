@@ -3,6 +3,17 @@ import { Target, ChevronDown, CheckSquare, Square, ExternalLink } from "lucide-r
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { PsychologyAgeStage } from "@/lib/psychology-clinical";
+import {
+  buildPsychologySessionSummary,
+  createEmptyPsychologySessionDraft,
+  hasPsychologySessionContent,
+  type PsychologySessionDraft,
+} from "@/lib/psychology-session";
+import {
+  PsychologySessionFields,
+  PsychologySessionGuide,
+} from "@/components/psychology-session-guide";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -43,12 +54,20 @@ export const PERFORMANCE_MAP: Record<string, { label: string; statusNuevo: strin
 export function RegistroForm({
   patientId,
   workingGoals,
+  isPsychology,
+  psychologyAge,
   onSave,
   isSaving,
   onClose,
 }: {
   patientId: number;
   workingGoals: Goal[];
+  isPsychology: boolean;
+  psychologyAge: {
+    stage: PsychologyAgeStage;
+    label: string;
+    formattedAge: string | null;
+  };
   onSave: (d: { registro: any; goalUpdates: Array<{ goalId: number; performance: string }> }) => void;
   isSaving: boolean;
   onClose: () => void;
@@ -58,6 +77,10 @@ export function RegistroForm({
     resumenSesion: "", observaciones: "", recomendacionesHogar: "",
   });
   const [selectedGoals, setSelectedGoals] = useState<Record<number, string>>({});
+  const [psychologyAreas, setPsychologyAreas] = useState<string[]>([]);
+  const [psychologySession, setPsychologySession] = useState<PsychologySessionDraft>(
+    createEmptyPsychologySessionDraft,
+  );
   const [showNotes, setShowNotes] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -78,7 +101,12 @@ export function RegistroForm({
     goalId: parseInt(id), performance,
   }));
 
-  const canSave = form.fecha && (goalUpdates.length > 0 || form.resumenSesion.trim());
+  const canSave = form.fecha && (
+    goalUpdates.length > 0 ||
+    (isPsychology
+      ? hasPsychologySessionContent(psychologyAreas, psychologySession, form.observaciones)
+      : form.resumenSesion.trim())
+  );
 
   const perfBadgeColor: Record<string, string> = {
     "logrado":     "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -174,6 +202,23 @@ export function RegistroForm({
         )}
       </div>
 
+      {isPsychology && (
+        <div className="space-y-3">
+          <PsychologySessionGuide
+            stageLabel={psychologyAge.label}
+            formattedAge={psychologyAge.formattedAge}
+            selectedAreaIds={psychologyAreas}
+            onSelectedAreaIdsChange={setPsychologyAreas}
+          />
+          <PsychologySessionFields
+            stage={psychologyAge.stage}
+            selectedAreaIds={psychologyAreas}
+            value={psychologySession}
+            onChange={setPsychologySession}
+          />
+        </div>
+      )}
+
       {/* Optional notes — collapsible */}
       <div>
         <button
@@ -188,11 +233,13 @@ export function RegistroForm({
 
         {showNotes && (
           <div className="space-y-3 pt-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground/80">Resumen de sesión</label>
-              <Textarea rows={2} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)}
-                placeholder="Describe lo trabajado en sesión..." className="bg-muted/50 resize-none text-sm" />
-            </div>
+            {!isPsychology && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground/80">Resumen de sesión</label>
+                <Textarea rows={2} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)}
+                  placeholder="Describe lo trabajado en sesión..." className="bg-muted/50 resize-none text-sm" />
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground/80">Observaciones clínicas</label>
               <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)}
@@ -216,7 +263,9 @@ export function RegistroForm({
             registro: {
               patientId,
               fecha: form.fecha,
-              resumenSesion: form.resumenSesion || undefined,
+              resumenSesion: isPsychology
+                ? buildPsychologySessionSummary(psychologyAreas, psychologySession)
+                : form.resumenSesion || undefined,
               observaciones: form.observaciones || undefined,
               recomendacionesHogar: form.recomendacionesHogar || undefined,
             },

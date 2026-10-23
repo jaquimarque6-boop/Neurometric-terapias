@@ -14,6 +14,7 @@ import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
+  formatPsychologySessionSummary,
   resolveClinicalSpecialty,
   type ClinicalSpecialty,
 } from "@workspace/clinical-specialty";
@@ -286,7 +287,7 @@ router.post("/ai/perfil-generate", async (req, res) => {
     ? "Sin sesiones registradas."
     : sortedRC.map((r) => {
         const parts = [`[${r.fecha}]`];
-        if (r.resumenSesion) parts.push(`Resumen: ${trunc(r.resumenSesion, 400)}`);
+        if (r.resumenSesion) parts.push(`Resumen: ${trunc(formatPsychologySessionSummary(r.resumenSesion), 400)}`);
         if (r.observaciones) parts.push(`Observaciones: ${trunc(r.observaciones, 400)}`);
         return parts.join(" ");
       }).join("\n");

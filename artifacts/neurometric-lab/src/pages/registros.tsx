@@ -14,6 +14,11 @@ import {
   getListRegistrosClinicosQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  formatPsychologySessionSummary,
+  normalizeClinicalSpecialty,
+  parsePsychologySessionSummary,
+} from "@workspace/clinical-specialty";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +33,18 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  PsychologySessionFields,
+  PsychologySessionGuide,
+} from "@/components/psychology-session-guide";
+import {
+  buildPsychologySessionSummary,
+  createEmptyPsychologySessionDraft,
+  PSYCHOLOGY_SESSION_AREAS,
+  type PsychologySessionDraft,
+} from "@/lib/psychology-session";
+import { getPsychologyAgeStage } from "@/lib/psychology-clinical";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -50,6 +67,8 @@ function formatFecha(fecha: string) {
 export default function Registros() {
   const { data: registros = [], isLoading } = useListRegistrosClinicos();
   const { data: patients = [] } = useListPatients();
+  const { user } = useAuth();
+  const isPsychologyAccount = normalizeClinicalSpecialty(user?.specialty) === "psicologia";
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -72,7 +91,7 @@ export default function Registros() {
     const matchSearch = !q ||
       (r.patientName ?? "").toLowerCase().includes(q) ||
       (r.professionalName ?? "").toLowerCase().includes(q) ||
-      (r.resumenSesion ?? "").toLowerCase().includes(q);
+      formatPsychologySessionSummary(r.resumenSesion).toLowerCase().includes(q);
     const matchPatient = patientFilter === "all" || r.patientName === patientFilter;
     return matchSearch && matchPatient;
   });
@@ -148,7 +167,7 @@ export default function Registros() {
                         </div>
                         {r.resumenSesion && (
                           <p className={`text-sm text-foreground/80 mt-2 leading-relaxed ${expanded === r.id ? "" : "line-clamp-2"}`}>
-                            {r.resumenSesion}
+                            {formatPsychologySessionSummary(r.resumenSesion)}
                           </p>
                         )}
                       </div>
@@ -203,8 +222,10 @@ export default function Registros() {
 
       {(showForm || editing) && (
         <RegistroForm
+          key={`${editing?.id ?? "new"}:${isPsychologyAccount}`}
           registro={editing}
           patients={patients}
+          isPsychologyAccount={isPsychologyAccount}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); }}
           isSaving={create.isPending || update.isPending}
@@ -233,24 +254,61 @@ export default function Registros() {
 }
 
 function RegistroForm({
-  registro, patients, onSave, onClose, isSaving,
+  registro, patients, isPsychologyAccount, onSave, onClose, isSaving,
 }: {
   registro: RC | null;
-  patients: Array<{ id: number; name: string }>;
+  patients: Array<{
+    id: number;
+    name: string;
+    age?: number | null;
+    fechaNacimiento?: string | null;
+  }>;
+  isPsychologyAccount: boolean;
   onSave: (data: any) => void;
   onClose: () => void;
   isSaving: boolean;
 }) {
+  const parsedSummary = parsePsychologySessionSummary(registro?.resumenSesion);
+  const showPsychologyEditor = isPsychologyAccount && (!registro || !!parsedSummary);
+  const preserveStructuredSummary = !!parsedSummary && !isPsychologyAccount;
   const [form, setForm] = useState({
     patientId: registro?.patientId?.toString() ?? "",
     fecha: registro?.fecha ?? new Date().toISOString().split("T")[0],
-    resumenSesion: registro?.resumenSesion ?? "",
+    resumenSesion: parsedSummary
+      ? formatPsychologySessionSummary(registro?.resumenSesion)
+      : registro?.resumenSesion ?? "",
     observaciones: registro?.observaciones ?? "",
     recomendacionesHogar: registro?.recomendacionesHogar ?? "",
+  });
+  const [psychologySession, setPsychologySession] = useState<{
+    areas: Array<{ id: string; label: string }>;
+    fields: PsychologySessionDraft;
+  } | null>(() => {
+    if (isPsychologyAccount && parsedSummary) {
+      return { areas: parsedSummary.areas, fields: parsedSummary.fields };
+    }
+    if (isPsychologyAccount && !registro) {
+      return { areas: [], fields: createEmptyPsychologySessionDraft() };
+    }
+    return null;
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
   const canSave = form.patientId && form.fecha;
+  const selectedPatient = patients.find(patient => patient.id === Number(form.patientId));
+  const psychologyAge = getPsychologyAgeStage(
+    selectedPatient?.fechaNacimiento,
+    selectedPatient?.age,
+  );
+  const summaryForSave = showPsychologyEditor && psychologySession
+    ? buildPsychologySessionSummary(
+        psychologySession.areas.map(area => area.id),
+        psychologySession.fields,
+        psychologySession.areas,
+      )
+    : preserveStructuredSummary
+      ? registro?.resumenSesion ?? null
+      : form.resumenSesion || null;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -279,10 +337,52 @@ function RegistroForm({
             <label className="text-sm font-medium text-foreground/80">Fecha de sesión *</label>
             <Input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} className="bg-muted/50" />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Resumen de sesión</label>
-            <Textarea rows={3} value={form.resumenSesion} onChange={e => set("resumenSesion", e.target.value)} placeholder="Describe lo trabajado en la sesión..." className="bg-muted/50 resize-none" />
-          </div>
+          {showPsychologyEditor && psychologySession ? (
+            <div className="space-y-3">
+              <PsychologySessionGuide
+                stageLabel={psychologyAge.label}
+                formattedAge={psychologyAge.formattedAge}
+                selectedAreaIds={psychologySession.areas.map(area => area.id)}
+                onSelectedAreaIdsChange={ids => setPsychologySession(current => {
+                  if (!current) return current;
+                  const knownIds = new Set<string>(PSYCHOLOGY_SESSION_AREAS.map(area => area.id));
+                  const selectedAreas = PSYCHOLOGY_SESSION_AREAS.filter(area => ids.includes(area.id));
+                  const preservedAreas = current.areas.filter(area => !knownIds.has(area.id));
+                  return { ...current, areas: [...selectedAreas, ...preservedAreas] };
+                })}
+              />
+              {psychologySession.areas.some(
+                area => !PSYCHOLOGY_SESSION_AREAS.some(known => known.id === area.id),
+              ) && (
+                <p className="text-xs text-muted-foreground">
+                  Las áreas anteriores que ya no están disponibles se conservarán al guardar.
+                </p>
+              )}
+              <PsychologySessionFields
+                stage={psychologyAge.stage}
+                selectedAreaIds={psychologySession.areas.map(area => area.id)}
+                value={psychologySession.fields}
+                onChange={fields => setPsychologySession(current => current ? { ...current, fields } : current)}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Resumen de sesión</label>
+              <Textarea
+                rows={3}
+                value={form.resumenSesion}
+                onChange={e => set("resumenSesion", e.target.value)}
+                readOnly={preserveStructuredSummary}
+                placeholder="Describe lo trabajado en la sesión..."
+                className="bg-muted/50 resize-none"
+              />
+              {preserveStructuredSummary && (
+                <p className="text-xs text-muted-foreground">
+                  Este registro está organizado por secciones y solo puede editarse desde una cuenta de Psicología.
+                </p>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground/80 flex items-center gap-2"><Eye className="h-4 w-4 text-amber-500" /> Observaciones</label>
             <Textarea rows={2} value={form.observaciones} onChange={e => set("observaciones", e.target.value)} placeholder="Observaciones clínicas relevantes..." className="bg-muted/50 resize-none" />
@@ -295,8 +395,8 @@ function RegistroForm({
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
             <Button
               className="flex-1 bg-primary hover:bg-primary/90"
-              disabled={!canSave || isSaving}
-              onClick={() => onSave({ patientId: parseInt(form.patientId), professionalId: null, fecha: form.fecha, resumenSesion: form.resumenSesion || null, observaciones: form.observaciones || null, recomendacionesHogar: form.recomendacionesHogar || null })}
+              disabled={!canSave || isSaving || (showPsychologyEditor && !psychologySession)}
+              onClick={() => onSave({ patientId: parseInt(form.patientId), professionalId: null, fecha: form.fecha, resumenSesion: summaryForSave, observaciones: form.observaciones || null, recomendacionesHogar: form.recomendacionesHogar || null })}
             >
               {isSaving ? "Guardando..." : "Guardar registro"}
             </Button>

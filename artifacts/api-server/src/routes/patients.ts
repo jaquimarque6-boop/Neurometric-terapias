@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import { UpdatePatientBody } from "@workspace/api-zod";
-import { normalizeClinicalSpecialty } from "@workspace/clinical-specialty";
+import {
+  formatPsychologySessionSummary,
+  normalizeClinicalSpecialty,
+} from "@workspace/clinical-specialty";
 import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
 import {
@@ -552,7 +555,7 @@ router.get("/patients/:id/timeline", async (req, res) => {
     .where(eq(registrosClinicosTable.patientId, patientId));
 
   for (const s of sessions) {
-    const desc = s.resumenSesion?.trim() || "Sesión clínica registrada";
+    const desc = formatPsychologySessionSummary(s.resumenSesion).trim() || "Sesión clínica registrada";
     events.push({
       id: `sesion-${s.id}`,
       type: "sesion",

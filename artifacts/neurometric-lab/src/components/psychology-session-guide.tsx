@@ -13,6 +13,7 @@ type PsychologySessionGuideProps = {
   formattedAge: string | null;
   selectedAreaIds: string[];
   onSelectedAreaIdsChange: (ids: string[]) => void;
+  showAgeContext?: boolean;
 };
 
 export function PsychologySessionGuide({
@@ -20,6 +21,7 @@ export function PsychologySessionGuide({
   formattedAge,
   selectedAreaIds,
   onSelectedAreaIdsChange,
+  showAgeContext = true,
 }: PsychologySessionGuideProps) {
   const toggleArea = (id: string) => {
     onSelectedAreaIdsChange(
@@ -32,6 +34,7 @@ export function PsychologySessionGuide({
   return (
     <section
       aria-labelledby="psychology-session-guide-title"
+      data-testid="psychology-session-guide"
       className="overflow-hidden rounded-2xl border shadow-sm"
       style={{ borderColor: "#E8D5C4", background: "#FEFAF6" }}
     >
@@ -46,14 +49,16 @@ export function PsychologySessionGuide({
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-900">
-            {stageLabel}{formattedAge ? ` · ${formattedAge}` : ""}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            Orientación automática según la edad registrada; no modifica la ficha.
-          </span>
-        </div>
+        {showAgeContext && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-900">
+              {stageLabel}{formattedAge ? ` · ${formattedAge}` : ""}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Orientación automática según la edad registrada; no modifica la ficha.
+            </span>
+          </div>
+        )}
 
         <div className="space-y-2">
           <div>
@@ -69,6 +74,7 @@ export function PsychologySessionGuide({
                 <button
                   key={area.id}
                   type="button"
+                  data-testid={`button-psychology-area-${area.id}`}
                   aria-pressed={selected}
                   onClick={() => toggleArea(area.id)}
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
@@ -85,9 +91,11 @@ export function PsychologySessionGuide({
           </div>
         </div>
 
-        <p className="rounded-xl border border-orange-100 bg-white/80 px-3.5 py-3 text-xs leading-relaxed text-orange-950/80">
-          Las orientaciones son opcionales. Se pueden adaptar a distintos marcos teóricos y no sustituyen el criterio clínico ni generan diagnósticos.
-        </p>
+        {showAgeContext && (
+          <p className="rounded-xl border border-orange-100 bg-white/80 px-3.5 py-3 text-xs leading-relaxed text-orange-950/80">
+            Las orientaciones son opcionales. Se pueden adaptar a distintos marcos teóricos y no sustituyen el criterio clínico ni generan diagnósticos.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -98,6 +106,7 @@ type PsychologySessionFieldsProps = {
   selectedAreaIds: string[];
   value: PsychologySessionDraft;
   onChange: (value: PsychologySessionDraft) => void;
+  showSuggestions?: boolean;
 };
 
 export function PsychologySessionFields({
@@ -105,6 +114,7 @@ export function PsychologySessionFields({
   selectedAreaIds,
   value,
   onChange,
+  showSuggestions = true,
 }: PsychologySessionFieldsProps) {
   const suggestions = getPsychologySessionSuggestions(stage, selectedAreaIds);
 
@@ -116,18 +126,22 @@ export function PsychologySessionFields({
             <label htmlFor={`psychology-session-${key}`} className="text-xs font-medium text-muted-foreground">
               {label} <span className="font-normal">(opcional)</span>
             </label>
-            <button
-              type="button"
-              disabled={Boolean(value[key].trim())}
-              onClick={() => onChange({ ...value, [key]: suggestions[key] })}
-              className="text-[11px] font-semibold text-orange-800 underline decoration-orange-300 underline-offset-2 hover:text-orange-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-              aria-label={`Usar orientación para ${label}`}
-            >
-              Usar orientación
-            </button>
+            {showSuggestions && (
+              <button
+                type="button"
+                data-testid={`button-use-psychology-guidance-${key}`}
+                disabled={Boolean(value[key].trim())}
+                onClick={() => onChange({ ...value, [key]: suggestions[key] })}
+                className="text-[11px] font-semibold text-orange-800 underline decoration-orange-300 underline-offset-2 hover:text-orange-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                aria-label={`Usar orientación para ${label}`}
+              >
+                Usar orientación
+              </button>
+            )}
           </div>
           <Textarea
             id={`psychology-session-${key}`}
+            data-testid={`input-psychology-session-${key}`}
             value={value[key]}
             onChange={event => onChange({ ...value, [key]: event.target.value })}
             rows={key === "interventions" || key === "objectives" ? 3 : 2}

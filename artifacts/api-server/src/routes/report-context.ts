@@ -1,3 +1,5 @@
+import { formatPsychologySessionSummary } from "@workspace/clinical-specialty";
+
 export const MAX_REPORT_CONTEXT_CHARS = 48_000;
 
 export type SessionContextRecord = {
@@ -46,7 +48,9 @@ export function buildSessionContext(records: SessionContextRecord[]): string {
     const dateIsValid = isValidClinicalDate(record.fecha);
     const parts = [`[Sesión ${index + 1} — ${dateIsValid ? record.fecha : "fecha no válida/no registrada"}]`];
     if (record.professionalName) parts.push(`Profesional: ${record.professionalName}`);
-    if (record.resumenSesion) parts.push(`Resumen: ${record.resumenSesion}`);
+    if (record.resumenSesion) {
+      parts.push(`Resumen: ${formatPsychologySessionSummary(record.resumenSesion)}`);
+    }
     if (record.observaciones) parts.push(`Observaciones: ${record.observaciones}`);
     const materials = (record.materialesActividades ?? [])
       .map(material => material.nombre?.trim())

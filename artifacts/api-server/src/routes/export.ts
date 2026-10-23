@@ -7,6 +7,7 @@ import {
   goalsTable,
 } from "@workspace/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { formatPsychologySessionSummary } from "@workspace/clinical-specialty";
 
 const router: IRouter = Router();
 
@@ -235,7 +236,7 @@ router.get("/export/my-data", async (req, res) => {
         patientId: r.patientId,
         paciente: patientNameById.get(r.patientId) ?? r.patientName ?? "",
         profesional: r.professionalName ?? sess.userName,
-        resumenSesion: r.resumenSesion,
+        resumenSesion: formatPsychologySessionSummary(r.resumenSesion),
         observaciones: r.observaciones,
         recomendacionesHogar: r.recomendacionesHogar,
         creado: fmtDate(r.createdAt),

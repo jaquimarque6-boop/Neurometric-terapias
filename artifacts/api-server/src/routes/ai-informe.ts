@@ -14,6 +14,7 @@ import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
+  formatPsychologySessionSummary,
   resolveClinicalSpecialty,
   type ClinicalSpecialty,
 } from "@workspace/clinical-specialty";
@@ -368,7 +369,9 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Lo
       clinicalSnapshot: filteredRC.map(r => ({
         id: r.id, patientId: r.patientId, patientName: r.patientName,
         professionalId: r.professionalId, professionalName: r.professionalName,
-        fecha: r.fecha, resumenSesion: r.resumenSesion, observaciones: r.observaciones,
+        fecha: r.fecha,
+        resumenSesion: formatPsychologySessionSummary(r.resumenSesion),
+        observaciones: r.observaciones,
         recomendacionesHogar: r.recomendacionesHogar,
         materialesActividades: (r.materialesActividades ?? []).map(m => ({ id: m.id, nombre: m.nombre })),
         createdAt: r.createdAt,

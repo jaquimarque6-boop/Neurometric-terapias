@@ -14,6 +14,7 @@ import { eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
+  formatPsychologySessionSummary,
   resolveClinicalSpecialty,
   type ClinicalSpecialty,
 } from "@workspace/clinical-specialty";
@@ -163,7 +164,7 @@ router.post("/ai/objetivos-suggest", async (req, res) => {
   const sessionsCtx = recentRC.length > 0
     ? recentRC.map((r, i) => {
         const parts = [`[Sesión ${i + 1} — ${r.fecha}]`];
-        if (r.resumenSesion) parts.push(`Resumen: ${trunc(r.resumenSesion, 300)}`);
+        if (r.resumenSesion) parts.push(`Resumen: ${trunc(formatPsychologySessionSummary(r.resumenSesion), 300)}`);
         if (r.observaciones) parts.push(`Observaciones: ${trunc(r.observaciones, 300)}`);
         return parts.join("\n");
       }).join("\n\n")
