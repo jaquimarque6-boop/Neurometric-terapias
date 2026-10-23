@@ -28,10 +28,12 @@ import professionalFilesRouter from "./professional-files";
 import collaboratorsRouter from "./collaborators";
 import consentsRouter from "./consents";
 import commercialRouter from "./commercial";
+import actividadesPassRouter from "./actividades-pass";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(actividadesPassRouter);
 router.use(commercialRouter);
 router.use(collaboratorsRouter);
 router.use(consentsRouter);

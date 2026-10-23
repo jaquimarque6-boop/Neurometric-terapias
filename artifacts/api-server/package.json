@@ -8,7 +8,8 @@
     "dev": "NODE_ENV=development tsx ./src/index.ts",
     "build": "tsx ./build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:security": "NODE_ENV=test tsx --test tests/account-access.test.ts"
+    "test:security": "NODE_ENV=test tsx --test tests/account-access.test.ts",
+    "test:actividades-pass": "NODE_ENV=test tsx --test src/routes/actividades-pass-handler.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

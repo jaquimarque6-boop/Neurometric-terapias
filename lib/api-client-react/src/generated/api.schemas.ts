@@ -5,6 +5,14 @@
  * Neurometric Lab API
  * OpenAPI spec version: 0.1.0
  */
+export interface ActividadesPassResponse {
+  pase: string;
+}
+
+export interface ActividadesPassError {
+  error: string;
+}
+
 export type ConsentAcceptInputTypesItem =
   (typeof ConsentAcceptInputTypesItem)[keyof typeof ConsentAcceptInputTypesItem];
 

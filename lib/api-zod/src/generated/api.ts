@@ -1916,6 +1916,14 @@ export const ListActividadesResponseItem = zod.object({
 export const ListActividadesResponse = zod.array(ListActividadesResponseItem);
 
 /**
+ * Requires an authenticated professional with an active paid subscription or an unexpired trial.
+ * @summary Create a short-lived single-use pass for Neurometric Actividades
+ */
+export const CreateActividadesPassResponse = zod.object({
+  pase: zod.string(),
+});
+
+/**
  * @summary List the authenticated professional's private PDFs
  */
 export const ListProfessionalFilesResponseItem = zod.object({

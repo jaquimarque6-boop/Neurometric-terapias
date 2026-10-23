@@ -7,6 +7,8 @@
  */
 
 export * from "./actividad";
+export * from "./actividadesPassError";
+export * from "./actividadesPassResponse";
 export * from "./assignGoalBody";
 export * from "./collaborator";
 export * from "./collaboratorDashboard";

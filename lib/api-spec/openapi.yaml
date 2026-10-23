@@ -631,6 +631,47 @@ paths:
                 items:
                   $ref: "#/components/schemas/Actividad"
 
+  /actividades/pase:
+    post:
+      operationId: createActividadesPass
+      tags: [actividades]
+      summary: Create a short-lived single-use pass for Neurometric Actividades
+      description: Requires an authenticated professional with an active paid subscription or an unexpired trial.
+      responses:
+        "200":
+          description: Signed JWT pass
+          headers:
+            Cache-Control:
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActividadesPassResponse"
+        "401":
+          description: Not authenticated or account inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActividadesPassError"
+        "402":
+          description: Subscription or trial is not currently active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActividadesPassError"
+        "403":
+          description: Only professional accounts can request a pass
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActividadesPassError"
+        "503":
+          description: Pass signing is not configured or the account could not be checked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActividadesPassError"
+
   /professional-files:
     get:
       operationId: listProfessionalFiles
@@ -939,6 +980,16 @@ paths:
 
 components:
   schemas:
+    ActividadesPassResponse:
+      type: object
+      required: [pase]
+      properties:
+        pase: { type: string }
+    ActividadesPassError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
     ConsentAcceptInput:
       type: object
       required: [types]

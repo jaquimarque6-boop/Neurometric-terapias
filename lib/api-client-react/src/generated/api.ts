@@ -18,6 +18,8 @@ import type {
 
 import type {
   Actividad,
+  ActividadesPassError,
+  ActividadesPassResponse,
   AssignGoalBody,
   Collaborator,
   CollaboratorDashboard,
@@ -3057,6 +3059,89 @@ export function useListActividades<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Requires an authenticated professional with an active paid subscription or an unexpired trial.
+ * @summary Create a short-lived single-use pass for Neurometric Actividades
+ */
+export const getCreateActividadesPassUrl = () => {
+  return `/api/actividades/pase`;
+};
+
+export const createActividadesPass = async (
+  options?: RequestInit,
+): Promise<ActividadesPassResponse> => {
+  return customFetch<ActividadesPassResponse>(getCreateActividadesPassUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCreateActividadesPassMutationOptions = <
+  TError = ErrorType<ActividadesPassError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createActividadesPass>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createActividadesPass>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["createActividadesPass"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createActividadesPass>>,
+    void
+  > = () => {
+    return createActividadesPass(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateActividadesPassMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createActividadesPass>>
+>;
+
+export type CreateActividadesPassMutationError =
+  ErrorType<ActividadesPassError>;
+
+/**
+ * @summary Create a short-lived single-use pass for Neurometric Actividades
+ */
+export const useCreateActividadesPass = <
+  TError = ErrorType<ActividadesPassError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createActividadesPass>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createActividadesPass>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCreateActividadesPassMutationOptions(options));
+};
 
 /**
  * @summary List the authenticated professional's private PDFs
