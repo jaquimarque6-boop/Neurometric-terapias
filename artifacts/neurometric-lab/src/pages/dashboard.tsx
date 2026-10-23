@@ -8,8 +8,10 @@ import {
   Users, Users2, Target, CalendarDays, Clock, Sparkles,
   Calendar, TrendingUp, Zap, Puzzle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/contexts/auth-context";
+import { useActividadesPass } from "@/hooks/use-actividades-pass";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { API_BASE } from "@/lib/api";
 import { buildSessionPath } from "@/lib/session-navigation";
@@ -24,7 +26,18 @@ const TIPO_LABELS: Record<string, string> = {
   sesion: "Sesión", evaluacion: "Evaluación", reunion: "Reunión", otro: "Otro",
 };
 
-const QUICK_LINKS = (isAdmin: boolean) => [
+type QuickLink = {
+  label: string;
+  subtitle: string;
+  icon: LucideIcon;
+  color: string;
+  iconBg: string;
+  iconColor: string;
+  path?: string;
+  action?: "open-activities";
+};
+
+const QUICK_LINKS = (isAdmin: boolean): QuickLink[] => [
   {
     label:    "Pacientes",
     subtitle: "Gestión de casos",
@@ -56,7 +69,7 @@ const QUICK_LINKS = (isAdmin: boolean) => [
     label:    "Actividades",
     subtitle: "Actividades interactivas",
     icon:     Puzzle,
-    path:     "/actividades",
+    action:   "open-activities",
     color:    "bg-violet-50 border-violet-200/70 hover:bg-violet-100/70 hover:border-violet-300/70",
     iconBg:   "bg-violet-100 border-violet-200/60",
     iconColor:"text-violet-600",
@@ -75,6 +88,7 @@ const QUICK_LINKS = (isAdmin: boolean) => [
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { openActivities, openingActivities } = useActividadesPass();
   const [showNewPatient, setShowNewPatient] = useState(false);
 
   const today      = format(new Date(), "yyyy-MM-dd");
@@ -131,6 +145,13 @@ export default function Dashboard() {
 
   const isAdmin    = user?.role === "admin";
   const quickLinks = QUICK_LINKS(isAdmin);
+  const handleQuickLink = (link: QuickLink) => {
+    if (link.action === "open-activities") {
+      void openActivities();
+      return;
+    }
+    if (link.path) navigate(link.path);
+  };
 
   // ── Cumpleaños próximos (hoy + 7 días), solo pacientes con fecha de nacimiento ──
   const cumpleanos = (() => {
@@ -252,17 +273,21 @@ export default function Dashboard() {
             {quickLinks.map(link => (
               <button
                 key={link.label}
-                onClick={() => navigate(link.path)}
+                onClick={() => handleQuickLink(link)}
+                disabled={link.action === "open-activities" && openingActivities}
+                aria-busy={link.action === "open-activities" && openingActivities}
                 className={`flex flex-col items-start gap-3 p-4 rounded-2xl border
                             transition-all duration-200 active:scale-[0.97] text-left
-                            shadow-sm hover:shadow-md ${link.color}`}
+                            shadow-sm hover:shadow-md disabled:cursor-wait disabled:opacity-70 ${link.color}`}
               >
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl border ${link.iconBg}`}>
                   <link.icon className={`h-5 w-5 ${link.iconColor}`} />
                 </div>
                 <div className="w-full">
                   <p className="text-sm font-bold text-foreground leading-tight">{link.label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{link.subtitle}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                    {link.action === "open-activities" && openingActivities ? "Conectando…" : link.subtitle}
+                  </p>
                 </div>
               </button>
             ))}
