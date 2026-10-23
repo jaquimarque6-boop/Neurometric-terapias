@@ -69,6 +69,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { CustomGoalDialog } from "@/components/custom-goal-dialog";
 import { AIObjetivosDialog } from "@/components/ai-objetivos-dialog";
 import { SessionMaterialsField, type SessionMaterialDraft } from "@/components/session-materials-field";
+import { CoverageNameInput } from "@/components/patients/coverage-name-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1749,7 +1750,10 @@ export default function PatientProfile() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       queryClient.invalidateQueries({ queryKey: getGetPatientQueryKey(patientId) });
-      queryClient.invalidateQueries({ queryKey: ["listPatients"] });
+      queryClient.invalidateQueries({ queryKey: getListPatientsQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getListPatientsQueryKey({ includeArchived: true }),
+      });
       toast({ title: "Paciente actualizado" });
       setShowEditPatient(false);
     } catch (err: any) {
@@ -3280,13 +3284,12 @@ export default function PatientProfile() {
                     <label htmlFor="ep-cobertura" className="text-xs font-semibold text-foreground/70">
                       Obra social o prepaga <span className="font-normal text-muted-foreground">(opcional)</span>
                     </label>
-                    <Input
+                    <CoverageNameInput
                       id="ep-cobertura"
                       value={epCoberturaMedica}
-                      onChange={e => setEpCoberturaMedica(e.target.value)}
-                      placeholder="Nombre de la cobertura"
+                      onChange={setEpCoberturaMedica}
+                      excludePatientId={patient.id}
                       className="bg-muted/50"
-                      autoComplete="off"
                     />
                   </div>
                   <div className="space-y-1.5">

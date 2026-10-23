@@ -38,6 +38,7 @@ export * from "./healthStatus";
 export * from "./listActividadesParams";
 export * from "./listGoalsParams";
 export * from "./listPatientProfessionalsParams";
+export * from "./listPatientsParams";
 export * from "./listRegistrosClinicosParams";
 export * from "./moneyByCurrency";
 export * from "./patient";

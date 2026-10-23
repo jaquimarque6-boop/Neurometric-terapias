@@ -260,6 +260,10 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List all patients
  */
+export const ListPatientsQueryParams = zod.object({
+  includeArchived: zod.coerce.boolean().optional(),
+});
+
 export const listPatientsResponsePsychologyDataOneAnamnesisSectionsReasonAndExpectationsTextMax = 20000;
 
 export const listPatientsResponsePsychologyDataOneAnamnesisSectionsPersonalFamilyHistoryTextMax = 20000;

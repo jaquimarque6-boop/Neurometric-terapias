@@ -77,16 +77,26 @@ function grantAiConsent(userId: number) {
 
 function filterRows(rows: any[], condition: any): any[] {
   if (!condition) return rows;
-  const chunks = condition.queryChunks ?? [];
-  const column = chunks.find((c: any) => c?.name && c?.table);
-  const param = chunks.find((c: any) => c?.constructor?.name === "Param");
-  const list = chunks.find((c: any) => Array.isArray(c));
-  if (!column || (!param && !list)) throw new Error(`Mock cannot interpret SQL condition: ${JSON.stringify(chunks.map((c: any) => ({ name: c?.name, value: c?.value, type: c?.constructor?.name })))}`);
-  const name = Object.entries(column.table).find(([, value]) => value === column)?.[0];
-  if (!name) throw new Error("Mock cannot locate SQL column");
-  return rows.filter(row => list
-    ? list.some((item: any) => item.value === row[name])
-    : row[name] === param.value);
+  const comparisons: { name: string; value?: unknown; values?: any[] }[] = [];
+  const visit = (chunk: any) => {
+    const children = chunk?.queryChunks;
+    if (!Array.isArray(children)) return;
+    const column = children.find((child: any) => child?.name && child?.table);
+    const param = children.find((child: any) => child?.constructor?.name === "Param");
+    const list = children.find((child: any) => Array.isArray(child));
+    if (column && (param || list)) {
+      const name = Object.entries(column.table).find(([, value]) => value === column)?.[0];
+      if (!name) throw new Error("Mock cannot locate SQL column");
+      comparisons.push(param ? { name, value: param.value } : { name, values: list });
+      return;
+    }
+    children.forEach(visit);
+  };
+  visit(condition);
+  if (comparisons.length === 0) throw new Error("Mock cannot interpret SQL condition");
+  return rows.filter(row => comparisons.every(({ name, value, values }) =>
+    values ? values.some((item: any) => item.value === row[name]) : row[name] === value,
+  ));
 }
 
 function filterConsentRows(rows: any[], condition: any): any[] {
@@ -444,6 +454,61 @@ test("patient routes deny foreign patients before inserts, context queries and A
   }
   assert.equal(await status("POST", "/registros-clinicos", "owner", { patientId: 999, fecha: "2026-01-01" }), 404);
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 999 }), 404);
+});
+
+test("patient list coverage data is scoped to each professional account", async () => {
+  reset();
+  const rows = tables.get(schema.patientsTable)!;
+  rows[0].archived = false;
+  rows[0].coberturaMedica = "Cobertura propia";
+  rows[1].archived = false;
+  rows[1].coberturaMedica = "Cobertura de otra cuenta";
+  rows.push(
+    {
+      id: 3,
+      name: "Paciente archivado propio",
+      assignedProfessionalId: 2,
+      archived: true,
+      coberturaMedica: "Cobertura archivada propia",
+      createdAt: now,
+    },
+    {
+      id: 4,
+      name: "Paciente archivado ajeno",
+      assignedProfessionalId: 3,
+      archived: true,
+      coberturaMedica: "Cobertura archivada ajena",
+      createdAt: now,
+    },
+  );
+
+  const ownerPatients = await request("GET", "/patients", "owner");
+  assert.equal(ownerPatients.status, 200);
+  assert.equal(ownerPatients.body.length, 1);
+  assert.equal(ownerPatients.body[0].coberturaMedica, "Cobertura propia");
+  assert.equal(
+    ownerPatients.body.some((patient: any) => patient.coberturaMedica === "Cobertura de otra cuenta"),
+    false,
+  );
+
+  const ownerArchivedPatients = await request("GET", "/patients?includeArchived=true", "owner");
+  assert.equal(ownerArchivedPatients.status, 200);
+  assert.equal(ownerArchivedPatients.body.length, 1);
+  assert.equal(ownerArchivedPatients.body[0].coberturaMedica, "Cobertura archivada propia");
+  assert.equal(
+    ownerArchivedPatients.body.some((patient: any) => patient.coberturaMedica === "Cobertura archivada ajena"),
+    false,
+  );
+
+  const foreignPatients = await request("GET", "/patients", "foreign");
+  assert.equal(foreignPatients.status, 200);
+  assert.equal(foreignPatients.body.length, 1);
+  assert.equal(foreignPatients.body[0].coberturaMedica, "Cobertura de otra cuenta");
+
+  const foreignArchivedPatients = await request("GET", "/patients?includeArchived=true", "foreign");
+  assert.equal(foreignArchivedPatients.status, 200);
+  assert.equal(foreignArchivedPatients.body.length, 1);
+  assert.equal(foreignArchivedPatients.body[0].coberturaMedica, "Cobertura archivada ajena");
 });
 
 test("patient coverage is optional, persists through existing patient access, and never changes unrelated fields", async () => {

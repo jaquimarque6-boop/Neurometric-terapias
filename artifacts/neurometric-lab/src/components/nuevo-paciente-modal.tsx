@@ -7,6 +7,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CoverageNameInput } from "@/components/patients/coverage-name-input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -165,13 +166,10 @@ export function NuevoPacienteModal({
                 <label htmlFor="np-cobertura" className="text-sm font-medium text-foreground/80">
                   Obra social o prepaga <span className="text-muted-foreground font-normal">(opcional)</span>
                 </label>
-                <Input
+                <CoverageNameInput
                   id="np-cobertura"
                   value={form.coberturaMedica}
-                  onChange={e => set("coberturaMedica", e.target.value)}
-                  placeholder="Nombre de la cobertura"
-                  className="bg-background"
-                  autoComplete="off"
+                  onChange={value => set("coberturaMedica", value)}
                 />
               </div>
               <div className="space-y-1.5">

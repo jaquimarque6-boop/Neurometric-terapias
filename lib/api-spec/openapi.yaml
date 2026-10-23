@@ -141,6 +141,12 @@ paths:
       operationId: listPatients
       tags: [patients]
       summary: List all patients
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of patients

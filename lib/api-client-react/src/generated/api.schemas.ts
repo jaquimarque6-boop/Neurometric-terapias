@@ -757,6 +757,10 @@ export interface DashboardStats {
   newPatientsThisMonth: number;
 }
 
+export type ListPatientsParams = {
+  includeArchived?: boolean;
+};
+
 export type DeletePatient200 = {
   ok: boolean;
   deletedId: number;
