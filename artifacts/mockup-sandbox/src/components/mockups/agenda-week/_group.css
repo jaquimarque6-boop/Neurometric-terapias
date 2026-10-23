@@ -1,0 +1,41 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  --background: 30 60% 98%;
+  --foreground: 0 0% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 20%;
+  --primary: 14 66% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 342 68% 90%;
+  --secondary-foreground: 342 35% 28%;
+  --muted: 30 25% 95%;
+  --muted-foreground: 25 10% 48%;
+  --accent: 152 21% 46%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 342 52% 64%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 18% 90%;
+  --input: 30 18% 90%;
+  --ring: 14 55% 65%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 0 0% 22%;
+  --sidebar-border: 30 18% 92%;
+  --sidebar-primary: 14 66% 62%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 30 30% 96%;
+  --sidebar-accent-foreground: 0 0% 22%;
+  --sidebar-ring: 14 55% 65%;
+  --button-outline: hsl(14 50% 65%);
+  --badge-outline: hsl(14 50% 65%);
+  --chart-1: 14 66% 62%;
+  --chart-2: 152 21% 52%;
+  --chart-3: 342 68% 82%;
+  --chart-4: 30 70% 75%;
+  --chart-5: 0 0% 52%;
+  --radius: 0.875rem;
+  --font-sans: "Inter", sans-serif;
+  --font-display: "DM Sans", sans-serif;
+}

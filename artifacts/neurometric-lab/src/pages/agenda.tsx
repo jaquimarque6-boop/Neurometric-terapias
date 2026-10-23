@@ -23,15 +23,17 @@ import { useAuth } from "@/contexts/auth-context";
 import { API_BASE } from "@/lib/api";
 import { formatEdad, formatEdadCorta } from "@/utils/edad";
 import { buildSessionPath } from "@/lib/session-navigation";
-
-const HOUR_PX = 32;
-const START_HOUR = 7;
-const END_HOUR = 21;
-const TOTAL_HOURS = END_HOUR - START_HOUR;
-const GRID_HEIGHT = TOTAL_HOURS * HOUR_PX;
-// Derived purely from constants, so compute once at module load instead of on
-// every render of the agenda grid.
-const HOURS_LABELS = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
+import {
+  END_HOUR,
+  GRID_HEIGHT,
+  HOURS_LABELS,
+  HOUR_PX,
+  START_HOUR,
+  heightPx,
+  hourAtGridY,
+  timeToMinutes,
+  topPx,
+} from "@/lib/agenda-layout";
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   sesion:     { bg: "bg-stone-50",  text: "text-stone-700",  border: "border-stone-200",  dot: "bg-stone-500"  },
@@ -71,24 +73,6 @@ type Cita = {
   repetirSemanal?: boolean;
   repetirHasta?: string | null;
 };
-
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function minutesFromStart(t: string): number {
-  return timeToMinutes(t) - START_HOUR * 60;
-}
-
-function topPx(t: string): number {
-  return (minutesFromStart(t) / 60) * HOUR_PX;
-}
-
-function heightPx(start: string, end: string): number {
-  const mins = timeToMinutes(end) - timeToMinutes(start);
-  return Math.max((mins / 60) * HOUR_PX, 24);
-}
 
 const DAYS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const TIPOS = ["sesion", "evaluacion", "reunion", "otro"];
@@ -315,9 +299,9 @@ export default function AgendaPage() {
 
   return (
     <SidebarProvider>
-    <div className="flex h-screen bg-muted/30 overflow-hidden w-full">
+    <div className="flex h-dvh min-h-0 bg-muted/30 overflow-hidden w-full">
       <AppSidebar />
-      <SidebarInset className="flex flex-col overflow-hidden">
+      <SidebarInset className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-card shrink-0">
           <SidebarTrigger className="-ml-1" />
@@ -354,11 +338,11 @@ export default function AgendaPage() {
         </header>
 
         {/* Calendar grid */}
-        <div className="flex-1 overflow-auto">
-          <div className="min-w-[700px]">
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <div className="min-w-[980px]">
             {/* Day headers */}
-            <div className="sticky top-0 z-10 bg-card border-b border-border/50 flex">
-              <div className="w-14 shrink-0" />
+            <div className="sticky top-0 z-20 flex border-b border-border/50 bg-card/95 backdrop-blur">
+              <div className="w-16 shrink-0" />
               {days.map((day, i) => (
                 <button
                   key={i}
@@ -381,12 +365,12 @@ export default function AgendaPage() {
             {/* Time grid */}
             <div className="flex">
               {/* Hour labels */}
-              <div className="w-14 shrink-0 relative" style={{ height: GRID_HEIGHT + 16 }}>
+              <div className="relative w-16 shrink-0" style={{ height: GRID_HEIGHT }}>
                 {hoursLabels.map(h => (
                   <div
                     key={h}
-                    className="absolute right-2 text-[10px] text-muted-foreground font-medium leading-none -translate-y-2"
-                    style={{ top: (h - START_HOUR) * HOUR_PX }}
+                    className={`absolute right-2 text-xs font-medium leading-none text-muted-foreground ${h === START_HOUR ? "translate-y-0" : "-translate-y-1/2"}`}
+                    style={{ top: h === START_HOUR ? 6 : (h - START_HOUR) * HOUR_PX }}
                   >
                     {String(h).padStart(2, "0")}:00
                   </div>
@@ -399,13 +383,13 @@ export default function AgendaPage() {
                 return (
                   <div
                     key={dayIdx}
-                    className={`flex-1 relative border-l border-border/40 first:border-l-0 cursor-pointer group/col ${isToday(day) ? "bg-primary/[0.02]" : ""}`}
-                    style={{ height: GRID_HEIGHT + 16 }}
+                    className={`group/col relative flex-1 cursor-pointer border-l border-border/40 first:border-l-0 ${isToday(day) ? "bg-primary/[0.02]" : ""}`}
+                    style={{ height: GRID_HEIGHT }}
                     onClick={e => {
                       if ((e.target as HTMLElement).closest("button")) return;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const relY = e.clientY - rect.top;
-                      const hour = Math.floor(relY / HOUR_PX) + START_HOUR;
+                      const hour = hourAtGridY(relY);
                       openCreateForDay(day, hour);
                     }}
                   >
@@ -417,6 +401,10 @@ export default function AgendaPage() {
                         style={{ top: (h - START_HOUR) * HOUR_PX }}
                       />
                     ))}
+                    <div
+                      className="absolute left-0 right-0 border-t border-border/60"
+                      style={{ top: GRID_HEIGHT }}
+                    />
                     {/* Half-hour dashed lines */}
                     {hoursLabels.map(h => (
                       <div
@@ -429,7 +417,7 @@ export default function AgendaPage() {
                     {/* Appointments */}
                     {dayCitas.map(cita => {
                       const top = topPx(cita.horaInicio);
-                      const h = heightPx(cita.horaInicio, cita.horaFin);
+                      const height = heightPx(cita.horaInicio, cita.horaFin);
                       const colors = ASISTENCIA_COLORS[cita.asistencia] ?? ASISTENCIA_COLORS.pendiente;
                       const durationMins = timeToMinutes(cita.horaFin) - timeToMinutes(cita.horaInicio);
                       const citaPatient = cita.patientId
@@ -440,19 +428,20 @@ export default function AgendaPage() {
                         <button
                           key={cita.id}
                           onClick={() => setSelectedCita(cita)}
-                          className={`absolute left-0.5 right-0.5 rounded-sm border-l-2 text-left overflow-hidden transition-all hover:brightness-95 active:scale-[0.98] ${colors.bg} ${colors.border}`}
-                          style={{ top: top + 1, height: h - 2, zIndex: 1 }}
+                          aria-label={`${displayName}, ${cita.horaInicio} a ${cita.horaFin}`}
+                          className={`absolute left-1 right-1 overflow-hidden rounded-md border-l-4 text-left shadow-sm transition-all hover:brightness-95 hover:shadow-md active:scale-[0.99] ${colors.bg} ${colors.border}`}
+                          style={{ top, height, zIndex: 1 }}
                         >
-                          <div className="px-1 py-0.5 h-full flex flex-col justify-start">
-                            <span className={`text-[10px] font-semibold truncate leading-tight ${colors.text}`}>
+                          <div className="flex h-full min-w-0 flex-col justify-start gap-0.5 px-2 py-0.5">
+                            <span className={`truncate text-xs font-semibold leading-4 ${colors.text}`}>
                               {displayName}
                               {citaPatient && formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age) && (
                                 <span className="font-normal opacity-60"> · {formatEdadCorta(citaPatient.fechaNacimiento, citaPatient.age)}</span>
                               )}
                             </span>
-                            {h > 24 && (
-                              <span className={`text-[9px] leading-none ${colors.text} opacity-50`}>
-                                {cita.horaInicio}{h > 36 ? ` · ${durationMins}min` : ""}
+                            {durationMins >= 30 && (
+                              <span className={`whitespace-nowrap text-[11px] leading-3 ${colors.text} opacity-70`}>
+                                {cita.horaInicio}–{cita.horaFin}
                               </span>
                             )}
                           </div>
