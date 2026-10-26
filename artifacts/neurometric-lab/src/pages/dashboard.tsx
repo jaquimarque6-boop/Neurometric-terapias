@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { NuevoPacienteModal } from "@/components/nuevo-paciente-modal";
 import { API_BASE } from "@/lib/api";
 import { buildSessionPath } from "@/lib/session-navigation";
+import { ResumenNotas } from "@/components/mis-notas/resumen-notas";
 
 const TIPO_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
   sesion:     { dot: "bg-primary/50",   bg: "bg-primary/8",    text: "text-primary"             },
@@ -259,6 +260,8 @@ export default function Dashboard() {
           </button>
         </div>
 
+        <ResumenNotas />
+
         {/* ── Acceso rápido ─────────────────────────────────────────────── */}
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">Acceso rápido</h2>
@@ -430,6 +433,8 @@ function AdminDashboard() {
           <h1 className="mt-1 text-2xl font-display font-bold text-foreground">Resumen general</h1>
           <p className="mt-1 text-sm text-muted-foreground">Estadísticas agregadas y gestión administrativa.</p>
         </header>
+
+        <ResumenNotas />
 
         {isError ? (
           <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">

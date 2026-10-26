@@ -9,6 +9,7 @@
 - [Timestamp concurrency](timestamp-concurrency.md) — optimistic-lock timestamps must round-trip through JavaScript without losing database precision.
 - [Collaborator boundaries](collaborator-boundaries.md) — default-deny portal access; preserve attribution and frozen recurring commissions independently of clinical billing.
 - [Audit privacy](usage-audit-privacy.md) — Keep only account, event type, and time; never collect patient identifiers or clinical content; metrics must fail open.
+- [Personal notes rollout](personal-notes-rollout.md) — keep notes private per professional/admin, keep unrelated therapy functions unchanged, and never run production SQL or publish without authorization.
 - [API workflow auto-restarts](api-workflow-auto-restarts.md) — Editing API source can restart dev and run startup initialization even without a manual workflow restart.
 - [Admin/professional identity separation](admin-professional-separation.md) — Keep access accounts and the clinical contact directory distinct; don't create duplicates or migrate data without approval.
 - [Isolated PostgreSQL route tests](isolated-postgres-route-tests.md) — Use a fresh loopback-only cluster and mount routers directly; Postgres loopback addresses may include a CIDR suffix.

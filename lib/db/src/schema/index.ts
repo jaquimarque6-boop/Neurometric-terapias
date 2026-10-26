@@ -19,3 +19,4 @@ export * from "./deletion-log";
 export * from "./professional-files";
 export * from "./user-consent-acceptances";
 export * from "./user-activity-events";
+export * from "./personal-notes";

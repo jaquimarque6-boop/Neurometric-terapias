@@ -16,6 +16,7 @@ import {
   Download,
   FolderLock,
   HeartHandshake,
+  StickyNote,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
   { title: "Objetivos",          url: "/objetivos",     icon: Target,          adminHidden: true },
   { title: "Banco de Objetivos", url: "/goal-library",  icon: BookOpen,        adminHidden: true },
   { title: "Actividades",        url: ACTIVIDADES_URL,  icon: Sparkles,        adminHidden: true, external: true },
+  { title: "Mis notas",          url: "/mis-notas",     icon: StickyNote },
   { title: "Mis materiales",     url: "/mis-materiales", icon: FolderLock,      adminHidden: true },
   { title: "Respaldo de datos",  url: "/respaldo",      icon: Download,        adminHidden: true },
   { title: "Profesionales",      url: "/professionals", icon: Stethoscope,     adminOnly: true, adminHidden: true },

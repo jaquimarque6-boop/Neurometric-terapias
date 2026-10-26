@@ -29,11 +29,13 @@ import collaboratorsRouter from "./collaborators";
 import consentsRouter from "./consents";
 import commercialRouter from "./commercial";
 import actividadesPassRouter from "./actividades-pass";
+import personalNotesRouter from "./personal-notes";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
 router.use(actividadesPassRouter);
+router.use(personalNotesRouter);
 router.use(commercialRouter);
 router.use(collaboratorsRouter);
 router.use(consentsRouter);
