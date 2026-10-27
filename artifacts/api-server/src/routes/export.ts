@@ -121,7 +121,9 @@ router.get("/export/my-data", async (req, res) => {
         .from(registrosClinicosTable)
         .where(eq(registrosClinicosTable.userId, sess.id));
       const assignedPatientIds = new Set(patientIds);
-      myRegistros = authoredRows.filter(record => assignedPatientIds.has(record.patientId));
+      myRegistros = authoredRows.filter(record =>
+        record.userId === sess.id && assignedPatientIds.has(record.patientId),
+      );
     }
 
     let legacyRegistros: (typeof registrosClinicosTable.$inferSelect)[] = [];

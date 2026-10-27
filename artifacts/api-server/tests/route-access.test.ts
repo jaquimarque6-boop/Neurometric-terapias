@@ -97,13 +97,30 @@ function grantAiConsent(userId: number) {
 
 function filterRows(rows: any[], condition: any): any[] {
   if (!condition) return rows;
-  const comparisons: { name: string; value?: unknown; values?: any[] }[] = [];
+  const comparisons: {
+    name: string;
+    value?: unknown;
+    values?: any[];
+    isNull?: boolean;
+    isNotNull?: boolean;
+  }[] = [];
   const visit = (chunk: any) => {
     const children = chunk?.queryChunks;
     if (!Array.isArray(children)) return;
     const column = children.find((child: any) => child?.name && child?.table);
     const param = children.find((child: any) => child?.constructor?.name === "Param");
     const list = children.find((child: any) => Array.isArray(child));
+    const sqlText = children
+      .filter((child: any) => child?.constructor?.name === "StringChunk")
+      .flatMap((child: any) => child.value ?? [])
+      .join("")
+      .toLowerCase();
+    if (column && (sqlText.includes("is null") || sqlText.includes("is not null"))) {
+      const name = Object.entries(column.table).find(([, value]) => value === column)?.[0];
+      if (!name) throw new Error("Mock cannot locate SQL column");
+      comparisons.push({ name, isNull: sqlText.includes("is null") && !sqlText.includes("is not null"), isNotNull: sqlText.includes("is not null") });
+      return;
+    }
     if (column && (param || list)) {
       const name = Object.entries(column.table).find(([, value]) => value === column)?.[0];
       if (!name) throw new Error("Mock cannot locate SQL column");
@@ -114,8 +131,10 @@ function filterRows(rows: any[], condition: any): any[] {
   };
   visit(condition);
   if (comparisons.length === 0) throw new Error("Mock cannot interpret SQL condition");
-  return rows.filter(row => comparisons.every(({ name, value, values }) =>
-    values ? values.some((item: any) => item.value === row[name]) : row[name] === value,
+  return rows.filter(row => comparisons.every(({ name, value, values, isNull, isNotNull }) =>
+    isNull ? row[name] == null
+      : isNotNull ? row[name] != null
+      : values ? values.some((item: any) => item.value === row[name]) : row[name] === value,
   ));
 }
 
@@ -147,21 +166,34 @@ const db = {
       "value" in columns &&
       !("userId" in columns),
     );
+    const isGroupedCountQuery = Boolean(
+      columns && typeof columns === "object" && "value" in columns && "userId" in columns,
+    );
     return {
       from(table: object) {
         stats.selects++;
         let condition: unknown;
         let rowLimit: number | undefined;
+        let groupColumn: any;
         const query = {
           where(c: unknown) { condition = c; return query; },
           orderBy(..._args: unknown[]) { return query; },
+          groupBy(column: unknown) { groupColumn = column; return query; },
           limit(count: number) { rowLimit = count; return query; },
           then(resolve: (value: any[]) => void, reject?: (error: Error) => void) {
             try {
               const sourceRows = tables.get(table) ?? [];
-              const rows = table === schema.userConsentAcceptancesTable
+              let rows = table === schema.userConsentAcceptancesTable
                 ? filterConsentRows(sourceRows, condition)
                 : filterRows(sourceRows, condition);
+              if (isGroupedCountQuery && groupColumn?.table) {
+                const groupKey = Object.entries(groupColumn.table)
+                  .find(([, value]) => value === groupColumn)?.[0];
+                if (!groupKey) throw new Error("Mock cannot locate grouped SQL column");
+                const counts = new Map<any, number>();
+                for (const row of rows) counts.set(row[groupKey], (counts.get(row[groupKey]) ?? 0) + 1);
+                rows = [...counts].map(([userId, value]) => ({ userId, value }));
+              }
               if (isCountOnlyQuery) {
                 resolve([{ value: rows.length }]);
                 return;
@@ -435,14 +467,15 @@ test("admin user management returns account metadata only and cannot change a ro
     professionalId: null,
   }]);
   const users = await request("GET", "/users", "admin");
-  assert.equal(users.status, 200, JSON.stringify(users.body));
+  assert.equal(users.status, 200);
   assert.equal(users.body.length, 1);
   assert.equal(users.body[0].email, "professional@example.test");
   assert.equal("passwordHash" in users.body[0], false);
   assert.equal("stats" in users.body[0], false);
   assert.equal("pacientes" in users.body[0], false);
+  const selectsBeforeDeniedRoleChange = stats.selects;
   assert.equal(await status("PATCH", "/users/2", "admin", { role: "admin" }), 403);
-  assert.equal(stats.selects, 1, "the rejected role change does not query clinical or account rows");
+  assert.equal(stats.selects, selectsBeforeDeniedRoleChange, "the rejected role change does not query clinical or account rows");
 });
 
 test("admin professional directory returns contact metadata without querying patient assignments", async () => {
@@ -764,6 +797,10 @@ test("patient-linked appointments require current assignment for reads and chang
   const citations = tables.get(schema.citasTable)!;
   assert.equal(citations.find(row => row.id === 101)?.titulo, "Cita actualizada");
   assert.equal(citations.find(row => row.id === 102)?.titulo, "Cita reasignada");
+  const seriesCancellation = await request("DELETE", "/citas/101?scope=serie", "owner");
+  assert.equal(seriesCancellation.status, 200);
+  assert.equal(citations.find(row => row.id === 101)?.status, "cancelada");
+  assert.equal(citations.find(row => row.id === 102)?.status, "programada");
 
   const deniedCreate = await request("POST", "/citas", "owner", {
     titulo: "Cita ajena", fecha: "2026-10-09", horaInicio: "10:00", horaFin: "11:00",
