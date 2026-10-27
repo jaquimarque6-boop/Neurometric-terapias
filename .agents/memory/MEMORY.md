@@ -18,3 +18,4 @@
 - [Generated API contracts](generated-api-contracts.md) — after codegen, rebuild project-reference declarations; OpenAPI `format: date` can produce Zod Date objects for string dates.
 - [Mockup sandbox workflow](mockup-sandbox-workflow.md) — if the dev server cannot find Vite despite it being declared, re-link locked workspace dependencies before changing manifests.
 - [Activities pass access](actividades-pass-access.md) — every Terapias entry must use the pass and target `/acceso-terapias`; never link the public Lovable base.
+- [Clinical access after reassignment](clinical-access-reassignment.md) — current authorized clinicians may see the full chart; revoked clinicians lose server access while authorship and history remain intact.
