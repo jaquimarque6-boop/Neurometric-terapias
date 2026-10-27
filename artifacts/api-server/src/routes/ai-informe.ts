@@ -5,11 +5,12 @@ import {
   patientsTable,
   goalsTable,
   goalProgressTable,
+  registrosTable,
   registrosClinicosTable,
   professionalsTable,
   patientProfessionalsTable,
 } from "@workspace/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
@@ -119,6 +120,7 @@ router.post("/ai/informe-generate", async (req, res) => {
   const [
     allGoals,
     allRegistrosClinicos,
+    excludedPerformanceCountRows,
     assignments,
   ] = await Promise.all([
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
@@ -126,8 +128,11 @@ router.post("/ai/informe-generate", async (req, res) => {
       eq(registrosClinicosTable.patientId, patientId),
       eq(registrosClinicosTable.userId, sess.id),
     )),
+    db.select({ value: count() }).from(registrosTable)
+      .where(eq(registrosTable.patientId, patientId)),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);
+  const hasExcludedPerformanceRecords = Number(excludedPerformanceCountRows[0]?.value ?? 0) > 0;
 
   // ── Fetch professionals and goal progress ──────────────────────────────────
   const profIds = assignments.map(a => a.professionalId);
@@ -246,10 +251,13 @@ router.post("/ai/informe-generate", async (req, res) => {
   }
   // ── Build the user prompt ─────────────────────────────────────────────────
   const availableAreaSources = documentedAreaSources(patient, Object.keys(areaGroups));
+  const excludedPerformanceCaveat = hasExcludedPerformanceRecords
+    ? "Hay registros históricos importados de desempeño excluidos por procedencia no verificable. Su exclusión no demuestra falta de actividad, avances ni desempeño; limita esas conclusiones a la información verificable incluida y aclara que la revisión es parcial cuando corresponda."
+    : "";
 
   const userPrompt = `Genera el informe clínico de evolución para el siguiente paciente.
 Disciplina detectada: ${discipline.toUpperCase()}.
-Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Sesiones clínicas incluidas: ${filteredRC.length}. Total de sesiones verificables de esta cuenta para el paciente: ${allRegistrosClinicos.length}. Sesiones excluidas por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Sesiones de historia completa sin fecha válida, incluidas sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Solo se usan sesiones con autoría verificable de la cuenta actual. Los registros históricos de desempeño sin autoría verificable no se incluyen. No atribuyas al período actividades que no estén registradas allí.
+Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Sesiones clínicas incluidas: ${filteredRC.length}. Total de sesiones verificables de esta cuenta para el paciente: ${allRegistrosClinicos.length}. Sesiones excluidas por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Sesiones de historia completa sin fecha válida, incluidas sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Solo se usan sesiones con autoría verificable de la cuenta actual. No atribuyas al período actividades que no estén registradas allí.${excludedPerformanceCaveat ? `\n${excludedPerformanceCaveat}` : ""}
 
 ═══════════════════════════════════════
 DATOS CLÍNICOS DEL PACIENTE

@@ -682,6 +682,29 @@ test("AI reports use only sessions authored by the requesting account", async ()
   assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
   assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_DE_PRUEBA/);
   assert.doesNotMatch(aiPrompts[0], /DETALLE_LEGACY_SIN_AUTOR_DE_PRUEBA/);
+  assert.match(aiPrompts[0], /Hay registros históricos importados de desempeño excluidos por procedencia no verificable/);
+  assert.match(aiPrompts[0], /Su exclusión no demuestra falta de actividad, avances ni desempeño/);
+});
+
+test("AI prompt stays unchanged when no excluded historical performance records exist", async () => {
+  reset();
+  grantAiConsent(2);
+  const today = now.toISOString().slice(0, 10);
+  tables.set(schema.registrosClinicosTable, [{
+    id: 101, patientId: 1, userId: 2, fecha: today,
+    resumenSesion: "DETALLE_PROPIO_DE_PRUEBA", observaciones: null,
+    recomendacionesHogar: null, materialesActividades: [], createdAt: now,
+  }]);
+
+  const response = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+  }, true);
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(aiPrompts.length, 1);
+  assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
+  assert.doesNotMatch(aiPrompts[0], /registros históricos importados de desempeño excluidos/);
+  assert.doesNotMatch(aiPrompts[0], /Su exclusión no demuestra falta de actividad/);
 });
 
 test("session materials photos are record-scoped, signed only after access checks, and deleted with the record", async () => {
