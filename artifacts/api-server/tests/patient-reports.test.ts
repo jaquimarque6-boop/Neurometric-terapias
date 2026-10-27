@@ -10,7 +10,13 @@ import * as schema from "@workspace/db/schema";
 const now = new Date("2026-09-29T12:00:00Z");
 const patient = { id: 1, name: "Paciente", fechaNacimiento: null, assignedProfessionalId: 2 };
 const owner = { id: 2, name: "Profesional" };
+const other = { id: 3, name: "Otra profesional" };
+const admin = { id: 1, name: "Administración" };
 const reports: any[] = [];
+const sessions = [
+  { id: 11, patientId: 1, userId: 2 },
+  { id: 12, patientId: 1, userId: 3 },
+];
 let queries = 0;
 const matches = (row: any, condition: any): boolean => {
   if (!condition) return true;
@@ -24,7 +30,9 @@ const matches = (row: any, condition: any): boolean => {
   return row[name] instanceof Date ? row[name].getTime() === parameter.value.getTime() : row[name] === parameter.value;
 };
 const rows = (table: unknown) => table === schema.patientsTable ? [patient] :
-  table === schema.usersTable ? [owner] : table === schema.patientReportsTable ? reports : [];
+  table === schema.usersTable ? [admin, owner, other] :
+    table === schema.registrosClinicosTable ? sessions :
+      table === schema.patientReportsTable ? reports : [];
 const db = {
   select(selection?: any) {
     return { from(table: unknown) {
@@ -38,7 +46,7 @@ const db = {
         then(resolve: (value: any[]) => void, reject?: (reason: any) => void) {
           try {
             resolve(rows(table).filter(row => matches(row, condition)).map(row =>
-              joined ? { report: row, authorName: owner.name } :
+              joined ? { report: row, authorName: rows(schema.usersTable).find(user => user.id === row.authorUserId)?.name ?? null } :
                 selection ? { name: owner.name } : row));
           } catch (error) { reject?.(error); }
         },
@@ -59,6 +67,21 @@ const db = {
       found.forEach(report => Object.assign(report, value));
       return Promise.resolve(found);
     } }; } }; } };
+  },
+  delete(_table: unknown) {
+    return { where(condition: unknown) {
+      const removed = reports.filter(report => matches(report, condition));
+      let executed = false;
+      const execute = () => {
+        if (executed) return;
+        executed = true;
+        for (const report of removed) reports.splice(reports.indexOf(report), 1);
+      };
+      return { returning() {
+        execute();
+        return Promise.resolve(removed.map(report => ({ id: report.id })));
+      } };
+    } };
   },
 };
 
@@ -95,7 +118,7 @@ async function call(method: string, path: string, user?: number, body?: unknown)
     method, headers: { "content-type": "application/json", ...(user ? { "x-user": String(user) } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  return { status: response.status, body: await response.json() };
+  return { status: response.status, body: response.status === 204 ? null : await response.json() };
 }
 
 test("an assigned professional can still read previously saved clinical reports", async () => {
@@ -119,7 +142,7 @@ test("an assigned professional can still read previously saved clinical reports"
   assert.equal(response.body[0].content.summary, "Evolución registrada.");
 });
 
-test("patient access precedes report reads and writes; admin remains authorized", async () => {
+test("patient access precedes report reads and writes; admin does not gain clinical access", async () => {
   reports.length = 0;
   assert.equal((await call("GET", "/patients/1/reports")).status, 401);
   assert.equal((await call("POST", "/patients/1/reports", undefined, {})).status, 401);
@@ -130,7 +153,7 @@ test("patient access precedes report reads and writes; admin remains authorized"
     reportType: "family", title: "Ajeno", content: { v: 4 },
   })).status, 403);
   assert.equal(reports.length, 0);
-  assert.equal((await call("GET", "/patients/1/reports", 1)).status, 200);
+  assert.equal((await call("GET", "/patients/1/reports", 1)).status, 403);
 });
 
 test("separate documents survive creation and editing does not duplicate or overwrite original author", async () => {
@@ -146,7 +169,7 @@ test("separate documents survive creation and editing does not duplicate or over
   assert.equal(first.status, 201, JSON.stringify(first.body));
   assert.equal(first.body.authorUserId, 2);
   assert.equal(first.body.content.patientSnapshot.name, "Paciente");
-  const second = await call("POST", "/patients/1/reports", 1,
+  const second = await call("POST", "/patients/1/reports", 2,
     { reportType: "family", title: "Segundo informe", content: { v: 4, textoFamilia: "Familia" } });
   assert.equal(second.status, 201);
   assert.equal(second.body.periodKind, null);
@@ -157,11 +180,11 @@ test("separate documents survive creation and editing does not duplicate or over
   assert.equal(first.body.clinicalRecordsUsedCount, 1);
   assert.equal(first.body.clinicalRecordsTotalCount, 3);
   assert.equal(reports.length, 2);
-  const edit = await call("PUT", `/patients/1/reports/${first.body.id}`, 1,
+  const edit = await call("PUT", `/patients/1/reports/${first.body.id}`, 2,
     { updatedAt: first.body.updatedAt, title: "Editado", content: { v: 4, resumen: "Editado" } });
   assert.equal(edit.status, 200, JSON.stringify(edit.body));
   assert.equal(edit.body.authorUserId, 2);
-  assert.equal(edit.body.updatedByUserId, 1);
+  assert.equal(edit.body.updatedByUserId, 2);
   assert.equal(edit.body.clinicalRecordsUsedCount, 1);
   assert.equal(reports.length, 2);
   assert.equal(reports[1].title, "Segundo informe");
@@ -170,4 +193,56 @@ test("separate documents survive creation and editing does not duplicate or over
   assert.equal((await call("GET", `/patients/1/reports/${first.body.id}`, 3)).status, 403);
   assert.equal((await call("GET", `/patients/1/reports/${first.body.id}`, 2)).status, 200);
   assert.equal((await call("GET", "/patients/1/reports", 2)).body.length, 2);
+});
+
+test("reports and embedded sessions stay scoped to their author after reassignment", async () => {
+  reports.length = 0;
+  patient.assignedProfessionalId = 2;
+  reports.push(
+    {
+      id: 7, patientId: 1, reportType: "evolution", title: "De la profesional",
+      content: { clinicalSnapshot: [{ id: 11, resumenSesion: "Propia" }, { id: 12, resumenSesion: "Ajena" }] },
+      authorUserId: 2, updatedByUserId: 2, clinicalRecordsUsedCount: 2, clinicalRecordsTotalCount: 2,
+      createdAt: now, updatedAt: now,
+    },
+    {
+      id: 8, patientId: 1, reportType: "family", title: "De otra profesional",
+      content: { textoFamilia: "No corresponde a esta cuenta" },
+      authorUserId: 3, updatedByUserId: 3, createdAt: now, updatedAt: now,
+    },
+  );
+
+  const ownerList = await call("GET", "/patients/1/reports", 2);
+  assert.equal(ownerList.status, 200);
+  assert.deepEqual(ownerList.body.map((report: any) => report.id), [7]);
+  assert.deepEqual(ownerList.body[0].content.clinicalSnapshot.map((session: any) => session.id), [11]);
+  assert.equal(ownerList.body[0].clinicalRecordsUsedCount, 1);
+  assert.equal(ownerList.body[0].clinicalRecordsTotalCount, null);
+
+  patient.assignedProfessionalId = 3;
+  assert.equal((await call("GET", "/patients/1/reports/7", 2)).status, 403);
+  const reassignedList = await call("GET", "/patients/1/reports", 3);
+  assert.deepEqual(reassignedList.body.map((report: any) => report.id), [8]);
+  assert.equal((await call("GET", "/patients/1/reports/7", 3)).status, 404);
+  assert.equal((await call("PUT", "/patients/1/reports/7", 3, {
+    updatedAt: now.toISOString(), title: "No", content: { summary: "No" },
+  })).status, 404);
+  assert.equal((await call("DELETE", "/patients/1/reports/7", 3)).status, 404);
+  assert.equal(reports.length, 2, "a denied delete must not remove another account's report");
+
+  patient.assignedProfessionalId = 2;
+  const update = await call("PUT", "/patients/1/reports/7", 2, {
+    updatedAt: now.toISOString(),
+    title: "Actualizado por su autora",
+    content: { clinicalSnapshot: [{ id: 11, resumenSesion: "Propia" }, { id: 12, resumenSesion: "Ajena" }] },
+  });
+  assert.equal(update.status, 200, JSON.stringify(update.body));
+  assert.deepEqual(update.body.content.clinicalSnapshot.map((session: any) => session.id), [11]);
+  assert.equal(update.body.clinicalRecordsUsedCount, 1);
+  assert.equal(update.body.clinicalRecordsTotalCount, null);
+  assert.equal(update.body.authorUserId, 2);
+
+  assert.equal((await call("DELETE", "/patients/1/reports/7", 2)).status, 204);
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].id, 8, "deleting an owned report must preserve the other account's report");
 });

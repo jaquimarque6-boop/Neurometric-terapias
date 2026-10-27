@@ -899,6 +899,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/Goal"
 
+  /patients/{patientId}/files/upload-url:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: createPatientFileUploadUrl
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatientFileUploadUrlInput" }
+      responses:
+        "200":
+          description: Signed upload URL and account-bound upload proof
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientFileUploadUrlResponse" }
+  /patients/{patientId}/files:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: listPatientFiles
+      tags: [patients]
+      responses:
+        "200":
+          description: Files uploaded by the current account
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PatientFile" }
+    post:
+      operationId: createPatientFile
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePatientFileInput" }
+      responses:
+        "201":
+          description: Stored file metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientFile" }
+  /patients/{patientId}/files/{fileId}/download:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: fileId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getPatientFileDownload
+      tags: [patients]
+      responses:
+        "200":
+          description: Short-lived signed download link for the uploading account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PatientFileDownload" }
+  /patients/{patientId}/files/{fileId}:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: fileId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      operationId: deletePatientFile
+      tags: [patients]
+      responses:
+        "200":
+          description: File and storage object deleted by the uploading account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeleteResult" }
   /patients/{patientId}/reports:
     parameters:
       - name: patientId
@@ -965,6 +1054,12 @@ paths:
               schema: { $ref: "#/components/schemas/PatientReport" }
         "409":
           description: Report was modified by another user
+    delete:
+      operationId: deletePatientReport
+      tags: [patients]
+      responses:
+        "204":
+          description: Report permanently deleted by its author
   /dashboard/stats:
     get:
       operationId: getDashboardStats
@@ -1340,6 +1435,58 @@ components:
         periodTo: { type: ["string", "null"], format: date }
         clinicalRecordsUsedCount: { type: ["integer", "null"] }
         clinicalRecordsTotalCount: { type: ["integer", "null"] }
+
+    PatientFile:
+      type: object
+      required: [id, patientId, uploadedBy, originalName, mimeType, sizeBytes, storagePath, createdAt]
+      properties:
+        id: { type: integer }
+        patientId: { type: integer }
+        uploadedBy: { type: integer }
+        originalName: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer }
+        storagePath: { type: string }
+        createdAt: { type: string, format: date-time }
+        uploadedByName: { type: ["string", "null"] }
+
+    PatientFileUploadUrlInput:
+      type: object
+      required: [name, mimeType, size]
+      properties:
+        name: { type: string }
+        mimeType: { type: string }
+        size: { type: integer, minimum: 1, maximum: 26214400 }
+
+    PatientFileUploadUrlResponse:
+      type: object
+      required: [uploadUrl, storagePath, uploadProof]
+      properties:
+        uploadUrl: { type: string, format: uri }
+        storagePath: { type: string }
+        uploadProof: { type: string }
+
+    CreatePatientFileInput:
+      type: object
+      required: [originalName, mimeType, size, storagePath, uploadProof]
+      properties:
+        originalName: { type: string }
+        mimeType: { type: string }
+        size: { type: integer, minimum: 1, maximum: 26214400 }
+        storagePath: { type: string }
+        uploadProof: { type: string }
+
+    PatientFileDownload:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
 
     CreatePatient:
       type: object

@@ -1,7 +1,12 @@
 import { Router, type IRouter } from "express";
 import { recordUserActivityEvent } from "../lib/usage-audit-db";
 import { db } from "@workspace/db";
-import { patientsTable, patientReportsTable, usersTable } from "@workspace/db/schema";
+import {
+  patientsTable,
+  patientReportsTable,
+  registrosClinicosTable,
+  usersTable,
+} from "@workspace/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { canAccessPatient } from "./access-policy";
 import { validClinicalDay } from "./report-period";
@@ -52,19 +57,62 @@ function metadata(body: any) {
 }
 
 const validContent = (body: any) => body && typeof body === "object" && !Array.isArray(body)
-  && JSON.stringify(body).length < 200_000 && Object.keys(body).length > 0;
+  && JSON.stringify(body).length < 200_000 && Object.keys(body).length > 0
+  && (!Object.prototype.hasOwnProperty.call(body, "clinicalSnapshot") || Array.isArray(body.clinicalSnapshot));
 
 function serialize(row: typeof patientReportsTable.$inferSelect, authorName: string | null) {
   return { ...row, authorName, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 
+async function authorizedSessionIds(patientId: number, userId: number): Promise<Set<number>> {
+  const rows = await db.select({ id: registrosClinicosTable.id })
+    .from(registrosClinicosTable)
+    .where(and(
+      eq(registrosClinicosTable.patientId, patientId),
+      eq(registrosClinicosTable.userId, userId),
+    ));
+  return new Set(rows.map(row => row.id));
+}
+
+function sanitizeReportSnapshot(
+  row: typeof patientReportsTable.$inferSelect,
+  allowedSessionIds: Set<number>,
+) {
+  if (!Object.prototype.hasOwnProperty.call(row.content, "clinicalSnapshot")) return { row, changed: false };
+  const original = row.content.clinicalSnapshot;
+  const safeSnapshot = Array.isArray(original)
+    ? original.filter((entry: any) => entry && Number.isSafeInteger(entry.id) && allowedSessionIds.has(entry.id))
+    : [];
+  const changed = !Array.isArray(original) || safeSnapshot.length !== original.length;
+  return {
+    row: {
+      ...row,
+      content: { ...row.content, clinicalSnapshot: safeSnapshot },
+      ...(changed ? {
+        clinicalRecordsUsedCount: safeSnapshot.length,
+        clinicalRecordsTotalCount: null,
+      } : {}),
+    },
+    changed,
+  };
+}
+
 router.get("/patients/:patientId/reports", async (req, res) => {
   const patientId = Number(req.params.patientId);
-  if (!await authorize(req, res, patientId)) return;
+  const patient = await authorize(req, res, patientId);
+  if (!patient) return;
+  const userId = req.session.userId as number;
   const rows = await db.select({ report: patientReportsTable, authorName: usersTable.name })
     .from(patientReportsTable).innerJoin(usersTable, eq(patientReportsTable.authorUserId, usersTable.id))
-    .where(eq(patientReportsTable.patientId, patientId)).orderBy(desc(patientReportsTable.createdAt));
-  return res.json(rows.map(({ report, authorName }) => serialize(report, authorName)));
+    .where(and(
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, userId),
+    )).orderBy(desc(patientReportsTable.createdAt));
+  const hasSnapshots = rows.some(({ report }) =>
+    Array.isArray(report.content?.clinicalSnapshot) && report.content.clinicalSnapshot.length > 0);
+  const allowedSessionIds = hasSnapshots ? await authorizedSessionIds(patientId, userId) : new Set<number>();
+  return res.json(rows.map(({ report, authorName }) =>
+    serialize(sanitizeReportSnapshot(report, allowedSessionIds).row, authorName)));
 });
 
 router.post("/patients/:patientId/reports", async (req, res) => {
@@ -76,16 +124,26 @@ router.post("/patients/:patientId/reports", async (req, res) => {
   if (!body || !["evolution", "family"].includes(body.reportType)
     || typeof body.title !== "string" || !body.title.trim() || body.title.length > 200
     || !validContent(body.content) || !meta) return res.status(400).json({ error: "Informe inválido" });
+  const userId = req.session.userId as number;
+  const hasSnapshot = Array.isArray(body.content.clinicalSnapshot);
+  const allowedSessionIds = hasSnapshot && body.content.clinicalSnapshot.length > 0
+    ? await authorizedSessionIds(patientId, userId)
+    : new Set<number>();
+  const sanitized = sanitizeReportSnapshot({
+    content: body.content,
+  } as typeof patientReportsTable.$inferSelect, allowedSessionIds);
   // Keep the minimal identity snapshot needed to print an historical document
   // if the current patient name later changes.
-  const content = { ...body.content, patientSnapshot: {
-    ...(typeof body.content.patientSnapshot === "object" && body.content.patientSnapshot ? body.content.patientSnapshot : {}),
+  const content: Record<string, any> = { ...sanitized.row.content, patientSnapshot: {
+    ...(typeof sanitized.row.content.patientSnapshot === "object" && sanitized.row.content.patientSnapshot ? sanitized.row.content.patientSnapshot : {}),
     name: patient.name, fechaNacimiento: patient.fechaNacimiento,
   } };
-  const userId = req.session.userId as number;
+  const safeMeta = sanitized.changed
+    ? { ...meta, clinicalRecordsUsedCount: Array.isArray(content.clinicalSnapshot) ? content.clinicalSnapshot.length : 0, clinicalRecordsTotalCount: null }
+    : meta;
   const [report] = await db.insert(patientReportsTable).values({
     patientId, reportType: body.reportType, title: body.title.trim(), content,
-    authorUserId: userId, updatedByUserId: userId, ...meta,
+    authorUserId: userId, updatedByUserId: userId, ...safeMeta,
   }).returning();
   const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
   const response = serialize(report, user?.name ?? null);
@@ -95,19 +153,30 @@ router.post("/patients/:patientId/reports", async (req, res) => {
 
 router.get("/patients/:patientId/reports/:reportId", async (req, res) => {
   const patientId = Number(req.params.patientId);
-  if (!await authorize(req, res, patientId)) return;
+  const patient = await authorize(req, res, patientId);
+  if (!patient) return;
+  const userId = req.session.userId as number;
   const reportId = Number(req.params.reportId);
   if (!Number.isSafeInteger(reportId) || reportId < 1) return res.status(400).json({ error: "Informe inválido" });
   const [row] = await db.select({ report: patientReportsTable, authorName: usersTable.name })
     .from(patientReportsTable).innerJoin(usersTable, eq(patientReportsTable.authorUserId, usersTable.id))
-    .where(and(eq(patientReportsTable.id, reportId), eq(patientReportsTable.patientId, patientId)));
+    .where(and(
+      eq(patientReportsTable.id, reportId),
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, userId),
+    ));
   if (!row) return res.status(404).json({ error: "Informe no encontrado" });
-  return res.json(serialize(row.report, row.authorName));
+  const hasSnapshot = Array.isArray(row.report.content?.clinicalSnapshot)
+    && row.report.content.clinicalSnapshot.length > 0;
+  const allowedSessionIds = hasSnapshot ? await authorizedSessionIds(patientId, userId) : new Set<number>();
+  return res.json(serialize(sanitizeReportSnapshot(row.report, allowedSessionIds).row, row.authorName));
 });
 
 router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
   const patientId = Number(req.params.patientId);
-  if (!await authorize(req, res, patientId)) return;
+  const patient = await authorize(req, res, patientId);
+  if (!patient) return;
+  const userId = req.session.userId as number;
   const reportId = Number(req.params.reportId);
   if (!Number.isSafeInteger(reportId) || reportId < 1) return res.status(400).json({ error: "Informe inválido" });
   const body = req.body;
@@ -115,20 +184,62 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
     || !validContent(body.content) || typeof body.updatedAt !== "string" ||
     Number.isNaN(Date.parse(body.updatedAt))) return res.status(400).json({ error: "Informe inválido" });
   const [existing] = await db.select().from(patientReportsTable)
-    .where(and(eq(patientReportsTable.id, reportId), eq(patientReportsTable.patientId, patientId)));
+    .where(and(
+      eq(patientReportsTable.id, reportId),
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, userId),
+    ));
   if (!existing) return res.status(404).json({ error: "Informe no encontrado" });
+  const hasSnapshot = Array.isArray(body.content.clinicalSnapshot);
+  const allowedSessionIds = hasSnapshot && body.content.clinicalSnapshot.length > 0
+    ? await authorizedSessionIds(patientId, userId)
+    : new Set<number>();
+  const sanitized = sanitizeReportSnapshot({
+    content: body.content,
+  } as typeof patientReportsTable.$inferSelect, allowedSessionIds);
   const [report] = await db.update(patientReportsTable).set({
     title: body.title.trim(),
-    content: { ...body.content, patientSnapshot: existing.content.patientSnapshot },
+    content: { ...sanitized.row.content, patientSnapshot: existing.content.patientSnapshot },
     updatedAt: new Date(),
-    updatedByUserId: req.session.userId,
+    updatedByUserId: userId,
+    ...(sanitized.changed ? {
+      clinicalRecordsUsedCount: Array.isArray(sanitized.row.content.clinicalSnapshot)
+        ? sanitized.row.content.clinicalSnapshot.length
+        : 0,
+      clinicalRecordsTotalCount: null,
+    } : {}),
   }).where(and(eq(patientReportsTable.id, reportId), eq(patientReportsTable.patientId, patientId),
+    eq(patientReportsTable.authorUserId, userId),
     eq(patientReportsTable.updatedAt, new Date(body.updatedAt)))).returning();
   if (!report) return res.status(409).json({ error: "Este informe fue modificado en otra pestaña. Volvé a abrirlo antes de guardar." });
   const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, report.authorUserId));
   const response = serialize(report, user?.name ?? null);
   recordUserActivityEvent(req.session.userId as number, "report_saved");
   return res.json(response);
+});
+
+router.delete("/patients/:patientId/reports/:reportId", async (req, res): Promise<void> => {
+  const patientId = Number(req.params.patientId);
+  const patient = await authorize(req, res, patientId);
+  if (!patient) return;
+  const reportId = Number(req.params.reportId);
+  if (!Number.isSafeInteger(reportId) || reportId < 1) {
+    res.status(400).json({ error: "Informe inválido" });
+    return;
+  }
+  const userId = req.session.userId as number;
+  const [deleted] = await db.delete(patientReportsTable)
+    .where(and(
+      eq(patientReportsTable.id, reportId),
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, userId),
+    ))
+    .returning({ id: patientReportsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Informe no encontrado" });
+    return;
+  }
+  res.status(204).end();
 });
 
 export default router;

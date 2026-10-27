@@ -2089,6 +2089,73 @@ export const AssignGoalToPatientBody = zod.object({
   targetDate: zod.string().optional(),
 });
 
+export const CreatePatientFileUploadUrlParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const createPatientFileUploadUrlBodySizeMax = 26214400;
+
+export const CreatePatientFileUploadUrlBody = zod.object({
+  name: zod.string(),
+  mimeType: zod.string(),
+  size: zod.number().min(1).max(createPatientFileUploadUrlBodySizeMax),
+});
+
+export const CreatePatientFileUploadUrlResponse = zod.object({
+  uploadUrl: zod.string().url(),
+  storagePath: zod.string(),
+  uploadProof: zod.string(),
+});
+
+export const ListPatientFilesParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const ListPatientFilesResponseItem = zod.object({
+  id: zod.number(),
+  patientId: zod.number(),
+  uploadedBy: zod.number(),
+  originalName: zod.string(),
+  mimeType: zod.string(),
+  sizeBytes: zod.number(),
+  storagePath: zod.string(),
+  createdAt: zod.date(),
+  uploadedByName: zod.string().nullish(),
+});
+export const ListPatientFilesResponse = zod.array(ListPatientFilesResponseItem);
+
+export const CreatePatientFileParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const createPatientFileBodySizeMax = 26214400;
+
+export const CreatePatientFileBody = zod.object({
+  originalName: zod.string(),
+  mimeType: zod.string(),
+  size: zod.number().min(1).max(createPatientFileBodySizeMax),
+  storagePath: zod.string(),
+  uploadProof: zod.string(),
+});
+
+export const GetPatientFileDownloadParams = zod.object({
+  patientId: zod.coerce.number(),
+  fileId: zod.coerce.number(),
+});
+
+export const GetPatientFileDownloadResponse = zod.object({
+  url: zod.string().url(),
+});
+
+export const DeletePatientFileParams = zod.object({
+  patientId: zod.coerce.number(),
+  fileId: zod.coerce.number(),
+});
+
+export const DeletePatientFileResponse = zod.object({
+  success: zod.boolean(),
+});
+
 export const ListPatientReportsParams = zod.object({
   patientId: zod.coerce.number(),
 });
@@ -2179,6 +2246,11 @@ export const UpdatePatientReportResponse = zod.object({
   periodTo: zod.date().nullish(),
   clinicalRecordsUsedCount: zod.number().nullish(),
   clinicalRecordsTotalCount: zod.number().nullish(),
+});
+
+export const DeletePatientReportParams = zod.object({
+  patientId: zod.coerce.number(),
+  reportId: zod.coerce.number(),
 });
 
 /**

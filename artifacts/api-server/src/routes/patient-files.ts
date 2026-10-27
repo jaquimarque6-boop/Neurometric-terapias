@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
 import { patientFilesTable, patientsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -15,6 +15,8 @@ import {
 const router: IRouter = Router();
 
 const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
+const UPLOAD_PROOF_TTL_MS = 15 * 60 * 1000;
+const DOWNLOAD_URL_TTL_SECONDS = 60;
 const ALLOWED_MIME = new Set<string>([
   "application/pdf",
   "application/msword",
@@ -30,6 +32,54 @@ const ALLOWED_MIME = new Set<string>([
   "image/heic",
 ]);
 
+type UploadProofClaims = {
+  userId: number;
+  patientId: number;
+  storagePath: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  expiresAt: number;
+};
+
+function createUploadProof(claims: UploadProofClaims): string | null {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return null;
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function verifyUploadProof(proof: unknown, expected: Omit<UploadProofClaims, "expiresAt">): boolean {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || typeof proof !== "string") return false;
+  const [payload, signature, ...extra] = proof.split(".");
+  if (!payload || !signature || extra.length > 0) return false;
+  const expectedSignature = createHmac("sha256", secret).update(payload).digest();
+  let providedSignature: Buffer;
+  try {
+    providedSignature = Buffer.from(signature, "base64url");
+  } catch {
+    return false;
+  }
+  if (providedSignature.length !== expectedSignature.length
+    || !timingSafeEqual(providedSignature, expectedSignature)) return false;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as UploadProofClaims;
+    return claims.userId === expected.userId
+      && claims.patientId === expected.patientId
+      && claims.storagePath === expected.storagePath
+      && claims.originalName === expected.originalName
+      && claims.mimeType === expected.mimeType
+      && claims.sizeBytes === expected.sizeBytes
+      && Number.isSafeInteger(claims.expiresAt)
+      && claims.expiresAt > Date.now()
+      && claims.expiresAt <= Date.now() + UPLOAD_PROOF_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
 function getSessionUser(req: any): { id: number; role: string } | null {
   if (!req.session?.userId) return null;
   return { id: req.session.userId, role: req.session.userRole ?? "professional" };
@@ -37,7 +87,7 @@ function getSessionUser(req: any): { id: number; role: string } | null {
 
 // Returns the patient if the session user may access it, otherwise writes the
 // appropriate error response and returns null. Mirrors the existing patient
-// access rule (admin sees all; professional only their assigned patients).
+// access rule: professionals can access only patients currently assigned to them.
 async function resolveAccessiblePatient(
   sess: { id: number; role: string },
   patientId: number,
@@ -87,8 +137,21 @@ router.post("/patients/:patientId/files/upload-url", async (req, res) => {
     }
 
     const storagePath = `patients/${patientId}/${randomUUID()}-${sanitizeName(name)}`;
+    const originalName = name.slice(0, 255);
+    const sizeBytes = Math.round(size);
+    const expiresAt = Date.now() + UPLOAD_PROOF_TTL_MS;
+    const uploadProof = createUploadProof({
+      userId: sess.id,
+      patientId,
+      storagePath,
+      originalName,
+      mimeType,
+      sizeBytes,
+      expiresAt,
+    });
+    if (!uploadProof) return res.status(503).json({ error: "No se pudo validar la carga del archivo" });
     const { uploadUrl } = await createSignedUploadUrl(storagePath);
-    return res.json({ uploadUrl, storagePath });
+    return res.json({ uploadUrl, storagePath, uploadProof });
   } catch (err) {
     console.error("[POST /files/upload-url]", err);
     return res.status(500).json({ error: "No se pudo preparar la subida" });
@@ -107,7 +170,7 @@ router.post("/patients/:patientId/files", async (req, res) => {
     const patient = await resolveAccessiblePatient(sess, patientId, res);
     if (!patient) return;
 
-    const { originalName, mimeType, size, storagePath } = req.body ?? {};
+    const { originalName, mimeType, size, storagePath, uploadProof } = req.body ?? {};
     if (typeof originalName !== "string" || !originalName.trim()) {
       return res.status(400).json({ error: "Nombre requerido" });
     }
@@ -121,6 +184,16 @@ router.post("/patients/:patientId/files", async (req, res) => {
     // at an arbitrary object).
     if (typeof storagePath !== "string" || !storagePath.startsWith(`patients/${patientId}/`)) {
       return res.status(400).json({ error: "Ruta de almacenamiento inválida" });
+    }
+    if (!verifyUploadProof(uploadProof, {
+      userId: sess.id,
+      patientId,
+      storagePath,
+      originalName: originalName.slice(0, 255),
+      mimeType,
+      sizeBytes: Math.round(size),
+    })) {
+      return res.status(403).json({ error: "La carga no fue autorizada por esta cuenta" });
     }
 
     // Confirm the object was actually uploaded before persisting metadata
@@ -177,7 +250,10 @@ router.get("/patients/:patientId/files", async (req, res) => {
       })
       .from(patientFilesTable)
       .leftJoin(usersTable, eq(usersTable.id, patientFilesTable.uploadedBy))
-      .where(eq(patientFilesTable.patientId, patientId))
+      .where(and(
+        eq(patientFilesTable.patientId, patientId),
+        eq(patientFilesTable.uploadedBy, sess.id),
+      ))
       .orderBy(desc(patientFilesTable.createdAt));
 
     return res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
@@ -205,10 +281,14 @@ router.get("/patients/:patientId/files/:fileId/download", async (req, res) => {
     const [file] = await db
       .select()
       .from(patientFilesTable)
-      .where(and(eq(patientFilesTable.id, fileId), eq(patientFilesTable.patientId, patientId)));
+      .where(and(
+        eq(patientFilesTable.id, fileId),
+        eq(patientFilesTable.patientId, patientId),
+        eq(patientFilesTable.uploadedBy, sess.id),
+      ));
     if (!file) return res.status(404).json({ error: "Archivo no encontrado" });
 
-    const url = await createSignedDownloadUrl(file.storagePath, 300, file.originalName);
+    const url = await createSignedDownloadUrl(file.storagePath, DOWNLOAD_URL_TTL_SECONDS, file.originalName);
     return res.json({ url });
   } catch (err) {
     console.error("[GET /files/:id/download]", err);
@@ -238,14 +318,22 @@ router.delete("/patients/:patientId/files/:fileId", async (req, res) => {
     const [file] = await db
       .select()
       .from(patientFilesTable)
-      .where(and(eq(patientFilesTable.id, fileId), eq(patientFilesTable.patientId, patientId)));
+      .where(and(
+        eq(patientFilesTable.id, fileId),
+        eq(patientFilesTable.patientId, patientId),
+        eq(patientFilesTable.uploadedBy, sess.id),
+      ));
     if (!file) return res.status(404).json({ error: "Archivo no encontrado" });
 
     // Delete the storage object first; only remove the DB row if that succeeds
     // (deleteStorageObject throws on any non-404 error, which aborts before the
     // row delete), so we never leave an orphaned (inaccessible) object behind.
     await deleteStorageObject(file.storagePath);
-    await db.delete(patientFilesTable).where(eq(patientFilesTable.id, fileId));
+    await db.delete(patientFilesTable).where(and(
+      eq(patientFilesTable.id, fileId),
+      eq(patientFilesTable.patientId, patientId),
+      eq(patientFilesTable.uploadedBy, sess.id),
+    ));
 
     return res.json({ success: true });
   } catch (err) {

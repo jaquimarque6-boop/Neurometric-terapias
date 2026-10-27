@@ -10,7 +10,7 @@ import {
   professionalsTable,
   patientProfessionalsTable,
 } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
@@ -124,7 +124,10 @@ router.post("/ai/informe-generate", async (req, res) => {
     assignments,
   ] = await Promise.all([
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
-    db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.patientId, patientId)),
+    db.select().from(registrosClinicosTable).where(and(
+      eq(registrosClinicosTable.patientId, patientId),
+      eq(registrosClinicosTable.userId, sess.id),
+    )),
     db.select().from(registrosTable).where(eq(registrosTable.patientId, patientId)),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);

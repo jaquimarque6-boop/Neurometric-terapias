@@ -418,6 +418,55 @@ export interface PatientReport {
   clinicalRecordsTotalCount?: number | null;
 }
 
+export interface PatientFile {
+  id: number;
+  patientId: number;
+  uploadedBy: number;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storagePath: string;
+  createdAt: string;
+  /** @nullable */
+  uploadedByName?: string | null;
+}
+
+export interface PatientFileUploadUrlInput {
+  name: string;
+  mimeType: string;
+  /**
+   * @minimum 1
+   * @maximum 26214400
+   */
+  size: number;
+}
+
+export interface PatientFileUploadUrlResponse {
+  uploadUrl: string;
+  storagePath: string;
+  uploadProof: string;
+}
+
+export interface CreatePatientFileInput {
+  originalName: string;
+  mimeType: string;
+  /**
+   * @minimum 1
+   * @maximum 26214400
+   */
+  size: number;
+  storagePath: string;
+  uploadProof: string;
+}
+
+export interface PatientFileDownload {
+  url: string;
+}
+
+export interface DeleteResult {
+  success: boolean;
+}
+
 export interface CreatePatient {
   name: string;
   age?: number;

@@ -31,6 +31,7 @@ const activity = (id: number, goalLibraryId: number | null) =>
 const tables = new Map<object, any[]>();
 const stats = { selects: 0, inserts: 0, updates: 0, deletes: 0, ai: 0 };
 const savedSessions: { userId: number; userRole: string }[] = [];
+const aiPrompts: string[] = [];
 class MockWorkbook {
   worksheets: any[] = [];
   xlsx = {
@@ -60,6 +61,7 @@ const storage = {
 function reset() {
   tables.clear();
   savedSessions.length = 0;
+  aiPrompts.length = 0;
   storage.configured = false;
   storage.uploadPaths.length = 0;
   storage.downloadPaths.length = 0;
@@ -256,8 +258,9 @@ const db = {
 };
 
 class MockOpenAI {
-  chat = { completions: { create: async () => {
+  chat = { completions: { create: async (input: any) => {
     stats.ai++;
+    aiPrompts.push(JSON.stringify(input.messages));
     return { choices: [{ message: { content: JSON.stringify({
       objetivos: [{ title: "Autorizado" }],
       motivoConsulta: "Autorizado",
@@ -314,7 +317,7 @@ async function loadRouter(file: string) {
 
 const routes = await Promise.all([
   "auth", "users", "patients", "professionals", "goal-library", "actividades", "goal-codes", "goal-guidance",
-  "ai-perfil", "ai-objetivos", "registros-clinicos", "citas", "export",
+  "ai-perfil", "ai-objetivos", "ai-informe", "registros-clinicos", "citas", "export",
 ].map(loadRouter));
 const app = express();
 app.use(express.json());
@@ -394,6 +397,7 @@ test("all protected route methods reject anonymous requests before DB or AI", as
     ["GET", "/ai/perfil/1"], ["PUT", "/ai/perfil/1", {}],
     ["POST", "/ai/perfil-generate", { patientId: 1 }],
     ["POST", "/ai/objetivos-suggest", { patientId: 1 }],
+    ["POST", "/ai/informe-generate", { patientId: 1 }],
     ["POST", "/registros-clinicos", { patientId: 1, fecha: "2026-01-01" }],
   ];
   for (const [method, path, body] of endpoints) {
@@ -419,6 +423,7 @@ test("admin sessions are denied clinical routes before any clinical query, write
     ["PUT", "/ai/perfil/1", { perfil: {} }],
     ["POST", "/ai/perfil-generate", { patientId: 1 }],
     ["POST", "/ai/objetivos-suggest", { patientId: 1 }],
+    ["POST", "/ai/informe-generate", { patientId: 1 }],
     ["POST", "/registros-clinicos", { patientId: 1, fecha: "2026-01-01" }],
   ];
   for (const [method, path, body] of endpoints) {
@@ -508,6 +513,7 @@ test("patient routes deny foreign patients before inserts, context queries and A
     ["GET", "/ai/perfil/2"], ["PUT", "/ai/perfil/2", { perfil: {} }],
     ["POST", "/ai/perfil-generate", { patientId: 2 }],
     ["POST", "/ai/objetivos-suggest", { patientId: 2 }],
+    ["POST", "/ai/informe-generate", { patientId: 2 }],
     ["POST", "/registros-clinicos", { patientId: 2, fecha: "2026-01-01" }],
   ];
   for (const [method, path, body] of endpoints) {
@@ -516,7 +522,7 @@ test("patient routes deny foreign patients before inserts, context queries and A
     assert.equal(stats.inserts, before.inserts);
     assert.equal(stats.updates, before.updates);
     assert.equal(stats.ai, before.ai);
-    const consentChecked = path === "/ai/perfil-generate" || path === "/ai/objetivos-suggest";
+    const consentChecked = path === "/ai/perfil-generate" || path === "/ai/objetivos-suggest" || path === "/ai/informe-generate";
     assert.equal(
       stats.selects - before.selects,
       consentChecked ? 2 : 1,
@@ -642,6 +648,35 @@ test("assigned professional can access own clinical data and authorized AI uses 
   assert.equal(suggested.body.objetivos[0].title, "Autorizado");
   assert.equal((await request("POST", "/ai/perfil-generate", "owner", { patientId: 1 })).status, 200);
   assert.equal(stats.ai, 2);
+});
+
+test("AI reports use only sessions authored by the requesting account", async () => {
+  reset();
+  grantAiConsent(2);
+  const today = now.toISOString().slice(0, 10);
+  tables.set(schema.registrosClinicosTable, [
+    {
+      id: 101, patientId: 1, userId: 2, fecha: today,
+      resumenSesion: "DETALLE_PROPIO_DE_PRUEBA", observaciones: "Nota propia ficticia",
+      recomendacionesHogar: null, materialesActividades: [], createdAt: now,
+    },
+    {
+      id: 102, patientId: 1, userId: 3, fecha: today,
+      resumenSesion: "DETALLE_AJENO_DE_PRUEBA", observaciones: "Nota ajena ficticia",
+      recomendacionesHogar: null, materialesActividades: [], createdAt: now,
+    },
+  ]);
+
+  const response = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+  }, true);
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.deepEqual(response.body.clinicalSnapshot.map((session: any) => session.id), [101]);
+  assert.equal(response.body.clinicalRecordsTotalCount, 1);
+  assert.equal(aiPrompts.length, 1);
+  assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
+  assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_DE_PRUEBA/);
 });
 
 test("session materials photos are record-scoped, signed only after access checks, and deleted with the record", async () => {

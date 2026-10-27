@@ -29,6 +29,7 @@ import type {
   ConsentStatus,
   CreateGoal,
   CreatePatient,
+  CreatePatientFileInput,
   CreatePatientProfessional,
   CreateProfessional,
   CreateProfessionalFile,
@@ -36,6 +37,7 @@ import type {
   DashboardStats,
   DeletePatient200,
   DeleteProfessionalFile200,
+  DeleteResult,
   GetProfessionalFileDownloadUrl200,
   Goal,
   GoalLibraryItem,
@@ -46,6 +48,10 @@ import type {
   ListPatientsParams,
   ListRegistrosClinicosParams,
   Patient,
+  PatientFile,
+  PatientFileDownload,
+  PatientFileUploadUrlInput,
+  PatientFileUploadUrlResponse,
   PatientProfessional,
   PatientReport,
   PatientReportInput,
@@ -4176,6 +4182,432 @@ export const useAssignGoalToPatient = <
   return useMutation(getAssignGoalToPatientMutationOptions(options));
 };
 
+export const getCreatePatientFileUploadUrlUrl = (patientId: number) => {
+  return `/api/patients/${patientId}/files/upload-url`;
+};
+
+export const createPatientFileUploadUrl = async (
+  patientId: number,
+  patientFileUploadUrlInput: PatientFileUploadUrlInput,
+  options?: RequestInit,
+): Promise<PatientFileUploadUrlResponse> => {
+  return customFetch<PatientFileUploadUrlResponse>(
+    getCreatePatientFileUploadUrlUrl(patientId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(patientFileUploadUrlInput),
+    },
+  );
+};
+
+export const getCreatePatientFileUploadUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPatientFileUploadUrl>>,
+    TError,
+    { patientId: number; data: BodyType<PatientFileUploadUrlInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPatientFileUploadUrl>>,
+  TError,
+  { patientId: number; data: BodyType<PatientFileUploadUrlInput> },
+  TContext
+> => {
+  const mutationKey = ["createPatientFileUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPatientFileUploadUrl>>,
+    { patientId: number; data: BodyType<PatientFileUploadUrlInput> }
+  > = (props) => {
+    const { patientId, data } = props ?? {};
+
+    return createPatientFileUploadUrl(patientId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePatientFileUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPatientFileUploadUrl>>
+>;
+export type CreatePatientFileUploadUrlMutationBody =
+  BodyType<PatientFileUploadUrlInput>;
+export type CreatePatientFileUploadUrlMutationError = ErrorType<unknown>;
+
+export const useCreatePatientFileUploadUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPatientFileUploadUrl>>,
+    TError,
+    { patientId: number; data: BodyType<PatientFileUploadUrlInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPatientFileUploadUrl>>,
+  TError,
+  { patientId: number; data: BodyType<PatientFileUploadUrlInput> },
+  TContext
+> => {
+  return useMutation(getCreatePatientFileUploadUrlMutationOptions(options));
+};
+
+export const getListPatientFilesUrl = (patientId: number) => {
+  return `/api/patients/${patientId}/files`;
+};
+
+export const listPatientFiles = async (
+  patientId: number,
+  options?: RequestInit,
+): Promise<PatientFile[]> => {
+  return customFetch<PatientFile[]>(getListPatientFilesUrl(patientId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListPatientFilesQueryKey = (patientId: number) => {
+  return [`/api/patients/${patientId}/files`] as const;
+};
+
+export const getListPatientFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPatientFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPatientFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListPatientFilesQueryKey(patientId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPatientFiles>>
+  > = ({ signal }) =>
+    listPatientFiles(patientId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!patientId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPatientFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPatientFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPatientFiles>>
+>;
+export type ListPatientFilesQueryError = ErrorType<unknown>;
+
+export function useListPatientFiles<
+  TData = Awaited<ReturnType<typeof listPatientFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPatientFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPatientFilesQueryOptions(patientId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getCreatePatientFileUrl = (patientId: number) => {
+  return `/api/patients/${patientId}/files`;
+};
+
+export const createPatientFile = async (
+  patientId: number,
+  createPatientFileInput: CreatePatientFileInput,
+  options?: RequestInit,
+): Promise<PatientFile> => {
+  return customFetch<PatientFile>(getCreatePatientFileUrl(patientId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPatientFileInput),
+  });
+};
+
+export const getCreatePatientFileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPatientFile>>,
+    TError,
+    { patientId: number; data: BodyType<CreatePatientFileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPatientFile>>,
+  TError,
+  { patientId: number; data: BodyType<CreatePatientFileInput> },
+  TContext
+> => {
+  const mutationKey = ["createPatientFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPatientFile>>,
+    { patientId: number; data: BodyType<CreatePatientFileInput> }
+  > = (props) => {
+    const { patientId, data } = props ?? {};
+
+    return createPatientFile(patientId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePatientFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPatientFile>>
+>;
+export type CreatePatientFileMutationBody = BodyType<CreatePatientFileInput>;
+export type CreatePatientFileMutationError = ErrorType<unknown>;
+
+export const useCreatePatientFile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPatientFile>>,
+    TError,
+    { patientId: number; data: BodyType<CreatePatientFileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPatientFile>>,
+  TError,
+  { patientId: number; data: BodyType<CreatePatientFileInput> },
+  TContext
+> => {
+  return useMutation(getCreatePatientFileMutationOptions(options));
+};
+
+export const getGetPatientFileDownloadUrl = (
+  patientId: number,
+  fileId: number,
+) => {
+  return `/api/patients/${patientId}/files/${fileId}/download`;
+};
+
+export const getPatientFileDownload = async (
+  patientId: number,
+  fileId: number,
+  options?: RequestInit,
+): Promise<PatientFileDownload> => {
+  return customFetch<PatientFileDownload>(
+    getGetPatientFileDownloadUrl(patientId, fileId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPatientFileDownloadQueryKey = (
+  patientId: number,
+  fileId: number,
+) => {
+  return [`/api/patients/${patientId}/files/${fileId}/download`] as const;
+};
+
+export const getGetPatientFileDownloadQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPatientFileDownload>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  fileId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPatientFileDownload>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetPatientFileDownloadQueryKey(patientId, fileId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPatientFileDownload>>
+  > = ({ signal }) =>
+    getPatientFileDownload(patientId, fileId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(patientId && fileId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPatientFileDownload>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPatientFileDownloadQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPatientFileDownload>>
+>;
+export type GetPatientFileDownloadQueryError = ErrorType<unknown>;
+
+export function useGetPatientFileDownload<
+  TData = Awaited<ReturnType<typeof getPatientFileDownload>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  fileId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPatientFileDownload>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPatientFileDownloadQueryOptions(
+    patientId,
+    fileId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getDeletePatientFileUrl = (patientId: number, fileId: number) => {
+  return `/api/patients/${patientId}/files/${fileId}`;
+};
+
+export const deletePatientFile = async (
+  patientId: number,
+  fileId: number,
+  options?: RequestInit,
+): Promise<DeleteResult> => {
+  return customFetch<DeleteResult>(getDeletePatientFileUrl(patientId, fileId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeletePatientFileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePatientFile>>,
+    TError,
+    { patientId: number; fileId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePatientFile>>,
+  TError,
+  { patientId: number; fileId: number },
+  TContext
+> => {
+  const mutationKey = ["deletePatientFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePatientFile>>,
+    { patientId: number; fileId: number }
+  > = (props) => {
+    const { patientId, fileId } = props ?? {};
+
+    return deletePatientFile(patientId, fileId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeletePatientFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePatientFile>>
+>;
+
+export type DeletePatientFileMutationError = ErrorType<unknown>;
+
+export const useDeletePatientFile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePatientFile>>,
+    TError,
+    { patientId: number; fileId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deletePatientFile>>,
+  TError,
+  { patientId: number; fileId: number },
+  TContext
+> => {
+  return useMutation(getDeletePatientFileMutationOptions(options));
+};
+
 export const getListPatientReportsUrl = (patientId: number) => {
   return `/api/patients/${patientId}/reports`;
 };
@@ -4528,6 +4960,88 @@ export const useUpdatePatientReport = <
   TContext
 > => {
   return useMutation(getUpdatePatientReportMutationOptions(options));
+};
+
+export const getDeletePatientReportUrl = (
+  patientId: number,
+  reportId: number,
+) => {
+  return `/api/patients/${patientId}/reports/${reportId}`;
+};
+
+export const deletePatientReport = async (
+  patientId: number,
+  reportId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeletePatientReportUrl(patientId, reportId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeletePatientReportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePatientReport>>,
+    TError,
+    { patientId: number; reportId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePatientReport>>,
+  TError,
+  { patientId: number; reportId: number },
+  TContext
+> => {
+  const mutationKey = ["deletePatientReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePatientReport>>,
+    { patientId: number; reportId: number }
+  > = (props) => {
+    const { patientId, reportId } = props ?? {};
+
+    return deletePatientReport(patientId, reportId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeletePatientReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePatientReport>>
+>;
+
+export type DeletePatientReportMutationError = ErrorType<unknown>;
+
+export const useDeletePatientReport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePatientReport>>,
+    TError,
+    { patientId: number; reportId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deletePatientReport>>,
+  TError,
+  { patientId: number; reportId: number },
+  TContext
+> => {
+  return useMutation(getDeletePatientReportMutationOptions(options));
 };
 
 /**

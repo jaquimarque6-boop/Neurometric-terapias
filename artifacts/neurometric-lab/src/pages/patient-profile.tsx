@@ -746,6 +746,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setSavedReports(await response.json());
     } catch (error: any) {
+      setSavedReports([]);
+      setOpenedReport(null);
       toast({ title: "No se pudieron cargar los informes guardados", description: error.message, variant: "destructive" });
     } finally { setLoadingReports(false); }
   };
@@ -759,7 +761,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     setAreaTexts(d.areas);
     setSugerencias(d.sugerencias);
     setTextoFamilia(currentPatient.informeFamilia ?? "");
-  }, [currentPatient.id, currentPatient.informeEvolucion, currentPatient.informeFamilia]);
+  }, [currentPatient.id, currentPatient.informeEvolucion, currentPatient.informeFamilia, openedReport]);
 
   const openSavedReport = async (id: number) => {
     try {
@@ -781,6 +783,10 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       setSugerencias(draft.sugerencias);
       setTextoFamilia(report.content.textoFamilia ?? "");
     } catch (error: any) {
+      setOpenedReport(null);
+      if (error.message === "HTTP 403" || error.message === "HTTP 404") {
+        setSavedReports(previous => previous.filter(report => report.id !== id));
+      }
       toast({ title: "No se pudo abrir el informe", description: error.message, variant: "destructive" });
     }
   };
@@ -863,6 +869,26 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     } finally { savingRef.current = false; setIsSaving(false); }
   };
 
+  const handleDeleteReport = async (id: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error ?? `HTTP ${response.status}`);
+      }
+      setSavedReports(previous => previous.filter(report => report.id !== id));
+      if (openedReport?.id === id) setOpenedReport(null);
+      toast({ title: "Informe eliminado" });
+      return true;
+    } catch (error: any) {
+      toast({ title: "No se pudo eliminar el informe", description: error.message, variant: "destructive" });
+      return false;
+    }
+  };
+
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
     const accepted = acceptPendingReportGeneration({
       draft: currentReportDraft(),
@@ -933,7 +959,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!hasClinicalSourceData && !openedReport) {
       toast({
         title: "Informe sin información clínica",
@@ -947,6 +973,26 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     if (!content) return;
     const win = window.open("", "_blank");
     if (!win) return;
+    if (openedReport) {
+      try {
+        const access = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports/${openedReport.id}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!access.ok) {
+          win.close();
+          if (access.status === 403 || access.status === 404) {
+            setSavedReports(previous => previous.filter(report => report.id !== openedReport.id));
+            setOpenedReport(null);
+          }
+          throw new Error("Ya no tenés acceso a este informe.");
+        }
+      } catch (error: any) {
+        win.close();
+        toast({ title: "No se pudo imprimir el informe", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
     win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Informe — ${patient.name}</title><style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1412;padding:48px 56px;font-size:13px;line-height:1.85;max-width:820px;margin:0 auto}
@@ -984,7 +1030,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   return (
     <div className="space-y-5">
       <PatientReportsList reports={savedReports} selectedId={openedReport?.id ?? null}
-        loading={loadingReports} onOpen={id => void openSavedReport(id)} onNew={newReport} />
+        loading={loadingReports} onOpen={id => void openSavedReport(id)} onNew={newReport} onDelete={handleDeleteReport} />
       {(currentPatient.informeEvolucion || currentPatient.informeFamilia) && !openedReport && (
         <p className="text-xs text-muted-foreground">Los informes anteriores siguen disponibles como borradores heredados. Podés guardarlos explícitamente como documentos nuevos; su fecha y autor originales no se conocen.</p>
       )}
@@ -1435,7 +1481,7 @@ export default function PatientProfile() {
         const err = await urlRes.json().catch(() => ({}));
         throw new Error(err.error ?? "No se pudo preparar la subida");
       }
-      const { uploadUrl, storagePath } = await urlRes.json();
+      const { uploadUrl, storagePath, uploadProof } = await urlRes.json();
 
       // 2. Upload the bytes directly to Supabase Storage.
       const putRes = await fetch(uploadUrl, {
@@ -1455,6 +1501,7 @@ export default function PatientProfile() {
           mimeType: file.type || "application/octet-stream",
           size: file.size,
           storagePath,
+          uploadProof,
         }),
       });
       if (!metaRes.ok) {
