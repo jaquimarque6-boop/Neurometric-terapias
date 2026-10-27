@@ -763,6 +763,66 @@ test("reassigned professionals lose access to their own clinical sessions and at
   assert.equal(tables.get(schema.registrosClinicosTable)?.length, 3);
 });
 
+test("former professionals cannot access unattributed legacy sessions or their photos", async () => {
+  reset();
+  storage.configured = true;
+  const photoPath = "clinical-records/50/material-legacy/photo-legacy";
+  tables.set(schema.registrosClinicosTable, [{
+    id: 50,
+    patientId: 2,
+    userId: null,
+    fecha: "2024-06-01",
+    resumenSesion: "Contenido histórico ficticio",
+    createdAt: now,
+    materialesActividades: [{
+      id: "material-legacy",
+      nombre: "Material histórico",
+      fotos: [{
+        id: "photo-legacy",
+        originalName: "imagen-historica.png",
+        mimeType: "image/png",
+        sizeBytes: 100,
+        storagePath: photoPath,
+        uploaded: true,
+      }],
+    }],
+  }]);
+  storage.objects.add(photoPath);
+
+  assert.deepEqual((await request("GET", "/registros-clinicos", "owner")).body, []);
+  assert.equal((await request("GET", "/registros-clinicos/50", "owner")).status, 403);
+  assert.equal((await request("GET", "/registros-clinicos/50/materiales", "owner")).status, 403);
+  assert.equal((await request(
+    "POST",
+    "/registros-clinicos/50/materiales/material-legacy/fotos/photo-legacy/complete",
+    "owner",
+  )).status, 403);
+  assert.equal((await request(
+    "POST",
+    "/registros-clinicos/50/materiales/material-legacy/fotos/upload-url",
+    "owner",
+    { name: "otra.png", mimeType: "image/png", size: 100 },
+  )).status, 403);
+  assert.equal((await request(
+    "DELETE",
+    "/registros-clinicos/50/materiales/material-legacy/fotos/photo-legacy",
+    "owner",
+  )).status, 403);
+  assert.equal((await request("PATCH", "/registros-clinicos/50", "owner", { observaciones: "Cambio" })).status, 403);
+  assert.equal((await request("DELETE", "/registros-clinicos/50", "owner")).status, 403);
+  assert.equal((await request("GET", "/patients/2/timeline", "owner")).status, 403);
+
+  const exported = await request("GET", "/export/my-data", "owner");
+  assert.equal(exported.status, 200);
+  const clinicalSheet = exported.body.find((sheet: any) => sheet.name === "Registros clínicos");
+  assert.deepEqual(clinicalSheet.rows, []);
+  assert.deepEqual(storage.downloadPaths, []);
+  assert.deepEqual(storage.uploadPaths, []);
+  assert.deepEqual(storage.deletedPaths, []);
+  assert.equal(storage.objects.has(photoPath), true);
+  assert.equal(tables.get(schema.registrosClinicosTable)?.length, 1);
+});
+
 test("patient-linked appointments require current assignment for reads and changes", async () => {
   reset();
   tables.set(schema.citasTable, [
