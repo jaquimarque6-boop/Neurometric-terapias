@@ -3,8 +3,8 @@ name: Clinical access after reassignment
 description: Neurometric Terapias' access rule for shared clinical records when patient assignments change.
 ---
 
-Professionals with a current, explicit authorization to a patient may access the complete clinical history, including records authored by other professionals. When authorization ends, access to prior records, reports, patient files, and future exports must end as well. Preserve historical records and their original author attribution; authorship is not a continuing permission.
+Neurometric Terapias is an individual-use platform, not a shared clinical chart. A professional may access only patients currently assigned to their account and clinical records attributable to that same account. Do not grant access to another professional's records, even when both work with the patient. When assignment ends, the former professional loses access through the platform, including to their own older records for that patient. Preserve all historical data and original authorship without modification.
 
-**Why:** The user explicitly chose full-history access for currently assigned and authorized professionals, with revocation of access after reassignment and preservation of original authorship.
+**Why:** The user corrected the earlier shared-history plan: the product must remain individual-use, with no team permissions, while retaining history and authorship after reassignment.
 
-**How to apply:** Apply one server-side access rule consistently to patient data, sessions, reports, anamnesis, goals, attachments, and exports. Validate how professional-directory identities map to login accounts before using existing team-assignment records as authorization. Do not let a professional grant themselves access.
+**How to apply:** Require both current patient assignment and record ownership wherever a record has reliable author metadata. Apply that consistently to session records, reports, files, attachments, downloads, and exports. Do not infer authorship for legacy rows that lack it, and do not repurpose professional-directory links as account permissions.
