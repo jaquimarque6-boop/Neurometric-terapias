@@ -114,10 +114,15 @@ router.get("/export/my-data", async (req, res) => {
     const patientNameById = new Map(patients.map((p) => [p.id, p.name]));
 
     // ── Sessions / registros clínicos ──────────────────────────────────────
-    const myRegistros = await db
-      .select()
-      .from(registrosClinicosTable)
-      .where(eq(registrosClinicosTable.userId, sess.id));
+    let myRegistros: (typeof registrosClinicosTable.$inferSelect)[] = [];
+    if (patientIds.length > 0) {
+      const authoredRows = await db
+        .select()
+        .from(registrosClinicosTable)
+        .where(eq(registrosClinicosTable.userId, sess.id));
+      const assignedPatientIds = new Set(patientIds);
+      myRegistros = authoredRows.filter(record => assignedPatientIds.has(record.patientId));
+    }
 
     let legacyRegistros: (typeof registrosClinicosTable.$inferSelect)[] = [];
     if (patientIds.length > 0) {

@@ -81,6 +81,20 @@ async function resolveAccessibleRecord(
     res.status(403).json({ error: "Sin acceso a este registro" });
     return null;
   }
+
+  const [patient] = await db
+    .select({ assignedProfessionalId: patientsTable.assignedProfessionalId })
+    .from(patientsTable)
+    .where(eq(patientsTable.id, record.patientId));
+  if (!patient) {
+    res.status(404).json({ error: "Paciente no encontrado" });
+    return null;
+  }
+  if (!canAccessPatient(patient, sess)) {
+    res.status(403).json({ error: "Sin acceso a este paciente" });
+    return null;
+  }
+
   return record;
 }
 
@@ -100,12 +114,20 @@ router.get("/registros-clinicos", async (req, res) => {
 
   const patientId = req.query.patientId ? parseInt(req.query.patientId as string) : null;
 
-  let records = await db.select().from(registrosClinicosTable).orderBy(registrosClinicosTable.fecha);
+  // Load only records authored by this account, then require that their
+  // patients are still assigned to it. Authorship alone is not authorization.
+  let records = await db
+    .select()
+    .from(registrosClinicosTable)
+    .where(eq(registrosClinicosTable.userId, sess.id))
+    .orderBy(registrosClinicosTable.fecha);
 
-  // Role-based isolation: non-admin users see only their own records (by userId)
-  if (sess.role !== "admin") {
-    records = records.filter(r => r.userId === sess.id);
-  }
+  const assignedPatients = await db
+    .select({ id: patientsTable.id })
+    .from(patientsTable)
+    .where(eq(patientsTable.assignedProfessionalId, sess.id));
+  const assignedPatientIds = new Set(assignedPatients.map(patient => patient.id));
+  records = records.filter(record => assignedPatientIds.has(record.patientId));
 
   if (patientId) records = records.filter(r => r.patientId === patientId);
   const enriched = await Promise.all(records.map(enrich));

@@ -31,6 +31,25 @@ const activity = (id: number, goalLibraryId: number | null) =>
 const tables = new Map<object, any[]>();
 const stats = { selects: 0, inserts: 0, updates: 0, deletes: 0, ai: 0 };
 const savedSessions: { userId: number; userRole: string }[] = [];
+class MockWorkbook {
+  worksheets: any[] = [];
+  xlsx = {
+    writeBuffer: async () => Buffer.from(JSON.stringify(this.worksheets)),
+  };
+
+  addWorksheet(name: string) {
+    const worksheet: any = {
+      name,
+      columns: [],
+      rows: [],
+      getRow: () => ({}),
+      addRow(row: any) { this.rows.push(row); },
+    };
+    this.worksheets.push(worksheet);
+    return worksheet;
+  }
+}
+
 const storage = {
   configured: false,
   uploadPaths: [] as string[],
@@ -55,6 +74,7 @@ function reset() {
   tables.set(schema.goalsTable, []);
   tables.set(schema.registrosClinicosTable, []);
   tables.set(schema.registrosTable, []);
+  tables.set(schema.citasTable, []);
   tables.set(schema.userConsentAcceptancesTable, []);
   tables.set(schema.patientProfessionalsTable, []);
   tables.set(schema.professionalsTable, []);
@@ -169,12 +189,26 @@ const db = {
   update(table: object) {
     return { set(value: any) {
       return { where(condition: unknown) {
-        return { returning() {
-          const rows = filterRows(tables.get(table) ?? [], condition);
+        const rows = filterRows(tables.get(table) ?? [], condition);
+        let executed = false;
+        const execute = () => {
+          if (executed) return;
+          executed = true;
           stats.updates += rows.length;
           rows.forEach(row => Object.assign(row, value));
-          return Promise.resolve(rows);
-        } };
+        };
+        return {
+          returning() {
+            execute();
+            return Promise.resolve(rows);
+          },
+          then(resolve: (value: any[]) => void, reject?: (error: Error) => void) {
+            try {
+              execute();
+              resolve(rows);
+            } catch (error) { reject?.(error as Error); }
+          },
+        };
       } };
     } };
   },
@@ -206,7 +240,7 @@ async function loadRouter(file: string) {
     entryPoints: [`src/routes/${file}.ts`],
     absWorkingDir: new URL("../", import.meta.url).pathname,
     bundle: true, platform: "node", format: "cjs", write: false,
-    external: ["express", "@workspace/db", "@workspace/db/schema", "drizzle-orm", "openai", "bcryptjs", "../lib/supabaseStorage"],
+    external: ["express", "@workspace/db", "@workspace/db/schema", "drizzle-orm", "openai", "bcryptjs", "exceljs", "../lib/supabaseStorage"],
     logLevel: "silent",
   });
   const exports: any = {};
@@ -217,6 +251,7 @@ async function loadRouter(file: string) {
       if (name === "@workspace/db") return { db };
       if (name === "@workspace/db/schema") return schema;
       if (name === "openai") return MockOpenAI;
+      if (name === "exceljs") return { Workbook: MockWorkbook };
       if (name === "../lib/supabaseStorage") return {
         storageConfigured: () => storage.configured,
         createSignedUploadUrl: async (path: string) => {
@@ -235,7 +270,10 @@ async function loadRouter(file: string) {
       };
       return requireModule(name);
     },
-    process: { env: { OPENAI_API_KEY: "mock-key", SESSION_SECRET: "test-secret", CONSENT_AI_VERSION: testAiConsentVersion } },
+    process: {
+      env: { OPENAI_API_KEY: "mock-key", SESSION_SECRET: "test-secret", CONSENT_AI_VERSION: testAiConsentVersion },
+      versions: process.versions,
+    },
     Buffer, Date, console, setTimeout, clearTimeout,
   }, { filename: file });
   if (typeof (module.exports as any).default !== "function") throw new Error(`Router not loaded: ${file}`);
@@ -244,7 +282,7 @@ async function loadRouter(file: string) {
 
 const routes = await Promise.all([
   "auth", "users", "patients", "professionals", "goal-library", "actividades", "goal-codes", "goal-guidance",
-  "ai-perfil", "ai-objetivos", "registros-clinicos",
+  "ai-perfil", "ai-objetivos", "registros-clinicos", "citas", "export",
 ].map(loadRouter));
 const app = express();
 app.use(express.json());
@@ -397,7 +435,7 @@ test("admin user management returns account metadata only and cannot change a ro
     professionalId: null,
   }]);
   const users = await request("GET", "/users", "admin");
-  assert.equal(users.status, 200);
+  assert.equal(users.status, 200, JSON.stringify(users.body));
   assert.equal(users.body.length, 1);
   assert.equal(users.body[0].email, "professional@example.test");
   assert.equal("passwordHash" in users.body[0], false);
@@ -630,6 +668,138 @@ test("session materials photos are record-scoped, signed only after access check
   assert.deepEqual(storage.deletedPaths, [expectedPath]);
   assert.equal(storage.objects.has(expectedPath), false);
   assert.equal((tables.get(schema.registrosClinicosTable) ?? []).length, 0);
+});
+
+test("reassigned professionals lose access to their own clinical sessions and attachments", async () => {
+  reset();
+  storage.configured = true;
+  const photoPath = "clinical-records/11/material-01/photo-01";
+  tables.set(schema.registrosClinicosTable, [
+    {
+      id: 10, patientId: 1, userId: 2, fecha: "2026-10-01",
+      resumenSesion: "Sesión actual", materialesActividades: null, createdAt: now,
+    },
+    {
+      id: 11, patientId: 2, userId: 2, fecha: "2026-10-02",
+      resumenSesion: "Sesión anterior", createdAt: now,
+      materialesActividades: [{
+        id: "material-01",
+        nombre: "Material ficticio",
+        fotos: [{
+          id: "photo-01", originalName: "foto.png", mimeType: "image/png",
+          sizeBytes: 100, storagePath: photoPath, uploaded: true,
+        }],
+      }],
+    },
+    {
+      id: 12, patientId: 1, userId: 3, fecha: "2026-10-03",
+      resumenSesion: "Otra cuenta", materialesActividades: null, createdAt: now,
+    },
+  ]);
+  storage.objects.add(photoPath);
+
+  const listed = await request("GET", "/registros-clinicos", "owner");
+  assert.equal(listed.status, 200);
+  assert.deepEqual(listed.body.map((row: any) => row.id), [10]);
+  assert.equal((await request("GET", "/registros-clinicos/10", "owner")).status, 200);
+  assert.equal((await request("GET", "/registros-clinicos/11", "owner")).status, 403);
+  assert.equal((await request("GET", "/registros-clinicos/12", "owner")).status, 403);
+
+  assert.equal((await request("GET", "/registros-clinicos/11/materiales", "owner")).status, 403);
+  assert.equal((await request(
+    "POST",
+    "/registros-clinicos/11/materiales/material-01/fotos/upload-url",
+    "owner",
+    { name: "nueva.png", mimeType: "image/png", size: 100 },
+  )).status, 403);
+  assert.equal((await request(
+    "POST",
+    "/registros-clinicos/11/materiales/material-01/fotos/photo-01/complete",
+    "owner",
+  )).status, 403);
+  assert.equal((await request(
+    "DELETE",
+    "/registros-clinicos/11/materiales/material-01/fotos/photo-01",
+    "owner",
+  )).status, 403);
+  assert.equal((await request("PATCH", "/registros-clinicos/11", "owner", { observaciones: "No autorizado" })).status, 403);
+  assert.equal((await request("DELETE", "/registros-clinicos/11", "owner")).status, 403);
+  assert.deepEqual(storage.downloadPaths, []);
+  assert.deepEqual(storage.uploadPaths, []);
+  assert.deepEqual(storage.deletedPaths, []);
+  assert.equal(tables.get(schema.registrosClinicosTable)?.length, 3);
+});
+
+test("patient-linked appointments require current assignment for reads and changes", async () => {
+  reset();
+  tables.set(schema.citasTable, [
+    {
+      id: 101, userId: 2, patientId: 1, titulo: "Cita vigente", fecha: "2026-10-01",
+      horaInicio: "10:00", horaFin: "11:00", tipo: "sesion", status: "programada",
+      serieId: "weekly-test", createdAt: now,
+    },
+    {
+      id: 102, userId: 2, patientId: 2, titulo: "Cita reasignada", fecha: "2026-10-08",
+      horaInicio: "10:00", horaFin: "11:00", tipo: "sesion", status: "programada",
+      serieId: "weekly-test", createdAt: now,
+    },
+    {
+      id: 103, userId: 2, patientId: null, titulo: "Evento personal", fecha: "2026-10-03",
+      horaInicio: "12:00", horaFin: "13:00", tipo: "personal", status: "programada",
+      createdAt: now,
+    },
+  ]);
+
+  const list = await request("GET", "/citas", "owner");
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.body.map((row: any) => row.id), [101, 103]);
+  assert.deepEqual((await request("GET", "/citas?patientId=2", "owner")).body, []);
+  assert.equal((await request("PUT", "/citas/102", "owner", { titulo: "Cambio no autorizado" })).status, 403);
+  assert.equal((await request("DELETE", "/citas/102", "owner")).status, 403);
+
+  const seriesUpdate = await request("PUT", "/citas/101", "owner", {
+    scope: "serie", titulo: "Cita actualizada",
+  });
+  assert.equal(seriesUpdate.status, 200);
+  const citations = tables.get(schema.citasTable)!;
+  assert.equal(citations.find(row => row.id === 101)?.titulo, "Cita actualizada");
+  assert.equal(citations.find(row => row.id === 102)?.titulo, "Cita reasignada");
+
+  const deniedCreate = await request("POST", "/citas", "owner", {
+    titulo: "Cita ajena", fecha: "2026-10-09", horaInicio: "10:00", horaFin: "11:00",
+    patientId: 2,
+  });
+  assert.equal(deniedCreate.status, 403);
+  assert.equal(citations.length, 3);
+  assert.equal((await request("POST", "/citas", "owner", {
+    titulo: "Cita propia", fecha: "2026-10-10", horaInicio: "10:00", horaFin: "11:00",
+    patientId: 1,
+  })).status, 201);
+  assert.equal((await request("POST", "/citas", "owner", {
+    titulo: "Evento personal nuevo", fecha: "2026-10-11", horaInicio: "10:00", horaFin: "11:00",
+  })).status, 201);
+});
+
+test("exports include authored sessions only while their patients remain assigned", async () => {
+  reset();
+  tables.set(schema.registrosClinicosTable, [
+    { id: 21, patientId: 1, userId: 2, fecha: "2026-10-01", resumenSesion: "Propia", createdAt: now },
+    { id: 22, patientId: 2, userId: 2, fecha: "2026-10-02", resumenSesion: "Paciente reasignado", createdAt: now },
+    { id: 23, patientId: 1, userId: 3, fecha: "2026-10-03", resumenSesion: "Otra cuenta", createdAt: now },
+    { id: 24, patientId: 1, userId: null, fecha: "2026-10-04", resumenSesion: "Legado sin autor", createdAt: now },
+  ]);
+
+  const exported = await request("GET", "/export/my-data", "owner");
+  assert.equal(exported.status, 200);
+  const clinicalSheet = exported.body.find((sheet: any) => sheet.name === "Registros clínicos");
+  assert.deepEqual(clinicalSheet.rows.map((row: any) => row.id), [21, 24]);
+
+  const patients = tables.get(schema.patientsTable)!;
+  patients.find(patient => patient.id === 1)!.assignedProfessionalId = 3;
+  const afterReassignment = await request("GET", "/export/my-data", "owner");
+  assert.equal(afterReassignment.status, 204);
+  assert.equal(tables.get(schema.registrosClinicosTable)?.length, 4);
+  assert.equal(tables.get(schema.registrosClinicosTable)?.find(row => row.id === 24)?.userId, null);
 });
 
 test("clinical-record routes preserve structured Psychology notes when saving and reading", async () => {

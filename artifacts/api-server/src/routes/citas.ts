@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { citasTable } from "@workspace/db/schema";
+import { citasTable, patientsTable } from "@workspace/db/schema";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { canAccessPatient } from "./access-policy";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,50 @@ function getSessionUser(req: any): { id: number; role: string } | null {
     id: req.session.userId,
     role: req.session.userRole ?? "professional",
   };
+}
+
+async function assignedPatientIds(userId: number): Promise<Set<number>> {
+  const patients = await db
+    .select({ id: patientsTable.id })
+    .from(patientsTable)
+    .where(eq(patientsTable.assignedProfessionalId, userId));
+  return new Set(patients.map(patient => patient.id));
+}
+
+function canAccessCita(
+  cita: typeof citasTable.$inferSelect,
+  sess: { id: number; role: string },
+  patientIds: Set<number>,
+): boolean {
+  return cita.userId === sess.id &&
+    (cita.patientId == null || patientIds.has(cita.patientId));
+}
+
+async function resolveAccessibleCita(
+  id: number,
+  sess: { id: number; role: string },
+  res: any,
+): Promise<typeof citasTable.$inferSelect | null> {
+  const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
+  if (!cita) {
+    res.status(404).json({ error: "Cita no encontrada" });
+    return null;
+  }
+  if (cita.userId !== sess.id) {
+    res.status(403).json({ error: "Sin acceso a esta cita" });
+    return null;
+  }
+  if (cita.patientId != null) {
+    const [patient] = await db
+      .select({ assignedProfessionalId: patientsTable.assignedProfessionalId })
+      .from(patientsTable)
+      .where(eq(patientsTable.id, cita.patientId));
+    if (!patient || !canAccessPatient(patient, sess)) {
+      res.status(403).json({ error: "Sin acceso a esta cita" });
+      return null;
+    }
+  }
+  return cita;
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -78,10 +123,16 @@ router.get("/citas", async (req, res) => {
       conditions.push(eq(citasTable.patientId, parseInt(patientId)));
     }
 
-    const rows = await db
+    const ownedRows = await db
       .select()
       .from(citasTable)
       .where(conditions.length ? and(...conditions) : undefined);
+    const currentPatientIds = sess.role === "admin"
+      ? null
+      : await assignedPatientIds(sess.id);
+    const rows = currentPatientIds
+      ? ownedRows.filter(cita => canAccessCita(cita, sess, currentPatientIds))
+      : ownedRows;
 
     return res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
   } catch (err) {
@@ -108,6 +159,22 @@ router.post("/citas", async (req, res) => {
       return res.status(400).json({ error: "Faltan campos requeridos" });
     }
 
+    let parsedPatientId: number | null = null;
+    if (patientId !== undefined && patientId !== null && patientId !== "") {
+      parsedPatientId = Number(patientId);
+      if (!Number.isSafeInteger(parsedPatientId) || parsedPatientId <= 0) {
+        return res.status(400).json({ error: "Paciente inválido" });
+      }
+      const [patient] = await db
+        .select({ assignedProfessionalId: patientsTable.assignedProfessionalId })
+        .from(patientsTable)
+        .where(eq(patientsTable.id, parsedPatientId));
+      if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+      if (!canAccessPatient(patient, sess)) {
+        return res.status(403).json({ error: "Sin acceso a este paciente" });
+      }
+    }
+
     const base = {
       titulo,
       fecha,
@@ -116,7 +183,7 @@ router.post("/citas", async (req, res) => {
       tipo,
       status,
       notas: notas ?? null,
-      patientId: patientId ?? null,
+      patientId: parsedPatientId,
       professionalId: professionalId !== null && professionalId !== undefined
         ? parseInt(professionalId)
         : null,
@@ -148,13 +215,8 @@ router.put("/citas/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const { scope = "solo", titulo, horaInicio, horaFin, tipo, notas, status, fecha, asistencia } = req.body;
 
-    const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
-    if (!cita) return res.status(404).json({ error: "Cita no encontrada" });
-
-    // Access check: professionals can only edit their own citas
-    if (sess.role !== "admin" && cita.userId !== sess.id) {
-      return res.status(403).json({ error: "Sin acceso a esta cita" });
-    }
+    const cita = await resolveAccessibleCita(id, sess, res);
+    if (!cita) return;
 
     const updates: Partial<typeof citasTable.$inferInsert> = {};
     if (titulo !== undefined) updates.titulo = titulo;
@@ -181,7 +243,10 @@ router.put("/citas/:id", async (req, res) => {
     if (scope === "siguientes" && cita.serieId) {
       const newSerieId = randomUUID();
       const allInSerie = await db.select().from(citasTable).where(eq(citasTable.serieId, cita.serieId));
-      const following = allInSerie.filter(c => c.fecha >= cita.fecha);
+      const currentPatientIds = await assignedPatientIds(sess.id);
+      const following = allInSerie
+        .filter(row => canAccessCita(row, sess, currentPatientIds))
+        .filter(c => c.fecha >= cita.fecha);
       for (const c of following) {
         await db.update(citasTable).set({ ...updates, serieId: newSerieId }).where(eq(citasTable.id, c.id));
       }
@@ -190,10 +255,12 @@ router.put("/citas/:id", async (req, res) => {
 
     if (scope === "serie" && cita.serieId) {
       const allInSerie = await db.select().from(citasTable).where(eq(citasTable.serieId, cita.serieId));
-      for (const c of allInSerie) {
+      const currentPatientIds = await assignedPatientIds(sess.id);
+      const accessible = allInSerie.filter(row => canAccessCita(row, sess, currentPatientIds));
+      for (const c of accessible) {
         await db.update(citasTable).set(updates).where(eq(citasTable.id, c.id));
       }
-      return res.json({ ok: true, updated: allInSerie.length });
+      return res.json({ ok: true, updated: accessible.length });
     }
 
     const [updated] = await db.update(citasTable).set(updates).where(eq(citasTable.id, id)).returning();
@@ -213,22 +280,25 @@ router.delete("/citas/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const { scope = "solo" } = req.query as Record<string, string>;
 
-    const [cita] = await db.select().from(citasTable).where(eq(citasTable.id, id));
-    if (!cita) return res.status(404).json({ error: "Cita no encontrada" });
-
-    // Access check: professionals can only cancel their own citas
-    if (sess.role !== "admin" && cita.userId !== sess.id) {
-      return res.status(403).json({ error: "Sin acceso a esta cita" });
-    }
+    const cita = await resolveAccessibleCita(id, sess, res);
+    if (!cita) return;
 
     if (scope === "serie" && cita.serieId) {
-      await db.update(citasTable).set({ status: "cancelada" }).where(eq(citasTable.serieId, cita.serieId));
+      const allInSerie = await db.select().from(citasTable).where(eq(citasTable.serieId, cita.serieId));
+      const currentPatientIds = await assignedPatientIds(sess.id);
+      const accessible = allInSerie.filter(row => canAccessCita(row, sess, currentPatientIds));
+      for (const row of accessible) {
+        await db.update(citasTable).set({ status: "cancelada" }).where(eq(citasTable.id, row.id));
+      }
       return res.json({ ok: true, scope: "serie" });
     }
 
     if (scope === "siguientes" && cita.serieId) {
       const allInSerie = await db.select().from(citasTable).where(eq(citasTable.serieId, cita.serieId));
-      const following = allInSerie.filter(c => c.fecha >= cita.fecha);
+      const currentPatientIds = await assignedPatientIds(sess.id);
+      const following = allInSerie
+        .filter(row => canAccessCita(row, sess, currentPatientIds))
+        .filter(c => c.fecha >= cita.fecha);
       for (const c of following) {
         await db.update(citasTable).set({ status: "cancelada" }).where(eq(citasTable.id, c.id));
       }
