@@ -666,6 +666,10 @@ test("AI reports use only sessions authored by the requesting account", async ()
       recomendacionesHogar: null, materialesActividades: [], createdAt: now,
     },
   ]);
+  tables.set(schema.registrosTable, [{
+    id: 201, patientId: 1, fecha: today, objetivoNombre: "Objetivo sin autoría",
+    informeSesion: "DETALLE_LEGACY_SIN_AUTOR_DE_PRUEBA", createdAt: now,
+  }]);
 
   const response = await request("POST", "/ai/informe-generate", "owner", {
     patientId: 1,
@@ -677,6 +681,7 @@ test("AI reports use only sessions authored by the requesting account", async ()
   assert.equal(aiPrompts.length, 1);
   assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
   assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_DE_PRUEBA/);
+  assert.doesNotMatch(aiPrompts[0], /DETALLE_LEGACY_SIN_AUTOR_DE_PRUEBA/);
 });
 
 test("session materials photos are record-scoped, signed only after access checks, and deleted with the record", async () => {

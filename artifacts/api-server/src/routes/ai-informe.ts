@@ -6,7 +6,6 @@ import {
   goalsTable,
   goalProgressTable,
   registrosClinicosTable,
-  registrosTable,
   professionalsTable,
   patientProfessionalsTable,
 } from "@workspace/db/schema";
@@ -120,7 +119,6 @@ router.post("/ai/informe-generate", async (req, res) => {
   const [
     allGoals,
     allRegistrosClinicos,
-    allRegistros,
     assignments,
   ] = await Promise.all([
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
@@ -128,7 +126,6 @@ router.post("/ai/informe-generate", async (req, res) => {
       eq(registrosClinicosTable.patientId, patientId),
       eq(registrosClinicosTable.userId, sess.id),
     )),
-    db.select().from(registrosTable).where(eq(registrosTable.patientId, patientId)),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);
 
@@ -165,14 +162,6 @@ router.post("/ai/informe-generate", async (req, res) => {
   for (const p of allGoalProgress) {
     if (!progressByGoal.has(p.goalId)) progressByGoal.set(p.goalId, []);
     progressByGoal.get(p.goalId)!.push(p);
-  }
-
-  // ── Group legacy registros by objective name ───────────────────────────────
-  const registrosByObj = new Map<string, typeof allRegistros>();
-  for (const r of allRegistros.filter(r => inPeriod(r.fecha ?? r.createdAt))) {
-    const key = r.objetivoNombre ?? "sin_objetivo";
-    if (!registrosByObj.has(key)) registrosByObj.set(key, []);
-    registrosByObj.get(key)!.push(r);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -247,29 +236,7 @@ router.post("/ai/informe-generate", async (req, res) => {
   });
   const sessionContext = buildSessionContext(sortedRC);
 
-  // ── 5. Registros de desempeño por objetivo (tabla registros) ──────────────
-  const perfContext = registrosByObj.size === 0
-    ? null
-    : Array.from(registrosByObj.entries())
-        .slice(0, 20)
-        .map(([obj, recs]) => {
-          const sorted = [...recs].sort((a, b) =>
-            new Date(a.fecha ?? a.createdAt).getTime() - new Date(b.fecha ?? b.createdAt).getTime()
-          );
-          const rows = sorted.slice(0, 10).map(r => {
-            const parts = [r.fecha ?? r.createdAt.toISOString().slice(0, 10)];
-            if (r.intentos != null) parts.push(`intentos:${r.intentos}`);
-            if (r.correctas != null) parts.push(`correctas:${r.correctas}`);
-            if (r.porcentaje) parts.push(`%:${r.porcentaje}`);
-            if (r.cumpleMeta) parts.push(`meta:${r.cumpleMeta}`);
-            if (r.informeSesion) parts.push(`"${trunc(r.informeSesion, 150)}"`);
-            return "  · " + parts.join(" | ");
-          });
-          return `Objetivo: "${obj}" (área: ${sorted[0]?.areaObjetivo ?? "—"})\n${rows.join("\n")}`;
-        })
-        .join("\n\n");
-
-  // ── 6. Áreas activas ──────────────────────────────────────────────────────
+  // ── 5. Áreas activas ──────────────────────────────────────────────────────
   const activeGoals = allGoals.filter(g => !["archivado", "suspendido"].includes(g.status));
   const areaGroups: Record<string, typeof allGoals> = {};
   for (const g of activeGoals) {
@@ -282,7 +249,7 @@ router.post("/ai/informe-generate", async (req, res) => {
 
   const userPrompt = `Genera el informe clínico de evolución para el siguiente paciente.
 Disciplina detectada: ${discipline.toUpperCase()}.
-Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Registros clínicos incluidos: ${filteredRC.length}. Total de registros clínicos del paciente: ${allRegistrosClinicos.length}. Registros excluidos por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Registros de historia completa sin fecha válida, incluidos sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Los historiales de progreso y desempeño se limitan al período. No atribuyas al período actividades que no estén registradas allí.
+Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Sesiones clínicas incluidas: ${filteredRC.length}. Total de sesiones verificables de esta cuenta para el paciente: ${allRegistrosClinicos.length}. Sesiones excluidas por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Sesiones de historia completa sin fecha válida, incluidas sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Solo se usan sesiones con autoría verificable de la cuenta actual. Los registros históricos de desempeño sin autoría verificable no se incluyen. No atribuyas al período actividades que no estén registradas allí.
 
 ═══════════════════════════════════════
 DATOS CLÍNICOS DEL PACIENTE
@@ -300,11 +267,6 @@ ${goalsContext}
 SESIONES CLÍNICAS DEL PERÍODO (${sortedRC.length} sesiones; cronológicas, completas y con materiales registrados)
 ═══════════════════════════════════════
 ${sessionContext}
-
-${perfContext ? `═══════════════════════════════════════
-DESEMPEÑO POR OBJETIVO (registros históricos)
-═══════════════════════════════════════
-${perfContext}` : ""}
 
 ÁREAS / FUENTES CLÍNICAS DOCUMENTADAS: ${availableAreaSources.join(", ") || "Identifica áreas solo si la anamnesis o las sesiones aportan evidencia explícita."}
 

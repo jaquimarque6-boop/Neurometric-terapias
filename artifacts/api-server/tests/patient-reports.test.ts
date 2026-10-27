@@ -45,9 +45,20 @@ const db = {
         orderBy(_value: unknown) { return q; },
         then(resolve: (value: any[]) => void, reject?: (reason: any) => void) {
           try {
-            resolve(rows(table).filter(row => matches(row, condition)).map(row =>
-              joined ? { report: row, authorName: rows(schema.usersTable).find(user => user.id === row.authorUserId)?.name ?? null } :
-                selection ? { name: owner.name } : row));
+            resolve(rows(table).filter(row => matches(row, condition)).map(row => {
+              if (joined) {
+                return {
+                  report: row,
+                  authorName: rows(schema.usersTable).find(user => user.id === row.authorUserId)?.name ?? null,
+                };
+              }
+              if (!selection) return row;
+              return Object.fromEntries(Object.entries(selection).map(([key, column]) => {
+                const property = Object.entries((column as any)?.table ?? {})
+                  .find(([, value]) => value === column)?.[0];
+                return [key, property ? row[property] : undefined];
+              }));
+            }));
           } catch (error) { reject?.(error); }
         },
       };
