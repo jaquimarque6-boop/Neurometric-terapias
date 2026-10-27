@@ -869,26 +869,6 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     } finally { savingRef.current = false; setIsSaving(false); }
   };
 
-  const handleDeleteReport = async (id: number): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        throw new Error(result.error ?? `HTTP ${response.status}`);
-      }
-      setSavedReports(previous => previous.filter(report => report.id !== id));
-      if (openedReport?.id === id) setOpenedReport(null);
-      toast({ title: "Informe eliminado" });
-      return true;
-    } catch (error: any) {
-      toast({ title: "No se pudo eliminar el informe", description: error.message, variant: "destructive" });
-      return false;
-    }
-  };
-
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
     const accepted = acceptPendingReportGeneration({
       draft: currentReportDraft(),
@@ -1030,7 +1010,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   return (
     <div className="space-y-5">
       <PatientReportsList reports={savedReports} selectedId={openedReport?.id ?? null}
-        loading={loadingReports} onOpen={id => void openSavedReport(id)} onNew={newReport} onDelete={handleDeleteReport} />
+        loading={loadingReports} onOpen={id => void openSavedReport(id)} onNew={newReport} />
       {(currentPatient.informeEvolucion || currentPatient.informeFamilia) && !openedReport && (
         <p className="text-xs text-muted-foreground">Los informes anteriores siguen disponibles como borradores heredados. Podés guardarlos explícitamente como documentos nuevos; su fecha y autor originales no se conocen.</p>
       )}

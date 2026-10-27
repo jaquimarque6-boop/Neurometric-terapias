@@ -1054,12 +1054,6 @@ paths:
               schema: { $ref: "#/components/schemas/PatientReport" }
         "409":
           description: Report was modified by another user
-    delete:
-      operationId: deletePatientReport
-      tags: [patients]
-      responses:
-        "204":
-          description: Report permanently deleted by its author
   /dashboard/stats:
     get:
       operationId: getDashboardStats

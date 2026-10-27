@@ -79,21 +79,6 @@ const db = {
       return Promise.resolve(found);
     } }; } }; } };
   },
-  delete(_table: unknown) {
-    return { where(condition: unknown) {
-      const removed = reports.filter(report => matches(report, condition));
-      let executed = false;
-      const execute = () => {
-        if (executed) return;
-        executed = true;
-        for (const report of removed) reports.splice(reports.indexOf(report), 1);
-      };
-      return { returning() {
-        execute();
-        return Promise.resolve(removed.map(report => ({ id: report.id })));
-      } };
-    } };
-  },
 };
 
 const source = await build({
@@ -129,7 +114,10 @@ async function call(method: string, path: string, user?: number, body?: unknown)
     method, headers: { "content-type": "application/json", ...(user ? { "x-user": String(user) } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  return { status: response.status, body: response.status === 204 ? null : await response.json() };
+  return {
+    status: response.status,
+    body: response.status === 204 ? null : await response.json().catch(() => null),
+  };
 }
 
 test("an assigned professional can still read previously saved clinical reports", async () => {
@@ -238,9 +226,6 @@ test("reports and embedded sessions stay scoped to their author after reassignme
   assert.equal((await call("PUT", "/patients/1/reports/7", 3, {
     updatedAt: now.toISOString(), title: "No", content: { summary: "No" },
   })).status, 404);
-  assert.equal((await call("DELETE", "/patients/1/reports/7", 3)).status, 404);
-  assert.equal(reports.length, 2, "a denied delete must not remove another account's report");
-
   patient.assignedProfessionalId = 2;
   const update = await call("PUT", "/patients/1/reports/7", 2, {
     updatedAt: now.toISOString(),
@@ -253,7 +238,6 @@ test("reports and embedded sessions stay scoped to their author after reassignme
   assert.equal(update.body.clinicalRecordsTotalCount, null);
   assert.equal(update.body.authorUserId, 2);
 
-  assert.equal((await call("DELETE", "/patients/1/reports/7", 2)).status, 204);
-  assert.equal(reports.length, 1);
-  assert.equal(reports[0].id, 8, "deleting an owned report must preserve the other account's report");
+  assert.equal((await call("DELETE", "/patients/1/reports/7", 2)).status, 404);
+  assert.equal(reports.length, 2, "editing must preserve both accounts' saved reports");
 });

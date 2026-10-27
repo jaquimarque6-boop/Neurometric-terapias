@@ -2248,11 +2248,6 @@ export const UpdatePatientReportResponse = zod.object({
   clinicalRecordsTotalCount: zod.number().nullish(),
 });
 
-export const DeletePatientReportParams = zod.object({
-  patientId: zod.coerce.number(),
-  reportId: zod.coerce.number(),
-});
-
 /**
  * @summary Get dashboard statistics
  */

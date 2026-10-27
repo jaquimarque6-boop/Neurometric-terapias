@@ -218,28 +218,4 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
   return res.json(response);
 });
 
-router.delete("/patients/:patientId/reports/:reportId", async (req, res): Promise<void> => {
-  const patientId = Number(req.params.patientId);
-  const patient = await authorize(req, res, patientId);
-  if (!patient) return;
-  const reportId = Number(req.params.reportId);
-  if (!Number.isSafeInteger(reportId) || reportId < 1) {
-    res.status(400).json({ error: "Informe inválido" });
-    return;
-  }
-  const userId = req.session.userId as number;
-  const [deleted] = await db.delete(patientReportsTable)
-    .where(and(
-      eq(patientReportsTable.id, reportId),
-      eq(patientReportsTable.patientId, patientId),
-      eq(patientReportsTable.authorUserId, userId),
-    ))
-    .returning({ id: patientReportsTable.id });
-  if (!deleted) {
-    res.status(404).json({ error: "Informe no encontrado" });
-    return;
-  }
-  res.status(204).end();
-});
-
 export default router;
