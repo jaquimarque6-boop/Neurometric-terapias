@@ -263,7 +263,7 @@ const es = {
     domainBreakdown: "Desglose por dominio",
     domainCount: "objetivos",
   },
-} as const;
+};
 
 export default es;
 export type Translations = typeof es;

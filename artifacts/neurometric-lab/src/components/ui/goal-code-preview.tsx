@@ -86,9 +86,9 @@ export function GoalCodePreview({ params, value, onChange, onGenerate, className
 
   const statusIcon = () => {
     if (!value) return null;
-    if (uniqueStatus === "invalid")   return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" title="Formato inválido" />;
-    if (uniqueStatus === "duplicate") return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" title="Código duplicado" />;
-    if (uniqueStatus === "ok")        return <Check className="h-4 w-4 text-emerald-500 shrink-0" title="Código disponible" />;
+    if (uniqueStatus === "invalid")   return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0"><title>Formato inválido</title></AlertTriangle>;
+    if (uniqueStatus === "duplicate") return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0"><title>Código duplicado</title></AlertTriangle>;
+    if (uniqueStatus === "ok")        return <Check className="h-4 w-4 text-emerald-500 shrink-0"><title>Código disponible</title></Check>;
     return null;
   };
 
