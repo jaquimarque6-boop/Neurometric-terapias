@@ -21,3 +21,4 @@
 - [Clinical access after reassignment](clinical-access-reassignment.md) — individual access only: currently assigned professionals see their own clinical records; revocation blocks access without changing history.
 - [Clinical report printing](clinical-report-printing.md) — build print output from edited report fields, not editor markup; omit empty sections and internal controls.
 - [Clinical profile version storage](clinical-profile-version-storage.md) — reuse versioned patient reports for append-only profiles, while keeping their routes and author scope separate.
+- [AI report improvements](ai-report-improvements.md) — proposals append only; preview before applying, then update the selected saved report only on explicit save.

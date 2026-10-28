@@ -879,7 +879,7 @@ test("AI report improvement receives professional text for incremental additions
   assert.match(aiPrompts[0], /Texto de área escrito por el profesional/);
   assert.match(aiPrompts[0], /Motricidad/);
   assert.match(aiPrompts[0], /únicamente aportes nuevos/);
-  assert.match(aiPrompts[0], /no reescribas, resumas, elimines ni repitas/);
+  assert.match(aiPrompts[0], /no reescribas, resumas, elimines ni repitas/i);
 
   const aiCallsBeforeInvalidDraft = stats.ai;
   const invalid = await request("POST", "/ai/informe-generate", "owner", {

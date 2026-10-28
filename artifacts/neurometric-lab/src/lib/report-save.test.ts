@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { clinicalSnapshotForSave, prepareReportSave } from "./report-save";
-import { restoreSavedReportDraft } from "./report-editor-workflow";
+import {
+  acceptPendingReportGeneration,
+  requestReportGeneration,
+  restoreSavedReportDraft,
+} from "./report-editor-workflow";
 
 test("saving a legacy report creates a new document and explicitly keeps unknown provenance null", () => {
   const content = { v: 4, resumen: "Informe antiguo importado explícitamente" };
@@ -78,4 +82,54 @@ test("edited report sections survive save and reopening unchanged", () => {
     removedAreas: [],
     sugerencias: "",
   });
+});
+
+test("accepting AI additions and saving an existing report preserves the professional draft", () => {
+  const original = {
+    resumen: "Conclusión escrita por la profesional.",
+    conducta: "Participó con apoyo verbal.",
+    areas: { Lenguaje: "Usó frases de dos palabras." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "",
+  };
+  const proposed = requestReportGeneration(original, {
+    resumen: "Se observó una respuesta a consignas de dos pasos.",
+    conducta: "",
+    areas: {
+      Lenguaje: "Amplió vocabulario en actividades espontáneas.",
+      Motricidad: "No debe reaparecer.",
+    },
+    sugerencias: "La familia puede continuar con las consignas documentadas.",
+  });
+  assert.equal(proposed.confirmationOpen, true);
+  assert.deepEqual(proposed.draft, original, "opening the preview never mutates the editor");
+
+  const accepted = acceptPendingReportGeneration(proposed);
+  assert.equal(accepted.draft.resumen, `${original.resumen}\n\nSe observó una respuesta a consignas de dos pasos.`);
+  assert.equal(accepted.draft.conducta, original.conducta);
+  assert.equal(accepted.draft.areas.Lenguaje, `${original.areas.Lenguaje}\n\nAmplió vocabulario en actividades espontáneas.`);
+  assert.deepEqual(accepted.draft.removedAreas, original.removedAreas);
+  assert.equal(accepted.draft.areas.Motricidad, undefined);
+
+  const content = { v: 4, ...accepted.draft, clinicalSnapshot: [{ id: 41 }] };
+  const savedRequest = prepareReportSave(
+    "evolution",
+    "Informe actualizado",
+    content,
+    {
+      periodKind: "mes",
+      periodFrom: "2026-09-01",
+      periodTo: "2026-09-30",
+      clinicalRecordsUsedCount: 1,
+      clinicalRecordsTotalCount: 3,
+    },
+    { id: 17, reportType: "evolution", updatedAt: "2026-10-01T12:00:00Z" },
+  );
+  assert.equal(savedRequest.method, "PUT");
+  assert.equal(savedRequest.reportId, 17, "saving an improvement updates the selected report");
+  assert.deepEqual(
+    restoreSavedReportDraft(savedRequest.body.content),
+    accepted.draft,
+    "reopening the saved document retains both the professional text and the accepted additions",
+  );
 });

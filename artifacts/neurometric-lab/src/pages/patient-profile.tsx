@@ -1067,7 +1067,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" /> {hasReportDraftContent(currentReportDraft()) ? "Mejorar y completar con IA" : "Generar con IA"}
+                <Sparkles className="h-3.5 w-3.5" /> {openedReport?.reportType === "evolution" || hasReportDraftContent(currentReportDraft()) ? "Mejorar y completar con IA" : "Generar con IA"}
               </>
             )}
           </Button>
