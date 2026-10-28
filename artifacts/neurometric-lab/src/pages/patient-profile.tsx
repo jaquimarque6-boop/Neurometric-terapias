@@ -99,6 +99,7 @@ import { uploadSessionMaterialPhotos } from "@/lib/session-materials";
 import type { AnamnesisImportValues } from "@/lib/anamnesis-import";
 import { historicalReportPatient, snapshotReportPatient } from "@/lib/report-snapshot";
 import { clinicalSnapshotForSave, prepareReportSave, type ReportPeriodMeta } from "@/lib/report-save";
+import { renderReportPrintHtml } from "@/lib/report-print";
 import {
   addReportArea,
   removeReportArea,
@@ -809,10 +810,6 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     [registros, rango, openedReport, generatedSnapshot]
   );
   const sinSesiones = filteredRegistros.length === 0;
-  const documentedSessions = openedReport
-    ? openedReport.clinicalRecordsUsedCount
-    : generatedSnapshot !== null ? reportMeta?.clinicalRecordsUsedCount ?? null : null;
-
   const achievedGoals  = goals.filter(g => g.status === "logrado");
   const workingGoals   = goals.filter(g => ["activo", "en progreso"].includes(g.status));
 
@@ -948,9 +945,6 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       });
       return;
     }
-    const contentId = view === "familia" ? "informe-familia-content" : "informe-clinico-content";
-    const content   = document.getElementById(contentId)?.innerHTML;
-    if (!content) return;
     const win = window.open("", "_blank");
     if (!win) return;
     if (openedReport) {
@@ -973,36 +967,34 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         return;
       }
     }
-    win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Informe — ${patient.name}</title><style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1412;padding:48px 56px;font-size:13px;line-height:1.85;max-width:820px;margin:0 auto}
-  .doc-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #ddd3c8;margin-bottom:32px}
-  .doc-header-left h1{font-size:22px;font-weight:700;color:#1c1412;margin-bottom:6px}
-  .doc-meta{font-size:11.5px;color:#78716c;display:flex;flex-wrap:wrap;gap:0 20px}
-  .doc-header-right{text-align:right;font-size:11px;color:#78716c}
-  .doc-header-right strong{display:block;font-size:12px;color:#374151;margin-bottom:2px}
-  .doc-section{margin-bottom:28px}
-  .doc-section-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin-bottom:6px}
-  .doc-section-line{border:none;border-bottom:1px solid #e5e7eb;margin-bottom:12px}
-  .doc-text{font-size:13px;color:#1c1412;line-height:1.85;white-space:pre-wrap;min-height:36px}
-  .doc-area{margin-bottom:20px}
-  .doc-area-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#374151;margin-bottom:6px}
-  .doc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}
-  .doc-stat{background:#faf7f4;border:1px solid #e7e1d8;border-radius:10px;padding:12px;text-align:center}
-  .doc-stat-emoji{font-size:20px;margin-bottom:4px}
-  .doc-stat-val{font-size:20px;font-weight:700;color:#1c1412}
-  .doc-stat-label{font-size:10px;color:#78716c;margin-top:2px}
-  ul{padding:0;margin:0;list-style:none}
-  li{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12.5px;color:#1c1412;border-bottom:1px solid #f3ede6}
-  li:last-child{border-bottom:none}
-  .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;background:#10b981}
-  .dot-amber{background:#f59e0b}
-  .footer{margin-top:40px;padding-top:10px;border-top:1px solid #e7e1d8;font-size:10px;color:#92897e;display:flex;justify-content:space-between}
-  button,svg{display:none!important}
-  textarea{display:none!important}
-  .doc-text-area-print{display:block}
-  @media print{body{padding:24px 32px}}
-</style></head><body>${content}<div class="footer"><span>Neurometric Terapias · ${view === "familia" ? "Informe para familia" : "Informe de evolución"} · Fecha del informe: ${documentDate}</span><span>Impreso: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })}</span></div></body></html>`);
+    const printedDate = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
+    const html = view === "familia"
+      ? renderReportPrintHtml({
+          kind: "family",
+          patientName: patient.name,
+          reportDate: documentDate,
+          printedDate,
+          documentTitle: reportTitle,
+          achievedGoals: achievedGoals.map(goal => goal.title),
+          workingGoals: workingGoals.map(goal => goal.title),
+          familyMessage: textoFamilia,
+        })
+      : renderReportPrintHtml({
+          kind: "clinical",
+          patientName: patient.name,
+          reportDate: documentDate,
+          printedDate,
+          documentTitle: reportTitle,
+          age: formatEdad((patient as any).fechaNacimiento, patient.age),
+          diagnosis: (patient as any).diagnosis ? getDiagnosisLabel((patient as any).diagnosis) : "",
+          treatmentStart: patient.fechaInicio ? formatFecha(patient.fechaInicio) : "",
+          resumen,
+          conducta,
+          areas: areaTexts,
+          sugerencias,
+        });
+    win.document.open();
+    win.document.write(html);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
@@ -1019,12 +1011,6 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         <Input className="mt-1" value={reportTitle} maxLength={200} onChange={event => setReportTitle(event.target.value)}
           placeholder={view === "familia" ? "Informe para familia" : "Informe de evolución"} />
       </label>
-      {reportMeta?.clinicalRecordsUsedCount != null && (
-        <p className="text-xs text-muted-foreground">Período analizado: {reportMeta.periodFrom ?? "no determinado"} – {reportMeta.periodTo ?? "no determinado"}
-          {" · "}Registros clínicos utilizados: {reportMeta.clinicalRecordsUsedCount}
-          {" · "}Total de registros clínicos: {reportMeta.clinicalRecordsTotalCount ?? "desconocido"}</p>
-      )}
-
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -1111,7 +1097,6 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
                     {formatEdad((patient as any).fechaNacimiento, patient.age) && <span>Edad: <strong className="text-foreground/80">{formatEdad((patient as any).fechaNacimiento, patient.age)}</strong></span>}
                     {(patient as any).diagnosis && <span>Diagnóstico: <strong className="text-foreground/80">{getDiagnosisLabel((patient as any).diagnosis)}</strong></span>}
                     {patient.fechaInicio && <span>Inicio: <strong className="text-foreground/80">{formatFecha(patient.fechaInicio)}</strong></span>}
-                    <span>Sesiones del período: <strong className="text-foreground/80">{documentedSessions ?? "No determinado"}</strong></span>
                   </div>
                 </div>
                 <div className="doc-header-right text-right text-xs text-muted-foreground">
@@ -1130,7 +1115,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
                   <DocTextarea
                     value={resumen}
                     onChange={setResumen}
-                    placeholder={`Describe de forma general el estado actual del proceso terapéutico de ${patient.name.split(" ")[0]}: cuántas sesiones lleva, qué áreas se han abordado, avances generales…`}
+                    placeholder="Describe el estado actual del proceso, las áreas trabajadas, las observaciones y los avances documentados."
                     rows={5}
                   />
                 </DocSection>
@@ -1280,9 +1265,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
               {/* Stats */}
               <div className="doc-section">
                 <DocSection title="Evolución del proceso terapéutico">
-                  <div className="doc-stat-grid grid grid-cols-3 gap-3">
+                  <div className="doc-stat-grid grid grid-cols-2 gap-3">
                     {[
-                      { emoji: "📅", val: documentedSessions ?? "No determinado", label: documentedSessions === 1 ? "sesión del período" : "sesiones del período" },
                       { emoji: "✅", val: achievedGoals.length, label: achievedGoals.length === 1 ? "objetivo alcanzado" : "objetivos alcanzados" },
                       { emoji: "🎯", val: workingGoals.length, label: workingGoals.length === 1 ? "objetivo en progreso" : "objetivos en progreso" },
                     ].map(s => (

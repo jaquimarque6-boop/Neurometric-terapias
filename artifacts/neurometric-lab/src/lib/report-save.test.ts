@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { clinicalSnapshotForSave, prepareReportSave } from "./report-save";
+import { restoreSavedReportDraft } from "./report-editor-workflow";
 
 test("saving a legacy report creates a new document and explicitly keeps unknown provenance null", () => {
   const content = { v: 4, resumen: "Informe antiguo importado explícitamente" };
@@ -38,4 +39,33 @@ test("the generation's clinical evidence is frozen across range/live-record chan
   assert.deepEqual(clinicalSnapshotForSave(null, null, null), [], "legacy cannot inherit current sessions");
   assert.throws(() => clinicalSnapshotForSave(null, null, 2), /no coinciden/);
   assert.deepEqual(clinicalSnapshotForSave({ content: { clinicalSnapshot: generated } }, null, 2), generated);
+});
+
+test("edited report sections survive save and reopening unchanged", () => {
+  const content = {
+    v: 4,
+    resumen: "Observación general editada por la profesional.",
+    conducta: "Participación con apoyo verbal.",
+    areas: { Cognición: "Organizó una secuencia con ayuda." },
+    sugerencias: "",
+    removedAreas: [],
+  };
+  const request = prepareReportSave(
+    "evolution",
+    "Informe revisado",
+    content,
+    null,
+    { id: 5, reportType: "evolution", updatedAt: "2026-10-28T10:00:00Z" },
+  );
+  const reopened = restoreSavedReportDraft(request.body.content);
+
+  assert.equal(request.method, "PUT");
+  assert.equal(request.reportId, 5);
+  assert.deepEqual(reopened, {
+    resumen: content.resumen,
+    conducta: content.conducta,
+    areas: content.areas,
+    removedAreas: [],
+    sugerencias: "",
+  });
 });

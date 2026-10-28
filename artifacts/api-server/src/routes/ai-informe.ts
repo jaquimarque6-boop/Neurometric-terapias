@@ -24,6 +24,7 @@ import { selectClinicalPeriod, validClinicalDay } from "./report-period";
 import {
   buildSessionContext,
   documentedAreaSources,
+  documentedSessionAreas,
   MAX_REPORT_CONTEXT_CHARS,
   normalizeReportAreas,
   reportContextLength,
@@ -55,13 +56,15 @@ function buildSystemPrompt(discipline: ClinicalSpecialty): string {
 Tu tarea es redactar secciones de un informe clínico de evolución basándote EXCLUSIVAMENTE en los datos reales del paciente que se te proporcionan.
 Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
-- Si algún dato no está disponible, indícalo con "No registrado" o redacta con lo que sí existe.
-- Lenguaje: español rioplatense, tercera persona, tono profesional clínico y empático.
-- Si hay pocos datos, redacta de forma breve y honesta. No rellenes con texto genérico ni recomendaciones no registradas.
+- Si no hay evidencia para un apartado, devuelve una cadena vacía; no describas campos ausentes.
+- Lenguaje: español rioplatense, tercera persona, tono profesional clínico, natural, claro y empático.
+- Redacta de forma concisa y fluida. Evita repeticiones, fórmulas rígidas y terminología técnica innecesaria.
 - Distingue siempre entre una actividad realizada y un resultado obtenido. Describe el resultado únicamente cuando esté explícitamente registrado.
 - Sintetiza las notas breves, coloquiales, con errores o abreviaturas en redacción clínica profesional. No las copies literalmente ni incluyas fragmentos textuales extensos.
 - No conviertas estados de objetivos en porcentajes. Usa porcentajes únicamente cuando estén registrados como progressPct.
-- Evita repetir el nombre del paciente. Describe solo registros presentes en el período; un registro en el período no implica que sea la única sesión de toda la historia clínica. Si no hay registros clínicos en el período no afirmes que hubo sesiones ni uses "Durante las sesiones".
+- No menciones cantidades de sesiones, registros, datos cargados, campos, exclusiones ni el funcionamiento de la plataforma.
+- No infieras que no hubo actividad o avances por falta de evidencia en este contexto; limita las conclusiones a lo explícitamente documentado.
+- Evita repetir el nombre del paciente. Conserva en el resumen general toda observación clínica relevante que no pueda asignarse con claridad a un área.
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
   const neutralGuidance = `
@@ -71,19 +74,16 @@ Redacta únicamente con información explícitamente documentada y terminología
     fonoaudiologia: `
 Especialidad: FONOAUDIOLOGÍA.
 Enfocate en: lenguaje expresivo y comprensivo, articulación y fonología, comunicación funcional, voz y deglución (si aplica).
-Terminología a usar: "producción fonológica", "inteligibilidad del habla", "estructuración del lenguaje", "comprensión auditiva", "habilidades pragmáticas", "comunicación intencional", "sistemas de comunicación aumentativa", "patrón articulatorio", "discriminación auditiva", "narrativa oral".
 Al describir evolución: mencionar cambios en la claridad del habla, ampliación del vocabulario, longitud de enunciados, uso comunicativo del lenguaje o comprensión de consignas únicamente si están registrados explícitamente.`,
 
     psicopedagogia: `
 Especialidad: PSICOPEDAGOGÍA.
 Enfocate en: procesos de aprendizaje, atención sostenida y selectiva, memoria operativa, funciones ejecutivas, lectoescritura, comprensión lectora, cálculo.
-Terminología a usar: "estrategias cognitivas", "procesos de aprendizaje", "nivel de adquisición", "metacognición", "planificación y organización", "flexibilidad cognitiva", "inhibición de respuestas", "decodificación lectora", "conciencia fonológica", "procesamiento de la información".
 Al describir evolución: mencionar cambios en el rendimiento, estrategias adquiridas, autonomía o generalización únicamente si están registrados explícitamente.`,
 
     terapia_ocupacional: `
 Especialidad: TERAPIA OCUPACIONAL.
 Enfocate en: AVD y autonomía, rutinas y hábitos, procesamiento y regulación sensorial, destreza manual, motricidad, coordinación visomotora, grafomotricidad, juego y participación social/escolar, considerando los apoyos y las adaptaciones del entorno.
-Terminología a usar: "desempeño ocupacional", "participación en ocupaciones significativas", "apoyo requerido", "adaptaciones del entorno", "rutina", "destreza manual", "coordinación bimanual", "autonomía en AVD".
 Al describir evolución: mencionar cambios en la participación funcional, autonomía, uso de apoyos, ejecución de rutinas o acceso a actividades únicamente si están registrados explícitamente; no reducir la evolución a déficits corporales.`,
 
     psicologia: neutralGuidance,
@@ -200,11 +200,11 @@ router.post("/ai/informe-generate", async (req, res) => {
   // ── 2. Profesionales asignados ────────────────────────────────────────────
   const professionalContext = professionals.length > 0
     ? professionals.map(p => `${p.name} — ${p.specialty}`).join(", ")
-    : patient.profesionalNombre ?? "No registrado";
+    : patient.profesionalNombre ?? "";
 
   // ── 3. Objetivos terapéuticos con historial de progreso ──────────────────
   const goalsContext = allGoals.length === 0
-    ? "No hay objetivos terapéuticos registrados. Esto no impide generar el informe: utiliza los demás datos clínicos disponibles y no inventes objetivos ni áreas."
+    ? ""
     : allGoals.map(g => {
         const progEntries = (progressByGoal.get(g.id) ?? []).filter(p => inPeriod(p.createdAt))
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -250,43 +250,48 @@ router.post("/ai/informe-generate", async (req, res) => {
     areaGroups[a].push(g);
   }
   // ── Build the user prompt ─────────────────────────────────────────────────
-  const availableAreaSources = documentedAreaSources(patient, Object.keys(areaGroups));
-  const excludedPerformanceCaveat = hasExcludedPerformanceRecords
-    ? "Hay registros históricos importados de desempeño excluidos por procedencia no verificable. Su exclusión no demuestra falta de actividad, avances ni desempeño; limita esas conclusiones a la información verificable incluida y aclara que la revisión es parcial cuando corresponda."
+  const availableAreaSources = documentedAreaSources(
+    patient,
+    Object.keys(areaGroups),
+    documentedSessionAreas(sortedRC),
+  );
+  const evidenceCompletenessGuidance = hasExcludedPerformanceRecords
+    ? "La evidencia disponible puede ser parcial. No infieras ausencia de actividad, avances o desempeño por falta de mención. No expliques procesos de selección, exclusión o carga de información."
     : "";
 
   const userPrompt = `Genera el informe clínico de evolución para el siguiente paciente.
 Disciplina detectada: ${discipline.toUpperCase()}.
-Período analizado: ${periodFrom ?? "sin registros seleccionados"} – ${periodTo}. Sesiones clínicas incluidas: ${filteredRC.length}. Total de sesiones verificables de esta cuenta para el paciente: ${allRegistrosClinicos.length}. Sesiones excluidas por fecha inválida o futura: ${period.clinicalRecordsExcludedCount}. Sesiones de historia completa sin fecha válida, incluidas sin ubicación cronológica: ${period.clinicalRecordsUndatedCount}. Solo se usan sesiones con autoría verificable de la cuenta actual. No atribuyas al período actividades que no estén registradas allí.${excludedPerformanceCaveat ? `\n${excludedPerformanceCaveat}` : ""}
+Período analizado: ${periodFrom ?? "sin período definido"} – ${periodTo}. Describe únicamente la evidencia clínica proporcionada y no atribuyas al período actividades que no estén documentadas allí.
+${evidenceCompletenessGuidance}
 
 ═══════════════════════════════════════
 DATOS CLÍNICOS DEL PACIENTE
 ═══════════════════════════════════════
 ${patientContext}
 
-Profesional/es: ${professionalContext}
+${professionalContext ? `Profesional/es: ${professionalContext}` : ""}
+
+${allGoals.length > 0 ? `═══════════════════════════════════════
+OBJETIVOS TERAPÉUTICOS
+═══════════════════════════════════════
+${goalsContext}` : ""}
 
 ═══════════════════════════════════════
-OBJETIVOS TERAPÉUTICOS — ${allGoals.length} registrados
-═══════════════════════════════════════
-${goalsContext}
-
-═══════════════════════════════════════
-SESIONES CLÍNICAS DEL PERÍODO (${sortedRC.length} sesiones; cronológicas, completas y con materiales registrados)
+EVOLUCIÓN CLÍNICA DEL PERÍODO
 ═══════════════════════════════════════
 ${sessionContext}
 
-ÁREAS / FUENTES CLÍNICAS DOCUMENTADAS: ${availableAreaSources.join(", ") || "Identifica áreas solo si la anamnesis o las sesiones aportan evidencia explícita."}
+ÁREAS CON EVIDENCIA EXPLÍCITA EN ANAMNESIS, OBJETIVOS O SESIONES: ${availableAreaSources.join(", ") || "Solo identifica y redacta áreas cuando el contenido clínico aporte evidencia clara."}
 
 ═══════════════════════════════════════
 INSTRUCCIÓN
 ═══════════════════════════════════════
-Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Los objetivos son opcionales. En "areas", reemplaza el objeto vacío por claves dinámicas para las áreas que tengan evidencia en anamnesis, evaluaciones o sesiones, aunque no haya objetivos; déjalo vacío solo si esas fuentes no documentan áreas. Incluye solo áreas respaldadas; la anamnesis es contexto inicial, no prueba de evolución. Integra cronológicamente las intervenciones, respuestas observadas, avances explícitos y dificultades persistentes. Distingue siempre actividad realizada de resultado.
+Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores. Los objetivos son opcionales. Organiza las áreas a partir de etiquetas de áreas trabajadas, objetivos y evidencia clínica explícita de las sesiones; no inventes áreas ni devuelvas áreas vacías. Las observaciones relevantes que no correspondan claramente a un área deben conservarse en "resumen". La anamnesis aporta contexto inicial, no prueba de evolución. Integra cronológicamente las intervenciones, respuestas observadas, avances explícitos y dificultades persistentes sin repetir la misma información entre apartados. Distingue siempre actividad realizada de resultado. No menciones cantidades de sesiones ni referencias al sistema.
 {
-  "resumen": "Motivo de intervención y síntesis del proceso basada en la información clínica disponible. Menciona la cantidad de sesiones y las áreas u objetivos solo cuando estén registrados. Diferencia actividades realizadas de resultados explícitamente documentados. Si no hay datos para afirmar evolución, indícalo sin completar con frases genéricas.",
-  "conducta": "Síntesis de la conducta en sesión únicamente cuando existan observaciones registradas: atención, disposición, respuesta a consignas, necesidad de apoyo y autonomía. Si no hay observaciones, indica No registrado.",
+  "resumen": "Síntesis clínica general y natural del proceso. Conserva aquí observaciones relevantes que no se asignen claramente a un área. No incluyas cantidades de sesiones. Diferencia actividades de resultados y no afirmes evolución sin evidencia. Si no hay contenido respaldado, devuelve una cadena vacía.",
+  "conducta": "Síntesis de observaciones conductuales explícitas: atención, disposición, respuesta a consignas, apoyos y autonomía. Si no hay evidencia concreta, devuelve una cadena vacía.",
   "areas": {},
-  "sugerencias": "Recomendaciones para la familia únicamente a partir de recomendaciones registradas o de actividades explícitamente documentadas. No agregues recomendaciones clínicas nuevas. Si no hay recomendaciones registradas, indica No registrado."
+  "sugerencias": "Incluye solo recomendaciones para la familia que estén expresamente documentadas. No derives recomendaciones nuevas de las actividades. Si no hay recomendaciones documentadas, devuelve una cadena vacía."
 }`;
 
   const promptChars = reportContextLength(buildSystemPrompt(discipline), userPrompt);

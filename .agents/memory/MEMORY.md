@@ -19,3 +19,4 @@
 - [Mockup sandbox workflow](mockup-sandbox-workflow.md) — if the dev server cannot find Vite despite it being declared, re-link locked workspace dependencies before changing manifests.
 - [Activities pass access](actividades-pass-access.md) — every Terapias entry must use the pass and target `/acceso-terapias`; never link the public Lovable base.
 - [Clinical access after reassignment](clinical-access-reassignment.md) — individual access only: currently assigned professionals see their own clinical records; revocation blocks access without changing history.
+- [Clinical report printing](clinical-report-printing.md) — build print output from edited report fields, not editor markup; omit empty sections and internal controls.

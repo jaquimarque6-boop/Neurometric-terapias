@@ -1,4 +1,7 @@
-import { formatPsychologySessionSummary } from "@workspace/clinical-specialty";
+import {
+  formatPsychologySessionSummary,
+  parsePsychologySessionSummary,
+} from "@workspace/clinical-specialty";
 
 export const MAX_REPORT_CONTEXT_CHARS = 48_000;
 
@@ -23,6 +26,7 @@ export type ClinicalAreaPatientSources = {
 export function documentedAreaSources(
   patient: ClinicalAreaPatientSources,
   goalAreas: Array<string | null | undefined>,
+  sessionAreas: Array<string | null | undefined> = [],
 ): string[] {
   const anamnesis = [
     ["Lenguaje y comunicación", patient.lenguajeComunicacion],
@@ -33,7 +37,11 @@ export function documentedAreaSources(
     ["Entorno y participación", patient.entornoParticipacion],
   ].filter(([, value]) => typeof value === "string" && value.trim().length > 0)
     .map(([label]) => label as string);
-  return [...new Set([...anamnesis, ...goalAreas.map(area => area?.trim()).filter((area): area is string => Boolean(area))])];
+  return [...new Set([
+    ...anamnesis,
+    ...goalAreas.map(area => area?.trim()).filter((area): area is string => Boolean(area)),
+    ...sessionAreas.map(area => area?.trim()).filter((area): area is string => Boolean(area)),
+  ])];
 }
 
 function isValidClinicalDate(value: string | null): value is string {
@@ -43,10 +51,10 @@ function isValidClinicalDate(value: string | null): value is string {
 }
 
 export function buildSessionContext(records: SessionContextRecord[]): string {
-  if (records.length === 0) return "Sin sesiones clínicas registradas para el período.";
-  return records.map((record, index) => {
+  if (records.length === 0) return "";
+  return records.map(record => {
     const dateIsValid = isValidClinicalDate(record.fecha);
-    const parts = [`[Sesión ${index + 1} — ${dateIsValid ? record.fecha : "fecha no válida/no registrada"}]`];
+    const parts = [`Fecha: ${dateIsValid ? record.fecha : "No consignada"}`];
     if (record.professionalName) parts.push(`Profesional: ${record.professionalName}`);
     if (record.resumenSesion) {
       parts.push(`Resumen: ${formatPsychologySessionSummary(record.resumenSesion)}`);
@@ -55,7 +63,7 @@ export function buildSessionContext(records: SessionContextRecord[]): string {
     const materials = (record.materialesActividades ?? [])
       .map(material => material.nombre?.trim())
       .filter((name): name is string => Boolean(name));
-    if (materials.length) parts.push(`Materiales/actividades registradas: ${materials.join(", ")}`);
+    if (materials.length) parts.push(`Actividades y materiales: ${materials.join(", ")}`);
     if (record.recomendacionesHogar) parts.push(`Recomendaciones hogar: ${record.recomendacionesHogar}`);
     return parts.join("\n");
   }).join("\n\n");
@@ -73,7 +81,15 @@ export function normalizeReportAreas(value: unknown): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([name, text]) => name.trim().length > 0 && typeof text === "string")
-      .map(([name, text]) => [name.trim(), text as string]),
+      .filter(([name, text]) => name.trim().length > 0 && typeof text === "string" && text.trim().length > 0)
+      .map(([name, text]) => [name.trim(), (text as string).trim()]),
   );
+}
+
+export function documentedSessionAreas(records: SessionContextRecord[]): string[] {
+  return [...new Set(records.flatMap(record =>
+    parsePsychologySessionSummary(record.resumenSesion)?.areas
+      .map(area => area.label.trim())
+      .filter(Boolean) ?? [],
+  ))];
 }

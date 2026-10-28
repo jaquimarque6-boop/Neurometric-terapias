@@ -260,13 +260,26 @@ const db = {
 class MockOpenAI {
   chat = { completions: { create: async (input: any) => {
     stats.ai++;
-    aiPrompts.push(JSON.stringify(input.messages));
-    return { choices: [{ message: { content: JSON.stringify({
+    const messages = JSON.stringify(input.messages);
+    aiPrompts.push(messages);
+    const isClinicalReport = input.messages.some((message: any) =>
+      message.role === "user" && String(message.content).includes("Genera el informe clínico"),
+    );
+    const response = isClinicalReport ? {
+      resumen: "Al inicio solicitó un objeto de transición antes de comenzar.",
+      conducta: "",
+      areas: {
+        "Funciones cognitivas y ejecutivas": "Participó en la organización de una secuencia con apoyo.",
+        "Cognición": "",
+      },
+      sugerencias: "",
+    } : {
       objetivos: [{ title: "Autorizado" }],
       motivoConsulta: "Autorizado",
       marcoConceptual: "Autorizado",
       sugerenciaFamilia: "Autorizado",
-    }) } }] };
+    };
+    return { choices: [{ message: { content: JSON.stringify(response) } }] };
   } } };
 }
 
@@ -682,8 +695,9 @@ test("AI reports use only sessions authored by the requesting account", async ()
   assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
   assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_DE_PRUEBA/);
   assert.doesNotMatch(aiPrompts[0], /DETALLE_LEGACY_SIN_AUTOR_DE_PRUEBA/);
-  assert.match(aiPrompts[0], /Hay registros históricos importados de desempeño excluidos por procedencia no verificable/);
-  assert.match(aiPrompts[0], /Su exclusión no demuestra falta de actividad, avances ni desempeño/);
+  assert.match(aiPrompts[0], /La evidencia disponible puede ser parcial/);
+  assert.doesNotMatch(aiPrompts[0], /registros históricos importados de desempeño excluidos por procedencia/);
+  assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
 });
 
 test("AI prompt stays unchanged when no excluded historical performance records exist", async () => {
@@ -703,8 +717,53 @@ test("AI prompt stays unchanged when no excluded historical performance records 
   assert.equal(response.status, 200, JSON.stringify(response.body));
   assert.equal(aiPrompts.length, 1);
   assert.match(aiPrompts[0], /DETALLE_PROPIO_DE_PRUEBA/);
-  assert.doesNotMatch(aiPrompts[0], /registros históricos importados de desempeño excluidos/);
-  assert.doesNotMatch(aiPrompts[0], /Su exclusión no demuestra falta de actividad/);
+  assert.doesNotMatch(aiPrompts[0], /La evidencia disponible puede ser parcial/);
+  assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
+});
+
+test("AI generation uses session areas and keeps unrelated observations without objectives or counts", async () => {
+  reset();
+  grantAiConsent(2);
+  const today = now.toISOString().slice(0, 10);
+  const summary = buildPsychologySessionSummary(["cognition"], {
+    ...createEmptyPsychologySessionDraft(),
+    focus: "Memoria funcional",
+    interventions: "Organización de una secuencia.",
+    participation: "Participó con apoyo.",
+  });
+  tables.set(schema.registrosClinicosTable, [{
+    id: 101,
+    patientId: 1,
+    userId: 2,
+    fecha: today,
+    resumenSesion: summary,
+    observaciones: "Al inicio solicitó un objeto de transición antes de comenzar.",
+    recomendacionesHogar: null,
+    materialesActividades: [],
+    createdAt: now,
+  }]);
+
+  const response = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+  }, true);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(aiPrompts.length, 1);
+  assert.match(aiPrompts[0], /Funciones cognitivas y ejecutivas/);
+  assert.match(aiPrompts[0], /Memoria funcional/);
+  assert.match(aiPrompts[0], /Al inicio solicitó un objeto de transición/);
+  assert.match(aiPrompts[0], /Las observaciones relevantes que no correspondan claramente a un área deben conservarse en/);
+  assert.match(aiPrompts[0], /resumen/);
+  assert.doesNotMatch(aiPrompts[0], /No hay objetivos terapéuticos registrados|OBJETIVOS TERAPÉUTICOS — 0/);
+  assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
+  assert.doesNotMatch(aiPrompts[0], /Terminología a usar|Menciona la cantidad de sesiones/);
+  assert.equal(response.body.resumen, "Al inicio solicitó un objeto de transición antes de comenzar.");
+  assert.deepEqual(response.body.areas, {
+    "Funciones cognitivas y ejecutivas": "Participó en la organización de una secuencia con apoyo.",
+  });
+  assert.equal(response.body.conducta, "");
+  assert.equal(response.body.sugerencias, "");
 });
 
 test("session materials photos are record-scoped, signed only after access checks, and deleted with the record", async () => {
