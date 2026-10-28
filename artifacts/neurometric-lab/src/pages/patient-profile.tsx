@@ -111,7 +111,9 @@ import {
   acceptPendingReportGeneration,
   applyGeneratedReport,
   cancelPendingReportGeneration,
+  cloneReportDraft,
   hasReportDraftContent,
+  reportDraftsEqual,
   requestReportGeneration,
   restoreSavedReportDraft,
 } from "@/lib/report-editor-workflow";
@@ -712,6 +714,10 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [hasPendingReportRefresh, setHasPendingReportRefresh] = useState(false);
   const [pendingAIResult, setPendingAIResult] = useState<null | ({
+    mode: "generate" | "rewrite";
+    sourceDraft: {
+      resumen: string; conducta: string; areas: Record<string, string>; removedAreas: string[]; sugerencias: string;
+    };
     resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string;
     clinicalSnapshot: RC[]; clinicalRecordsExcludedCount?: number; clinicalRecordsUndatedCount?: number;
   } & Partial<ReportMeta>)>(null);
@@ -878,8 +884,18 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   };
 
   const applyAIResult = (result: NonNullable<typeof pendingAIResult>) => {
+    if (!reportDraftsEqual(currentReportDraft(), result.sourceDraft)) {
+      setPendingAIResult(null);
+      setShowAIPreview(false);
+      toast({
+        title: "El borrador cambió",
+        description: "La propuesta se descartó para no sobrescribir cambios recientes. Generá una nueva propuesta sobre el borrador actual.",
+        variant: "destructive",
+      });
+      return;
+    }
     const accepted = acceptPendingReportGeneration({
-      draft: currentReportDraft(),
+      draft: result.sourceDraft,
       pending: result,
       confirmationOpen: true,
     });
@@ -909,7 +925,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     toast({
       title: "Propuesta aplicada al borrador",
       description: [
-        "El texto profesional se conservó. Revisá el borrador; aún no está guardado.",
+        "Revisá la redacción y los datos clínicos; los cambios solo están en el borrador y aún no se guardaron.",
         exclusions > 0 ? `${exclusions} registro(s) con fecha inválida o futura no se incluyeron.` : "",
         undated > 0 ? `${undated} registro(s) se incluyeron sin ubicación cronológica por tener fecha inválida.` : "",
       ].filter(Boolean).join(" "),
@@ -918,7 +934,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
 
   const cancelAIProposal = () => {
     const cancelled = cancelPendingReportGeneration({
-      draft: currentReportDraft(),
+      draft: pendingAIResult?.sourceDraft ?? currentReportDraft(),
       pending: pendingAIResult,
       confirmationOpen: showAIPreview,
     });
@@ -930,8 +946,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     if (view === "familia") return;
     setIsGeneratingAI(true);
     try {
-      const draft = currentReportDraft();
-      const includeDraft = hasReportDraftContent(draft);
+      const draft = cloneReportDraft(currentReportDraft());
+      const includeDraft = hasReportDraftContent(draft) || draft.removedAreas.length > 0;
       const resp = await fetch(`${API_BASE}/api/ai/informe-generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -944,13 +960,29 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         return;
       }
       const result = await resp.json();
-      if (!Array.isArray(result.clinicalSnapshot)
+      const expectedMode = hasReportDraftContent(draft) ? "rewrite" : "generate";
+      if ((result.mode !== "rewrite" && result.mode !== "generate")
+          || result.mode !== expectedMode
+          || typeof result.resumen !== "string"
+          || typeof result.conducta !== "string"
+          || typeof result.sugerencias !== "string"
+          || !result.areas || typeof result.areas !== "object" || Array.isArray(result.areas)
+          || Object.values(result.areas).some((value: unknown) => typeof value !== "string")
+          || !Array.isArray(result.clinicalSnapshot)
           || !Number.isSafeInteger(result.clinicalRecordsUsedCount)
           || result.clinicalSnapshot.length !== result.clinicalRecordsUsedCount
           || !result.clinicalSnapshot.every((record: RC) => Number.isSafeInteger(record.id) && record.patientId === currentPatient.id)) {
-        throw new Error("El servidor no devolvió los registros clínicos del período generado. No se aplicó el borrador.");
+        throw new Error("La propuesta no tiene el formato esperado o no coincide con el borrador. No se aplicaron cambios.");
       }
-      const request = requestReportGeneration(currentReportDraft(), result);
+      if (!reportDraftsEqual(currentReportDraft(), draft)) {
+        toast({
+          title: "El borrador cambió durante la generación",
+          description: "No se abrió la propuesta para evitar aplicar cambios sobre una versión distinta. Generá otra propuesta.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const request = requestReportGeneration(draft, { ...result, sourceDraft: draft });
       setPendingAIResult(request.pending);
       setShowAIPreview(request.confirmationOpen);
     } catch (error: any) {
@@ -1367,8 +1399,10 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
 
       <ReportAiPreviewDialog
         open={showAIPreview}
-        current={currentReportDraft()}
-        proposed={pendingAIResult ? applyGeneratedReport(currentReportDraft(), pendingAIResult) : null}
+        current={pendingAIResult?.sourceDraft ?? currentReportDraft()}
+        proposed={pendingAIResult
+          ? applyGeneratedReport(pendingAIResult.sourceDraft, pendingAIResult)
+          : null}
         onCancel={cancelAIProposal}
         onAccept={() => { if (pendingAIResult) applyAIResult(pendingAIResult); }}
       />

@@ -32,6 +32,7 @@ const tables = new Map<object, any[]>();
 const stats = { selects: 0, inserts: 0, updates: 0, deletes: 0, ai: 0 };
 const savedSessions: { userId: number; userRole: string }[] = [];
 const aiPrompts: string[] = [];
+let aiClinicalReportResponseOverride: Record<string, unknown> | null = null;
 class MockWorkbook {
   worksheets: any[] = [];
   xlsx = {
@@ -62,6 +63,7 @@ function reset() {
   tables.clear();
   savedSessions.length = 0;
   aiPrompts.length = 0;
+  aiClinicalReportResponseOverride = null;
   storage.configured = false;
   storage.uploadPaths.length = 0;
   storage.downloadPaths.length = 0;
@@ -291,7 +293,9 @@ class MockOpenAI {
     const isClinicalProfile = input.messages.some((message: any) =>
       message.role === "user" && String(message.content).includes("Genera el PERFIL CLÍNICO"),
     );
-    const response = isClinicalReport ? {
+    const response = isClinicalReport && aiClinicalReportResponseOverride
+      ? aiClinicalReportResponseOverride
+      : isClinicalReport ? {
       resumen: "Al inicio solicitó un objeto de transición antes de comenzar.",
       conducta: "",
       areas: {
@@ -857,7 +861,7 @@ test("AI prompt stays unchanged when no excluded historical performance records 
   assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
 });
 
-test("AI report improvement receives professional text for incremental additions and rejects oversized drafts", async () => {
+test("AI report improvement rewrites professional text completely and rejects unsafe drafts", async () => {
   reset();
   grantAiConsent(2);
   const draft = {
@@ -867,6 +871,12 @@ test("AI report improvement receives professional text for incremental additions
     removedAreas: ["Motricidad"],
     sugerencias: "",
   };
+  aiClinicalReportResponseOverride = {
+    resumen: "Observación clínica reformulada con claridad.",
+    conducta: "Conducta redactada de forma más clara.",
+    areas: { Lenguaje: "El texto del área se integró con redacción natural." },
+    sugerencias: "",
+  };
   const response = await request("POST", "/ai/informe-generate", "owner", {
     patientId: 1,
     rango: "historia",
@@ -874,12 +884,15 @@ test("AI report improvement receives professional text for incremental additions
   }, true);
 
   assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.mode, "rewrite");
+  assert.equal(response.body.resumen, "Observación clínica reformulada con claridad.");
   assert.equal(aiPrompts.length, 1);
   assert.match(aiPrompts[0], /OBSERVACION_PROFESIONAL_QUE_DEBE_CONSERVARSE/);
   assert.match(aiPrompts[0], /Texto de área escrito por el profesional/);
   assert.match(aiPrompts[0], /Motricidad/);
-  assert.match(aiPrompts[0], /únicamente aportes nuevos/);
-  assert.match(aiPrompts[0], /no reescribas, resumas, elimines ni repitas/i);
+  assert.match(aiPrompts[0], /informe completo como JSON/i);
+  assert.match(aiPrompts[0], /elimina solo repeticiones sin perder ningún dato/i);
+  assert.match(aiPrompts[0], /conserva.*significado/i);
 
   const aiCallsBeforeInvalidDraft = stats.ai;
   const invalid = await request("POST", "/ai/informe-generate", "owner", {
@@ -895,6 +908,20 @@ test("AI report improvement receives professional text for incremental additions
   }, true);
   assert.equal(invalid.status, 400);
   assert.equal(stats.ai, aiCallsBeforeInvalidDraft, "invalid drafts are rejected before calling the AI provider");
+
+  aiClinicalReportResponseOverride = {
+    resumen: "",
+    conducta: "Conducta reformulada.",
+    areas: { Lenguaje: "Área reformulada." },
+    sugerencias: "",
+  };
+  const incompleteRewrite = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+    draft,
+  }, true);
+  assert.equal(incompleteRewrite.status, 502);
+  assert.equal(incompleteRewrite.body.error.includes("borrador original no se modificó"), true);
 });
 
 test("AI generation uses session areas and keeps unrelated observations without objectives or counts", async () => {

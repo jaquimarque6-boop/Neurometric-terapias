@@ -4,6 +4,8 @@ import { addReportArea, removeReportArea, renameReportArea } from "./report-area
 import {
   acceptPendingReportGeneration,
   cancelPendingReportGeneration,
+  cloneReportDraft,
+  reportDraftsEqual,
   requestReportGeneration,
   restoreSavedReportDraft,
   type ReportEditorDraft,
@@ -102,4 +104,42 @@ test("AI report preview preserves professional text, cancels safely, appends on 
     removedAreas: [],
     sugerencias: "",
   });
+});
+
+test("accepted AI rewrite replaces the draft only after preview and keeps removed areas", () => {
+  const original: ReportEditorDraft = {
+    resumen: "Durante la sesión participó. Participó durante la sesión.",
+    conducta: "Respondió con apoyo.",
+    areas: { Lenguaje: "Usó palabras. Usó palabras." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "",
+  };
+  const rewrite = {
+    mode: "rewrite" as const,
+    resumen: "Participó durante la sesión.",
+    conducta: "Respondió con apoyo.",
+    areas: {
+      Lenguaje: "Usó palabras y amplió su vocabulario.",
+      Motricidad: "No debe restituirse.",
+    },
+    sugerencias: "",
+  };
+  const sourceSnapshot = cloneReportDraft(original);
+  const waiting = requestReportGeneration(sourceSnapshot, rewrite);
+  assert.deepEqual(waiting.draft, original, "the editor remains unchanged while the proposal is pending");
+  assert.equal(reportDraftsEqual(original, sourceSnapshot), true);
+  assert.equal(reportDraftsEqual(original, { ...sourceSnapshot, resumen: "Editado durante la generación" }), false);
+
+  const cancelled = cancelPendingReportGeneration(waiting);
+  assert.deepEqual(cancelled.draft, original, "cancel keeps every original field exactly");
+
+  const accepted = acceptPendingReportGeneration(waiting);
+  assert.deepEqual(accepted.draft, {
+    resumen: "Participó durante la sesión.",
+    conducta: "Respondió con apoyo.",
+    areas: { Lenguaje: "Usó palabras y amplió su vocabulario." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "",
+  });
+  assert.equal(original.resumen, "Durante la sesión participó. Participó durante la sesión.");
 });

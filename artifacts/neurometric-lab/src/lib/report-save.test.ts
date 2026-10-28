@@ -133,3 +133,37 @@ test("accepting AI additions and saving an existing report preserves the profess
     "reopening the saved document retains both the professional text and the accepted additions",
   );
 });
+
+test("accepting a complete AI rewrite changes only the draft until the selected report is explicitly saved", () => {
+  const original = {
+    resumen: "El paciente participó. Participó durante la sesión.",
+    conducta: "Respondió con apoyo.",
+    areas: { Lenguaje: "Usó palabras. Usó palabras." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "",
+  };
+  const pending = requestReportGeneration(original, {
+    mode: "rewrite",
+    resumen: "Participó durante la sesión.",
+    conducta: "Respondió con apoyo.",
+    areas: { Lenguaje: "Usó palabras durante la actividad." },
+    sugerencias: "",
+  });
+  assert.deepEqual(pending.draft, original, "generation does not mutate the editor before acceptance");
+  const accepted = acceptPendingReportGeneration(pending);
+  assert.equal(accepted.draft.resumen, "Participó durante la sesión.");
+  assert.equal(accepted.draft.areas.Lenguaje, "Usó palabras durante la actividad.");
+  assert.equal(accepted.draft.removedAreas.includes("Motricidad"), true);
+
+  const save = prepareReportSave(
+    "evolution",
+    "Informe clínico revisado",
+    { v: 4, ...accepted.draft },
+    null,
+    { id: 29, reportType: "evolution", updatedAt: "2026-10-28T10:00:00Z" },
+  );
+  assert.equal(save.method, "PUT");
+  assert.equal(save.reportId, 29);
+  assert.deepEqual(restoreSavedReportDraft(save.body.content), accepted.draft);
+  assert.equal(original.resumen, "El paciente participó. Participó durante la sesión.");
+});

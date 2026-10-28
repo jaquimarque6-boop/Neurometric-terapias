@@ -43,6 +43,72 @@ export function normalizeExistingReportDraft(value: unknown): ExistingReportDraf
   };
 }
 
+export type CompleteReportRewrite = {
+  resumen: string;
+  conducta: string;
+  areas: Record<string, string>;
+  sugerencias: string;
+};
+
+function normalizeAreaName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("es-AR");
+}
+
+export function normalizeCompleteReportRewrite(
+  value: unknown,
+  original: ExistingReportDraft,
+  allowedAreaNames: string[],
+): CompleteReportRewrite | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const rewrite = value as Record<string, unknown>;
+  if (typeof rewrite.resumen !== "string" || typeof rewrite.conducta !== "string"
+    || typeof rewrite.sugerencias !== "string" || !rewrite.areas
+    || typeof rewrite.areas !== "object" || Array.isArray(rewrite.areas)) return null;
+
+  const rewrittenAreas = Object.entries(rewrite.areas as Record<string, unknown>);
+  if (rewrittenAreas.length > 100 || rewrittenAreas.some(([name, text]) =>
+    !name.trim() || name.length > 120 || typeof text !== "string")) return null;
+
+  const allowed = new Map<string, string>();
+  for (const name of [...Object.keys(original.areas), ...allowedAreaNames]) {
+    const normalized = normalizeAreaName(name);
+    if (normalized && !allowed.has(normalized)) allowed.set(normalized, name.trim());
+  }
+  const removed = new Set(original.removedAreas.map(normalizeAreaName));
+  const resultAreas = new Map<string, string>();
+  for (const [rawName, rawText] of rewrittenAreas as Array<[string, string]>) {
+    const normalized = normalizeAreaName(rawName);
+    const canonicalName = allowed.get(normalized);
+    if (!canonicalName || removed.has(normalized) || resultAreas.has(normalized)) return null;
+    resultAreas.set(normalized, rawText.trim());
+  }
+
+  const areas: Record<string, string> = {};
+  for (const [name, originalText] of Object.entries(original.areas)) {
+    const normalized = normalizeAreaName(name);
+    const rewrittenText = resultAreas.get(normalized);
+    if (originalText.trim() && !rewrittenText) return null;
+    areas[name] = rewrittenText ?? originalText;
+    resultAreas.delete(normalized);
+  }
+  for (const [normalized, text] of resultAreas) {
+    if (text) areas[allowed.get(normalized)!] = text;
+  }
+
+  const normalizedRewrite: CompleteReportRewrite = {
+    resumen: rewrite.resumen,
+    conducta: rewrite.conducta,
+    areas,
+    sugerencias: rewrite.sugerencias,
+  };
+  if ((original.resumen.trim() && !normalizedRewrite.resumen.trim())
+    || (original.conducta.trim() && !normalizedRewrite.conducta.trim())
+    || (original.sugerencias.trim() && !normalizedRewrite.sugerencias.trim())) return null;
+
+  if (JSON.stringify(normalizedRewrite).length > MAX_EXISTING_REPORT_DRAFT_CHARS) return null;
+  return normalizedRewrite;
+}
+
 export function hasExistingReportDraftContent(draft: ExistingReportDraft): boolean {
   return Boolean(
     draft.resumen.trim()

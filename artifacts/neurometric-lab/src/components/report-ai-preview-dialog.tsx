@@ -49,7 +49,7 @@ export function ReportAiPreviewDialog({ open, current, proposed, onCancel, onAcc
             Revisar propuesta de IA
           </DialogTitle>
           <DialogDescription>
-            El texto profesional se conserva literalmente; la IA solo agrega información clínica nueva respaldada por los datos. Cancelar no cambia el borrador. Aplicar tampoco guarda: podrás revisar y guardar desde el informe.
+            La IA puede equivocarse. Compará el original con la reescritura y verificá que se conserven las observaciones y su significado. Cancelar mantiene el borrador exacto; aceptar solo actualiza el editor y no guarda el informe.
           </DialogDescription>
         </DialogHeader>
 
@@ -59,13 +59,13 @@ export function ReportAiPreviewDialog({ open, current, proposed, onCancel, onAcc
               <h3 className="mb-2 text-sm font-semibold">{section.title}</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Texto actual</p>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Texto original</p>
                   <p className="min-h-10 whitespace-pre-wrap break-words rounded-md bg-muted/40 p-2 text-sm">
                     {section.before || "Sin contenido"}
                   </p>
                 </div>
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-primary">Después de aplicar</p>
+                  <p className="mb-1 text-xs font-medium text-primary">Propuesta de IA</p>
                   <p className="min-h-10 whitespace-pre-wrap break-words rounded-md bg-primary/5 p-2 text-sm">
                     {section.after || "Sin contenido"}
                   </p>
@@ -92,7 +92,7 @@ export function ReportAiPreviewDialog({ open, current, proposed, onCancel, onAcc
           <Button type="button" size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button type="button" size="sm" onClick={onAccept} disabled={!hasChanges} className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
-            Aplicar propuesta
+            Aceptar propuesta
           </Button>
         </div>
       </DialogContent>

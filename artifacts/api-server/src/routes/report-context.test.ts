@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   formatExistingReportDraft,
   hasExistingReportDraftContent,
+  normalizeCompleteReportRewrite,
   normalizeExistingReportDraft,
 } from "./report-context";
 
@@ -43,4 +44,65 @@ test("existing report context rejects malformed and oversized drafts", () => {
     removedAreas: [],
     sugerencias: "",
   }), null);
+});
+
+test("complete AI rewrites keep original area names and reject omissions or removed areas", () => {
+  const original = normalizeExistingReportDraft({
+    resumen: "Observación clínica original.",
+    conducta: "Respondió con apoyo.",
+    areas: { "Lenguaje y comunicación": "Usó frases breves." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "Continuar con la actividad documentada.",
+  });
+  assert.ok(original);
+
+  const normalized = normalizeCompleteReportRewrite({
+    resumen: "Observación clínica reorganizada.",
+    conducta: "Con apoyo, respondió a las consignas.",
+    areas: {
+      "lenguaje y comunicacion": "Usó frases breves en la actividad.",
+      Cognición: "Organizó una secuencia con apoyo.",
+    },
+    sugerencias: "Se propone continuar con la actividad documentada.",
+  }, original, ["Cognición"]);
+  assert.deepEqual(normalized, {
+    resumen: "Observación clínica reorganizada.",
+    conducta: "Con apoyo, respondió a las consignas.",
+    areas: {
+      "Lenguaje y comunicación": "Usó frases breves en la actividad.",
+      Cognición: "Organizó una secuencia con apoyo.",
+    },
+    sugerencias: "Se propone continuar con la actividad documentada.",
+  });
+
+  assert.equal(normalizeCompleteReportRewrite({
+    resumen: "",
+    conducta: "Respondió con apoyo.",
+    areas: { "Lenguaje y comunicación": "Usó frases breves." },
+    sugerencias: "Continuar con la actividad documentada.",
+  }, original, ["Cognición"]), null, "a non-empty section cannot be erased");
+  assert.equal(normalizeCompleteReportRewrite({
+    resumen: "Observación clínica reorganizada.",
+    conducta: "Respondió con apoyo.",
+    areas: {},
+    sugerencias: "Continuar con la actividad documentada.",
+  }, original, ["Cognición"]), null, "a non-empty area cannot be omitted");
+  assert.equal(normalizeCompleteReportRewrite({
+    resumen: "Observación clínica reorganizada.",
+    conducta: "Respondió con apoyo.",
+    areas: {
+      "Lenguaje y comunicación": "Usó frases breves.",
+      Motricidad: "Área retirada.",
+    },
+    sugerencias: "Continuar con la actividad documentada.",
+  }, original, ["Cognición"]), null, "a removed area cannot return");
+  assert.equal(normalizeCompleteReportRewrite({
+    resumen: "Observación clínica reorganizada.",
+    conducta: "Respondió con apoyo.",
+    areas: {
+      "Lenguaje y comunicación": "Usó frases breves.",
+      "Área inventada": "Contenido.",
+    },
+    sugerencias: "Continuar con la actividad documentada.",
+  }, original, ["Cognición"]), null, "unsupported area names are rejected");
 });
