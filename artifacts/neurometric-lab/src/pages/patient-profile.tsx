@@ -109,11 +109,14 @@ import {
 } from "@/lib/report-areas";
 import {
   acceptPendingReportGeneration,
+  applyGeneratedReport,
   cancelPendingReportGeneration,
+  hasReportDraftContent,
   requestReportGeneration,
   restoreSavedReportDraft,
 } from "@/lib/report-editor-workflow";
 import { PatientReportsList } from "@/components/patient-reports-list";
+import { ReportAiPreviewDialog } from "@/components/report-ai-preview-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Pago = {
@@ -707,11 +710,12 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   const [sugerencias, setSugerencias] = useState(initial.sugerencias);
   const [textoFamilia, setTextoFamilia] = useState(currentPatient.informeFamilia ?? "");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [hasPendingReportRefresh, setHasPendingReportRefresh] = useState(false);
   const [pendingAIResult, setPendingAIResult] = useState<null | ({
     resumen: string; conducta: string; areas: Record<string, string>; sugerencias: string;
     clinicalSnapshot: RC[]; clinicalRecordsExcludedCount?: number; clinicalRecordsUndatedCount?: number;
   } & Partial<ReportMeta>)>(null);
-  const [showAIConfirm, setShowAIConfirm] = useState(false);
+  const [showAIPreview, setShowAIPreview] = useState(false);
   const currentReportDraft = () => ({
     resumen,
     conducta,
@@ -766,12 +770,14 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
   }, [currentPatient.id, currentPatient.informeEvolucion, currentPatient.informeFamilia, openedReport]);
 
   const openSavedReport = async (id: number) => {
+    if (isGeneratingAI) return;
     try {
       const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports/${id}`, { credentials: "include" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const report = await response.json() as SavedReport;
       setOpenedReport(report);
       setGeneratedSnapshot(null);
+      setHasPendingReportRefresh(false);
       setRenamingArea(null);
       setRemovedAreaNames(report.content.removedAreas ?? []);
       setReportTitle(report.title);
@@ -793,9 +799,11 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     }
   };
   const newReport = () => {
+    if (isGeneratingAI) return;
     setOpenedReport(null);
     setReportMeta(null);
     setGeneratedSnapshot(null);
+    setHasPendingReportRefresh(false);
     setRenamingArea(null);
     setRemovedAreaNames([]);
     setReportTitle("");
@@ -843,7 +851,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       const title = reportTitle.trim() || (view === "familia" ? "Informe para familia" : "Informe de evolución");
       const content = { v: 4, resumen, conducta, areas: areaTexts, sugerencias, textoFamilia,
         removedAreas: removedAreaNames,
-        goalSnapshot: goals, clinicalSnapshot: clinicalSnapshotForSave(openedReport, generatedSnapshot, reportMeta?.clinicalRecordsUsedCount ?? null),
+        goalSnapshot: hasPendingReportRefresh ? currentGoals : goals,
+        clinicalSnapshot: clinicalSnapshotForSave(openedReport, generatedSnapshot, reportMeta?.clinicalRecordsUsedCount ?? null),
         patientSnapshot: snapshotReportPatient(patient) };
       const request = prepareReportSave(reportType, title, content, reportMeta, openedReport);
       const response = await fetch(`${API_BASE}/api/patients/${currentPatient.id}/reports${request.reportId ? `/${request.reportId}` : ""}`, {
@@ -860,6 +869,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       setGeneratedSnapshot(null);
       setReportTitle(saved.title);
       setReportMeta(saved);
+      setHasPendingReportRefresh(false);
       setSavedReports(previous => request.reportId ? previous.map(report => report.id === saved.id ? saved : report) : [saved, ...previous]);
       toast({ title: request.reportId ? "Cambios guardados" : "Informe guardado" });
     } catch (error: any) {
@@ -873,10 +883,14 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
       pending: result,
       confirmationOpen: true,
     });
-    setOpenedReport(null);
+    const updatingSavedEvolution = openedReport?.reportType === "evolution";
+    if (!updatingSavedEvolution) {
+      setOpenedReport(null);
+      setReportTitle("");
+    }
     setView("clinico");
-    setReportTitle("");
     setGeneratedSnapshot(result.clinicalSnapshot);
+    setHasPendingReportRefresh(true);
     setReportMeta({
       periodKind: result.periodKind ?? null, periodFrom: result.periodFrom ?? null,
       periodTo: result.periodTo ?? null, clinicalRecordsUsedCount: result.clinicalRecordsUsedCount ?? null,
@@ -889,27 +903,40 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
     setSugerencias(accepted.draft.sugerencias);
     setRenamingArea(null);
     setPendingAIResult(null);
-    setShowAIConfirm(false);
+    setShowAIPreview(false);
     const exclusions = result.clinicalRecordsExcludedCount ?? 0;
     const undated = result.clinicalRecordsUndatedCount ?? 0;
     toast({
-      title: "Informe generado",
+      title: "Propuesta aplicada al borrador",
       description: [
-        "El contenido fue aplicado. Puedes editarlo libremente antes de guardar.",
+        "El texto profesional se conservó. Revisá el borrador; aún no está guardado.",
         exclusions > 0 ? `${exclusions} registro(s) con fecha inválida o futura no se incluyeron.` : "",
         undated > 0 ? `${undated} registro(s) se incluyeron sin ubicación cronológica por tener fecha inválida.` : "",
       ].filter(Boolean).join(" "),
     });
   };
 
+  const cancelAIProposal = () => {
+    const cancelled = cancelPendingReportGeneration({
+      draft: currentReportDraft(),
+      pending: pendingAIResult,
+      confirmationOpen: showAIPreview,
+    });
+    setPendingAIResult(cancelled.pending);
+    setShowAIPreview(cancelled.confirmationOpen);
+  };
+
   const handleGenerateAI = async () => {
+    if (view === "familia") return;
     setIsGeneratingAI(true);
     try {
+      const draft = currentReportDraft();
+      const includeDraft = hasReportDraftContent(draft);
       const resp = await fetch(`${API_BASE}/api/ai/informe-generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ patientId: patient.id, rango }),
+        body: JSON.stringify({ patientId: patient.id, rango, ...(includeDraft ? { draft } : {}) }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -924,12 +951,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         throw new Error("El servidor no devolvió los registros clínicos del período generado. No se aplicó el borrador.");
       }
       const request = requestReportGeneration(currentReportDraft(), result);
-      if (request.confirmationOpen) {
-        setPendingAIResult(result);
-        setShowAIConfirm(true);
-      } else {
-        applyAIResult(result);
-      }
+      setPendingAIResult(request.pending);
+      setShowAIPreview(request.confirmationOpen);
     } catch (error: any) {
       toast({ title: "Error al generar", description: error.message ?? "No se pudo contactar al servidor.", variant: "destructive" });
     } finally {
@@ -1020,11 +1043,11 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
-            <button onClick={() => { if (view !== "clinico" && openedReport) newReport(); setView("clinico"); }}
+            <button disabled={isGeneratingAI} onClick={() => { if (view !== "clinico" && openedReport) newReport(); setView("clinico"); }}
               className={`px-3 py-1.5 transition-colors ${view === "clinico" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
               Clínico
             </button>
-            <button onClick={() => { if (view !== "familia" && openedReport) newReport(); setView("familia"); }}
+            <button disabled={isGeneratingAI} onClick={() => { if (view !== "familia" && openedReport) newReport(); setView("familia"); }}
               className={`px-3 py-1.5 transition-colors ${view === "familia" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
               Para familias
             </button>
@@ -1033,7 +1056,8 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
             size="sm"
             variant="outline"
             onClick={handleGenerateAI}
-            disabled={isGeneratingAI}
+            disabled={isGeneratingAI || view === "familia"}
+            title={view === "familia" ? "La mejora con IA está disponible para el informe clínico." : undefined}
             className="h-8 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/60"
           >
             {isGeneratingAI ? (
@@ -1043,7 +1067,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" /> {openedReport ? "Generar informe nuevo con IA" : "Generar con IA"}
+                <Sparkles className="h-3.5 w-3.5" /> {hasReportDraftContent(currentReportDraft()) ? "Mejorar y completar con IA" : "Generar con IA"}
               </>
             )}
           </Button>
@@ -1055,7 +1079,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
 
       {/* ── Session range selector ──────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground font-medium shrink-0">{openedReport ? "Período para generar un informe nuevo:" : "Período para generar:"}</span>
+        <span className="text-xs text-muted-foreground font-medium shrink-0">Período para la propuesta:</span>
         <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs font-medium">
           {(["4", "mes", "3meses", "6meses"] as RangoSesiones[]).map(r => (
             <button
@@ -1073,7 +1097,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
             </button>
           ))}
         </div>
-        {generatedSnapshot !== null && <span className="text-xs text-muted-foreground">Período generado fijado. Elegí Nuevo informe para cambiarlo.</span>}
+        {generatedSnapshot !== null && <span className="text-xs text-muted-foreground">Período de la propuesta fijado. Elegí Nuevo informe para cambiarlo.</span>}
         {sinSesiones && registros.length > 0 && (
           <span className="text-xs text-amber-600 font-medium">
             No hay sesiones registradas en el período seleccionado
@@ -1240,7 +1264,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
           </Card>
           </div>{/* /overflow-x-auto */}
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+            <Button onClick={handleSave} disabled={isSaving || isGeneratingAI} className="gap-2">
               <Save className="h-4 w-4" />
               {isSaving ? "Guardando…" : openedReport?.reportType === "evolution" ? "Guardar cambios" : "Guardar informe nuevo"}
             </Button>
@@ -1333,7 +1357,7 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
           </Card>
           </div>{/* /overflow-x-auto */}
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
+            <Button onClick={handleSave} disabled={isSaving || isGeneratingAI} className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
               <Save className="h-4 w-4" />
               {isSaving ? "Guardando…" : openedReport?.reportType === "family" ? "Guardar cambios" : "Guardar informe nuevo"}
             </Button>
@@ -1341,35 +1365,13 @@ function InformeTab({ patient: currentPatient, goals: currentGoals, registros: c
         </div>
       )}
 
-      {/* ── Confirmación de reemplazo con IA ─────────────────────────────────── */}
-      <Dialog open={showAIConfirm} onOpenChange={setShowAIConfirm}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" /> ¿Reemplazar contenido?
-            </DialogTitle>
-            <DialogDescription>
-              El informe ya tiene contenido guardado. ¿Deseas reemplazarlo con el texto generado por IA? Podrás editarlo antes de guardar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button size="sm" variant="outline" onClick={() => {
-              const cancelled = cancelPendingReportGeneration({
-                draft: currentReportDraft(),
-                pending: pendingAIResult,
-                confirmationOpen: showAIConfirm,
-              });
-              setPendingAIResult(cancelled.pending);
-              setShowAIConfirm(cancelled.confirmationOpen);
-            }}>
-              Cancelar
-            </Button>
-            <Button size="sm" onClick={() => pendingAIResult && applyAIResult(pendingAIResult)} className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Sí, reemplazar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReportAiPreviewDialog
+        open={showAIPreview}
+        current={currentReportDraft()}
+        proposed={pendingAIResult ? applyGeneratedReport(currentReportDraft(), pendingAIResult) : null}
+        onCancel={cancelAIProposal}
+        onAccept={() => { if (pendingAIResult) applyAIResult(pendingAIResult); }}
+      />
     </div>
   );
 }

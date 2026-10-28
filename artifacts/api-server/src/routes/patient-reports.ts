@@ -186,6 +186,13 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
   if (!body || typeof body.title !== "string" || !body.title.trim() || body.title.length > 200
     || !validContent(body.content) || typeof body.updatedAt !== "string" ||
     Number.isNaN(Date.parse(body.updatedAt))) return res.status(400).json({ error: "Informe inválido" });
+  const metadataFields = [
+    "periodKind", "periodFrom", "periodTo",
+    "clinicalRecordsUsedCount", "clinicalRecordsTotalCount",
+  ];
+  const hasMetadata = metadataFields.some(field => Object.prototype.hasOwnProperty.call(body, field));
+  const suppliedMeta = hasMetadata ? metadata(body) : null;
+  if (hasMetadata && !suppliedMeta) return res.status(400).json({ error: "Metadatos del informe inválidos" });
   const [existing] = await db.select().from(patientReportsTable)
     .where(and(
       eq(patientReportsTable.id, reportId),
@@ -201,11 +208,23 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
   const sanitized = sanitizeReportSnapshot({
     content: body.content,
   } as typeof patientReportsTable.$inferSelect, allowedSessionIds);
+  const safeMeta = hasMetadata
+    ? sanitized.changed
+      ? {
+          ...suppliedMeta!,
+          clinicalRecordsUsedCount: Array.isArray(sanitized.row.content.clinicalSnapshot)
+            ? sanitized.row.content.clinicalSnapshot.length
+            : 0,
+          clinicalRecordsTotalCount: null,
+        }
+      : suppliedMeta!
+    : {};
   const [report] = await db.update(patientReportsTable).set({
     title: body.title.trim(),
     content: { ...sanitized.row.content, patientSnapshot: existing.content.patientSnapshot },
     updatedAt: new Date(),
     updatedByUserId: userId,
+    ...safeMeta,
     ...(sanitized.changed ? {
       clinicalRecordsUsedCount: Array.isArray(sanitized.row.content.clinicalSnapshot)
         ? sanitized.row.content.clinicalSnapshot.length

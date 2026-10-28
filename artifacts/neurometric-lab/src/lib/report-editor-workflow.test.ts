@@ -9,7 +9,7 @@ import {
   type ReportEditorDraft,
 } from "./report-editor-workflow";
 
-test("synthetic editor flow keeps area text, cancels safely, replaces only on accept, and restores legacy reports", () => {
+test("AI report preview preserves professional text, cancels safely, appends on accept, and restores legacy reports", () => {
   let draft: ReportEditorDraft = {
     resumen: "Resumen previo",
     conducta: "Conducta previa",
@@ -39,12 +39,16 @@ test("synthetic editor flow keeps area text, cancels safely, replaces only on ac
   const generated = {
     resumen: "Resumen generado",
     conducta: "",
-    areas: { "Lenguaje y comunicación": "Hallazgo sintético" },
+    areas: {
+      "área eliminada": "Hallazgo sintético",
+      "Lenguaje y comunicación": "Aporte nuevo",
+    },
     sugerencias: "Sugerencia generada",
   };
   const waiting = requestReportGeneration(draft, generated);
   assert.equal(waiting.confirmationOpen, true);
   assert.deepEqual(waiting.draft, draft);
+  assert.deepEqual(waiting.pending, generated);
 
   const cancelled = cancelPendingReportGeneration(waiting);
   assert.equal(cancelled.confirmationOpen, false);
@@ -53,14 +57,39 @@ test("synthetic editor flow keeps area text, cancels safely, replaces only on ac
 
   const accepted = acceptPendingReportGeneration(requestReportGeneration(draft, generated));
   assert.deepEqual(accepted.draft, {
-    resumen: "Resumen generado",
-    conducta: "",
-    areas: { "Lenguaje y comunicación": "Hallazgo sintético" },
-    removedAreas: [],
-    sugerencias: "Sugerencia generada",
+    resumen: "Resumen previo\n\nResumen generado",
+    conducta: "Conducta previa",
+    areas: {
+      "Área eliminada": "Texto a conservar\n\nHallazgo sintético",
+      "Nueva área": "",
+      "Lenguaje y comunicación": "Aporte nuevo",
+    },
+    removedAreas: ["Motricidad"],
+    sugerencias: "Sugerencias previas\n\nSugerencia generada",
   });
   assert.equal(accepted.pending, null);
   assert.equal(accepted.confirmationOpen, false);
+
+  const duplicateAddition = acceptPendingReportGeneration({
+    draft: accepted.draft,
+    pending: { resumen: "Resumen generado" },
+    confirmationOpen: true,
+  });
+  assert.equal(duplicateAddition.draft.resumen, accepted.draft.resumen);
+
+  const emptyDraft: ReportEditorDraft = {
+    resumen: "", conducta: "", areas: {}, removedAreas: [], sugerencias: "",
+  };
+  const generatedFromEmpty = acceptPendingReportGeneration(requestReportGeneration(emptyDraft, generated));
+  assert.equal(generatedFromEmpty.draft.resumen, "Resumen generado");
+  assert.equal(generatedFromEmpty.draft.sugerencias, "Sugerencia generada");
+
+  const removedAreaDraft = { ...emptyDraft, removedAreas: ["Motricidad"] };
+  const removedAreaAccepted = acceptPendingReportGeneration(requestReportGeneration(removedAreaDraft, {
+    areas: { Motricidad: "No reponer", Cognición: "Aporte nuevo" },
+  }));
+  assert.deepEqual(removedAreaAccepted.draft.areas, { Cognición: "Aporte nuevo" });
+  assert.deepEqual(removedAreaAccepted.draft.removedAreas, ["Motricidad"]);
 
   const legacy = restoreSavedReportDraft({
     resumen: "Informe heredado",

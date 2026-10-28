@@ -218,12 +218,31 @@ test("separate documents survive creation and editing does not duplicate or over
   assert.equal(first.body.clinicalRecordsUsedCount, 1);
   assert.equal(first.body.clinicalRecordsTotalCount, 3);
   assert.equal(reports.length, 2);
+  assert.equal((await call("PUT", `/patients/1/reports/${first.body.id}`, 2, {
+    updatedAt: first.body.updatedAt,
+    title: "Fecha inválida",
+    content: { v: 4 },
+    periodFrom: "2026-02-30",
+  })).status, 400);
   const edit = await call("PUT", `/patients/1/reports/${first.body.id}`, 2,
-    { updatedAt: first.body.updatedAt, title: "Editado", content: { v: 4, resumen: "Editado" } });
+    {
+      updatedAt: first.body.updatedAt,
+      title: "Editado",
+      content: { v: 4, resumen: "Editado" },
+      periodKind: "historia",
+      periodFrom: "2026-08-01",
+      periodTo: "2026-09-29",
+      clinicalRecordsUsedCount: 2,
+      clinicalRecordsTotalCount: 4,
+    });
   assert.equal(edit.status, 200, JSON.stringify(edit.body));
   assert.equal(edit.body.authorUserId, 2);
   assert.equal(edit.body.updatedByUserId, 2);
-  assert.equal(edit.body.clinicalRecordsUsedCount, 1);
+  assert.equal(edit.body.periodKind, "historia");
+  assert.equal(edit.body.periodFrom, "2026-08-01");
+  assert.equal(edit.body.periodTo, "2026-09-29");
+  assert.equal(edit.body.clinicalRecordsUsedCount, 2);
+  assert.equal(edit.body.clinicalRecordsTotalCount, 4);
   assert.equal(reports.length, 2);
   assert.equal(reports[1].title, "Segundo informe");
   assert.equal((await call("PUT", `/patients/1/reports/${first.body.id}`, 2,

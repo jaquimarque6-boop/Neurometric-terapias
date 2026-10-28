@@ -27,7 +27,12 @@ test("the generated server period/counts remain intact in the saved draft withou
     { id: 7, reportType: "evolution", updatedAt: "2026-09-29T12:00:00Z" });
   assert.equal(edit.method, "PUT");
   assert.equal(edit.reportId, 7);
-  assert.deepEqual(edit.body, { title: "Editado", content: { resumen: "Más tarde" }, updatedAt: "2026-09-29T12:00:00Z" });
+  assert.deepEqual(edit.body, {
+    title: "Editado",
+    content: { resumen: "Más tarde" },
+    updatedAt: "2026-09-29T12:00:00Z",
+    ...meta,
+  });
 });
 
 test("the generation's clinical evidence is frozen across range/live-record changes", () => {
@@ -35,6 +40,11 @@ test("the generation's clinical evidence is frozen across range/live-record chan
   const otherRange = [{ id: 99, fecha: "2026-09-29" }];
   const frozen = clinicalSnapshotForSave(null, generated, 2);
   assert.deepEqual(frozen, generated);
+  assert.deepEqual(
+    clinicalSnapshotForSave({ content: { clinicalSnapshot: otherRange } }, generated, 2),
+    generated,
+    "accepted AI improvement updates evidence to the snapshot it actually used",
+  );
   assert.notDeepEqual(frozen, otherRange);
   assert.deepEqual(clinicalSnapshotForSave(null, null, null), [], "legacy cannot inherit current sessions");
   assert.throws(() => clinicalSnapshotForSave(null, null, 2), /no coinciden/);

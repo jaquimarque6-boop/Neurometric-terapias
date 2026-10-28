@@ -23,30 +23,54 @@ export function hasReportDraftContent(draft: ReportEditorDraft): boolean {
   );
 }
 
+function normalizeAreaName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("es-AR");
+}
+
+function appendGeneratedText(original: string, addition: string | undefined): string {
+  const proposed = addition?.trim() ?? "";
+  if (!proposed) return original;
+
+  const existing = original.trim();
+  if (!existing) return proposed;
+  if (existing === proposed || existing.includes(proposed)) return original;
+  if (proposed.includes(existing)) {
+    const remainder = proposed.slice(proposed.indexOf(existing) + existing.length).trim();
+    if (!remainder) return original;
+    return `${original}${original.endsWith("\n") ? "" : "\n\n"}${remainder}`;
+  }
+  return `${original}${original.endsWith("\n") ? "" : "\n\n"}${proposed}`;
+}
+
 export function requestReportGeneration<TGenerated extends GeneratedReportDraft>(
   draft: ReportEditorDraft,
   generated: TGenerated,
 ): ReportGenerationFlow<TGenerated> {
-  if (hasReportDraftContent(draft)) {
-    return { draft, pending: generated, confirmationOpen: true };
-  }
-  return {
-    draft: applyGeneratedReport(draft, generated),
-    pending: null,
-    confirmationOpen: false,
-  };
+  return { draft, pending: generated, confirmationOpen: true };
 }
 
 export function applyGeneratedReport(
   current: ReportEditorDraft,
   generated: GeneratedReportDraft,
 ): ReportEditorDraft {
+  const areas = { ...current.areas };
+  const removedAreaNames = new Set(current.removedAreas.map(normalizeAreaName));
+  for (const [name, text] of Object.entries(generated.areas ?? {})) {
+    const trimmedName = name.trim();
+    if (!trimmedName || removedAreaNames.has(normalizeAreaName(trimmedName))) continue;
+    const existingName = Object.keys(areas).find(
+      currentName => normalizeAreaName(currentName) === normalizeAreaName(trimmedName),
+    );
+    const targetName = existingName ?? trimmedName;
+    areas[targetName] = appendGeneratedText(areas[targetName] ?? "", text);
+  }
+
   return {
-    resumen: generated.resumen ?? "",
-    conducta: generated.conducta ?? "",
-    areas: generated.areas ?? {},
-    removedAreas: [],
-    sugerencias: generated.sugerencias ?? "",
+    resumen: appendGeneratedText(current.resumen, generated.resumen),
+    conducta: appendGeneratedText(current.conducta, generated.conducta),
+    areas,
+    removedAreas: [...current.removedAreas],
+    sugerencias: appendGeneratedText(current.sugerencias, generated.sugerencias),
   };
 }
 

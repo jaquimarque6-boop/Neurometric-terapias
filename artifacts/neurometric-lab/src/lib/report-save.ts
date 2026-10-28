@@ -13,12 +13,18 @@ export function clinicalSnapshotForSave<T>(
   generatedSnapshot: T[] | null,
   usedCount: number | null,
 ): T[] {
+  if (generatedSnapshot !== null) {
+    if (usedCount !== null && generatedSnapshot.length !== usedCount) {
+      throw new Error("Los registros del período generado no coinciden con el borrador. Volvé a generar el informe.");
+    }
+    return generatedSnapshot;
+  }
   if (openedReport) return openedReport.content.clinicalSnapshot ?? [];
-  if (usedCount !== null && generatedSnapshot?.length !== usedCount) {
+  if (usedCount !== null) {
     throw new Error("Los registros del período generado no coinciden con el borrador. Volvé a generar el informe.");
   }
   // Never copy today's live sessions into a report with unknown provenance.
-  return generatedSnapshot ?? [];
+  return [];
 }
 
 // The generator's server-reported period is draft provenance, not recomputed from
@@ -33,7 +39,7 @@ export function prepareReportSave(
   const editing = openedReport?.reportType === reportType ? openedReport : null;
   return editing
     ? { method: "PUT" as const, reportId: editing.id,
-        body: { title, content, updatedAt: editing.updatedAt } }
+        body: { title, content, updatedAt: editing.updatedAt, ...(generatedMeta ?? {}) } }
     : { method: "POST" as const, reportId: null,
         body: { reportType, title, content,
           periodKind: generatedMeta?.periodKind ?? null,

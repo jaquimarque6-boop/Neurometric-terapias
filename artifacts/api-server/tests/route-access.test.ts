@@ -857,6 +857,46 @@ test("AI prompt stays unchanged when no excluded historical performance records 
   assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
 });
 
+test("AI report improvement receives professional text for incremental additions and rejects oversized drafts", async () => {
+  reset();
+  grantAiConsent(2);
+  const draft = {
+    resumen: "OBSERVACION_PROFESIONAL_QUE_DEBE_CONSERVARSE",
+    conducta: "Conducta ya redactada.",
+    areas: { Lenguaje: "Texto de área escrito por el profesional." },
+    removedAreas: ["Motricidad"],
+    sugerencias: "",
+  };
+  const response = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+    draft,
+  }, true);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(aiPrompts.length, 1);
+  assert.match(aiPrompts[0], /OBSERVACION_PROFESIONAL_QUE_DEBE_CONSERVARSE/);
+  assert.match(aiPrompts[0], /Texto de área escrito por el profesional/);
+  assert.match(aiPrompts[0], /Motricidad/);
+  assert.match(aiPrompts[0], /únicamente aportes nuevos/);
+  assert.match(aiPrompts[0], /no reescribas, resumas, elimines ni repitas/);
+
+  const aiCallsBeforeInvalidDraft = stats.ai;
+  const invalid = await request("POST", "/ai/informe-generate", "owner", {
+    patientId: 1,
+    rango: "historia",
+    draft: {
+      resumen: "x".repeat(20_001),
+      conducta: "",
+      areas: {},
+      removedAreas: [],
+      sugerencias: "",
+    },
+  }, true);
+  assert.equal(invalid.status, 400);
+  assert.equal(stats.ai, aiCallsBeforeInvalidDraft, "invalid drafts are rejected before calling the AI provider");
+});
+
 test("AI generation uses session areas and keeps unrelated observations without objectives or counts", async () => {
   reset();
   grantAiConsent(2);
