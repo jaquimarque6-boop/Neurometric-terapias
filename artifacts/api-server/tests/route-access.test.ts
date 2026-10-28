@@ -795,6 +795,13 @@ test("AI clinical profiles use only authorized sessions and recorded progress", 
   assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_PERFIL/);
   assert.match(aiPrompts[0], /MOTIVO_PSICOLOGIA_SINTETICO/);
   assert.match(aiPrompts[0], /EVALUACION_PSICOLOGIA_SINTETICA/);
+  assert.match(aiPrompts[0], /Fortalezas.*viñetas/i);
+  assert.match(aiPrompts[0], /Dificultades.*hipótesis como hipótesis/i);
+  assert.match(aiPrompts[0], /objetivos ya registrados y priorizados/i);
+  assert.match(aiPrompts[0], /120-200 palabras/i);
+  assert.match(aiPrompts[0], /No afirmes relaciones causales, diagnósticos/i);
+  assert.match(aiPrompts[0], /NO inventes datos, fechas, porcentajes ni conductas/i);
+  assert.match(aiPrompts[0], /No registrado/);
   assert.doesNotMatch(aiPrompts[0], /progreso registrado: (0|20|55|100)%/);
 });
 
@@ -811,26 +818,34 @@ test("clinical profile saves create immutable author-scoped versions and preserv
   assert.equal(legacy.body.perfil.motivoConsulta, "PERFIL_LEGADO_INTACTO");
 
   const profile = {
-    motivoConsulta: "Versión nueva",
-    antecedentes: "",
-    fortalezas: "",
-    dificultades: "",
-    areasIntervencion: "",
-    objetivosPrioritarios: "",
-    resumenProfesional: "",
+    motivoConsulta: "Motivo revisado por la profesional.",
+    antecedentes: "Antecedente documentado.",
+    fortalezas: "Fortaleza revisada.",
+    dificultades: "Dificultad observada.",
+    areasIntervencion: "Lenguaje.",
+    objetivosPrioritarios: "Objetivo registrado.",
+    resumenProfesional: "Síntesis extensa corregida por la profesional.",
   };
   const first = await request("PUT", "/ai/perfil/1", "owner", { perfil: profile });
   assert.equal(first.status, 201);
   assert.equal(first.body.source, "version");
   assert.equal(patientRows[0].perfilIa, JSON.stringify({ motivoConsulta: "PERFIL_LEGADO_INTACTO" }));
 
-  const second = await request("PUT", "/ai/perfil/1", "owner", { perfil: { ...profile, motivoConsulta: "Segunda versión" } });
+  const correctedProfile = {
+    ...profile,
+    motivoConsulta: "Motivo corregido por la profesional.",
+    resumenProfesional: "Resumen profesional corregido y guardado exactamente.",
+  };
+  const second = await request("PUT", "/ai/perfil/1", "owner", { perfil: correctedProfile });
   assert.equal(second.status, 201);
   assert.notEqual(second.body.versionId, first.body.versionId);
-  assert.equal((await request("GET", "/ai/perfil/1", "owner")).body.perfil.motivoConsulta, "Segunda versión");
+  assert.deepEqual((await request("GET", "/ai/perfil/1", "owner")).body.perfil, correctedProfile);
   const versions = await request("GET", "/ai/perfil/1/versions", "owner");
   assert.equal(versions.status, 200);
-  assert.deepEqual(versions.body.map((version: any) => version.perfil.motivoConsulta), ["Segunda versión", "Versión nueva"]);
+  assert.deepEqual(versions.body.map((version: any) => version.perfil.motivoConsulta), [
+    "Motivo corregido por la profesional.",
+    "Motivo revisado por la profesional.",
+  ]);
   assert.equal((await request("GET", "/ai/perfil/1/versions", "foreign")).status, 403);
   patientRows[0].assignedProfessionalId = 3;
   const reassignedVersions = await request("GET", "/ai/perfil/1/versions", "foreign");

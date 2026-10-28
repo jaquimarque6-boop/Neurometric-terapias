@@ -56,9 +56,13 @@ Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
 - Si algún apartado no tiene evidencia suficiente, devuelve una cadena vacía. No uses "No registrado" ni rellenes con texto genérico.
 - Lenguaje: español rioplatense, tercera persona, tono profesional clínico y empático.
-- Si hay pocos datos, redacta de forma breve y honesta. No rellenes con texto genérico.
+- Elabora una síntesis desarrollada, organizada y clínicamente útil. Prioriza integrar la información disponible antes que resumirla en frases mínimas.
+- Aprovecha la anamnesis y las evaluaciones ya incluidas en el contexto; no solicites que el profesional vuelva a escribirlas.
+- Mantén la diferencia entre información referida, observación clínica, evaluación profesional y evolución registrada.
+- No afirmes relaciones causales, diagnósticos, cambios ni conclusiones que no estén expresamente documentados.
+- Usa la extensión sugerida para cada sección solo cuando la evidencia alcance; no agregues texto para completar una cantidad de palabras.
 - El perfil es una herramienta de trabajo editable para el profesional, no un informe formal para terceros.
-- Los estados de objetivos no son porcentajes. Incluye porcentajes solo si están explícitamente registrados.
+- Los estados de objetivos no son porcentajes. Incluye porcentajes solo si están explícitamente registrados en progressPct.
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
   const neutralGuidance = `
@@ -520,13 +524,13 @@ INSTRUCCIÓN
 ═══════════════════════════════════════
 Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
 {
-  "motivoConsulta": "Síntesis breve y clara del motivo de consulta y la razón de la intervención. 40-80 palabras.",
-  "antecedentes": "Antecedentes relevantes explícitamente documentados (personales, evolutivos, familiares o escolares). Si no hay evidencia suficiente, devuelve una cadena vacía.",
-  "fortalezas": "Fortalezas, recursos y aspectos preservados explícitamente documentados. No infieras habilidades. Si no hay evidencia suficiente, devuelve una cadena vacía.",
-  "dificultades": "Dificultades explícitamente documentadas en anamnesis, evaluaciones u observaciones. No conviertas hipótesis en hechos. Si no hay evidencia suficiente, devuelve una cadena vacía.",
-  "areasIntervencion": "Áreas que figuran en objetivos o evaluaciones registradas. No propongas áreas nuevas. Si no hay evidencia suficiente, devuelve una cadena vacía.",
-  "objetivosPrioritarios": "Objetivos terapéuticos que ya estén registrados y priorizados por el profesional. No inventes nuevos objetivos. Si no hay evidencia suficiente, devuelve una cadena vacía.",
-  "resumenProfesional": "Síntesis breve de los datos explícitos, diferenciando anamnesis inicial, evaluación y evolución. No agregues recomendaciones ni conclusiones clínicas nuevas. Si no hay evidencia suficiente, devuelve una cadena vacía."
+  "motivoConsulta": "Desarrolla en aproximadamente 40-80 palabras el motivo y la demanda tal como constan en la anamnesis. No atribuyas causas ni agregues expectativas no expresadas. Si no hay evidencia, devuelve una cadena vacía.",
+  "antecedentes": "Integra en aproximadamente 60-120 palabras los antecedentes personales, evolutivos, familiares y escolares pertinentes que estén documentados. Distingue lo referido de lo observado y no completes información ausente. Si no hay evidencia, devuelve una cadena vacía.",
+  "fortalezas": "Describe en aproximadamente 60-120 palabras los recursos, intereses y capacidades preservadas que estén explícitamente documentados. Organiza los hallazgos con viñetas (•) cuando haya varios. No infieras fortalezas por ausencia de dificultades. Si no hay evidencia, devuelve una cadena vacía.",
+  "dificultades": "Desarrolla en aproximadamente 60-120 palabras las dificultades explícitamente consignadas en anamnesis, evaluaciones u observaciones. Organiza los hallazgos con viñetas (•) cuando haya varios; conserva hipótesis como hipótesis y no las conviertas en hechos. Si no hay evidencia, devuelve una cadena vacía.",
+  "areasIntervencion": "Presenta en aproximadamente 60-120 palabras las áreas que figuran en objetivos, evaluaciones o intervención documentada, priorizadas según la información disponible. No agregues áreas, déficits ni necesidades nuevas. Usa viñetas (•) si ayuda a organizar varios focos. Si no hay evidencia, devuelve una cadena vacía.",
+  "objetivosPrioritarios": "Organiza en aproximadamente 60-120 palabras los objetivos ya registrados y priorizados por el profesional, diferenciando objetivos activos de logrados cuando conste. No inventes objetivos ni reformules estados como porcentajes. Usa viñetas (•) si hay varios. Si no hay evidencia, devuelve una cadena vacía.",
+  "resumenProfesional": "Elabora en aproximadamente 120-200 palabras una síntesis integradora y clínicamente útil de la anamnesis, las evaluaciones y la evolución documentada. Distingue los momentos y fuentes; no agregues diagnósticos, explicaciones causales, recomendaciones ni conclusiones que no estén registradas. Si la evidencia no alcanza, redacta menos; si no hay contenido, devuelve una cadena vacía."
 }`;
 
   // ── Call OpenAI (mirror ai-informe.ts env logic) ──────────────────────────
