@@ -25,8 +25,12 @@ const matches = (row: any, condition: any): boolean => {
   if (nested.length > 0) return nested.every((item: any) => matches(row, item));
   const column = chunks.find((item: any) => item?.name && item?.table);
   const parameter = chunks.find((item: any) => item?.constructor?.name === "Param");
+  const list = chunks.find((item: any) => Array.isArray(item));
   const name = Object.entries(column?.table ?? {}).find(([, value]) => value === column)?.[0];
-  if (!name || !parameter) throw Error("Unrecognized test filter");
+  if (!name || (!parameter && !list)) throw Error("Unrecognized test filter");
+  if (list) {
+    return list.some((item: any) => (item?.value ?? item) === row[name]);
+  }
   return row[name] instanceof Date ? row[name].getTime() === parameter.value.getTime() : row[name] === parameter.value;
 };
 const rows = (table: unknown) => table === schema.patientsTable ? [patient] :
@@ -139,6 +143,41 @@ test("an assigned professional can still read previously saved clinical reports"
   assert.equal(response.body.length, 1);
   assert.equal(response.body[0].title, "Informe clínico anterior");
   assert.equal(response.body[0].content.summary, "Evolución registrada.");
+});
+
+test("clinical profile versions remain separate from evolution and family reports", async () => {
+  reports.length = 0;
+  reports.push(
+    {
+      id: 7,
+      patientId: 1,
+      reportType: "evolution",
+      title: "Informe de evolución",
+      content: { resumen: "Evolución" },
+      authorUserId: 2,
+      updatedByUserId: 2,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 8,
+      patientId: 1,
+      reportType: "clinical-profile",
+      title: "Perfil clínico",
+      content: { perfil: { resumenProfesional: "Perfil privado" } },
+      authorUserId: 2,
+      updatedByUserId: 2,
+      createdAt: now,
+      updatedAt: now,
+    },
+  );
+
+  const list = await call("GET", "/patients/1/reports", 2);
+  assert.deepEqual(list.body.map((report: any) => report.id), [7]);
+  assert.equal((await call("GET", "/patients/1/reports/8", 2)).status, 404);
+  assert.equal((await call("PUT", "/patients/1/reports/8", 2, {
+    updatedAt: now.toISOString(), title: "Not a clinical report", content: { resumen: "No" },
+  })).status, 404);
 });
 
 test("patient access precedes report reads and writes; admin does not gain clinical access", async () => {

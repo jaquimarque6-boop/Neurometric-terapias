@@ -6,11 +6,20 @@ import {
   goalsTable,
   goalProgressTable,
   registrosClinicosTable,
-  registrosTable,
+  patientReportsTable,
   professionalsTable,
   patientProfessionalsTable,
 } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import {
+  GenerateClinicalProfileBody,
+  GenerateClinicalProfileResponse,
+  GetClinicalProfileParams,
+  GetClinicalProfileResponse,
+  ListClinicalProfileVersionsParams,
+  ListClinicalProfileVersionsResponse,
+  SaveClinicalProfileBody,
+} from "@workspace/api-zod";
 import OpenAI from "openai";
 import { formatEdad, splitDiagnosis } from "../lib/edad";
 import {
@@ -45,10 +54,11 @@ function buildSystemPrompt(discipline: ClinicalSpecialty): string {
 Tu tarea es redactar un PERFIL CLÍNICO de síntesis del paciente, basándote EXCLUSIVAMENTE en los datos reales que se te proporcionan (anamnesis, objetivos, sesiones y desempeño).
 Reglas estrictas:
 - Usa SOLO la información contenida en el contexto. NO inventes datos, fechas, porcentajes ni conductas.
-- Si algún dato no está disponible, indícalo con "No registrado" o redacta con lo que sí existe.
+- Si algún apartado no tiene evidencia suficiente, devuelve una cadena vacía. No uses "No registrado" ni rellenes con texto genérico.
 - Lenguaje: español rioplatense, tercera persona, tono profesional clínico y empático.
 - Si hay pocos datos, redacta de forma breve y honesta. No rellenes con texto genérico.
 - El perfil es una herramienta de trabajo editable para el profesional, no un informe formal para terceros.
+- Los estados de objetivos no son porcentajes. Incluye porcentajes solo si están explícitamente registrados.
 - Responde EXCLUSIVAMENTE con JSON válido, sin markdown, sin texto fuera del JSON.`;
 
   const neutralGuidance = `
@@ -60,7 +70,8 @@ Especialidad: FONOAUDIOLOGÍA. Enfocate en lenguaje expresivo y comprensivo, art
 Especialidad: PSICOPEDAGOGÍA. Enfocate en procesos de aprendizaje, atención, memoria operativa, funciones ejecutivas, lectoescritura y comprensión.`,
     terapia_ocupacional: `
 Especialidad: TERAPIA OCUPACIONAL. Enfocate en desempeño funcional, autonomía, rutinas, regulación sensorial, juego, participación social/escolar y ajustes del entorno. Prioriza los apoyos y ocupaciones relevantes para la persona; no infieras cambios que no estén registrados.`,
-    psicologia: neutralGuidance,
+    psicologia: `
+Especialidad: PSICOLOGÍA. Integra anamnesis y evaluaciones psicológicas estructuradas, distinguiendo información referida, observaciones y evaluación profesional. Conserva el estado de borrador cuando corresponda. No conviertas contenido psicológico en diagnósticos ni conclusiones que no estén documentados.`,
     general: neutralGuidance,
   };
 
@@ -70,6 +81,79 @@ Especialidad: TERAPIA OCUPACIONAL. Enfocate en desempeño funcional, autonomía,
 function trunc(s: string | null | undefined, max = 400): string {
   if (!s) return "";
   return s.length > max ? s.slice(0, max) + "…" : s;
+}
+
+function buildPsychologyContext(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const data = value as {
+    anamnesis?: { sections?: Record<string, { status?: string; text?: string }> };
+    evaluations?: Array<{
+      title?: string;
+      date?: string | null;
+      status?: string;
+      areas?: Record<string, string>;
+      interviews?: Array<{ date?: string | null; participant?: string; notes?: string }>;
+      instruments?: Array<{ name?: string; version?: string; date?: string | null; results?: string; interpretation?: string }>;
+      professionalInterpretation?: string;
+    }>;
+  };
+  const lines: string[] = [];
+  const anamnesisLabels: Record<string, string> = {
+    reasonAndExpectations: "Motivo y expectativas",
+    personalFamilyHistory: "Antecedentes personales y familiares",
+    developmentalHistory: "Historia del desarrollo",
+    emotionalRegulation: "Experiencia emocional y regulación",
+    behaviorDailyFunctioning: "Conducta y funcionamiento cotidiano",
+    relationshipsSupport: "Vínculos y apoyos",
+    lifeContext: "Contexto de vida",
+    sleepHabitsRoutines: "Sueño, hábitos y rutinas",
+    strengthsInterestsResources: "Fortalezas, intereses y recursos",
+    previousTreatmentsStrategies: "Atenciones previas y estrategias",
+    riskAndProtection: "Factores de riesgo y protección",
+  };
+
+  for (const [key, section] of Object.entries(data.anamnesis?.sections ?? {})) {
+    const text = typeof section?.text === "string" ? section.text.trim() : "";
+    if (!text) continue;
+    const status = section.status === "draft" ? "borrador" : section.status === "recorded" ? "registrado" : "estado no especificado";
+    lines.push(`Anamnesis psicológica — ${anamnesisLabels[key] ?? key} (${status}): ${trunc(text, 700)}`);
+  }
+
+  const evaluations = Array.isArray(data.evaluations) ? data.evaluations.slice(-8) : [];
+  for (const evaluation of evaluations) {
+    const label = [
+      evaluation.title?.trim() || "Evaluación",
+      evaluation.date || "",
+      evaluation.status === "completed" ? "completada" : "borrador",
+    ].filter(Boolean).join(" — ");
+    lines.push(`Evaluación psicológica: ${label}`);
+
+    for (const [area, text] of Object.entries(evaluation.areas ?? {})) {
+      if (typeof text === "string" && text.trim()) {
+        lines.push(`  ${area}: ${trunc(text.trim(), 500)}`);
+      }
+    }
+    for (const interview of (evaluation.interviews ?? []).slice(0, 5)) {
+      if (interview.notes?.trim()) {
+        lines.push(`  Entrevista${interview.date ? ` (${interview.date})` : ""}${interview.participant ? ` — ${trunc(interview.participant, 100)}` : ""}: ${trunc(interview.notes, 500)}`);
+      }
+    }
+    for (const instrument of (evaluation.instruments ?? []).slice(0, 5)) {
+      const details = [
+        instrument.name?.trim(),
+        instrument.version?.trim(),
+        instrument.date,
+        instrument.results?.trim() ? `Resultados: ${trunc(instrument.results, 400)}` : "",
+        instrument.interpretation?.trim() ? `Interpretación profesional: ${trunc(instrument.interpretation, 400)}` : "",
+      ].filter(Boolean);
+      if (details.length) lines.push(`  Instrumento: ${details.join(" — ")}`);
+    }
+    if (evaluation.professionalInterpretation?.trim()) {
+      lines.push(`  Interpretación profesional: ${trunc(evaluation.professionalInterpretation, 700)}`);
+    }
+  }
+
+  return lines.join("\n").slice(0, 14_000);
 }
 
 // ─── Persistence: load / save the clinical profile ────────────────────────────
@@ -102,106 +186,214 @@ function normalizePerfil(input: any): PerfilIA {
   return out;
 }
 
-// GET the last saved clinical profile for a patient
-router.get("/ai/perfil/:patientId", async (req, res) => {
-  const sess = getSessionUser(req);
-  if (!sess) return res.status(401).json({ error: "No autenticado" });
+const CLINICAL_PROFILE_REPORT_TYPE = "clinical-profile";
 
-  const patientId = Number(req.params.patientId);
-  if (!patientId) return res.status(400).json({ error: "patientId inválido" });
+function perfilFromVersion(content: unknown): PerfilIA {
+  if (!content || typeof content !== "object" || Array.isArray(content)) return normalizePerfil(null);
+  return normalizePerfil((content as Record<string, unknown>).perfil);
+}
+
+function perfilFromLegacy(value: string | null): PerfilIA | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return normalizePerfil(parsed);
+  } catch {
+    return null;
+  }
+}
+
+// GET the latest saved profile for the current professional; legacy data stays untouched.
+router.get("/ai/perfil/:patientId", async (req, res): Promise<void> => {
+  const params = GetClinicalProfileParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "patientId inválido" });
+    return;
+  }
+  const sess = getSessionUser(req);
+  if (!sess) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  const patientId = params.data.patientId;
 
   const [patient] = await db
     .select()
     .from(patientsTable)
     .where(eq(patientsTable.id, patientId));
-  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!patient) {
+    res.status(404).json({ error: "Paciente no encontrado" });
+    return;
+  }
   if (!canAccessPatient(patient, sess)) {
-    return res.status(403).json({ error: "Sin acceso a este paciente" });
+    res.status(403).json({ error: "Sin acceso a este paciente" });
+    return;
   }
 
-  let perfil: PerfilIA | null = null;
-  if (patient.perfilIa) {
-    try {
-      perfil = normalizePerfil(JSON.parse(patient.perfilIa));
-    } catch {
-      perfil = null;
-    }
+  const [version] = await db.select().from(patientReportsTable)
+    .where(and(
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, sess.id),
+      eq(patientReportsTable.reportType, CLINICAL_PROFILE_REPORT_TYPE),
+    ))
+    .orderBy(desc(patientReportsTable.createdAt))
+    .limit(1);
+
+  if (version) {
+    res.json(GetClinicalProfileResponse.parse({
+      perfil: perfilFromVersion(version.content),
+      createdAt: version.createdAt,
+      updatedAt: version.updatedAt,
+      versionId: version.id,
+      source: "version",
+    }));
+    return;
   }
 
-  return res.json({
-    perfil,
-    createdAt: patient.perfilIaCreatedAt ? patient.perfilIaCreatedAt.toISOString() : null,
-    updatedAt: patient.perfilIaUpdatedAt ? patient.perfilIaUpdatedAt.toISOString() : null,
-  });
+  const legacyPerfil = perfilFromLegacy(patient.perfilIa);
+  res.json(GetClinicalProfileResponse.parse({
+    perfil: legacyPerfil,
+    createdAt: legacyPerfil ? patient.perfilIaCreatedAt : null,
+    updatedAt: legacyPerfil ? patient.perfilIaUpdatedAt : null,
+    versionId: null,
+    source: legacyPerfil ? "legacy" : "empty",
+  }));
 });
 
-// SAVE (create/update) the clinical profile for a patient
-router.put("/ai/perfil/:patientId", async (req, res) => {
+// Profile edits are append-only versions. Never overwrite a saved version or legacy patient data.
+router.put("/ai/perfil/:patientId", async (req, res): Promise<void> => {
+  const params = GetClinicalProfileParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "patientId inválido" });
+    return;
+  }
   const sess = getSessionUser(req);
-  if (!sess) return res.status(401).json({ error: "No autenticado" });
-
-  const patientId = Number(req.params.patientId);
-  if (!patientId) return res.status(400).json({ error: "patientId inválido" });
-
-  const perfil = normalizePerfil((req.body as any)?.perfil);
+  if (!sess) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  const patientId = params.data.patientId;
 
   const [patient] = await db
     .select()
     .from(patientsTable)
     .where(eq(patientsTable.id, patientId));
-  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!patient) {
+    res.status(404).json({ error: "Paciente no encontrado" });
+    return;
+  }
   if (!canAccessPatient(patient, sess)) {
-    return res.status(403).json({ error: "Sin acceso a este paciente" });
+    res.status(403).json({ error: "Sin acceso a este paciente" });
+    return;
   }
 
+  const body = SaveClinicalProfileBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Perfil clínico inválido" });
+    return;
+  }
+  const perfil = normalizePerfil(body.data.perfil);
+
   const now = new Date();
-  const createdAt = patient.perfilIaCreatedAt ?? now;
+  const [version] = await db.insert(patientReportsTable).values({
+    patientId,
+    reportType: CLINICAL_PROFILE_REPORT_TYPE,
+    title: "Perfil clínico",
+    content: { v: 1, perfil },
+    authorUserId: sess.id,
+    updatedByUserId: sess.id,
+    createdAt: now,
+    updatedAt: now,
+  }).returning();
 
-  const [updated] = await db
-    .update(patientsTable)
-    .set({
-      perfilIa: JSON.stringify(perfil),
-      perfilIaCreatedAt: createdAt,
-      perfilIaUpdatedAt: now,
-    })
-    .where(eq(patientsTable.id, patientId))
-    .returning();
-
-  const response = {
-    ok: true,
-    createdAt: updated.perfilIaCreatedAt ? updated.perfilIaCreatedAt.toISOString() : null,
-    updatedAt: updated.perfilIaUpdatedAt ? updated.perfilIaUpdatedAt.toISOString() : null,
-  };
+  const response = GetClinicalProfileResponse.parse({
+    perfil,
+    createdAt: version.createdAt,
+    updatedAt: version.updatedAt,
+    versionId: version.id,
+    source: "version",
+  });
   recordUserActivityEvent(sess.id, "patient_saved");
-  return res.json(response);
+  res.status(201).json(response);
+});
+
+// History is private to the current professional and each saved version is read-only.
+router.get("/ai/perfil/:patientId/versions", async (req, res): Promise<void> => {
+  const params = ListClinicalProfileVersionsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "patientId inválido" });
+    return;
+  }
+  const sess = getSessionUser(req);
+  if (!sess) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  const patientId = params.data.patientId;
+  const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
+  if (!patient) {
+    res.status(404).json({ error: "Paciente no encontrado" });
+    return;
+  }
+  if (!canAccessPatient(patient, sess)) {
+    res.status(403).json({ error: "Sin acceso a este paciente" });
+    return;
+  }
+  const versions = await db.select().from(patientReportsTable)
+    .where(and(
+      eq(patientReportsTable.patientId, patientId),
+      eq(patientReportsTable.authorUserId, sess.id),
+      eq(patientReportsTable.reportType, CLINICAL_PROFILE_REPORT_TYPE),
+    ))
+    .orderBy(desc(patientReportsTable.createdAt))
+    .limit(100);
+  res.json(ListClinicalProfileVersionsResponse.parse(versions.map(version => ({
+    versionId: version.id,
+    perfil: perfilFromVersion(version.content),
+    createdAt: version.createdAt,
+    updatedAt: version.updatedAt,
+  }))));
 });
 
 // ─── Main route ───────────────────────────────────────────────────────────────
 
-router.post("/ai/perfil-generate", async (req, res) => {
+router.post("/ai/perfil-generate", async (req, res): Promise<void> => {
   if (!await requireAiConsent(req, res)) return;
   const sess = getSessionUser(req);
-  if (!sess) return res.status(401).json({ error: "No autenticado" });
+  if (!sess) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
 
-  const { patientId } = req.body as { patientId: number };
-  if (!patientId) return res.status(400).json({ error: "patientId requerido" });
+  const input = GenerateClinicalProfileBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "patientId requerido" });
+    return;
+  }
+  const { patientId } = input.data;
 
   const [patient] = await db.select().from(patientsTable).where(eq(patientsTable.id, patientId));
-  if (!patient) return res.status(404).json({ error: "Paciente no encontrado" });
+  if (!patient) {
+    res.status(404).json({ error: "Paciente no encontrado" });
+    return;
+  }
   if (!canAccessPatient(patient, sess)) {
-    return res.status(403).json({ error: "Sin acceso a este paciente" });
+    res.status(403).json({ error: "Sin acceso a este paciente" });
+    return;
   }
 
   // ── Fetch all data in parallel ─────────────────────────────────────────────
   const [
     allGoals,
     allRegistrosClinicos,
-    allRegistros,
     assignments,
   ] = await Promise.all([
     db.select().from(goalsTable).where(eq(goalsTable.patientId, patientId)),
-    db.select().from(registrosClinicosTable).where(eq(registrosClinicosTable.patientId, patientId)),
-    db.select().from(registrosTable).where(eq(registrosTable.patientId, patientId)),
+    db.select().from(registrosClinicosTable).where(and(
+      eq(registrosClinicosTable.patientId, patientId),
+      eq(registrosClinicosTable.userId, sess.id),
+    )),
     db.select().from(patientProfessionalsTable).where(eq(patientProfessionalsTable.patientId, patientId)),
   ]);
 
@@ -256,6 +448,9 @@ router.post("/ai/perfil-generate", async (req, res) => {
     patient.rutinasHabitos ? `Rutinas y hábitos: ${trunc(patient.rutinasHabitos, 400)}` : null,
     patient.entornoParticipacion ? `Entorno y participación: ${trunc(patient.entornoParticipacion, 400)}` : null,
   ].filter(Boolean).join("\n");
+  const psychologyContext = discipline === "psicologia"
+    ? buildPsychologyContext(patient.psychologyData)
+    : "";
 
   // ── 2. Profesionales asignados ────────────────────────────────────────────
   const professionalContext = professionals.length > 0
@@ -266,12 +461,12 @@ router.post("/ai/perfil-generate", async (req, res) => {
   const goalsContext = allGoals.length === 0
     ? "Sin objetivos registrados."
     : allGoals.map(g => {
-        const pct = g.progressPct ?? (g.status === "logrado" ? 100 : g.status === "en progreso" ? 55 : g.status === "activo" ? 20 : 0);
+        const pct = g.progressPct;
         const progEntries = (progressByGoal.get(g.id) ?? [])
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
         const lastNote = progEntries.length > 0 ? progEntries[progEntries.length - 1].nota : null;
         const lines = [
-          `[${g.status.toUpperCase()} — ${pct}%] ${g.title}`,
+          `[${g.status.toUpperCase()}${pct != null ? ` — progreso registrado: ${pct}%` : ""}] ${g.title}`,
           `  área: ${g.areaClinica ?? g.category}${g.nivelDificultad ? ` | nivel: ${g.nivelDificultad}` : ""}`,
         ];
         if (g.description) lines.push(`  descripción: ${trunc(g.description, 200)}`);
@@ -304,6 +499,7 @@ Disciplina detectada: ${discipline.toUpperCase()}.
 DATOS CLÍNICOS Y ANAMNESIS
 ═══════════════════════════════════════
 ${patientContext}
+${psychologyContext ? `\n\nANAMNESIS Y EVALUACIONES PSICOLÓGICAS ESTRUCTURADAS\n${psychologyContext}` : ""}
 
 Profesional/es: ${professionalContext}
 
@@ -325,12 +521,12 @@ INSTRUCCIÓN
 Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
 {
   "motivoConsulta": "Síntesis breve y clara del motivo de consulta y la razón de la intervención. 40-80 palabras.",
-  "antecedentes": "Antecedentes relevantes (personales, evolutivos, familiares, escolares) que aporten al perfil. Si no hay datos, indicar 'No registrado'. 60-120 palabras.",
-  "fortalezas": "Fortalezas, recursos y aspectos preservados observados en la anamnesis, los objetivos logrados y las sesiones. Usar viñetas con •. 60-120 palabras.",
-  "dificultades": "Principales dificultades y áreas comprometidas, derivadas de la anamnesis, objetivos en curso y observaciones de sesión. Usar viñetas con •. 60-120 palabras.",
-  "areasIntervencion": "Áreas de intervención sugeridas, priorizadas según las dificultades y los objetivos activos. Usar viñetas con •. 60-120 palabras.",
-  "objetivosPrioritarios": "Objetivos prioritarios a corto/mediano plazo, coherentes con los objetivos ya registrados y las áreas activas. Usar viñetas con •. 60-120 palabras.",
-  "resumenProfesional": "Resumen profesional integrador del perfil del paciente, con orientación clínica para la continuidad del tratamiento. 120-200 palabras."
+  "antecedentes": "Antecedentes relevantes explícitamente documentados (personales, evolutivos, familiares o escolares). Si no hay evidencia suficiente, devuelve una cadena vacía.",
+  "fortalezas": "Fortalezas, recursos y aspectos preservados explícitamente documentados. No infieras habilidades. Si no hay evidencia suficiente, devuelve una cadena vacía.",
+  "dificultades": "Dificultades explícitamente documentadas en anamnesis, evaluaciones u observaciones. No conviertas hipótesis en hechos. Si no hay evidencia suficiente, devuelve una cadena vacía.",
+  "areasIntervencion": "Áreas que figuran en objetivos o evaluaciones registradas. No propongas áreas nuevas. Si no hay evidencia suficiente, devuelve una cadena vacía.",
+  "objetivosPrioritarios": "Objetivos terapéuticos que ya estén registrados y priorizados por el profesional. No inventes nuevos objetivos. Si no hay evidencia suficiente, devuelve una cadena vacía.",
+  "resumenProfesional": "Síntesis breve de los datos explícitos, diferenciando anamnesis inicial, evaluación y evolución. No agregues recomendaciones ni conclusiones clínicas nuevas. Si no hay evidencia suficiente, devuelve una cadena vacía."
 }`;
 
   // ── Call OpenAI (mirror ai-informe.ts env logic) ──────────────────────────
@@ -342,7 +538,8 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
     const model = process.env.OPENAI_API_KEY ? "gpt-4o" : "gpt-5.4";
 
     if (!apiKey) {
-      return res.status(500).json({ error: "No hay clave de API de OpenAI configurada." });
+      res.status(500).json({ error: "No hay clave de API de OpenAI configurada." });
+      return;
     }
 
     const openai = new OpenAI({ apiKey, baseURL });
@@ -370,10 +567,10 @@ Devuelve un JSON con exactamente estas claves. Usa SOLO los datos anteriores:
       _meta: { discipline, sessions: sortedRC.length, goals: allGoals.length },
     };
     recordUserActivityEvent(sess.id, "ai_used");
-    return res.json(result);
+    res.json(GenerateClinicalProfileResponse.parse(result));
   } catch (error: any) {
     console.error("[ai-perfil] Error:", error?.message);
-    return res.status(500).json({ error: "Error al generar el perfil con IA. Intenta de nuevo." });
+    res.status(500).json({ error: "Error al generar el perfil con IA. Intenta de nuevo." });
   }
 });
 

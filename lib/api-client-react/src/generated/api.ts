@@ -21,6 +21,11 @@ import type {
   ActividadesPassError,
   ActividadesPassResponse,
   AssignGoalBody,
+  ClinicalProfileGenerateInput,
+  ClinicalProfileGeneration,
+  ClinicalProfileInput,
+  ClinicalProfileSaved,
+  ClinicalProfileVersion,
   Collaborator,
   CollaboratorDashboard,
   CollaboratorInput,
@@ -1076,6 +1081,347 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGenerateClinicalProfileUrl = () => {
+  return `/api/ai/perfil-generate`;
+};
+
+export const generateClinicalProfile = async (
+  clinicalProfileGenerateInput: ClinicalProfileGenerateInput,
+  options?: RequestInit,
+): Promise<ClinicalProfileGeneration> => {
+  return customFetch<ClinicalProfileGeneration>(
+    getGenerateClinicalProfileUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(clinicalProfileGenerateInput),
+    },
+  );
+};
+
+export const getGenerateClinicalProfileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateClinicalProfile>>,
+    TError,
+    { data: BodyType<ClinicalProfileGenerateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateClinicalProfile>>,
+  TError,
+  { data: BodyType<ClinicalProfileGenerateInput> },
+  TContext
+> => {
+  const mutationKey = ["generateClinicalProfile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateClinicalProfile>>,
+    { data: BodyType<ClinicalProfileGenerateInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateClinicalProfile(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateClinicalProfileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateClinicalProfile>>
+>;
+export type GenerateClinicalProfileMutationBody =
+  BodyType<ClinicalProfileGenerateInput>;
+export type GenerateClinicalProfileMutationError = ErrorType<unknown>;
+
+export const useGenerateClinicalProfile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateClinicalProfile>>,
+    TError,
+    { data: BodyType<ClinicalProfileGenerateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateClinicalProfile>>,
+  TError,
+  { data: BodyType<ClinicalProfileGenerateInput> },
+  TContext
+> => {
+  return useMutation(getGenerateClinicalProfileMutationOptions(options));
+};
+
+export const getGetClinicalProfileUrl = (patientId: number) => {
+  return `/api/ai/perfil/${patientId}`;
+};
+
+export const getClinicalProfile = async (
+  patientId: number,
+  options?: RequestInit,
+): Promise<ClinicalProfileSaved> => {
+  return customFetch<ClinicalProfileSaved>(
+    getGetClinicalProfileUrl(patientId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetClinicalProfileQueryKey = (patientId: number) => {
+  return [`/api/ai/perfil/${patientId}`] as const;
+};
+
+export const getGetClinicalProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClinicalProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClinicalProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetClinicalProfileQueryKey(patientId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getClinicalProfile>>
+  > = ({ signal }) =>
+    getClinicalProfile(patientId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!patientId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getClinicalProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetClinicalProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClinicalProfile>>
+>;
+export type GetClinicalProfileQueryError = ErrorType<unknown>;
+
+export function useGetClinicalProfile<
+  TData = Awaited<ReturnType<typeof getClinicalProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClinicalProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClinicalProfileQueryOptions(patientId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getSaveClinicalProfileUrl = (patientId: number) => {
+  return `/api/ai/perfil/${patientId}`;
+};
+
+export const saveClinicalProfile = async (
+  patientId: number,
+  clinicalProfileInput: ClinicalProfileInput,
+  options?: RequestInit,
+): Promise<ClinicalProfileSaved> => {
+  return customFetch<ClinicalProfileSaved>(
+    getSaveClinicalProfileUrl(patientId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(clinicalProfileInput),
+    },
+  );
+};
+
+export const getSaveClinicalProfileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveClinicalProfile>>,
+    TError,
+    { patientId: number; data: BodyType<ClinicalProfileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveClinicalProfile>>,
+  TError,
+  { patientId: number; data: BodyType<ClinicalProfileInput> },
+  TContext
+> => {
+  const mutationKey = ["saveClinicalProfile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveClinicalProfile>>,
+    { patientId: number; data: BodyType<ClinicalProfileInput> }
+  > = (props) => {
+    const { patientId, data } = props ?? {};
+
+    return saveClinicalProfile(patientId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveClinicalProfileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveClinicalProfile>>
+>;
+export type SaveClinicalProfileMutationBody = BodyType<ClinicalProfileInput>;
+export type SaveClinicalProfileMutationError = ErrorType<unknown>;
+
+export const useSaveClinicalProfile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveClinicalProfile>>,
+    TError,
+    { patientId: number; data: BodyType<ClinicalProfileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveClinicalProfile>>,
+  TError,
+  { patientId: number; data: BodyType<ClinicalProfileInput> },
+  TContext
+> => {
+  return useMutation(getSaveClinicalProfileMutationOptions(options));
+};
+
+export const getListClinicalProfileVersionsUrl = (patientId: number) => {
+  return `/api/ai/perfil/${patientId}/versions`;
+};
+
+export const listClinicalProfileVersions = async (
+  patientId: number,
+  options?: RequestInit,
+): Promise<ClinicalProfileVersion[]> => {
+  return customFetch<ClinicalProfileVersion[]>(
+    getListClinicalProfileVersionsUrl(patientId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListClinicalProfileVersionsQueryKey = (patientId: number) => {
+  return [`/api/ai/perfil/${patientId}/versions`] as const;
+};
+
+export const getListClinicalProfileVersionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listClinicalProfileVersions>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClinicalProfileVersions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListClinicalProfileVersionsQueryKey(patientId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listClinicalProfileVersions>>
+  > = ({ signal }) =>
+    listClinicalProfileVersions(patientId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!patientId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listClinicalProfileVersions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListClinicalProfileVersionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listClinicalProfileVersions>>
+>;
+export type ListClinicalProfileVersionsQueryError = ErrorType<unknown>;
+
+export function useListClinicalProfileVersions<
+  TData = Awaited<ReturnType<typeof listClinicalProfileVersions>>,
+  TError = ErrorType<unknown>,
+>(
+  patientId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClinicalProfileVersions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListClinicalProfileVersionsQueryOptions(
+    patientId,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

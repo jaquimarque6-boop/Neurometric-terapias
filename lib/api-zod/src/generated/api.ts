@@ -257,6 +257,91 @@ export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
 
+export const GenerateClinicalProfileBody = zod.object({
+  patientId: zod.number().min(1),
+});
+
+export const GenerateClinicalProfileResponse = zod
+  .object({
+    motivoConsulta: zod.string(),
+    antecedentes: zod.string(),
+    fortalezas: zod.string(),
+    dificultades: zod.string(),
+    areasIntervencion: zod.string(),
+    objetivosPrioritarios: zod.string(),
+    resumenProfesional: zod.string(),
+  })
+  .and(
+    zod.object({
+      _meta: zod.object({
+        discipline: zod.string(),
+        sessions: zod.number(),
+        goals: zod.number(),
+      }),
+    }),
+  );
+
+export const GetClinicalProfileParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const GetClinicalProfileResponse = zod.object({
+  perfil: zod.union([
+    zod.object({
+      motivoConsulta: zod.string(),
+      antecedentes: zod.string(),
+      fortalezas: zod.string(),
+      dificultades: zod.string(),
+      areasIntervencion: zod.string(),
+      objetivosPrioritarios: zod.string(),
+      resumenProfesional: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  createdAt: zod.date().nullable(),
+  updatedAt: zod.date().nullable(),
+  versionId: zod.number().nullable(),
+  source: zod.enum(["version", "legacy", "empty"]),
+});
+
+export const SaveClinicalProfileParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const SaveClinicalProfileBody = zod.object({
+  perfil: zod.object({
+    motivoConsulta: zod.string(),
+    antecedentes: zod.string(),
+    fortalezas: zod.string(),
+    dificultades: zod.string(),
+    areasIntervencion: zod.string(),
+    objetivosPrioritarios: zod.string(),
+    resumenProfesional: zod.string(),
+  }),
+});
+
+export const ListClinicalProfileVersionsParams = zod.object({
+  patientId: zod.coerce.number(),
+});
+
+export const ListClinicalProfileVersionsResponseItem = zod.object({
+  versionId: zod.number(),
+  perfil: zod.object({
+    motivoConsulta: zod.string(),
+    antecedentes: zod.string(),
+    fortalezas: zod.string(),
+    dificultades: zod.string(),
+    areasIntervencion: zod.string(),
+    objetivosPrioritarios: zod.string(),
+    resumenProfesional: zod.string(),
+  }),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+export const ListClinicalProfileVersionsResponse = zod.array(
+  ListClinicalProfileVersionsResponseItem,
+);
+
 /**
  * @summary List all patients
  */

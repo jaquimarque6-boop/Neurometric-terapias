@@ -20,3 +20,4 @@
 - [Activities pass access](actividades-pass-access.md) — every Terapias entry must use the pass and target `/acceso-terapias`; never link the public Lovable base.
 - [Clinical access after reassignment](clinical-access-reassignment.md) — individual access only: currently assigned professionals see their own clinical records; revocation blocks access without changing history.
 - [Clinical report printing](clinical-report-printing.md) — build print output from edited report fields, not editor markup; omit empty sections and internal controls.
+- [Clinical profile version storage](clinical-profile-version-storage.md) — reuse versioned patient reports for append-only profiles, while keeping their routes and author scope separate.

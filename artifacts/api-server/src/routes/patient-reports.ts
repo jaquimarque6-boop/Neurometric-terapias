@@ -7,11 +7,12 @@ import {
   registrosClinicosTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { canAccessPatient } from "./access-policy";
 import { validClinicalDay } from "./report-period";
 
 const router: IRouter = Router();
+const REPORT_DOCUMENT_TYPES = ["evolution", "family"] as const;
 
 async function authorize(req: any, res: any, patientId: number) {
   if (!req.session?.userId) {
@@ -107,6 +108,7 @@ router.get("/patients/:patientId/reports", async (req, res) => {
     .where(and(
       eq(patientReportsTable.patientId, patientId),
       eq(patientReportsTable.authorUserId, userId),
+      inArray(patientReportsTable.reportType, [...REPORT_DOCUMENT_TYPES]),
     )).orderBy(desc(patientReportsTable.createdAt));
   const hasSnapshots = rows.some(({ report }) =>
     Array.isArray(report.content?.clinicalSnapshot) && report.content.clinicalSnapshot.length > 0);
@@ -164,6 +166,7 @@ router.get("/patients/:patientId/reports/:reportId", async (req, res) => {
       eq(patientReportsTable.id, reportId),
       eq(patientReportsTable.patientId, patientId),
       eq(patientReportsTable.authorUserId, userId),
+      inArray(patientReportsTable.reportType, [...REPORT_DOCUMENT_TYPES]),
     ));
   if (!row) return res.status(404).json({ error: "Informe no encontrado" });
   const hasSnapshot = Array.isArray(row.report.content?.clinicalSnapshot)
@@ -188,6 +191,7 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
       eq(patientReportsTable.id, reportId),
       eq(patientReportsTable.patientId, patientId),
       eq(patientReportsTable.authorUserId, userId),
+      inArray(patientReportsTable.reportType, [...REPORT_DOCUMENT_TYPES]),
     ));
   if (!existing) return res.status(404).json({ error: "Informe no encontrado" });
   const hasSnapshot = Array.isArray(body.content.clinicalSnapshot);
@@ -210,6 +214,7 @@ router.put("/patients/:patientId/reports/:reportId", async (req, res) => {
     } : {}),
   }).where(and(eq(patientReportsTable.id, reportId), eq(patientReportsTable.patientId, patientId),
     eq(patientReportsTable.authorUserId, userId),
+    inArray(patientReportsTable.reportType, [...REPORT_DOCUMENT_TYPES]),
     eq(patientReportsTable.updatedAt, new Date(body.updatedAt)))).returning();
   if (!report) return res.status(409).json({ error: "Este informe fue modificado en otra pestaña. Volvé a abrirlo antes de guardar." });
   const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, report.authorUserId));

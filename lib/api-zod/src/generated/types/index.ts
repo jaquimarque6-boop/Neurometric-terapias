@@ -6,10 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./_clinicalProfileGenerationMeta";
 export * from "./actividad";
 export * from "./actividadesPassError";
 export * from "./actividadesPassResponse";
 export * from "./assignGoalBody";
+export * from "./clinicalProfile";
+export * from "./clinicalProfileGenerateInput";
+export * from "./clinicalProfileGeneration";
+export * from "./clinicalProfileInput";
+export * from "./clinicalProfileSaved";
+export * from "./clinicalProfileSavedSource";
+export * from "./clinicalProfileVersion";
 export * from "./collaborator";
 export * from "./collaboratorDashboard";
 export * from "./collaboratorInput";

@@ -136,6 +136,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /ai/perfil-generate:
+    post:
+      operationId: generateClinicalProfile
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClinicalProfileGenerateInput" }
+      responses:
+        "200":
+          description: Generated editable clinical profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClinicalProfileGeneration" }
+  /ai/perfil/{patientId}:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getClinicalProfile
+      tags: [patients]
+      responses:
+        "200":
+          description: Latest saved profile for the current professional, with legacy fallback
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClinicalProfileSaved" }
+    put:
+      operationId: saveClinicalProfile
+      tags: [patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClinicalProfileInput" }
+      responses:
+        "201":
+          description: New immutable profile version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClinicalProfileSaved" }
+  /ai/perfil/{patientId}/versions:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: listClinicalProfileVersions
+      tags: [patients]
+      responses:
+        "200":
+          description: Profile versions authored by the current professional
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ClinicalProfileVersion" }
+
   /patients:
     get:
       operationId: listPatients
@@ -1429,6 +1491,61 @@ components:
         periodTo: { type: ["string", "null"], format: date }
         clinicalRecordsUsedCount: { type: ["integer", "null"] }
         clinicalRecordsTotalCount: { type: ["integer", "null"] }
+
+    ClinicalProfile:
+      type: object
+      required: [motivoConsulta, antecedentes, fortalezas, dificultades, areasIntervencion, objetivosPrioritarios, resumenProfesional]
+      properties:
+        motivoConsulta: { type: string }
+        antecedentes: { type: string }
+        fortalezas: { type: string }
+        dificultades: { type: string }
+        areasIntervencion: { type: string }
+        objetivosPrioritarios: { type: string }
+        resumenProfesional: { type: string }
+    ClinicalProfileGenerateInput:
+      type: object
+      required: [patientId]
+      properties:
+        patientId: { type: integer, minimum: 1 }
+    ClinicalProfileInput:
+      type: object
+      required: [perfil]
+      properties:
+        perfil: { $ref: "#/components/schemas/ClinicalProfile" }
+    ClinicalProfileGeneration:
+      allOf:
+        - $ref: "#/components/schemas/ClinicalProfile"
+        - type: object
+          required: [_meta]
+          properties:
+            _meta:
+              type: object
+              required: [discipline, sessions, goals]
+              properties:
+                discipline: { type: string }
+                sessions: { type: integer }
+                goals: { type: integer }
+    ClinicalProfileSaved:
+      type: object
+      required: [perfil, createdAt, updatedAt, versionId, source]
+      properties:
+        perfil:
+          oneOf:
+            - $ref: "#/components/schemas/ClinicalProfile"
+            - type: "null"
+        createdAt: { type: ["string", "null"], format: date-time }
+        updatedAt: { type: ["string", "null"], format: date-time }
+        versionId: { type: ["integer", "null"] }
+        source: { type: string, enum: [version, legacy, empty] }
+    ClinicalProfileVersion:
+      type: object
+      required: [versionId, perfil, createdAt, updatedAt]
+      properties:
+        versionId: { type: integer }
+        perfil: { $ref: "#/components/schemas/ClinicalProfile" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
 
     PatientFile:
       type: object

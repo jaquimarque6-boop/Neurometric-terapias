@@ -76,6 +76,7 @@ function reset() {
   tables.set(schema.goalsTable, []);
   tables.set(schema.registrosClinicosTable, []);
   tables.set(schema.registrosTable, []);
+  tables.set(schema.patientReportsTable, []);
   tables.set(schema.citasTable, []);
   tables.set(schema.userConsentAcceptancesTable, []);
   tables.set(schema.patientProfessionalsTable, []);
@@ -177,9 +178,21 @@ const db = {
         let condition: unknown;
         let rowLimit: number | undefined;
         let groupColumn: any;
+        let sortColumn: string | undefined;
+        let sortDescending = false;
         const query = {
           where(c: unknown) { condition = c; return query; },
-          orderBy(..._args: unknown[]) { return query; },
+          orderBy(...args: any[]) {
+            const chunks = args.flatMap(arg => arg?.queryChunks ?? []);
+            const column = chunks.find((chunk: any) => chunk?.name && chunk?.table);
+            sortColumn = column
+              ? Object.entries(column.table).find(([, value]) => value === column)?.[0]
+              : undefined;
+            sortDescending = chunks.some((chunk: any) =>
+              (chunk?.value ?? []).join?.("").toLowerCase().includes("desc"),
+            );
+            return query;
+          },
           groupBy(column: unknown) { groupColumn = column; return query; },
           limit(count: number) { rowLimit = count; return query; },
           then(resolve: (value: any[]) => void, reject?: (error: Error) => void) {
@@ -188,6 +201,16 @@ const db = {
               let rows = table === schema.userConsentAcceptancesTable
                 ? filterConsentRows(sourceRows, condition)
                 : filterRows(sourceRows, condition);
+              if (sortColumn) {
+                rows = [...rows].sort((a, b) => {
+                  const left = a[sortColumn!];
+                  const right = b[sortColumn!];
+                  const diff = left instanceof Date && right instanceof Date
+                    ? left.getTime() - right.getTime()
+                    : String(left ?? "").localeCompare(String(right ?? ""));
+                  return sortDescending ? -diff || (sortDescending ? (b.id ?? 0) - (a.id ?? 0) : 0) : diff;
+                });
+              }
               if (isGroupedCountQuery && groupColumn?.table) {
                 const groupKey = Object.entries(groupColumn.table)
                   .find(([, value]) => value === groupColumn)?.[0];
@@ -265,6 +288,9 @@ class MockOpenAI {
     const isClinicalReport = input.messages.some((message: any) =>
       message.role === "user" && String(message.content).includes("Genera el informe clínico"),
     );
+    const isClinicalProfile = input.messages.some((message: any) =>
+      message.role === "user" && String(message.content).includes("Genera el PERFIL CLÍNICO"),
+    );
     const response = isClinicalReport ? {
       resumen: "Al inicio solicitó un objeto de transición antes de comenzar.",
       conducta: "",
@@ -273,6 +299,14 @@ class MockOpenAI {
         "Cognición": "",
       },
       sugerencias: "",
+    } : isClinicalProfile ? {
+      motivoConsulta: "Consulta por dificultades descritas en la anamnesis.",
+      antecedentes: "",
+      fortalezas: "",
+      dificultades: "",
+      areasIntervencion: "",
+      objetivosPrioritarios: "",
+      resumenProfesional: "Síntesis basada en los datos consignados.",
     } : {
       objetivos: [{ title: "Autorizado" }],
       motivoConsulta: "Autorizado",
@@ -407,7 +441,7 @@ test("all protected route methods reject anonymous requests before DB or AI", as
     ["GET", "/actividades"], ["POST", "/actividades", {}],
     ["PATCH", "/actividades/20", {}], ["DELETE", "/actividades/20"],
     ["POST", "/goal-codes/migrate", {}], ["POST", "/goal-guidance", {}],
-    ["GET", "/ai/perfil/1"], ["PUT", "/ai/perfil/1", {}],
+    ["GET", "/ai/perfil/1"], ["GET", "/ai/perfil/1/versions"], ["PUT", "/ai/perfil/1", {}],
     ["POST", "/ai/perfil-generate", { patientId: 1 }],
     ["POST", "/ai/objetivos-suggest", { patientId: 1 }],
     ["POST", "/ai/informe-generate", { patientId: 1 }],
@@ -433,6 +467,7 @@ test("admin sessions are denied clinical routes before any clinical query, write
     ["POST", "/goal-codes/migrate", {}],
     ["POST", "/goal-guidance", { title: "Objetivo" }],
     ["GET", "/ai/perfil/1"],
+    ["GET", "/ai/perfil/1/versions"],
     ["PUT", "/ai/perfil/1", { perfil: {} }],
     ["POST", "/ai/perfil-generate", { patientId: 1 }],
     ["POST", "/ai/objetivos-suggest", { patientId: 1 }],
@@ -655,7 +690,12 @@ test("assigned professional can access own clinical data and authorized AI uses 
   assert.equal(await status("POST", "/goal-library/10/assign", "owner", { patientId: 1 }), 201);
   assert.equal(await status("POST", "/registros-clinicos", "owner", { patientId: 1, fecha: "2026-01-01" }), 201);
   assert.equal(await status("GET", "/ai/perfil/1", "owner"), 200);
-  assert.equal(await status("PUT", "/ai/perfil/1", "owner", { perfil: { motivoConsulta: "Test" } }), 200);
+  assert.equal(await status("PUT", "/ai/perfil/1", "owner", {
+    perfil: {
+      motivoConsulta: "Test", antecedentes: "", fortalezas: "", dificultades: "",
+      areasIntervencion: "", objetivosPrioritarios: "", resumenProfesional: "",
+    },
+  }), 201);
   const suggested = await request("POST", "/ai/objetivos-suggest", "owner", { patientId: 1 });
   assert.equal(suggested.status, 200, JSON.stringify(suggested.body));
   assert.equal(suggested.body.objetivos[0].title, "Autorizado");
@@ -698,6 +738,102 @@ test("AI reports use only sessions authored by the requesting account", async ()
   assert.match(aiPrompts[0], /La evidencia disponible puede ser parcial/);
   assert.doesNotMatch(aiPrompts[0], /registros históricos importados de desempeño excluidos por procedencia/);
   assert.doesNotMatch(aiPrompts[0], /Sesiones clínicas incluidas:|Total de sesiones verificables|Sesión 1 —/);
+});
+
+test("AI clinical profiles use only authorized sessions and recorded progress", async () => {
+  reset();
+  grantAiConsent(2);
+  const today = now.toISOString().slice(0, 10);
+  tables.set(schema.patientsTable, [{
+    ...tables.get(schema.patientsTable)![0],
+    psychologyData: {
+      schemaVersion: 1,
+      anamnesis: {
+        sections: {
+          reasonAndExpectations: { status: "recorded", text: "MOTIVO_PSICOLOGIA_SINTETICO" },
+        },
+      },
+      evaluations: [{
+        id: "evaluation-test",
+        title: "Evaluación sintética",
+        date: today,
+        status: "completed",
+        areas: { cognitiveExecutive: "EVALUACION_PSICOLOGIA_SINTETICA" },
+        interviews: [],
+        instruments: [],
+        professionalInterpretation: "",
+      }],
+    },
+  }]);
+  tables.set(schema.registrosClinicosTable, [
+    {
+      id: 101, patientId: 1, userId: 2, fecha: today,
+      resumenSesion: "DETALLE_PROPIO_PERFIL", observaciones: "Observación propia ficticia",
+      recomendacionesHogar: null, materialesActividades: [], createdAt: now,
+    },
+    {
+      id: 102, patientId: 1, userId: 3, fecha: today,
+      resumenSesion: "DETALLE_AJENO_PERFIL", observaciones: "Nota ajena ficticia",
+      recomendacionesHogar: null, materialesActividades: [], createdAt: now,
+    },
+  ]);
+  tables.set(schema.goalsTable, [{
+    id: 31, patientId: 1, status: "activo", title: "Objetivo sin porcentaje",
+    areaClinica: "cognición", category: "cognición", progressPct: null, createdAt: now,
+  }]);
+  tables.set(schema.patientProfessionalsTable, [{ id: 1, patientId: 1, professionalId: 7 }]);
+  tables.set(schema.professionalsTable, [{ id: 7, name: "Profesional ficticio", specialty: "Psicología" }]);
+
+  const response = await request("POST", "/ai/perfil-generate", "owner", { patientId: 1 });
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(aiPrompts.length, 1);
+  assert.match(aiPrompts[0], /DETALLE_PROPIO_PERFIL/);
+  assert.doesNotMatch(aiPrompts[0], /DETALLE_AJENO_PERFIL/);
+  assert.match(aiPrompts[0], /MOTIVO_PSICOLOGIA_SINTETICO/);
+  assert.match(aiPrompts[0], /EVALUACION_PSICOLOGIA_SINTETICA/);
+  assert.doesNotMatch(aiPrompts[0], /progreso registrado: (0|20|55|100)%/);
+});
+
+test("clinical profile saves create immutable author-scoped versions and preserve legacy data", async () => {
+  reset();
+  const patientRows = tables.get(schema.patientsTable)!;
+  patientRows[0].perfilIa = JSON.stringify({ motivoConsulta: "PERFIL_LEGADO_INTACTO" });
+  patientRows[0].perfilIaCreatedAt = now;
+  patientRows[0].perfilIaUpdatedAt = now;
+
+  const legacy = await request("GET", "/ai/perfil/1", "owner");
+  assert.equal(legacy.status, 200);
+  assert.equal(legacy.body.source, "legacy");
+  assert.equal(legacy.body.perfil.motivoConsulta, "PERFIL_LEGADO_INTACTO");
+
+  const profile = {
+    motivoConsulta: "Versión nueva",
+    antecedentes: "",
+    fortalezas: "",
+    dificultades: "",
+    areasIntervencion: "",
+    objetivosPrioritarios: "",
+    resumenProfesional: "",
+  };
+  const first = await request("PUT", "/ai/perfil/1", "owner", { perfil: profile });
+  assert.equal(first.status, 201);
+  assert.equal(first.body.source, "version");
+  assert.equal(patientRows[0].perfilIa, JSON.stringify({ motivoConsulta: "PERFIL_LEGADO_INTACTO" }));
+
+  const second = await request("PUT", "/ai/perfil/1", "owner", { perfil: { ...profile, motivoConsulta: "Segunda versión" } });
+  assert.equal(second.status, 201);
+  assert.notEqual(second.body.versionId, first.body.versionId);
+  assert.equal((await request("GET", "/ai/perfil/1", "owner")).body.perfil.motivoConsulta, "Segunda versión");
+  const versions = await request("GET", "/ai/perfil/1/versions", "owner");
+  assert.equal(versions.status, 200);
+  assert.deepEqual(versions.body.map((version: any) => version.perfil.motivoConsulta), ["Segunda versión", "Versión nueva"]);
+  assert.equal((await request("GET", "/ai/perfil/1/versions", "foreign")).status, 403);
+  patientRows[0].assignedProfessionalId = 3;
+  const reassignedVersions = await request("GET", "/ai/perfil/1/versions", "foreign");
+  assert.equal(reassignedVersions.status, 200);
+  assert.deepEqual(reassignedVersions.body, [], "the newly assigned professional cannot see another account's versions");
+  const reassignedCurrent = await request("GET", "/ai/perfil/1", "foreign");
+  assert.equal(reassignedCurrent.body.source, "legacy", "legacy data must not be attributed to the former author");
 });
 
 test("AI prompt stays unchanged when no excluded historical performance records exist", async () => {

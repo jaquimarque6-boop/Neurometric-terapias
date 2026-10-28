@@ -418,6 +418,62 @@ export interface PatientReport {
   clinicalRecordsTotalCount?: number | null;
 }
 
+export interface ClinicalProfile {
+  motivoConsulta: string;
+  antecedentes: string;
+  fortalezas: string;
+  dificultades: string;
+  areasIntervencion: string;
+  objetivosPrioritarios: string;
+  resumenProfesional: string;
+}
+
+export interface ClinicalProfileGenerateInput {
+  /** @minimum 1 */
+  patientId: number;
+}
+
+export interface ClinicalProfileInput {
+  perfil: ClinicalProfile;
+}
+
+export type _ClinicalProfileGenerationMeta = {
+  discipline: string;
+  sessions: number;
+  goals: number;
+};
+
+export type ClinicalProfileGeneration = ClinicalProfile & {
+  _meta: _ClinicalProfileGenerationMeta;
+};
+
+export type ClinicalProfileSavedSource =
+  (typeof ClinicalProfileSavedSource)[keyof typeof ClinicalProfileSavedSource];
+
+export const ClinicalProfileSavedSource = {
+  version: "version",
+  legacy: "legacy",
+  empty: "empty",
+} as const;
+
+export interface ClinicalProfileSaved {
+  perfil: ClinicalProfile | null;
+  /** @nullable */
+  createdAt: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+  /** @nullable */
+  versionId: number | null;
+  source: ClinicalProfileSavedSource;
+}
+
+export interface ClinicalProfileVersion {
+  versionId: number;
+  perfil: ClinicalProfile;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PatientFile {
   id: number;
   patientId: number;
