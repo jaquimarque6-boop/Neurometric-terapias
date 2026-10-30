@@ -1,18 +1,33 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
+  collaboratorsTable,
   patientsTable,
   registrosClinicosTable,
   usersTable,
 } from "@workspace/db/schema";
 import { count, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { activeReferral, attributeReferral, changeCommercialStatus } from "../lib/collaborators";
+import {
+  activeReferral,
+  attributeReferral,
+  changeCommercialStatus,
+  normalizeCode,
+  validCode,
+} from "../lib/collaborators";
 import { referralAttributionsTable, saasStatusEventsTable } from "@workspace/db/schema";
 import { commercialFields, commercialSnapshot, commercialRevision, logCommercialChange } from "../lib/commercial-service";
 import { reviewCommercialAccount, validCommercialDate } from "../lib/commercial-policy";
+import {
+  AssignUserReferralAttributionBody,
+  AssignUserReferralAttributionParams,
+  AssignUserReferralAttributionResponse,
+  GetUserReferralAttributionParams,
+  GetUserReferralAttributionResponse,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
+const PRIMARY_ADMIN_EMAIL = "admin@neurometric.com";
 
 function requireAdmin(req: any, res: any): boolean {
   if (req.session?.userRole !== "admin") {
@@ -20,6 +35,26 @@ function requireAdmin(req: any, res: any): boolean {
     return false;
   }
   return true;
+}
+
+async function requirePrimaryAdmin(req: any, res: any): Promise<number | null> {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "No autenticado" });
+    return null;
+  }
+
+  // The session supplies only the authenticated account ID. Resolve the
+  // current email and role from the database; never authorize from request data.
+  const [actor] = await db
+    .select({ id: usersTable.id, email: usersTable.email, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  if (!actor || actor.role !== "admin" || actor.email.trim().toLowerCase() !== PRIMARY_ADMIN_EMAIL) {
+    res.status(403).json({ error: "Solo la administradora principal puede asignar códigos de referido" });
+    return null;
+  }
+  return actor.id;
 }
 
 const COMMERCIAL_STATUSES = ["trial", "paying", "overdue", "courtesy", "churned"] as const;
@@ -185,6 +220,133 @@ router.post("/users", async (req, res) => {
   }
 
   return res.status(201).json(userToJson(user));
+});
+
+// The primary administrator can view the current immutable attribution and
+// select from active codes when a professional has not yet been attributed.
+router.get("/users/:id/referral-attribution", async (req, res): Promise<void> => {
+  if (!(await requirePrimaryAdmin(req, res))) return;
+
+  const params = GetUserReferralAttributionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Usuario inválido" });
+    return;
+  }
+
+  const [professional] = await db
+    .select({ id: usersTable.id, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, params.data.id));
+  if (!professional || professional.role !== "professional") {
+    res.status(404).json({ error: "Profesional no encontrado" });
+    return;
+  }
+
+  const [attribution] = await db
+    .select({
+      code: referralAttributionsTable.codeUsed,
+      createdAt: referralAttributionsTable.createdAt,
+    })
+    .from(referralAttributionsTable)
+    .where(eq(referralAttributionsTable.professionalUserId, professional.id));
+  const activeCodes = await db
+    .select({ code: collaboratorsTable.code })
+    .from(collaboratorsTable)
+    .where(eq(collaboratorsTable.active, true))
+    .orderBy(collaboratorsTable.code);
+
+  res.json(GetUserReferralAttributionResponse.parse({
+    attribution: attribution ?? null,
+    activeCodes: activeCodes.map(({ code }) => code),
+  }));
+});
+
+// This operation only inserts one attribution row. It never updates the user,
+// subscription state, clinical data, or historical receipt snapshots.
+router.put("/users/:id/referral-attribution", async (req, res): Promise<void> => {
+  const actorId = await requirePrimaryAdmin(req, res);
+  if (!actorId) return;
+
+  const params = AssignUserReferralAttributionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Usuario inválido" });
+    return;
+  }
+  const body = AssignUserReferralAttributionBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Código de referido inválido" });
+    return;
+  }
+
+  const code = normalizeCode(body.data.code);
+  if (!validCode(code)) {
+    res.status(400).json({ error: "Código de referido inválido o inactivo" });
+    return;
+  }
+
+  let result: {
+    state: "created" | "unchanged" | "conflict" | "not_found";
+    attribution?: { code: string; createdAt: Date };
+  };
+  try {
+    result = await db.transaction(async tx => {
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${params.data.id} FOR UPDATE`);
+      const [professional] = await tx
+        .select({ id: usersTable.id, role: usersTable.role })
+        .from(usersTable)
+        .where(eq(usersTable.id, params.data.id));
+      if (!professional || professional.role !== "professional") return { state: "not_found" };
+
+      const [existing] = await tx
+        .select({
+          code: referralAttributionsTable.codeUsed,
+          createdAt: referralAttributionsTable.createdAt,
+        })
+        .from(referralAttributionsTable)
+        .where(eq(referralAttributionsTable.professionalUserId, professional.id));
+      if (existing) {
+        return normalizeCode(existing.code) === code
+          ? { state: "unchanged", attribution: existing }
+          : { state: "conflict", attribution: existing };
+      }
+
+      await attributeReferral(tx, professional.id, code, "admin_manual_assignment", actorId);
+      const [created] = await tx
+        .select({
+          code: referralAttributionsTable.codeUsed,
+          createdAt: referralAttributionsTable.createdAt,
+        })
+        .from(referralAttributionsTable)
+        .where(eq(referralAttributionsTable.professionalUserId, professional.id));
+      if (!created) throw new Error("La atribución no quedó guardada");
+      return { state: "created", attribution: created };
+    });
+  } catch (error: any) {
+    if (error?.message === "Código de referido inválido o inactivo") {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    if (error?.code === "23505") {
+      res.status(409).json({ error: "La profesional ya tiene una atribución de referido" });
+      return;
+    }
+    throw error;
+  }
+
+  if (result.state === "not_found") {
+    res.status(404).json({ error: "Profesional no encontrado" });
+    return;
+  }
+  if (result.state === "conflict") {
+    res.status(409).json({
+      error: "La profesional ya tiene una atribución; no se reemplazó el código existente",
+      code: result.attribution?.code,
+    });
+    return;
+  }
+
+  const response = AssignUserReferralAttributionResponse.parse(result.attribution);
+  res.status(result.state === "created" ? 201 : 200).json(response);
 });
 
 router.get("/users/:id/commercial-history", async (req, res) => {

@@ -107,3 +107,6 @@ export * from "./updateGoal";
 export * from "./updateGoalStatus";
 export * from "./updatePatient";
 export * from "./updateRegistroClinico";
+export * from "./userReferralAttribution";
+export * from "./userReferralAttributionDetails";
+export * from "./userReferralAttributionInput";

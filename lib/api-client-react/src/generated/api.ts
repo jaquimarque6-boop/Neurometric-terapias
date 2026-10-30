@@ -80,6 +80,9 @@ import type {
   UpdateGoal,
   UpdatePatient,
   UpdateRegistroClinico,
+  UserReferralAttribution,
+  UserReferralAttributionDetails,
+  UserReferralAttributionInput,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -318,6 +321,176 @@ export function useValidateReferral<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+export const getGetUserReferralAttributionUrl = (id: number) => {
+  return `/api/users/${id}/referral-attribution`;
+};
+
+export const getUserReferralAttribution = async (
+  id: number,
+  options?: RequestInit,
+): Promise<UserReferralAttributionDetails> => {
+  return customFetch<UserReferralAttributionDetails>(
+    getGetUserReferralAttributionUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetUserReferralAttributionQueryKey = (id: number) => {
+  return [`/api/users/${id}/referral-attribution`] as const;
+};
+
+export const getGetUserReferralAttributionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserReferralAttribution>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserReferralAttribution>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetUserReferralAttributionQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUserReferralAttribution>>
+  > = ({ signal }) =>
+    getUserReferralAttribution(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserReferralAttribution>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserReferralAttributionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserReferralAttribution>>
+>;
+export type GetUserReferralAttributionQueryError = ErrorType<void>;
+
+export function useGetUserReferralAttribution<
+  TData = Awaited<ReturnType<typeof getUserReferralAttribution>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserReferralAttribution>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserReferralAttributionQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getAssignUserReferralAttributionUrl = (id: number) => {
+  return `/api/users/${id}/referral-attribution`;
+};
+
+export const assignUserReferralAttribution = async (
+  id: number,
+  userReferralAttributionInput: UserReferralAttributionInput,
+  options?: RequestInit,
+): Promise<UserReferralAttribution> => {
+  return customFetch<UserReferralAttribution>(
+    getAssignUserReferralAttributionUrl(id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(userReferralAttributionInput),
+    },
+  );
+};
+
+export const getAssignUserReferralAttributionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserReferralAttribution>>,
+    TError,
+    { id: number; data: BodyType<UserReferralAttributionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignUserReferralAttribution>>,
+  TError,
+  { id: number; data: BodyType<UserReferralAttributionInput> },
+  TContext
+> => {
+  const mutationKey = ["assignUserReferralAttribution"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignUserReferralAttribution>>,
+    { id: number; data: BodyType<UserReferralAttributionInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return assignUserReferralAttribution(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignUserReferralAttributionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignUserReferralAttribution>>
+>;
+export type AssignUserReferralAttributionMutationBody =
+  BodyType<UserReferralAttributionInput>;
+export type AssignUserReferralAttributionMutationError = ErrorType<void>;
+
+export const useAssignUserReferralAttribution = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserReferralAttribution>>,
+    TError,
+    { id: number; data: BodyType<UserReferralAttributionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignUserReferralAttribution>>,
+  TError,
+  { id: number; data: BodyType<UserReferralAttributionInput> },
+  TContext
+> => {
+  return useMutation(getAssignUserReferralAttributionMutationOptions(options));
+};
 
 export const getListCollaboratorsUrl = () => {
   return `/api/collaborators`;

@@ -35,6 +35,8 @@ const ADMIN_API_ALLOWLIST: Array<{ method: string; path: RegExp }> = [
   { method: "POST", path: /^\/api\/users$/ },
   { method: "GET", path: /^\/api\/users\/professionals$/ },
   { method: "GET", path: /^\/api\/users\/\d+\/commercial-history$/ },
+  { method: "GET", path: /^\/api\/users\/\d+\/referral-attribution$/ },
+  { method: "PUT", path: /^\/api\/users\/\d+\/referral-attribution$/ },
   { method: "PATCH", path: /^\/api\/users\/\d+$/ },
   { method: "DELETE", path: /^\/api\/users\/\d+$/ },
   { method: "GET", path: /^\/api\/professionals$/ },

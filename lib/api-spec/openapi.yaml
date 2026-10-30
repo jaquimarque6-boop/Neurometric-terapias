@@ -59,6 +59,35 @@ paths:
         - { name: code, in: path, required: true, schema: { type: string } }
       responses:
         "200": { description: Public code validity, content: { application/json: { schema: { $ref: "#/components/schemas/ReferralValidity" } } } }
+  /users/{id}/referral-attribution:
+    get:
+      operationId: getUserReferralAttribution
+      tags: [collaborators]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200": { description: Current attribution and active codes; primary administrator only, content: { application/json: { schema: { $ref: "#/components/schemas/UserReferralAttributionDetails" } } } }
+        "401": { description: Not authenticated }
+        "403": { description: Only the primary administrator can manage referral attributions }
+        "404": { description: Professional not found }
+    put:
+      operationId: assignUserReferralAttribution
+      tags: [collaborators]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserReferralAttributionInput" }
+      responses:
+        "200": { description: The same attribution already existed; no duplicate created, content: { application/json: { schema: { $ref: "#/components/schemas/UserReferralAttribution" } } } }
+        "201": { description: Referral attribution created, content: { application/json: { schema: { $ref: "#/components/schemas/UserReferralAttribution" } } } }
+        "400": { description: Invalid or inactive referral code }
+        "401": { description: Not authenticated }
+        "403": { description: Only the primary administrator can manage referral attributions }
+        "404": { description: Professional not found }
+        "409": { description: This professional already has a different attribution }
   /collaborators:
     get:
       operationId: listCollaborators
@@ -1176,6 +1205,29 @@ components:
       properties:
         valid: { type: boolean }
         code: { type: string }
+    UserReferralAttribution:
+      type: object
+      required: [code, createdAt]
+      properties:
+        code: { type: string }
+        createdAt: { type: string, format: date-time }
+    UserReferralAttributionDetails:
+      type: object
+      required: [attribution, activeCodes]
+      properties:
+        attribution:
+          anyOf:
+            - { $ref: "#/components/schemas/UserReferralAttribution" }
+            - { type: "null" }
+        activeCodes:
+          type: array
+          items: { type: string }
+    UserReferralAttributionInput:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 64 }
     Collaborator:
       type: object
       required: [id, userId, name, country, code, commissionPercent, active, createdAt]

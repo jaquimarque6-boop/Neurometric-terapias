@@ -16,7 +16,13 @@ export async function activeReferral(code: unknown, tx: any = db) {
   return record?.active ? record : null;
 }
 
-export async function attributeReferral(tx: any, userId: number, code: unknown, source: "public_register" | "admin_user_create", createdByUserId: number | null) {
+export async function attributeReferral(
+  tx: any,
+  userId: number,
+  code: unknown,
+  source: "public_register" | "admin_user_create" | "admin_manual_assignment",
+  createdByUserId: number | null,
+) {
   if (code === undefined || code === null || code === "") return;
   const normalized = normalizeCode(code);
   if (!validCode(normalized)) throw new Error("Código de referido inválido o inactivo");

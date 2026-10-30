@@ -38,6 +38,36 @@ export const ValidateReferralResponse = zod.object({
   code: zod.string(),
 });
 
+export const GetUserReferralAttributionParams = zod.object({
+  id: zod.coerce.number().min(1),
+});
+
+export const GetUserReferralAttributionResponse = zod.object({
+  attribution: zod.union([
+    zod.object({
+      code: zod.string(),
+      createdAt: zod.date(),
+    }),
+    zod.null(),
+  ]),
+  activeCodes: zod.array(zod.string()),
+});
+
+export const AssignUserReferralAttributionParams = zod.object({
+  id: zod.coerce.number().min(1),
+});
+
+export const assignUserReferralAttributionBodyCodeMax = 64;
+
+export const AssignUserReferralAttributionBody = zod.object({
+  code: zod.string().min(1).max(assignUserReferralAttributionBodyCodeMax),
+});
+
+export const AssignUserReferralAttributionResponse = zod.object({
+  code: zod.string(),
+  createdAt: zod.date(),
+});
+
 export const ListCollaboratorsResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number(),

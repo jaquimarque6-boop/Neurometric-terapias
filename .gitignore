@@ -62,6 +62,7 @@ Thumbs.db
 !scripts/registros-clinicos-materiales-v1.sql
 !docs/migrations/20261023_add_patient_coverage.sql
 !scripts/commercial-verification-v1.sql
+!scripts/collaborators-v2-manual-referral-assignment.sql
 !scripts/commercial-events-v2.sql
 *.tar.gz
 *.tar

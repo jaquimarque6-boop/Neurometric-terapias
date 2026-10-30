@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   Users, Plus, UserCheck, UserX, Edit2, X, Check,
@@ -35,6 +35,20 @@ const SPECIALTIES = [
 ];
 
 type CommercialStatus = "trial" | "paying" | "overdue" | "courtesy" | "churned";
+type EditReferralInfo = {
+  userId: number;
+  currentCode: string | null;
+  activeCodes: string[];
+  loading: boolean;
+  error: string | null;
+};
+type EditReferralCheck = {
+  userId: number;
+  code: string;
+  status: "idle" | "checking" | "valid" | "invalid" | "error";
+};
+
+const PRIMARY_ADMIN_EMAIL = "admin@neurometric.com";
 
 type AppUser = {
   id: number;
@@ -133,6 +147,11 @@ export default function Usuarios() {
   const [editingId, setEditingId]   = useState<number | null>(null);
   const [editForm, setEditForm]     = useState<Partial<AppUser & { password: string }>>({});
   const [showEditPwd, setShowEditPwd] = useState(false);
+  const [editReferralInfo, setEditReferralInfo] = useState<EditReferralInfo | null>(null);
+  const [editReferralDraft, setEditReferralDraft] = useState("");
+  const [editReferralCheck, setEditReferralCheck] = useState<EditReferralCheck | null>(null);
+  const [savingReferral, setSavingReferral] = useState(false);
+  const referralRequestId = useRef(0);
 
   const [resettingId, setResettingId]   = useState<number | null>(null);
   const [resetPwd, setResetPwd]         = useState("");
@@ -147,6 +166,9 @@ export default function Usuarios() {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("todos");
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const canManageReferral =
+    currentUser?.role === "admin" &&
+    currentUser.email.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
 
   // ── Código de referido (opcional, solo profesionales) ──────────────────────
   // El código se valida contra el servidor antes de enviarlo; el servidor lo
@@ -256,7 +278,97 @@ export default function Usuarios() {
   };
 
   // ── Inline edit ────────────────────────────────────────────────────────────
+  const loadReferralInfo = async (userId: number, requestId: number) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}/referral-attribution`, {
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error ?? "No se pudo cargar el código de referido");
+      if (requestId !== referralRequestId.current) return;
+      setEditReferralInfo({
+        userId,
+        currentCode: typeof data?.attribution?.code === "string" ? data.attribution.code : null,
+        activeCodes: Array.isArray(data?.activeCodes) ? data.activeCodes : [],
+        loading: false,
+        error: null,
+      });
+      setEditReferralDraft(typeof data?.attribution?.code === "string" ? data.attribution.code : "");
+      setEditReferralCheck(null);
+    } catch (error) {
+      if (requestId !== referralRequestId.current) return;
+      setEditReferralInfo({
+        userId,
+        currentCode: null,
+        activeCodes: [],
+        loading: false,
+        error: error instanceof Error ? error.message : "No se pudo cargar el código de referido",
+      });
+    }
+  };
+
+  const checkEditReferral = async (userId: number) => {
+    const code = normalizeReferralCode(editReferralDraft);
+    if (!code) {
+      setEditReferralCheck({ userId, code: editReferralDraft, status: "invalid" });
+      return;
+    }
+    setEditReferralCheck({ userId, code, status: "checking" });
+    try {
+      const result = await validateReferralCode(code);
+      setEditReferralCheck({ userId, code: result.code, status: result.valid ? "valid" : "invalid" });
+      if (result.valid) setEditReferralDraft(result.code);
+    } catch {
+      setEditReferralCheck({ userId, code, status: "error" });
+    }
+  };
+
+  const saveEditReferral = async (userId: number) => {
+    const code = normalizeReferralCode(editReferralDraft);
+    if (!code || editReferralCheck?.userId !== userId ||
+      editReferralCheck.code !== code || editReferralCheck.status !== "valid") {
+      toast({ title: "Validá un código de referido activo antes de asignarlo", variant: "destructive" });
+      return;
+    }
+
+    setSavingReferral(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}/referral-attribution`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast({
+          title: data?.error ?? "No se pudo asignar el código",
+          description: data?.code ? `Código ya asociado: ${data.code}` : undefined,
+          variant: "destructive",
+        });
+        if (response.status === 409 && typeof data?.code === "string") {
+          setEditReferralInfo(info => info?.userId === userId
+            ? { ...info, currentCode: data.code }
+            : info);
+        }
+        return;
+      }
+
+      setEditReferralInfo(info => info?.userId === userId
+        ? { ...info, currentCode: data.code }
+        : info);
+      setEditReferralDraft(data.code);
+      setEditReferralCheck({ userId, code: data.code, status: "valid" });
+      toast({ title: "Código de referido asignado", description: data.code });
+    } catch {
+      toast({ title: "Error de conexión al asignar el código", variant: "destructive" });
+    } finally {
+      setSavingReferral(false);
+    }
+  };
+
   const startEdit = (u: AppUser) => {
+    const requestId = ++referralRequestId.current;
     setEditingId(u.id);
     setEditForm({
       name: u.name, email: u.email, specialty: u.specialty ?? "", password: "",
@@ -272,8 +384,30 @@ export default function Usuarios() {
     });
     setShowEditPwd(false);
     setChangeReason("");
+    setEditReferralInfo(null);
+    setEditReferralDraft("");
+    setEditReferralCheck(null);
+    if (canManageReferral && u.role === "professional") {
+      setEditReferralInfo({
+        userId: u.id,
+        currentCode: null,
+        activeCodes: [],
+        loading: true,
+        error: null,
+      });
+      void loadReferralInfo(u.id, requestId);
+    }
   };
-  const cancelEdit = () => { setEditingId(null); setEditForm({}); setShowEditPwd(false); setChangeReason(""); };
+  const cancelEdit = () => {
+    referralRequestId.current += 1;
+    setEditingId(null);
+    setEditForm({});
+    setShowEditPwd(false);
+    setChangeReason("");
+    setEditReferralInfo(null);
+    setEditReferralDraft("");
+    setEditReferralCheck(null);
+  };
 
   const saveEdit = async (id: number) => {
     if (editForm.password && editForm.password.trim().length < 6) {
@@ -780,6 +914,82 @@ export default function Usuarios() {
                                 {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                               </select>
                             </div>
+                            {canManageReferral && u.role === "professional" && (
+                              <div className="space-y-2 sm:col-span-2 rounded-lg border border-border/60 bg-background p-3" data-testid={`admin-referral-attribution-${u.id}`}>
+                                <label htmlFor={`edit-referral-code-${u.id}`} className="text-xs font-medium text-muted-foreground">
+                                  Código de referido
+                                </label>
+                                {editReferralInfo?.userId !== u.id || editReferralInfo.loading ? (
+                                  <p className="text-xs text-muted-foreground">Cargando atribución…</p>
+                                ) : editReferralInfo.error ? (
+                                  <p className="text-xs text-destructive">{editReferralInfo.error}</p>
+                                ) : editReferralInfo.currentCode ? (
+                                  <p className="text-sm">
+                                    Código actualmente asociado: <code className="font-mono font-semibold">{editReferralInfo.currentCode}</code>
+                                    <span className="block mt-1 text-xs text-muted-foreground">
+                                      La atribución queda fija y no se reemplaza desde esta pantalla.
+                                    </span>
+                                  </p>
+                                ) : (
+                                  <>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <Input
+                                        id={`edit-referral-code-${u.id}`}
+                                        list={`edit-referral-options-${u.id}`}
+                                        placeholder="Escribí o elegí un código activo"
+                                        autoComplete="off"
+                                        value={editReferralDraft}
+                                        onChange={e => {
+                                          setEditReferralDraft(e.target.value.toUpperCase());
+                                          setEditReferralCheck({ userId: u.id, code: "", status: "idle" });
+                                        }}
+                                        className="bg-background h-8 text-sm font-mono uppercase"
+                                        data-testid={`input-edit-referral-code-${u.id}`}
+                                      />
+                                      <datalist id={`edit-referral-options-${u.id}`}>
+                                        {editReferralInfo.activeCodes.map(code => <option key={code} value={code} />)}
+                                      </datalist>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={!editReferralDraft.trim() || editReferralCheck?.status === "checking"}
+                                        onClick={() => checkEditReferral(u.id)}
+                                        data-testid={`button-validate-edit-referral-${u.id}`}
+                                      >
+                                        {editReferralCheck?.userId === u.id && editReferralCheck.status === "checking" ? "Validando…" : "Validar"}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={
+                                          savingReferral ||
+                                          editReferralCheck?.userId !== u.id ||
+                                          editReferralCheck.code !== normalizeReferralCode(editReferralDraft) ||
+                                          editReferralCheck.status !== "valid"
+                                        }
+                                        onClick={() => saveEditReferral(u.id)}
+                                        data-testid={`button-assign-edit-referral-${u.id}`}
+                                      >
+                                        {savingReferral ? "Asignando…" : "Asignar código"}
+                                      </Button>
+                                    </div>
+                                    {editReferralCheck?.userId === u.id && editReferralCheck.status === "valid" && (
+                                      <p className="text-[11px] text-emerald-700">Código válido: {editReferralCheck.code}.</p>
+                                    )}
+                                    {editReferralCheck?.userId === u.id && editReferralCheck.status === "invalid" && (
+                                      <p className="text-[11px] text-destructive">Código inexistente, inactivo o con formato inválido.</p>
+                                    )}
+                                    {editReferralCheck?.userId === u.id && editReferralCheck.status === "error" && (
+                                      <p className="text-[11px] text-destructive">No se pudo validar. Reintentá.</p>
+                                    )}
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Solo se asignan códigos activos. Una atribución existente no se duplica ni reemplaza.
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            )}
                             <div className="space-y-1 sm:col-span-2">
                               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><KeyRound className="h-3 w-3" />Nueva contraseña (dejar en blanco para no cambiar)</label>
                               <div className="relative">

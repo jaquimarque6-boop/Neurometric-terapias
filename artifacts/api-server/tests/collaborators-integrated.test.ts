@@ -126,6 +126,7 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
     assert.equal((await request("POST", "/auth/register", undefined, {
       email: `${prefix}-invalid@example.test`, password: "synthetic-password", name: "Synthetic", referralCode: "NONEXISTENT",
     })).status, 400);
+
     await db.insert(referralAttributionsTable).values({
       collaboratorId: collA.id, professionalUserId: professional.id,
       codeUsed: codeA, source: "admin_user_create", createdByUserId: admin.id,
@@ -185,6 +186,89 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
     assert.equal(own.body.pending.ARS, "60.00");
     assert.equal(own.body.paid.ARS, "40.00");
     assert.equal(/professionalUserId|email|patient|phone|Synthetic professional/i.test(JSON.stringify(own.body)), false);
+  });
+
+  test("only the primary admin can assign one immutable referral attribution", async () => {
+    const primaryAdmin = await createUser("admin");
+    await db.update(usersTable)
+      .set({ email: "admin@neurometric.com" })
+      .where(eq(usersTable.id, primaryAdmin.id));
+    const otherAdmin = await createUser("admin");
+    const professional = await createUser("professional");
+    const collaboratorA = await createUser("collaborator");
+    const collaboratorB = await createUser("collaborator");
+    const codeSalt = `${process.pid}${Date.now()}`;
+    const assignmentCodeA = `RA${codeSalt}`.slice(0, 30);
+    const assignmentCodeB = `RB${codeSalt}`.slice(0, 30);
+    await db.insert(collaboratorsTable).values([
+      {
+        userId: collaboratorA.id, name: "Manual referral A", country: "Test",
+        code: assignmentCodeA, commissionPercent: "40.00", active: true,
+      },
+      {
+        userId: collaboratorB.id, name: "Manual referral B", country: "Test",
+        code: assignmentCodeB, commissionPercent: "25.00", active: true,
+      },
+    ]);
+    const [clinicalPatient] = await db.insert(patientsTable).values({
+      name: `${prefix}-manual-referral-patient`,
+      assignedProfessionalId: professional.id,
+    }).returning();
+    patientIds.push(clinicalPatient.id);
+    const beforeUser = (await db.select().from(usersTable)
+      .where(eq(usersTable.id, professional.id)))[0];
+    const beforePatient = (await db.select().from(patientsTable)
+      .where(eq(patientsTable.id, clinicalPatient.id)))[0];
+    const [priorReceipt] = await db.insert(saasReceiptsTable).values({
+      professionalUserId: professional.id, amount: "95.00", currency: "ARS",
+      periodFrom: "2026-03-01", periodTo: "2026-03-31",
+      receivedAt: "2026-03-20", reference: "before manual referral assignment",
+      idempotencyKey: `${prefix}-manual-referral-prior-receipt`,
+      createdByUserId: primaryAdmin.id,
+    }).returning();
+
+    const details = await request("GET", `/users/${professional.id}/referral-attribution`, primaryAdmin);
+    assert.equal(details.status, 200, JSON.stringify(details.body));
+    assert.equal(details.body.attribution, null);
+    assert.ok(details.body.activeCodes.includes(assignmentCodeA));
+    assert.equal((await request("GET", `/users/${professional.id}/referral-attribution`, otherAdmin)).status, 403);
+    assert.equal((await request("PUT", `/users/${professional.id}/referral-attribution`, otherAdmin, {
+      code: assignmentCodeA, email: "admin@neurometric.com",
+    })).status, 403, "an ordinary admin cannot authorize itself with a submitted email");
+    assert.equal((await request("PUT", `/users/${professional.id}/referral-attribution`, primaryAdmin, {
+      code: "NONEXISTENT",
+    })).status, 400);
+
+    const assigned = await request("PUT", `/users/${professional.id}/referral-attribution`, primaryAdmin, {
+      code: assignmentCodeA.toLowerCase(),
+    });
+    assert.equal(assigned.status, 201, JSON.stringify(assigned.body));
+    assert.equal(assigned.body.code, assignmentCodeA);
+    const [attribution] = await db.select().from(referralAttributionsTable)
+      .where(eq(referralAttributionsTable.professionalUserId, professional.id));
+    assert.equal(attribution.source, "admin_manual_assignment");
+    assert.equal(attribution.createdByUserId, primaryAdmin.id);
+
+    const retry = await request("PUT", `/users/${professional.id}/referral-attribution`, primaryAdmin, {
+      code: assignmentCodeA,
+    });
+    assert.equal(retry.status, 200, "repeating the same assignment is idempotent");
+    const replacement = await request("PUT", `/users/${professional.id}/referral-attribution`, primaryAdmin, {
+      code: assignmentCodeB,
+    });
+    assert.equal(replacement.status, 409);
+    assert.equal(replacement.body.code, assignmentCodeA);
+    assert.equal((await db.select().from(referralAttributionsTable)
+      .where(eq(referralAttributionsTable.professionalUserId, professional.id))).length, 1);
+    assert.deepEqual((await db.select().from(usersTable)
+      .where(eq(usersTable.id, professional.id)))[0], beforeUser);
+    assert.deepEqual((await db.select().from(patientsTable)
+      .where(eq(patientsTable.id, clinicalPatient.id)))[0], beforePatient);
+    const [unchangedReceipt] = await db.select().from(saasReceiptsTable)
+      .where(eq(saasReceiptsTable.id, priorReceipt.id));
+    assert.equal(unchangedReceipt.collaboratorId, null);
+    assert.equal(unchangedReceipt.commissionPercentSnapshot, null);
+    assert.equal(unchangedReceipt.commissionAmount, null);
   });
 
   test("linking a professional preserves the entire user row and clinical access, while dashboards stay isolated", async () => {

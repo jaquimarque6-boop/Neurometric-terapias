@@ -52,6 +52,24 @@ export interface ReferralValidity {
   code: string;
 }
 
+export interface UserReferralAttribution {
+  code: string;
+  createdAt: string;
+}
+
+export interface UserReferralAttributionDetails {
+  attribution: UserReferralAttribution | null;
+  activeCodes: string[];
+}
+
+export interface UserReferralAttributionInput {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  code: string;
+}
+
 export interface Collaborator {
   id: number;
   userId: number;

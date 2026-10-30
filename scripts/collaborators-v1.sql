@@ -15,9 +15,12 @@ CREATE TABLE referral_attributions (
  professional_user_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE RESTRICT,
  collaborator_id integer NOT NULL REFERENCES collaborators(id) ON DELETE RESTRICT,
  code_used text NOT NULL CHECK (code_used ~ '^[A-Z0-9]{2,32}$'),
- source text NOT NULL CHECK (source IN ('public_register','admin_user_create')),
+ source text NOT NULL CHECK (source IN ('public_register','admin_user_create','admin_manual_assignment')),
  created_by_user_id integer REFERENCES users(id) ON DELETE RESTRICT,
- CONSTRAINT attribution_source_actor CHECK ((source = 'public_register' AND created_by_user_id IS NULL) OR (source = 'admin_user_create' AND created_by_user_id IS NOT NULL)),
+ CONSTRAINT attribution_source_actor CHECK (
+  (source = 'public_register' AND created_by_user_id IS NULL)
+  OR (source IN ('admin_user_create','admin_manual_assignment') AND created_by_user_id IS NOT NULL)
+ ),
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX referral_attributions_collaborator_idx ON referral_attributions(collaborator_id);
