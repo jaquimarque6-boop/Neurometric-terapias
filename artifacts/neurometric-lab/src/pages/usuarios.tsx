@@ -359,6 +359,7 @@ export default function Usuarios() {
         : info);
       setEditReferralDraft(data.code);
       setEditReferralCheck({ userId, code: data.code, status: "valid" });
+      invalidateCommercial();
       toast({ title: "Código de referido asignado", description: data.code });
     } catch {
       toast({ title: "Error de conexión al asignar el código", variant: "destructive" });

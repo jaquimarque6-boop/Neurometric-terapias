@@ -13,7 +13,6 @@ import {
   attributeReferral,
   changeCommercialStatus,
   normalizeCode,
-  validCode,
 } from "../lib/collaborators";
 import { referralAttributionsTable, saasStatusEventsTable } from "@workspace/db/schema";
 import { commercialFields, commercialSnapshot, commercialRevision, logCommercialChange } from "../lib/commercial-service";
@@ -279,10 +278,6 @@ router.put("/users/:id/referral-attribution", async (req, res): Promise<void> =>
   }
 
   const code = normalizeCode(body.data.code);
-  if (!validCode(code)) {
-    res.status(400).json({ error: "Código de referido inválido o inactivo" });
-    return;
-  }
 
   let result: {
     state: "created" | "unchanged" | "conflict" | "not_found";

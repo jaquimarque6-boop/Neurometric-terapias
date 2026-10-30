@@ -200,7 +200,7 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
     const codeSalt = `${process.pid}${Date.now()}`;
     const assignmentCodeA = `RA${codeSalt}`.slice(0, 30);
     const assignmentCodeB = `RB${codeSalt}`.slice(0, 30);
-    await db.insert(collaboratorsTable).values([
+    const [manualCollaboratorA] = await db.insert(collaboratorsTable).values([
       {
         userId: collaboratorA.id, name: "Manual referral A", country: "Test",
         code: assignmentCodeA, commissionPercent: "40.00", active: true,
@@ -209,7 +209,7 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
         userId: collaboratorB.id, name: "Manual referral B", country: "Test",
         code: assignmentCodeB, commissionPercent: "25.00", active: true,
       },
-    ]);
+    ]).returning();
     const [clinicalPatient] = await db.insert(patientsTable).values({
       name: `${prefix}-manual-referral-patient`,
       assignedProfessionalId: professional.id,
@@ -248,6 +248,11 @@ if (!devOptIn && (!url || !/collaborator.*test|test.*collaborator/i.test(new URL
       .where(eq(referralAttributionsTable.professionalUserId, professional.id));
     assert.equal(attribution.source, "admin_manual_assignment");
     assert.equal(attribution.createdByUserId, primaryAdmin.id);
+
+    const panel = await request("GET", `/collaborators/${manualCollaboratorA.id}/dashboard`, primaryAdmin);
+    assert.equal(panel.status, 200, JSON.stringify(panel.body));
+    assert.equal(panel.body.code, assignmentCodeA);
+    assert.equal(panel.body.referrals, 1, "the assigned professional appears in the collaborator's existing referrals panel");
 
     const retry = await request("PUT", `/users/${professional.id}/referral-attribution`, primaryAdmin, {
       code: assignmentCodeA,
